@@ -1,0 +1,23 @@
+---
+# Debian/Ubuntu (apache2)
+- name: Reload apache2 via systemd (Debian/Ubuntu)
+  listen: Reload Apache
+  ansible.builtin.service:
+    name: apache2
+    state: reloaded
+  ignore_errors: true
+
+# RHEL/Fedora (httpd)
+- name: Reload httpd via systemd (RHEL/Fedora)
+  listen: Reload Apache
+  ansible.builtin.service:
+    name: httpd
+    state: reloaded
+  ignore_errors: true
+
+# Fallback for source-built httpd / no systemd
+- name: Fallback graceful reload via command
+  listen: Reload Apache
+  ansible.builtin.command: "{{ apache_reload_cmd | default('/usr/local/apache2/bin/httpd -k graceful') }}"
+  changed_when: true
+

@@ -1,0 +1,54 @@
+services:
+  apacheWebServer:
+    ports:
+      - "0.0.0.0:443:443"
+    build:
+      context: "./apache"
+      dockerfile: Dockerfile
+      args:
+        BLUE_GREEN: "{{ blue_green | default('false') }}"
+    image: ubuntu22.04apache-img:1.00
+    env_file:
+      - ./apache/externalConfigs/.env
+    container_name: apacheWebServer
+    restart: unless-stopped
+    dns:
+      - 127.0.0.11
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - "/home/{{ ansible_user }}/audio:/var/www/html/audio"
+      - "/home/{{ ansible_user }}/video:/var/www/html/video"
+      - "{{ gighive_htpasswd_host_path }}:{{ gighive_htpasswd_path }}:rw"
+      - "{{ docker_dir }}/apache/externalConfigs/apache2.conf:/etc/apache2/apache2.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/ports.conf:/etc/apache2/ports.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf:/etc/apache2/sites-available/default-ssl.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/logging.conf:/etc/apache2/conf-available/logging.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/php-fpm.conf:/etc/apache2/conf-available/php-fpm.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/www.conf:/etc/php/8.1/fpm/pool.d/www.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/apache2-logrotate.conf:/etc/logrotate.d/apache2:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/entrypoint.sh:/entrypointapache.sh:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/openssl_san.cnf:/etc/ssl/openssl_san.cnf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/modsecurity.conf:/etc/modsecurity/modsecurity.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/crs/crs-setup.conf:/etc/modsecurity/crs-setup.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/crs/rules:/etc/modsecurity/crs/rules:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/security2.conf:/etc/apache2/mods-available/security2.conf:ro"
+    entrypoint: ["/entrypointapache.sh"]
+
+  mysqlServer:
+    image: mysql:8.0
+    container_name: mysqlServer
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    env_file:
+      - ./mysql/externalConfigs/.env.mysql
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - "{{ docker_dir }}/mysql/externalConfigs/prepped_csvs/{{ 'full' if database_full | bool else 'sample' }}:/var/lib/mysql-files/"
+      - "{{ docker_dir }}/mysql/externalConfigs/create_music_db.sql:/docker-entrypoint-initdb.d/00-create_music_db.sql"
+      - "{{ docker_dir }}/mysql/externalConfigs/load_and_transform.sql:/docker-entrypoint-initdb.d/01-load_and_transform.sql"
+      - "{{ docker_dir }}/mysql/externalConfigs/z-custommysqld.cnf:/etc/mysql/mysql.conf.d/z-custommysqld.cnf"
+
+volumes:
+  mysql_data:

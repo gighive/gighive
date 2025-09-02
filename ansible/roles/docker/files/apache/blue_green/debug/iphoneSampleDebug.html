@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>iOS Audio Debug with Loop</title>
+</head>
+<body>
+    <button id="playAudio">Play Audio (Loop 5 Times)</button>
+    <script>
+		alert("Script loaded and running!");
+		window.onerror = function (message, source, lineno, colno, error) {
+	    console.error("Global error captured:", message, "at", source, "line", lineno, "column", colno);
+    if (error) console.error("Error details:", error);
+};
+		console.log("Script loaded and running!");
+		console.warn("Script loaded and running!");
+		console.error("This is an error log to check visibility!");
+
+		const soundEffect = new Audio();
+		soundEffect.autoplay = true;
+
+		// onClick of first interaction on page before I need the sounds
+		// (This is a tiny MP3 file that is silent and extremely short - retrieved from https://bigsoundbank.com and then modified)
+		soundEffect.src = "data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV";
+
+		// later on when you actually want to play a sound at any point without user interaction
+		//soundEffect.src = 'path/to/file.mp3';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            let audioContext; // Declare the AudioContext here
+            let sourceNode;
+            let audioBuffer; // Hold the decoded audio data
+            let loopCount = 0; // Track the number of loops
+            const maxLoops = 5; // Maximum number of loops
+
+            const playButton = document.getElementById('playAudio');
+            if (!playButton) {
+                console.error("Button with ID 'playAudio' not found in the DOM.");
+                return;
+            }
+
+            playButton.addEventListener('click', async () => {
+                if (!audioContext) {
+                    console.log("Creating AudioContext...");
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                if (audioContext.state === 'suspended') {
+                    console.log("Resuming AudioContext...");
+                    await audioContext.resume();
+                }
+
+                // Fetch and decode the audio file if not already loaded
+                if (!audioBuffer) {
+      try {
+    console.log("Fetching audio file...");
+    const response = await fetch('/audio/loops/SoundHelix-Reencoded.m4a');
+
+    if (!response.ok) {
+        throw new Error(`Unexpected response status: ${response.status}`);
+    }
+
+    console.log("Audio file fetched successfully.");
+    const arrayBuffer = await response.arrayBuffer();
+    console.log("Audio file converted to ArrayBuffer.");
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    console.log("AudioBuffer decoded successfully.");
+
+    // Play the audio
+    const sourceNode = audioContext.createBufferSource();
+    sourceNode.buffer = audioBuffer;
+    sourceNode.connect(audioContext.destination);
+    sourceNode.start(0);
+    console.log("Audio playback started.");
+} catch (error) {
+    console.error("Error fetching or decoding audio file:", error);
+}
+                }
+
+                // Play the audio and loop it 5 times
+                function playAudio() {
+                    sourceNode = audioContext.createBufferSource();
+                    sourceNode.buffer = audioBuffer;
+                    sourceNode.connect(audioContext.destination);
+                    sourceNode.loop = false; // We'll handle looping manually
+
+                    sourceNode.onended = () => {
+                        loopCount++;
+                        console.log(`Loop count: ${loopCount}/${maxLoops}`);
+                        if (loopCount < maxLoops) {
+                            playAudio(); // Play the next loop
+                        } else {
+                            console.log("Playback completed after 5 loops.");
+                        }
+                    };
+
+                    sourceNode.start(0);
+                    console.log(`Playing audio (Loop ${loopCount + 1} of ${maxLoops})...`);
+                }
+
+                // Reset loop count and start playback
+                loopCount = 0;
+                playAudio();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# Template: dbRestore.sh.j2
+# Purpose: Restore MySQL from the **latest** comprehensive gzip dump
+# - Reads container/db/credentials from {{ mysql_env_file }}
+# - Looks for backups in {{ mysql_backups_dir }}
+# Usage:
+#   ./dbRestore.sh                         # restore from latest file (asks to confirm)
+#   ./dbRestore.sh -y                      # restore from latest file (no prompt)
+#   ./dbRestore.sh -f /path/backup.sql.gz  # restore from specific file (asks to confirm)
+#   ./dbRestore.sh -y -f /path/backup.sql.gz
+
+set -Eeuo pipefail
+umask 027
+trap 'rc=$?; echo "$(date -Is) ERROR: unexpected failure (exit $rc)"; exit $rc' ERR
+
+YES=0
+SPEC_FILE=""
+
+usage() {
+  cat <<'USAGE'
+Restore MySQL from a compressed dump produced by dbDump.sh
+
+Options:
+  -y, --yes            do not prompt for confirmation
+  -f, --file FILE      restore from this specific .sql.gz file
+  -h, --help           show this help
+
+Reads DB/container credentials from .env.mysql (via mysql_env_file var).
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -y|--yes) YES=1; shift;;
+    -f|--file) SPEC_FILE="${2:-}"; shift 2;;
+    -h|--help) usage; exit 0;;
+    *) echo "Unknown option: $1" >&2; usage; exit 1;;
+  esac
+done
+
+# --- Load env (.env.mysql) ---
+ENV_FILE="{{ mysql_env_file }}"
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "ERROR: Env file not found: $ENV_FILE" >&2
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+
+CONTAINER="${DB_HOST:-}"
+DB_NAME="${MYSQL_DATABASE:-}"
+
+if [[ -z "$CONTAINER" ]]; then
+  echo "ERROR: DB_HOST not set in $ENV_FILE" >&2
+  exit 1
+fi
+if [[ -z "$DB_NAME" ]]; then
+  echo "ERROR: MYSQL_DATABASE not set in $ENV_FILE" >&2
+  exit 1
+fi
+
+# Credentials: prefer root if available
+if [[ -n "${MYSQL_ROOT_PASSWORD:-}" ]]; then
+  DB_USER="root"
+  DB_PASSWORD="$MYSQL_ROOT_PASSWORD"
+elif [[ -n "${MYSQL_USER:-}" && -n "${MYSQL_PASSWORD:-}" ]]; then
+  DB_USER="$MYSQL_USER"
+  DB_PASSWORD="$MYSQL_PASSWORD"
+else
+  echo "ERROR: No usable credentials found in $ENV_FILE (need MYSQL_ROOT_PASSWORD or MYSQL_USER + MYSQL_PASSWORD)" >&2
+  exit 1
+fi
+
+# --- Preconditions ---
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: docker not found in PATH" >&2
+  exit 1
+fi
+
+# Escape the Docker Go-template braces so Jinja won't parse them
+if [[ "$(
+  docker inspect -f '{% raw %}{{.State.Running}}{% endraw %}' "$CONTAINER" 2>/dev/null || true
+)" != "true" ]]; then
+  echo "ERROR: container '$CONTAINER' is not running (or not found)" >&2
+  exit 1
+fi
+
+BACKUPS_DIR="{{ mysql_backups_dir }}"
+if [[ ! -d "$BACKUPS_DIR" ]]; then
+  echo "ERROR: backups directory not found: $BACKUPS_DIR" >&2
+  exit 1
+fi
+
+# --- Pick backup file ---
+if [[ -n "$SPEC_FILE" ]]; then
+  BACKUP_FILE="$SPEC_FILE"
+else
+  BACKUP_FILE="$(ls -1t -- "$BACKUPS_DIR/${DB_NAME}_"*.sql.gz 2>/dev/null | head -n1 || true)"
+fi
+
+if [[ -z "${BACKUP_FILE:-}" || ! -f "$BACKUP_FILE" ]]; then
+  echo "ERROR: no backup file found (looked for '$BACKUPS_DIR/${DB_NAME}_*.sql.gz')" >&2
+  exit 1
+fi
+
+# Quick integrity check
+if ! gzip -t "$BACKUP_FILE" 2>/dev/null; then
+  echo "ERROR: gzip integrity check failed for $BACKUP_FILE" >&2
+  exit 1
+fi
+
+echo "Selected backup: $BACKUP_FILE"
+echo "Container: $CONTAINER"
+echo "Database:  $DB_NAME"
+echo "User:      $DB_USER"
+
+if [[ $YES -ne 1 ]]; then
+  read -rp "This will restore into container '$CONTAINER' and overwrite tables in '$DB_NAME'. Continue? [y/N] " ans
+  if [[ ! "$ans" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 1
+  fi
+fi
+
+echo "$(date -Is) START: restoring $DB_NAME from $BACKUP_FILE into $CONTAINER"
+
+# Dumps were created with --databases $DB_NAME, so they contain CREATE DATABASE/USE.
+# Feed the SQL directly without -D.
+if zcat -- "$BACKUP_FILE" | docker exec -e MYSQL_PWD="$DB_PASSWORD" -i "$CONTAINER" \
+  mysql -u"$DB_USER" --default-character-set=utf8mb4
+then
+  echo "$(date -Is) OK: restore complete from $BACKUP_FILE"
+else
+  rc=$?
+  echo "$(date -Is) ERROR: restore failed (exit $rc)"
+  exit $rc
+fi
+

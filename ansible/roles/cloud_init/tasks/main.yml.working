@@ -1,0 +1,337 @@
+# roles/cloud_init/tasks/main.yml
+
+# ========== PREREQS ==========
+- name: Ensure ISO tools present on control
+  become: yes
+  delegate_to: localhost
+  run_once: true
+  package:
+    name:
+      - genisoimage
+      - cloud-image-utils
+    state: present
+
+- name: Init primary_mac fact
+  set_fact:
+    primary_mac: ""
+
+# ========== MEDIA PREP ==========
+- name: Ensure cloud image VMDK is present
+  stat:
+    path: "{{ cloud_image_vmdk }}"
+  register: vmdk_stat
+
+- name: Download Ubuntu cloud image if missing
+  get_url:
+    url: "{{ cloud_image_url }}"
+    dest: "{{ cloud_image_vmdk }}"
+    mode: "0644"
+  when: not vmdk_stat.stat.exists
+
+- name: Convert VMDK to VDI
+  command: >
+    VBoxManage clonemedium disk "{{ cloud_image_vmdk }}"
+    "{{ cloud_image_vdi }}" --format VDI
+  args:
+    creates: "{{ cloud_image_vdi }}"
+
+# ========== VM LIFECYCLE ==========
+- name: (Optional) Nuke the VM
+  command: VBoxManage unregistervm "{{ vm_name }}" --delete
+  when: build_fresh_vm | default(false)
+  ignore_errors: true
+
+- name: Check if VM exists
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vm_query
+  changed_when: false
+  failed_when: false
+
+- name: Flag vm_exists
+  set_fact:
+    vm_exists: "{{ vm_query.rc == 0 }}"
+
+- name: Create & register VM if missing
+  command: >
+    VBoxManage createvm --name "{{ vm_name }}"
+    --ostype Ubuntu_64 --register
+  when: not vm_exists
+
+- name: Gather VM info
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vm_info
+  changed_when: false
+  failed_when: false
+
+- name: Power off VM if running
+  command: VBoxManage controlvm "{{ vm_name }}" poweroff
+  when: vm_info.stdout.find('VMState="poweroff"') == -1
+  ignore_errors: true
+
+- name: Wait for VM to reach poweroff state
+  shell: |
+    until VBoxManage showvminfo "{{ vm_name }}" --machinereadable | grep -q '^VMState="poweroff"$'; do
+      sleep 1
+    done
+
+# ========== FORCE NIC1 TO BRIDGED + VIRTIO ==========
+- name: Detect host default route interface
+  delegate_to: localhost
+  command:
+    argv:
+      - bash
+      - -lc
+      - ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if ($i=="dev"){print $(i+1); exit}}'
+  register: default_iface
+  changed_when: false
+  failed_when: false
+
+- name: Normalize default iface
+  set_fact:
+    bridge_iface_resolved: "{{ (default_iface.stdout | default('')) | trim }}"
+
+- name: Configure NIC1 as BRIDGED virtio
+  delegate_to: localhost
+  command:
+    argv:
+      - VBoxManage
+      - modifyvm
+      - "{{ vm_name }}"
+      - --nic1
+      - bridged
+      - --bridgeadapter1
+      - "{{ bridge_iface_resolved }}"
+      - --nictype1
+      - virtio
+
+# ========== STORAGE ==========
+- name: Ensure SATA controller exists
+  shell: |
+    if ! VBoxManage showvminfo "{{ vm_name }}" --machinereadable | grep -Eq 'storagecontrollername[0-9]+="SATA Controller"'; then
+      VBoxManage storagectl "{{ vm_name }}" --name "SATA Controller" --add sata --controller IntelAhci
+    fi
+
+- name: Attach VDI disk
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+    --storagectl "SATA Controller"
+    --port 0 --device 0 --type hdd --medium "{{ cloud_image_vdi }}"
+  args:
+    creates: "{{ cloud_image_vdi }}"
+
+- name: Detach VDI before resizing
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+    --storagectl "SATA Controller"
+    --port 0 --device 0 --medium none
+  when: vm_exists
+
+- name: Resize VDI disk
+  delegate_to: localhost
+  command: >
+    VBoxManage modifymedium disk "{{ cloud_image_vdi }}" --resize {{ disk_size_mb }}
+
+- name: Reattach resized VDI
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+    --storagectl "SATA Controller"
+    --port 0 --device 0 --type hdd --medium "{{ cloud_image_vdi }}"
+
+# ========== CAPTURE MAC ==========
+- name: Read NIC info from VirtualBox (machine-readable)
+  delegate_to: localhost
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vminfo
+  changed_when: false
+  failed_when: false
+
+# Parse macaddress1 line without plugins; ensure STRING (not list)
+- name: Extract macaddress1 line
+  set_fact:
+    mac_line: "{{ (vminfo.stdout_lines | select('search', '^macaddress1=') | list | first | default('')) }}"
+
+- name: Ensure macaddress1 was found
+  assert:
+    that:
+      - mac_line != ''
+    fail_msg: "Could not find macaddress1 in VBoxManage output."
+
+- name: Extract primary MAC raw hex (quotes stripped, lowercased)
+  set_fact:
+    primary_mac_raw: "{{ mac_line.split('=')[1] | replace('\"', '') | lower }}"
+
+# Format into colon-separated octets (core filter only)
+- name: Format MAC address into colon-separated form
+  set_fact:
+    primary_mac: "{{ primary_mac_raw | regex_replace('(..)(?!$)', '\\1:') }}"
+
+- name: Show resolved primary_mac
+  debug:
+    msg: "primary_mac resolved to {{ primary_mac }}"
+
+# ========== SEED RENDERING ==========
+- name: Ensure seed directory exists
+  file:
+    path: "{{ cloud_image_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Validate MAC looks sane
+  assert:
+    that:
+      - primary_mac is match('^([0-9a-f]{2}:){5}[0-9a-f]{2}$')
+    fail_msg: "Could not parse macaddress1 from VBoxManage output. Got: '{{ primary_mac_raw | default(\"<none>\") }}'"
+
+- name: Normalize CIDR suffix if not present
+  set_fact:
+    cidr_ip: "{{ static_ip if '/' in static_ip else static_ip ~ '/24' }}"
+
+- name: Render cloud-init network-config (netplan v2)
+  copy:
+    dest: "{{ cloud_image_dir }}/network-config"
+    mode: "0644"
+    content: |
+      version: 2
+      ethernets:
+        nic0:
+          match:
+            macaddress: "{{ primary_mac }}"
+            driver: virtio_net
+          set-name: eth0
+          dhcp4: false
+          dhcp6: false
+          addresses:
+            - "{{ cidr_ip }}"
+          routes:
+            - to: default
+              via: "{{ gateway }}"
+          nameservers:
+            addresses: [{{ nameservers | join(', ') }}]
+
+# Your requested cloud-init files
+- name: Create cloud-init user-data file
+  become: yes
+  copy:
+    dest: "{{ cloud_image_dir }}/user-data"
+    content: |
+      #cloud-config
+      # yamllint disable rule:line-length
+      ---
+      package_update: true
+      packages:
+        - cloud-guest-utils
+        - e2fsprogs
+
+      growpart:
+        mode: auto
+        devices:
+          - "/"
+        ignore_growroot_disabled: false
+      resize_rootfs: true
+
+      hostname: "{{ hostname }}"
+      fqdn: "{{ hostname }}.mysettings.com"
+
+      users:
+        - name: ubuntu
+          shell: /bin/bash
+          sudo: ALL=(ALL) NOPASSWD:ALL
+          groups: sudo
+          lock_passwd: false
+          ssh_authorized_keys:
+            - "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+
+      ssh_pwauth: false
+
+      chpasswd:
+        expire: false
+        list:
+          - ubuntu:yoboiboi
+
+      write_files:
+        - path: /etc/hosts
+          permissions: "0644"
+          content: |
+            127.0.0.1 localhost
+            {{ static_ip }} {{ hostname }}.mysettings.com {{ hostname }}
+          append: true
+
+      runcmd:
+        - [ "usermod", "--shell", "/bin/bash", "{{ ansible_user }}" ]
+        - [ "hostnamectl", "set-hostname", "{{ hostname }}" ]
+        - [ "growpart", "/dev/sda", "1" ]
+        - [ "resize2fs", "/dev/sda1" ]
+        - [ "systemctl", "enable", "--now", "ssh" ]
+        - [ "sed", "-i", "s/^#\\?PasswordAuthentication.*/PasswordAuthentication no/", "/etc/ssh/sshd_config" ]
+        - [ "sed", "-i", "s/^#\\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/", "/etc/ssh/sshd_config" ]
+        - [ "sed", "-i", "s/^#\\?PermitRootLogin.*/PermitRootLogin no/", "/etc/ssh/sshd_config" ]
+        - [ "systemctl", "restart", "ssh" ]
+
+- name: Create cloud-init meta-data file
+  become: yes
+  copy:
+    dest: "{{ cloud_image_dir }}/meta-data"
+    content: |
+      ---
+      instance-id: {{ vm_name }}
+      local-hostname: {{ vm_name }}
+
+# ========== VALIDATION ==========
+- name: Parse network-config as YAML
+  vars:
+    netcfg_path: "{{ cloud_image_dir }}/network-config"
+  set_fact:
+    netcfg_parsed: "{{ lookup('file', netcfg_path) | from_yaml }}"
+
+- name: Assert static network-config schema
+  assert:
+    that:
+      - netcfg_parsed.version == 2
+      - "'ethernets' in netcfg_parsed"
+      - netcfg_parsed.ethernets.nic0.addresses | length > 0
+      - "'routes' in netcfg_parsed.ethernets.nic0"
+      - "'nameservers' in netcfg_parsed.ethernets.nic0"
+    fail_msg: "network-config missing required static keys."
+
+- name: Parse user-data as YAML
+  vars:
+    userdata_path: "{{ cloud_image_dir }}/user-data"
+  set_fact:
+    userdata_parsed: "{{ lookup('file', userdata_path) | from_yaml }}"
+
+- name: Assert user-data has hostname and users
+  assert:
+    that:
+      - "'hostname' in userdata_parsed"
+      - "'users' in userdata_parsed"
+
+# ========== ISO + BOOT ==========
+- name: Generate NoCloud ISO
+  become: yes
+  command: >
+    genisoimage -output "{{ nocloud_iso }}"
+    -volid CIDATA -joliet-long -rock
+    "{{ cloud_image_dir }}/user-data"
+    "{{ cloud_image_dir }}/meta-data"
+    "{{ cloud_image_dir }}/network-config"
+
+- name: Attach Cloud-Init ISO
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+    --storagectl "SATA Controller"
+    --port 1 --device 0 --type dvddrive --medium "{{ nocloud_iso }}"
+
+- name: Set VM memory and CPUs
+  command: VBoxManage modifyvm "{{ vm_name }}" --memory 8192 --cpus 8
+
+- name: Start VM headless
+  command: VBoxManage startvm "{{ vm_name }}" --type headless
+  changed_when: false
+
+- name: Wait for SSH availability
+  wait_for:
+    host: "{{ static_ip }}"
+    port: 22
+    delay: 15
+    timeout: 300
+

@@ -1,0 +1,32 @@
+		body { background: black; font-family: arial, geneva, verdana, helvetica, sans-serif; font-size: 8pt; color: white;}
+		td {COLOR: #666600;  font-family: arial, geneva, verdana, helvetica, sans-serif; font-size: 10pt; font-weight: bold;}
+	  	h2 {COLOR: #666600; font-family: verdana, helvetica, geneva, arial;  font-size: 16pt;}
+	  	h3 {COLOR: #666600; font-family: verdana, helvetica, geneva, arial;  font-size: 14pt;}
+	  	h4 {COLOR: #666600; font-family: verdana, helvetica, geneva, arial;  font-size: 12pt;}
+	  	.title {COLOR: #666600; font-family: verdana, helvetica, geneva, arial;  font-size: 24pt; font-weight: bold;}
+	  	.pageHeading {COLOR: #666600; font-family: verdana, helvetica, geneva, arial;  font-size: 9pt;}
+	  	.pageText {COLOR: #6630dd; font-family: verdana, helvetica, geneva, arial;  font-size: 8pt;}
+	  	.footer {COLOR: #666600; font-family: verdana, helvetica, geneva, arial;  font-size: 5pt; text-transform: uppercase;}
+	  	.center {margin-left: auto; margin-right: auto;}
+		a { font-size: 9pt; font-family: arial, geneva, verdana, helvetica; font-style: italic; }
+		a:link		{ COLOR: #6630dd; }
+		a:visited	{ COLOR: #6630dd; }
+		a:active	{ COLOR: #6630dd; }
+		a:hover		{ COLOR: #FFD74D; }
+		button {
+    		background-color: #007BFF;
+    		background-color: #6630dd;
+    		color: #ffdd00;
+    		border: none;
+    		padding: 5px 8px;
+    		font-size: 9px;
+    		font-weight: bold;
+    		cursor: pointer;
+    		border-radius: 5px;
+    		position: relative;
+    		z-index: 10; /* Ensure the button is above any overlapping elements */
+    		cursor: pointer; /* Show a pointer to indicate clickability */
+		}
+    	button:hover {
+    	    background-color: #0056b3;
+    	}

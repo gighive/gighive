@@ -1,0 +1,113 @@
+---
+# roles/validate_app/tasks/main.yml
+
+- name: Install ping and netcat in Apache container
+  ansible.builtin.command:
+    cmd: docker exec apacheWebServer bash -c "apt update && apt install -y iputils-ping netcat"
+  register: install_tools
+  changed_when: false
+
+- name: Verify restart policy of Apache and MySQL containers
+  ansible.builtin.command:
+    cmd: docker inspect -f '{% raw %}{{ .HostConfig.RestartPolicy.Name }}{% endraw %}' apacheWebServer mysqlServer
+  register: restart_policy
+  changed_when: false
+
+- name: Display Restart Policy Result
+  ansible.builtin.debug:
+    msg: "{{ restart_policy.stdout_lines }}"
+
+- name: Read MySQL root password from .env.mysql
+  ansible.builtin.slurp:
+    src: "{{ configs_dir }}/.env.mysql"
+  register: env_file
+
+- name: Extract MYSQL_ROOT_PASSWORD from env file
+  set_fact:
+    mysql_root_password: "{{ (env_file.content | b64decode).splitlines() | select('search', '^MYSQL_ROOT_PASSWORD=') | map('regex_replace', '^MYSQL_ROOT_PASSWORD=', '') | list | first }}"
+
+- name: Wait for MySQL inside container to become ready
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -e
+      - MYSQL_PWD={{ mysql_root_password }}
+      - mysqlServer
+      - mysqladmin
+      - ping
+      - -h127.0.0.1
+      - -uroot
+      - --silent
+  register: ping_result
+  changed_when: false
+  until: ping_result.rc == 0
+  retries: 60        # try up to 2 minutes total
+  delay: 2
+  no_log: true       # masks args/stdout/stderr in Ansible output
+
+- name: Run SQL script from external file and display output
+  ansible.builtin.shell: |
+    echo "Running SQL script..."
+    docker exec -i mysqlServer mysql -uroot -p{{ mysql_root_password }} -D music_db < "{{ dbscripts_dir }}/select.sql"
+  register: sql_output
+  changed_when: false
+
+- name: Show SQL result
+  ansible.builtin.debug:
+    msg: "{{ sql_output.stdout_lines }}"
+
+- name: Ensure web root exists
+  ansible.builtin.stat:
+    path: "{{ web_root }}"
+  register: web_root_status
+
+- name: Fail if web root is missing
+  ansible.builtin.fail:
+    msg: "Web root directory {{ web_root }} does not exist on remote host."
+  when: not web_root_status.stat.exists
+
+- name: Check that index.php exists and is readable
+  ansible.builtin.stat:
+    path: "{{ web_root }}/index.php"
+  register: index_status
+
+- name: Fail if index.php is missing or unreadable
+  ansible.builtin.fail:
+    msg: "index.php is missing or not readable in {{ web_root }}"
+  when: not index_status.stat.exists or not index_status.stat.readable
+
+- name: Check ownership and mode of web root
+  ansible.builtin.stat:
+    path: "{{ web_root }}"
+  register: perms
+
+- name: Warn if web root is not owned by ansible_user:www-data or not mode 0775
+  ansible.builtin.debug:
+    msg: "Ownership or permissions might block Apache: Owner={{ perms.stat.pw_name }}, Group={{ perms.stat.gr_name }}, Mode={{ perms.stat.mode }}"
+  when: perms.stat.pw_name != ansible_user or perms.stat.gr_name != 'www-data' or perms.stat.mode != '0775'
+
+- name: Check for required PHP files in web root
+  ansible.builtin.find:
+    paths: "{{ web_root }}"
+    patterns:
+      - index.php
+      - robots.txt
+    recurse: no
+  register: file_check
+
+- name: Warn if required PHP files are missing
+  ansible.builtin.debug:
+    msg: "Expected files missing: index.php and robots.txt"
+  when: file_check.matched < 2
+
+- name: Run curl smoke test inside Apache container
+  ansible.builtin.shell: |
+    docker exec apacheWebServer curl -sk https://localhost/
+  register: curl_test
+  ignore_errors: yes
+
+- name: Show homepage curl result
+  debug:
+    var: curl_test.stdout_lines
+

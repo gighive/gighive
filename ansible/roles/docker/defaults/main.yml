@@ -1,0 +1,25 @@
+---
+# roles/docker/defaults/main.yml
+
+# prereqs for adding the Docker repo
+docker_prereq_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - software-properties-common
+
+docker_apt_key_url: https://download.docker.com/linux/ubuntu/gpg
+
+# this will auto-adapt to focal, jammy, bionic, etc.
+docker_apt_repo: >
+  deb [arch=amd64] https://download.docker.com/linux/ubuntu
+  {{ ansible_lsb.codename }} stable
+
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-compose-plugin
+

@@ -1,0 +1,101 @@
+---
+- name: "1/6) Add Microsoft 'packages-microsoft-prod' repo for blobfuse2"
+  block:
+    - name: Determine distro codename
+      ansible.builtin.set_fact:
+        ms_repo_version: "{{ ansible_distribution_version }}"
+
+    - name: Download Microsoft product repository package
+      ansible.builtin.get_url:
+        url: "https://packages.microsoft.com/config/ubuntu/{{ ms_repo_version }}/packages-microsoft-prod.deb"
+        dest: "/tmp/packages-microsoft-prod.deb"
+        mode: "0644"
+
+    - name: Install Microsoft product repository
+      ansible.builtin.apt:
+        deb: "/tmp/packages-microsoft-prod.deb"
+        update_cache: yes
+  become: yes
+
+- name: "2/6) Ensure blobfuse2 & dependencies are installed"
+  ansible.builtin.apt:
+    name:
+      - blobfuse2
+      - fuse3
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: "3/6) Create mount and tmp directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0777"
+  loop:
+    - "{{ media_path }}"
+    - "{{ tmp_path }}"
+  become: yes
+
+- name: "4/6) Get storage account key via Azure CLI"
+  ansible.builtin.command: >
+    az storage account keys list
+      --resource-group {{ storage_rg }}
+      --account-name  {{ storage_account_name }}
+      --query "[0].value"
+      -o tsv
+  register: storage_key_cli
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: "5/6) Render blobfuse2 config"
+  ansible.builtin.template:
+    src: blobfuse2-config.yaml.j2
+    dest: /etc/blobfuse2-config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    storage_account_key: "{{ storage_key_cli.stdout }}"
+  become: yes
+
+- name: "6a/6) Ensure blobfuse2 is mounted (idempotent)"
+  ansible.builtin.command: >
+    blobfuse2 mount {{ media_path }}
+      --config-file=/etc/blobfuse2-config.yaml
+      --tmp-path={{ tmp_path }}
+      --container-name={{ blob_container_name }}
+      --allow-other
+  args:
+    creates: "{{ media_path }}/.fuse_connection"    # pick a file or dir blobfuse always makes
+  become: yes
+  ignore_errors: true
+
+- name: "6b/6) Add blobfuse2 entry to /etc/fstab"
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^blobfuse2\s+{{ media_path }}'
+    line: >-
+      blobfuse2 {{ media_path }} fuse
+      config-file=/etc/blobfuse2-config.yaml,tmp-path={{ tmp_path }},allow_other,_netdev,attr_timeout=240,entry_timeout=240,negative_timeout=120 0 0
+    state: present
+  become: yes
+
+- name: Ensure www-data can write media
+  ansible.builtin.file:
+    path: "{{ media_path }}"
+    owner: www-data
+    group: www-data
+    recurse: yes
+  become: yes
+
+- name: Dump blobfuse2 config for inspection
+  ansible.builtin.shell: cat /etc/blobfuse2-config.yaml
+  register: blob_cfg
+  changed_when: false
+  become: yes
+
+- name: Show config contents
+  ansible.builtin.debug:
+    var: blob_cfg.stdout_lines
+

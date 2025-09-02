@@ -1,0 +1,13 @@
+modsec_conf_path: "{{ docker_dir }}/apache/externalConfigs/modsecurity.conf"
+modsec_limits:
+  request_body_limit: 26214400
+  request_body_nofiles_limit: 131072
+  request_body_inmemory_limit: 1048576
+crs_enable: false
+crs_setup_path: /etc/modsecurity/crs/crs-setup.conf
+crs_rules_path: /etc/modsecurity/crs/rules/*.conf
+
+# Where to write the include in apache2.conf (Option B)
+apache2_conf_path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
+apache2_modsec_block_id: "managed-by-ansible-modsecurity"
+

@@ -1,0 +1,6 @@
+---
+# defaults/main.yml
+
+# Role defaults: ensure variables exist even if top-level play doesn't define them.
+root_dir: "{{ ansible_env.HOME | default(lookup('env','HOME')) }}"
+nic_name: eth0

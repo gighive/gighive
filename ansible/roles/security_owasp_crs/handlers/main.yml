@@ -1,0 +1,6 @@
+- name: reload apache
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: ["apachectl", "-k", "graceful"]
+  changed_when: true
+

@@ -1,0 +1,49 @@
+---
+# tasks/poweroff_unlock.yml
+
+- name: Gather VM info (machinereadable)
+  delegate_to: localhost
+  environment:
+    HOME: "{{ root_dir }}"
+    VBOX_USER_HOME: "{{ root_dir }}/.config/VirtualBox"
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vm_info
+  changed_when: false
+  failed_when: false
+
+- name: Power off VM if running
+  delegate_to: localhost
+  environment:
+    HOME: "{{ root_dir }}"
+    VBOX_USER_HOME: "{{ root_dir }}/.config/VirtualBox"
+  command: VBoxManage controlvm "{{ vm_name }}" poweroff
+  when: vm_info.stdout.find('VMState="poweroff"') == -1
+  ignore_errors: true
+
+- name: Wait for VM to reach poweroff state
+  delegate_to: localhost
+  environment:
+    HOME: "{{ root_dir }}"
+    VBOX_USER_HOME: "{{ root_dir }}/.config/VirtualBox"
+  shell: |
+    until VBoxManage showvminfo "{{ vm_name }}" --machinereadable |
+      grep -q '^VMState="poweroff"$'; do
+      sleep 1
+    done
+  changed_when: true
+
+- name: Wait until VM session is unlocked (SessionName == "")
+  delegate_to: localhost
+  environment:
+    HOME: "{{ root_dir }}"
+    VBOX_USER_HOME: "{{ root_dir }}/.config/VirtualBox"
+  shell: |
+    sess=$(VBoxManage showvminfo "{{ vm_name }}" --machinereadable |
+           awk -F= '/^SessionName=/{print $2}')
+    [ -z "$sess" ]
+  register: vbox_unlock_probe
+  changed_when: false
+  retries: 30
+  delay: 1
+  until: vbox_unlock_probe.rc == 0
+

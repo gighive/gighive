@@ -1,0 +1,9 @@
+<IfModule security2_module>
+    # Base ModSecurity config
+    IncludeOptional /etc/modsecurity/modsecurity.conf
+
+    # CRS setup + rules (your Option A paths)
+    IncludeOptional /etc/modsecurity/crs-setup.conf
+    IncludeOptional /etc/modsecurity/crs/rules/*.conf
+</IfModule>
+

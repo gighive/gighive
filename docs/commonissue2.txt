@@ -1,0 +1,73 @@
+Have to delete an old vm..do this:
+
+
+sodo@monstrous:~/gighive$ ./ansible/vdiLockedWriteDelete.sh 
+[INFO] Current VirtualBox HDDs (filtered for the provided UUID/path):
+---
+UUID:           5e4be740-2f9b-4970-a921-dd04c22995e0
+Parent UUID:    base
+State:          inaccessible
+Type:           normal (base)
+Location:       /home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi
+Storage format: VDI
+Capacity:       0 MBytes
+Encryption:     disabled
+---
+
+[INFO] Running VMs (from VBoxManage):
+[INFO] Checking for running VirtualBox processes...
+
+PID      COMMAND              ARGS
+14564    VBoxSVC              /usr/lib/virtualbox/VBoxSVC --auto-shutdown
+
+Kill PID 14564 (VBoxSVC)? [y/n/a=all/q=quit]: y
+[INFO] Killing PID 14564 (VBoxSVC)
+[INFO] Scanning VirtualBox media registry for missing/inaccessible disks…
+
+[WARN] Stale media entry detected in registry
+  UUID:     5e4be740-2f9b-4970-a921-dd04c22995e0
+  Location: /home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi
+  Format:   unknown
+  State:    inaccessible
+[WARN]   Reason:   Reported inaccessible
+Remove this stale entry from the VirtualBox media registry? (runs: VBoxManage closemedium disk 5e4be740-2f9b-4970-a921-dd04c22995e0) [y/N]: y
+[INFO] Running: VBoxManage closemedium disk 5e4be740-2f9b-4970-a921-dd04c22995e0
+VBoxManage: error: Medium '/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi' cannot be closed because it is still attached to 1 virtual machines
+VBoxManage: error: Details: code VBOX_E_OBJECT_IN_USE (0x80bb000c), component MediumWrap, interface IMedium, callee nsISupports
+VBoxManage: error: Context: "Close()" at line 1875 of file VBoxManageDisk.cpp
+[WARN] Failed to remove registry entry for 5e4be740-2f9b-4970-a921-dd04c22995e0
+[INFO] Attempting: VBoxManage closemedium disk de0c2506-0d5b-44d6-903f-fbe325fabc21 --delete
+VBoxManage: error: The given path 'de0c2506-0d5b-44d6-903f-fbe325fabc21' is not fully qualified
+VBoxManage: error: Details: code VBOX_E_FILE_ERROR (0x80bb0004), component MediumWrap, interface IMedium, callee nsISupports
+VBoxManage: error: Context: "OpenMedium(Bstr(pszFilenameOrUuid).raw(), enmDevType, enmAccessMode, fForceNewUuidOnOpen, pMedium.asOutParam())" at line 197 of file VBoxManageDisk.cpp
+[INFO] Attempting (by path): VBoxManage closemedium disk "/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi" --delete
+VBoxManage: error: Cannot delete storage: medium '/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi' is still attached to the following 1 virtual machine(s): 2d5e0d19-5c93-4fd2-9d17-844640d60dbf
+VBoxManage: error: Details: code VBOX_E_OBJECT_IN_USE (0x80bb000c), component MediumWrap, interface IMedium, callee nsISupports
+VBoxManage: error: Context: "DeleteStorage(pProgress.asOutParam())" at line 1866 of file VBoxManageDisk.cpp
+VBoxManage: error: Failed to delete medium. Error code VBOX_E_OBJECT_IN_USE
+VBoxManage: error: Medium '/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi' cannot be closed because it is still attached to 1 virtual machines
+VBoxManage: error: Details: code VBOX_E_OBJECT_IN_USE (0x80bb000c), component MediumWrap, interface IMedium, callee nsISupports
+VBoxManage: error: Context: "Close()" at line 1875 of file VBoxManageDisk.cpp
+[WARN] closemedium with --delete failed. Retrying without delete…
+[INFO] Attempting: VBoxManage closemedium disk de0c2506-0d5b-44d6-903f-fbe325fabc21 
+VBoxManage: error: The given path 'de0c2506-0d5b-44d6-903f-fbe325fabc21' is not fully qualified
+VBoxManage: error: Details: code VBOX_E_FILE_ERROR (0x80bb0004), component MediumWrap, interface IMedium, callee nsISupports
+VBoxManage: error: Context: "OpenMedium(Bstr(pszFilenameOrUuid).raw(), enmDevType, enmAccessMode, fForceNewUuidOnOpen, pMedium.asOutParam())" at line 197 of file VBoxManageDisk.cpp
+[INFO] Attempting (by path): VBoxManage closemedium disk "/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi" 
+VBoxManage: error: Medium '/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi' cannot be closed because it is still attached to 1 virtual machines
+VBoxManage: error: Details: code VBOX_E_OBJECT_IN_USE (0x80bb000c), component MediumWrap, interface IMedium, callee nsISupports
+VBoxManage: error: Context: "Close()" at line 1875 of file VBoxManageDisk.cpp
+[WARN] closemedium without delete also failed.
+[INFO] Attempting: VBoxManage closemedium disk de0c2506-0d5b-44d6-903f-fbe325fabc21 
+VBoxManage: error: The given path 'de0c2506-0d5b-44d6-903f-fbe325fabc21' is not fully qualified
+VBoxManage: error: Details: code VBOX_E_FILE_ERROR (0x80bb0004), component MediumWrap, interface IMedium, callee nsISupports
+VBoxManage: error: Context: "OpenMedium(Bstr(pszFilenameOrUuid).raw(), enmDevType, enmAccessMode, fForceNewUuidOnOpen, pMedium.asOutParam())" at line 197 of file VBoxManageDisk.cpp
+[INFO] Attempting (by path): VBoxManage closemedium disk "/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi" 
+VBoxManage: error: Medium '/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi' cannot be closed because it is still attached to 1 virtual machines
+VBoxManage: error: Details: code VBOX_E_OBJECT_IN_USE (0x80bb000c), component MediumWrap, interface IMedium, callee nsISupports
+VBoxManage: error: Context: "Close()" at line 1875 of file VBoxManageDisk.cpp
+Delete VDI file at '/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi'? [y/N]: y
+[INFO] Deleted /home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi
+[INFO] Done.
+
+sodo@monstrous:~/gighive$ rm -rf ~/VirtualBox\ VMs/gighive/

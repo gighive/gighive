@@ -1,0 +1,16 @@
+---
+# defaults for blobfuse2 role
+
+# Resource group & account
+storage_rg:           gighive-rg
+storage_account_name: gighivemedia01
+blob_container_name:  media
+
+# Mount points
+media_path:           /var/www/media
+tmp_path:             /mnt/blobfusetmp
+
+# Azure API profile to avoid pulling in MSGraph libraries
+# is specific to Azure SDKs and tools like Blobfuse2, and it determines which set of Azure Resource Manager (ARM) APIs should be used when interacting with Azure services.
+api_profile:          "2019-03-01-hybrid"
+

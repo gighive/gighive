@@ -1,0 +1,300 @@
+---
+# Always reset htpasswd by recreating its contents with bcrypt (no temp files),
+# detect read-only mount, and verify immediately.
+#
+# Vars used from group_vars/gighive.yml:
+#   gighive_htpasswd_path: /var/www/private/gighive.htpasswd
+#   gighive_htpasswd_owner: www-data
+#   gighive_htpasswd_group: www-data
+#   gighive_htpasswd_mode: "0640"
+#   admin_user: admin
+#   viewer_user: viewer
+#   gighive_admin_password: "supersecretadmin"
+#   gighive_viewer_password: "supersecretviewer"
+#   gighive_apache_container: apacheWebServer   # optional; if set+exists, verify inside container too
+
+# ===================== HOST: prerequisites =====================
+# --- Option B: Ensure host htpasswd exists and is a regular file (idempotent) ---
+- name: Assert required vars for Basic Auth (host side)
+  ansible.builtin.assert:
+    that:
+      - gighive_htpasswd_host_path is defined
+      - gighive_htpasswd_host_path | length > 0
+      - gighive_admin_password is defined
+      - gighive_admin_password | length > 0
+    fail_msg: >-
+      Missing required variables. Ensure gighive_htpasswd_host_path and gighive_admin_password
+      are defined (use Ansible Vault for the password).
+
+- name: Ensure parent directory for host htpasswd exists
+  ansible.builtin.file:
+    path: "{{ gighive_htpasswd_host_path | dirname }}"
+    state: directory
+    mode: "0750"
+
+# >>> PLACE THE GUARD RIGHT HERE <<<
+- name: Check host htpasswd path (guard)
+  ansible.builtin.stat:
+    path: "{{ gighive_htpasswd_host_path }}"
+  register: ghp
+  # delegate_to/become as above if needed
+
+- name: Fail if host htpasswd path is a directory
+  ansible.builtin.assert:
+    that:
+      - not (ghp.stat.isdir | default(false))
+    fail_msg: >-
+      {{ gighive_htpasswd_host_path }} is a directory; remove it on the host
+      and recreate the container so the bind becomes a regular file.
+# <<< END GUARD >>>
+
+- name: Check host htpasswd path type
+  ansible.builtin.stat:
+    path: "{{ gighive_htpasswd_host_path }}"
+  register: gighive_htp_host
+
+- name: Remove miscreated htpasswd directory on host
+  ansible.builtin.file:
+    path: "{{ gighive_htpasswd_host_path }}"
+    state: absent
+  when: gighive_htp_host.stat.isdir | default(false)
+
+# Ensure bcrypt hashing is available
+- name: Install passlib for htpasswd bcrypt
+  ansible.builtin.package:
+    name: python3-passlib
+    state: present
+  become: true
+
+- name: Create/Update admin user in host htpasswd (bcrypt)
+  community.general.htpasswd:
+    path: "{{ gighive_htpasswd_host_path }}"
+    name: "{{ admin_user | default('admin') }}"
+    password: "{{ gighive_admin_password }}"
+    crypt_scheme: bcrypt
+    owner: "{{ gighive_htpasswd_owner | default('root') }}"
+    group: "{{ gighive_htpasswd_group | default('www-data') }}"
+    mode: "{{ gighive_htpasswd_mode  | default('0640') }}"
+
+- name: Optionally create/update viewer user in host htpasswd (bcrypt)
+  community.general.htpasswd:
+    path: "{{ gighive_htpasswd_host_path }}"
+    name: "{{ viewer_user }}"
+    password: "{{ gighive_viewer_password }}"
+    crypt_scheme: bcrypt
+    owner: "{{ gighive_htpasswd_owner | default('root') }}"
+    group: "{{ gighive_htpasswd_group | default('www-data') }}"
+    mode: "{{ gighive_htpasswd_mode  | default('0640') }}"
+  when:
+    - viewer_user is defined
+    - gighive_viewer_password is defined
+    - (gighive_viewer_password | length) > 0
+
+- name: Validate host htpasswd is a regular file (safety net)
+  ansible.builtin.stat:
+    path: "{{ gighive_htpasswd_host_path }}"
+  register: gighive_htp_host2
+
+- name: Fail if host htpasswd is not a regular file
+  ansible.builtin.assert:
+    that:
+      - gighive_htp_host2.stat.exists | default(false)
+      - gighive_htp_host2.stat.isreg | default(false)
+    fail_msg: >-
+      Expected {{ gighive_htpasswd_host_path }} to be a regular file. Got: {{ gighive_htp_host2.stat }}
+# --- end Option B block ---
+
+- name: Ensure passlib/bcrypt present (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: [python3-passlib, python3-bcrypt]
+    state: present
+    update_cache: yes
+  when: ansible_facts.os_family == 'Debian'
+  become: true
+
+- name: Ensure directory exists for htpasswd (host)
+  ansible.builtin.file:
+    path: "{{ gighive_htpasswd_path | dirname }}"
+    state: directory
+    mode: "0755"
+  become: true
+
+# ===================== HOST: reset to defaults =====================
+- name: Remove existing htpasswd (reset)
+  ansible.builtin.file:
+    path: "{{ gighive_htpasswd_path }}"
+    state: absent
+  become: true
+
+- name: Create htpasswd with admin (bcrypt)
+  ansible.builtin.htpasswd:
+    path: "{{ gighive_htpasswd_path }}"
+    name: "{{ admin_user }}"
+    password: "{{ gighive_admin_password }}"
+    crypt_scheme: bcrypt
+    create: true
+    owner: "{{ gighive_htpasswd_owner }}"
+    group: "{{ gighive_htpasswd_group }}"
+    mode: "{{ gighive_htpasswd_mode }}"
+  become: true
+  no_log: true
+
+- name: Ensure viewer in htpasswd (bcrypt)
+  ansible.builtin.htpasswd:
+    path: "{{ gighive_htpasswd_path }}"
+    name: "{{ viewer_user }}"
+    password: "{{ gighive_viewer_password }}"
+    crypt_scheme: bcrypt
+  become: true
+  no_log: true
+
+# ===================== HOST: verify =====================
+- name: Verify admin (host)
+  ansible.builtin.shell: >
+    htpasswd -vb "{{ gighive_htpasswd_path }}" "{{ admin_user }}" "{{ gighive_admin_password }}"
+  args:
+    executable: /bin/bash
+  register: _v_admin_host
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Verify viewer (host)
+  ansible.builtin.shell: >
+    htpasswd -vb "{{ gighive_htpasswd_path }}" "{{ viewer_user }}" "{{ gighive_viewer_password }}"
+  args:
+    executable: /bin/bash
+  register: _v_viewer_host
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Set verification facts (host)
+  ansible.builtin.set_fact:
+    admin_ok: "{{ (_v_admin_host.rc | default(1)) == 0 }}"
+    viewer_ok: "{{ (_v_viewer_host.rc | default(1)) == 0 }}"
+  changed_when: false
+
+# Check if file exists
+- name: Stat htpasswd (host)
+  ansible.builtin.stat:
+    path: "{{ gighive_htpasswd_path }}"
+  register: ht_stat
+  become: true
+
+# Read file contents safely (don’t log raw secrets)
+- name: Slurp htpasswd (host)
+  ansible.builtin.slurp:
+    path: "{{ gighive_htpasswd_path }}"
+  register: ht_slurp
+  when: ht_stat.stat.exists
+  no_log: true
+  become: true
+
+# Build masked lines (username + first 15 chars of hash)
+- name: Build masked view of htpasswd (host)
+  ansible.builtin.set_fact:
+    htpasswd_masked: >-
+      {{
+        (ht_slurp.content | b64decode).splitlines()
+        | map('regex_replace', '^([^:]+):(.{0,15}).*$', '\\1:\\2...')
+        | list
+      }}
+  when: ht_stat.stat.exists
+  no_log: true  # this holds unmasked data during processing
+
+# Show results (only masked)
+- name: Show verification + masked hashes (host)
+  ansible.builtin.debug:
+    msg:
+      - "admin_ok={{ admin_ok }}"
+      - "viewer_ok={{ viewer_ok }}"
+      - "{{ ht_stat.stat.exists | ternary(htpasswd_masked, '(no htpasswd file yet)') }}"
+
+# ===================== END-TO-END HTTP VERIFICATION (Basic Auth) =====================
+# Expects:
+#   gighive_auth_probe_url: "https://yourhost/protected/path"
+# Optional:
+#   gighive_validate_certs: true|false  (default true)
+#   gighive_auth_probe_insecure: true|false (shortcut to force validate_certs: false)
+
+- block:
+    # Unauthenticated should be blocked
+    - name: Probe without auth (expect 401/403)
+      ansible.builtin.uri:
+        url: "{{ gighive_auth_probe_url_eff }}"
+        method: GET
+        return_content: false
+        validate_certs: "{{ (not gighive_auth_probe_insecure | default(false)) and (gighive_validate_certs | default(true)) }}"
+        status_code: [401, 403]
+      register: _http_noauth
+      changed_when: false
+      failed_when: false
+
+    # Authenticated OK (admin)
+    - name: Probe as admin (expect 200)
+      ansible.builtin.uri:
+        url: "{{ gighive_auth_probe_url_eff }}"
+        method: GET
+        force_basic_auth: true
+        url_username: "{{ admin_user }}"
+        url_password: "{{ gighive_admin_password }}"
+        return_content: false
+        validate_certs: "{{ (not gighive_auth_probe_insecure | default(false)) and (gighive_validate_certs | default(true)) }}"
+        status_code: [200]
+      register: _http_admin
+      changed_when: false
+      failed_when: false
+      no_log: true
+      retries: 3
+      delay: 2
+      until: _http_admin.status == 200
+
+    # Authenticated OK (viewer)
+    - name: Probe as viewer (expect 200)
+      ansible.builtin.uri:
+        url: "{{ gighive_auth_probe_url_eff }}"
+        method: GET
+        force_basic_auth: true
+        url_username: "{{ viewer_user }}"
+        url_password: "{{ gighive_viewer_password }}"
+        return_content: false
+        validate_certs: "{{ (not gighive_auth_probe_insecure | default(false)) and (gighive_validate_certs | default(true)) }}"
+        status_code: [200]
+      register: _http_viewer
+      changed_when: false
+      failed_when: false
+      no_log: true
+      retries: 3
+      delay: 2
+      until: _http_viewer.status == 200
+
+    - name: Set HTTP verification facts
+      ansible.builtin.set_fact:
+        admin_http_ok: "{{ _http_admin.status == 200 }}"
+        viewer_http_ok: "{{ _http_viewer.status == 200 }}"
+        unauth_http_locked: "{{ _http_noauth.status in [401, 403] }}"
+      changed_when: false
+
+    - name: Assert Basic Auth works end-to-end
+      ansible.builtin.assert:
+        that:
+          - admin_http_ok
+          - viewer_http_ok
+          - unauth_http_locked
+        fail_msg: >-
+          Basic Auth probe failed:
+          admin={{ _http_admin.status | default('n/a') }},
+          viewer={{ _http_viewer.status | default('n/a') }},
+          unauth={{ _http_noauth.status | default('n/a') }}
+        success_msg: "Basic Auth verified via HTTP (admin/viewer OK; unauth blocked)."
+
+
+    - name: Show HTTP verification summary (no secrets)
+      ansible.builtin.debug:
+        msg:
+          - "Probe URL: {{ gighive_auth_probe_url_eff }}"
+          - "admin_http_ok={{ admin_http_ok }}"
+          - "viewer_http_ok={{ viewer_http_ok }}"
+          - "unauth_http_locked={{ unauth_http_locked }}"
+  when: gighive_auth_probe_url_eff is defined

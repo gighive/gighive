@@ -1,0 +1,15 @@
+components:
+  - libfuse
+  - azstorage
+
+azstorage:
+  account-name:   {{ storage_account_name }}
+  account-key:    {{ storage_account_key }}
+  container-name: {{ blob_container_name }}
+  endpoint:       https://{{ storage_account_name }}.blob.core.windows.net
+  mode:           key
+
+logging:
+  type: syslog
+  level: LOG_INFO
+

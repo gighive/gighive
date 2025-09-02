@@ -1,0 +1,33 @@
+# Put this ABOVE the CRS toggle tasks in roles/security_owasp_crs/tasks/main.yml
+- name: Check CRS files mounted (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "test -f /etc/modsecurity/crs/crs-setup.conf"
+  register: crs_present
+  changed_when: false
+  when: crs_enable
+
+# (Optional) Include CRS via modsecurity.conf content (template already has IncludeOptional lines; enable here)
+- name: Enable OWASP CRS in config (toggle only)
+  lineinfile:
+    path: "{{ modsec_conf_path }}"
+    regexp: '^#?\s*IncludeOptional\s+{{ crs_setup_path | regex_escape() }}$'
+    line: "IncludeOptional {{ crs_setup_path }}"
+  when: 
+    - crs_enable
+    - crs_present.rc == 0
+  notify: reload apache
+
+- name: Enable CRS rules glob
+  lineinfile:
+    path: "{{ modsec_conf_path }}"
+    regexp: '^#?\s*IncludeOptional\s+{{ crs_rules_path | regex_escape() }}$'
+    line: "IncludeOptional {{ crs_rules_path }}"
+  when: 
+    - crs_enable
+    - crs_present.rc == 0
+  notify: reload apache
+
+# Verify (first two checks you asked for)
+- import_tasks: verify.yml
+  tags: [verify_security_owasp_crs ]

@@ -1,0 +1,8 @@
+SELECT * FROM genres LIMIT 10\G
+SELECT * FROM styles LIMIT 10\G
+SELECT * FROM jam_sessions LIMIT 10\G
+SELECT * FROM songs LIMIT 10\G
+SELECT * FROM files LIMIT 10\G
+SELECT * FROM jam_session_songs LIMIT 10\G
+SELECT * FROM song_files LIMIT 10\G
+

@@ -1,0 +1,282 @@
+---
+# roles/docker/tasks/main.yml
+
+- name: Pre-create host htpasswd file to prevent Docker from making a directory
+  become: true
+  block:
+    - name: Stat host htpasswd path
+      ansible.builtin.stat:
+        path: "{{ gighive_htpasswd_host_path }}"
+      register: ghp
+
+    - name: Remove miscreated directory at htpasswd path (if present)
+      ansible.builtin.file:
+        path: "{{ gighive_htpasswd_host_path }}"
+        state: absent
+      when: ghp.stat.isdir | default(false)
+
+    - name: Ensure parent dir for host htpasswd exists
+      ansible.builtin.file:
+        path: "{{ gighive_htpasswd_host_path | dirname }}"
+        state: directory
+        mode: "0750"
+
+    - name: Ensure host htpasswd file exists (correct type)
+      ansible.builtin.file:
+        path: "{{ gighive_htpasswd_host_path }}"
+        state: touch
+        mode: "0644"   # 0644 avoids group-existence issues across distros
+  tags:
+    - docker
+    - htpasswd
+
+- name: Ensure “docker” group exists
+  ansible.builtin.group:
+    name: docker
+    state: present
+  tags: docker, permissions
+
+- name: Add {{ ansible_user }} to Docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  tags: docker, permissions
+
+- name: Ensure Docker service is running
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes
+  tags: docker
+
+# Ensure the host path exists where docker-compose will mount from
+- name: Ensure externalConfigs directory exists
+  file:
+    path: "{{ docker_dir }}/apache/externalConfigs"
+    state: directory
+    mode: "0755"
+
+- name: Render Docker env file
+  template:
+    src: templates/.env.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Render entrypoint.sh
+  template:
+    src: entrypoint.sh.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/entrypoint.sh"
+    mode: "0755"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Render apache2.conf
+  template:
+    src: apache2.conf.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render openssl_san.cnf
+  template:
+    src: openssl_san.cnf.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/openssl_san.cnf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render modsecurity.conf
+  template:
+    src: modsecurity.conf.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/modsecurity.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render crs/crs-setup.conf
+  template:
+    src: crs-setup.conf.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/crs/crs-setup.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render security2.conf
+  template:
+    src: security2.conf.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+# Render the vhost to a real file on the host (that the container will bind-mount)
+- name: Render Apache SSL vhost (default-ssl.conf)
+  template:
+    src: default-ssl.conf.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Ensure API spec directory exists
+  file:
+    path: "{{ web_root }}/api"
+    state: directory
+    mode: "0755"
+
+- name: Copy OpenAPI spec into Apache webroot
+  copy:
+    src: "api/openapi.yaml"          # resolved under roles/docker/files/
+    dest: "{{ web_root }}/api/openapi.yaml"
+    owner: www-data
+    group: www-data
+    mode: "0644"
+
+# Ensure the host path exists where docker-compose will mount from
+- name: Ensure externalConfigs directory exists
+  file:
+    path: "{{ docker_dir }}/apache/externalConfigs"
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user | default('ubuntu') }}"
+    group: "{{ ansible_user | default('ubuntu') }}"
+
+- name: Render Docker Compose file from Jinja2 template
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ docker_dir }}/docker-compose.yml"
+    mode: '0644'
+  become: true
+  become_user: "{{ ansible_user }}"
+  tags: docker, compose
+
+- name: Assert server_name is not an IP (CN must be hostname)
+  assert:
+    that:
+      - gighive_server_name is regex("^[A-Za-z0-9.-]+$")  # naive host check, not IP
+    fail_msg: "gighive_server_name should be a hostname (CN), not an IP."
+
+- import_tasks: overlay_gighive_webroot.yml
+  tags: docker
+
+- name: Build the GigHive Docker image on the VM
+  community.docker.docker_image:
+   # repository name without tag
+   name: ubuntu22.04apache-img
+   # specify the tag separately as a string
+   tag: "1.00"
+   source: build
+   build:
+     path: "{{ docker_dir }}/apache"
+     args:
+       BLUE_GREEN: "{{ blue_green | ternary('true','false') }}"
+  tags: [docker]
+
+- name: Bring up Docker Compose V2 stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    state: present
+    build: always
+    recreate: always
+    remove_orphans: true
+  become: true
+  register: compose_result
+  failed_when: false
+  changed_when: compose_result.changed
+  tags: docker, compose
+
+- name: Ensure Docker service is running
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes
+  tags: docker
+
+- name: Add current user to Docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  tags: docker, permissions
+
+- name: Ensure web root exists on target
+  ansible.builtin.stat:
+    path: "{{ web_root }}"
+  register: web_root_status
+  tags: docker, compose
+
+- name: Abort if web root directory is missing
+  ansible.builtin.fail:
+    msg: "Web root directory {{ web_root_status.stat.path }} does not exist on remote host!"
+  when: not web_root_status.stat.exists
+  tags: docker, compose
+
+- name: Ensure Docker project directory exists
+  ansible.builtin.file:
+    path: "{{ docker_dir }}"
+    state: directory
+    mode: '0755'
+  tags: docker, compose
+
+- name: Ensure python3-pip is installed
+  ansible.builtin.apt:
+    name:
+      - python3-pip
+    state: present
+    update_cache: yes
+  tags: docker, compose, prerequisites
+
+- name: Ensure Docker SDK for Python is installed
+  ansible.builtin.pip:
+    name: docker
+    state: present
+    executable: pip3
+  tags: docker, compose, prerequisites
+
+- name: Ensure docker-compose Python library is installed
+  ansible.builtin.pip:
+    name: docker-compose
+    executable: pip3
+    state: present
+  tags: docker, compose, prerequisites
+
+- name: Debug Compose output
+  ansible.builtin.debug:
+    var: compose_result
+  tags: docker, compose
+
+- name: Gather info on running Apache container
+  community.docker.docker_container_info:
+    name: apacheWebServer
+  register: apache_info
+  tags: docker, compose
+
+- name: Dump full apache_info
+  ansible.builtin.debug:
+    var: apache_info
+  tags: docker
+
+- name: Gather info on running MySQL container
+  community.docker.docker_container_info:
+    name: mysqlServer
+  register: mysql_info
+  tags: docker, compose
+
+- name: Dump full mysql_info
+  ansible.builtin.debug:
+    var: mysql_info
+  tags: docker
+
+- name: Show running Apache container status
+  ansible.builtin.debug:
+    var: apache_info.container.State
+  tags: docker, compose
+
+- name: Show running MySQL container status
+  ansible.builtin.debug:
+    var: mysql_info.container.State
+  tags: docker, compose

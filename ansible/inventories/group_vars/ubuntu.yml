@@ -1,0 +1,107 @@
+# Basic VM host configuration
+hostname: "ubuntu"
+vm_name: "ubuntu"
+
+static_ip: "{{ ansible_host }}"
+gateway: "192.168.1.1"
+nameservers:
+  - "8.8.8.8"
+  - "8.8.4.4"
+bridge_iface: "enp8s0"
+disk_size_mb: 256000
+
+# Ansible host specific paths (user = sodo) THESE ARE SOURCES FOR VIDEOS and AUDIO FILES, LEAVING ABSOLUTE
+video_full: "/home/sodo/videos/stormpigs/finals/singles/"
+audio_full: "/home/sodo/scripts/stormpigsCode/production/audio/"
+video_reduced: "{{ repo_root }}/assets/video"
+audio_reduced: "{{ repo_root }}/assets/audio"
+
+# vmdk/vdi specs for local vm
+cloud_image_url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.vmdk"
+cloud_image_dir: "{{ cloud_init_files_dir }}"
+cloud_image_vmdk: "{{ cloud_init_files_dir }}/jammy-server-cloudimg-amd64-gighive.vmdk"
+cloud_image_vdi: "{{ cloud_init_files_dir }}/jammy-server-cloudimg-amd64-gighive.vdi"
+nocloud_iso: "{{ cloud_init_files_dir }}/seed.iso"
+
+ansible_remote_tmp: "/tmp/.ansible/tmp"
+
+# these vars control blue_green deployments both for ux and db
+blue_green: true 
+database_full: true
+
+# these vars control full/reduced set of media
+sync_video: true
+reduced_video: false
+sync_audio: true
+reduced_audio: false
+
+# Users
+admin_user: admin
+viewer_user: viewer
+
+# Use vault/encrypted vars in real life:
+gighive_admin_password: "supersecretadmin"
+gighive_viewer_password: "supersecretviewer"
+
+# htpasswd locations, one on the host, other on the container
+gighive_apache_container: apacheWebServer
+gighive_htpasswd_host_path: "{{ docker_dir }}/apache/externalConfigs/gighive.htpasswd"  # on the host
+gighive_htpasswd_path: /var/www/private/gighive.htpasswd                  # inside the container
+
+# for password reset 
+gighive_htpasswd_owner: www-data
+gighive_htpasswd_group: www-data
+gighive_htpasswd_mode: "0640"
+
+# gighive.yml (example additions—use Vault for passwords!)
+apache_group: www-data
+
+# htpasswd vars coming up
+protected_paths: ['app','db','debug','src','vendor']
+
+#gighive_host — what tests hit (can be IP or hostname)
+#gighive_server_name — what goes into the cert (CN + DNS.1)
+#gighive_server_alias — what goes into the cert (CN + DNS.1)
+
+gighive_scheme: "https"
+gighive_host: "gighive"                  # can be an IP or hostname
+gighive_validate_certs: false
+gighive_hostname_for_host_header: ""     # set to "gighive" when using IP
+gighive_base_url: "{{ gighive_scheme }}://{{ gighive_host }}"
+gighive_auth_probe_url: "{{ gighive_scheme }}://{{ gighive_host }}/db/database.php"
+gighive_auth_probe_insecure: true
+
+gighive_server_name: "gighive" # name in cert
+gighive_server_alias: "gighive" # alias in cert
+gighive_ssl_cert_file: "/etc/ssl/certs/origin_cert.pem"
+gighive_ssl_key_file:  "/etc/ssl/private/origin_key.pem"
+gighive_ssl_san_config: "/etc/ssl/openssl_san.cnf"
+gighive_php_fpm_bin: "php-fpm8.1"
+
+# If you use custom-compiled httpd in the container:
+apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
+
+# htpasswd seed vars
+gighive_htpasswd_seed_once: true
+gighive_htpasswd_marker_path: "{{ _ht_path }}.seeded"
+
+# --- MySQL backup role vars ---
+mysql_backup_user: "{{ ansible_user }}"
+
+# Paths derive from the facts you set in site.yml pre_tasks:
+mysql_env_file: "{{ configs_dir }}/.env.mysql"
+mysql_backup_script_dir: "{{ dbscripts_dir }}"
+mysql_backups_dir: "{{ dbscripts_dir }}/backups"
+
+# Scheduling
+mysql_dump_hour: "2"
+mysql_dump_minute: "10"
+mysql_prune_hour: "3"
+mysql_prune_minute: "5"
+
+# Retention
+mysql_backup_retention_days: 90 
+
+# Log file for cron jobs
+mysql_backup_log: "{{ mysql_backups_dir }}/cron.log"
+

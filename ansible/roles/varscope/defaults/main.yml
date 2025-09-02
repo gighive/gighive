@@ -1,0 +1,14 @@
+# Minimum verbosity required to print (0..4). Use -v or higher at runtime.
+varscope_min_verbosity: 1
+
+# Only show vars whose names match this regex (tuned for GigHive)
+# Includes your d_*, v_*, f_*, l_* fields plus any app_/env_/my_ prefixes.
+varscope_prefix_regex: '^(app_|env_|my_|d_|v_|f_|l_)'
+
+# Keys to redact if present
+varscope_redact_keys:
+  - password
+  - token
+  - secret
+  - api_key
+

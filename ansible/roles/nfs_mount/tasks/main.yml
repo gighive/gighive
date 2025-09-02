@@ -1,0 +1,28 @@
+---
+- name: Install NFS utilities
+  apt:
+    name: nfs-common
+    state: present
+
+- name: Install net-tools
+  apt:
+    name: net-tools
+    state: present
+
+- name: Ensure mount directories exist
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}" 
+    mode: '0755'
+  loop: "{{ nfs_shares }}"
+
+- name: Mount NFS shares
+  mount:
+    path: "{{ item.path }}"
+    src: "{{ item.src }}"
+    fstype: nfs
+    opts: rw
+    state: mounted
+  loop: "{{ nfs_shares }}"

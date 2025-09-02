@@ -1,0 +1,554 @@
+---
+# roles/cloud_init/tasks/main.yml
+
+# ========== PREREQS ==========
+- name: Ensure ISO tools present on control
+  become: yes
+  delegate_to: localhost
+  run_once: true
+  package:
+    name:
+      - genisoimage
+      - cloud-image-utils
+    state: present
+
+# Keep sane defaults
+- name: Init flags
+  set_fact:
+    primary_mac: ""
+    need_nat: false
+
+# ========== MEDIA PREP (image files only) ==========
+- name: Ensure cloud image VMDK is present
+  stat:
+    path: "{{ cloud_image_vmdk }}"
+  register: vmdk_stat
+
+- name: Download Ubuntu cloud image if missing
+  get_url:
+    url: "{{ cloud_image_url }}"
+    dest: "{{ cloud_image_vmdk }}"
+    mode: '0644'
+  when: not vmdk_stat.stat.exists
+
+- name: Convert VMDK to VDI
+  command: >
+    VBoxManage clonemedium disk "{{ cloud_image_vmdk }}"
+    "{{ cloud_image_vdi }}" --format VDI
+  args:
+    creates: "{{ cloud_image_vdi }}"
+
+# ========== VM LIFECYCLE ==========
+- name: (Optional) Nuke the VM
+  command: VBoxManage unregistervm "{{ vm_name }}" --delete
+  when: build_fresh_vm | default(false)
+  ignore_errors: true
+
+- name: Check if VM exists
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vm_query
+  changed_when: false
+  failed_when: false
+
+- name: Flag vm_exists
+  set_fact:
+    vm_exists: "{{ vm_query.rc == 0 }}"
+
+- name: Create & register VM if missing
+  command: >
+    VBoxManage createvm --name "{{ vm_name }}"
+      --ostype Ubuntu_64 --register
+  when: not vm_exists
+
+- name: Gather VM info
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vm_info
+  changed_when: false
+  failed_when: false
+
+- name: Power off VM if running
+  command: VBoxManage controlvm "{{ vm_name }}" poweroff
+  when: vm_info.stdout.find('VMState="poweroff"') == -1
+  ignore_errors: true
+
+- name: Wait for VM to reach poweroff state
+  shell: |
+    until VBoxManage showvminfo "{{ vm_name }}" --machinereadable |
+      grep -q '^VMState="poweroff"$'; do
+      sleep 1
+    done
+
+# --- Ensure NIC1 model is virtio before first boot (matches cloud-init match.driver) ---
+- name: Read current NIC model (nictype1)
+  delegate_to: localhost
+  command:
+    argv: [VBoxManage, showvminfo, "{{ vm_name }}", --machinereadable]
+  register: vm_nictype_info
+  changed_when: false
+  failed_when: false
+
+- name: Parse current NIC1 model
+  set_fact:
+    current_nictype1: "{{ (vm_nictype_info.stdout
+                            | regex_search('^nictype1=\"([^\"]+)\"', '\\1', multiline=True)
+                            | default('')) | trim }}"
+
+- name: Power off VM to change NIC model (if running and model != virtio)
+  command: VBoxManage controlvm "{{ vm_name }}" poweroff
+  when:
+    - current_nictype1 != 'virtio'
+    - vm_nictype_info.stdout.find('VMState=\"poweroff\"') == -1
+  ignore_errors: true
+
+- name: Wait for poweroff (only when we plan to change NIC model)
+  shell: |
+    until VBoxManage showvminfo "{{ vm_name }}" --machinereadable |
+      grep -q '^VMState="poweroff"$'; do
+      sleep 1
+    done
+  when: current_nictype1 != 'virtio'
+
+- name: Set NIC1 model to virtio (idempotent)
+  delegate_to: localhost
+  command:
+    argv: [VBoxManage, modifyvm, "{{ vm_name }}", --nictype1, virtio]
+  when: current_nictype1 != 'virtio'
+
+# Disks/controller
+- name: Ensure SATA controller exists
+  shell: |
+    if ! VBoxManage showvminfo "{{ vm_name }}" --machinereadable |
+      grep -Eq 'storagecontrollername[0-9]+="SATA Controller"'; then
+      VBoxManage storagectl "{{ vm_name }}" \
+        --name "SATA Controller" --add sata --controller IntelAhci
+    fi
+
+- name: Attach VDI disk
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+      --storagectl "SATA Controller"
+      --port 0 --device 0 --type hdd --medium "{{ cloud_image_vdi }}"
+  args:
+    creates: "{{ cloud_image_vdi }}"
+
+- name: Detach VDI before resizing
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+      --storagectl "SATA Controller"
+      --port 0 --device 0 --medium none
+  when: vm_exists
+
+- name: Resize VDI disk
+  delegate_to: localhost
+  command: >
+    VBoxManage modifymedium disk "{{ cloud_image_vdi }}" --resize {{ disk_size_mb }}
+
+- name: Reattach resized VDI
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+      --storagectl "SATA Controller"
+      --port 0 --device 0 --type hdd --medium "{{ cloud_image_vdi }}"
+
+# ========== NETWORK ADAPTER RESOLUTION (host → bridged/NAT decision) ==========
+- name: Detect host default route interface
+  delegate_to: localhost
+  command:
+    argv:
+      - bash
+      - -lc
+      - |
+          ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if ($i=="dev"){print $(i+1); exit}}'
+  register: default_iface
+  changed_when: false
+  failed_when: false
+
+- name: List bridged interface names known to VirtualBox
+  delegate_to: localhost
+  command:
+    argv:
+      - bash
+      - -lc
+      - |
+          VBoxManage list bridgedifs | sed -n 's/^Name:[[:space:]]*//p'
+  register: bridged_ifs
+  changed_when: false
+  failed_when: false
+
+- name: Normalize bridged IF list
+  set_fact:
+    bridged_ifs_trimmed: "{{ (bridged_ifs.stdout_lines | default([])) | map('trim') | list }}"
+    default_iface_trim: "{{ (default_iface.stdout | default('')) | trim }}"
+
+- name: List host interface names (from ip link)
+  delegate_to: localhost
+  command:
+    argv:
+      - bash
+      - -lc
+      - |
+          ip -o link | awk -F': ' '{print $2}'
+  register: host_ifnames
+  changed_when: false
+  failed_when: false
+
+- name: Normalize host interface names
+  set_fact:
+    host_ifnames_trimmed: "{{ (host_ifnames.stdout_lines | default([])) | map('trim') | list }}"
+
+- name: Build set of bridged IFs that exist on host
+  set_fact:
+    bridged_ifs_existing: "{{ bridged_ifs_trimmed | select('in', host_ifnames_trimmed) | list }}"
+
+- name: Build set of bridged IFs that are UP on host
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    for n in {{ (bridged_ifs_existing | map('quote') | join(' ')) | default('', true) }}; do
+      st="/sys/class/net/${n}/operstate"
+      if [ -r "$st" ] && [ "$(cat "$st" 2>/dev/null)" = "up" ]; then
+        echo "$n"
+      fi
+    done
+  args:
+    executable: /bin/bash
+  register: bridged_ifs_up
+  changed_when: false
+  failed_when: false
+
+- name: Final valid bridged IFs (VB exposed ∩ host exists ∩ state=up)
+  set_fact:
+    bridged_ifs_valid: "{{ (bridged_ifs_up.stdout_lines | default([])) | map('trim') | list }}"
+
+- name: Compute host IPv4 for each valid bridged IF
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    for n in {{ (bridged_ifs_valid | map('quote') | join(' ')) | default('', true) }}; do
+      ip -o -4 addr show dev "$n" | awk '{print $4}' | head -n1 | awk -v ifn="$n" 'NF{print ifn" "$0}'
+    done
+  args:
+    executable: /bin/bash
+  register: host_if_ipv4s
+  changed_when: false
+  failed_when: false
+
+- name: Init host IF -> CIDR map
+  set_fact:
+    host_if_cidrs: {}
+
+- name: Accumulate host IF -> CIDR map
+  set_fact:
+    host_if_cidrs: "{{ host_if_cidrs | combine( { (item.split(' ')[0]): (item.split(' ')[1]) } ) }}"
+  loop: "{{ host_if_ipv4s.stdout_lines | default([]) }}"
+  when: (item | length) > 0
+
+- name: Compute guest CIDR
+  set_fact:
+    guest_cidr: "{{ (static_ip ~ '/24') if ('/' not in static_ip) else static_ip }}"
+
+- name: Compute guest / host network match
+  vars:
+    guest_cidr: "{{ (static_ip ~ '/24') if ('/' not in static_ip) else static_ip }}"
+  set_fact:
+    bridged_ifs_same_subnet: >-
+      {%
+        set res = [] -%}
+      {%- for ifn, cidr in host_if_cidrs.items() -%}
+        {%- set host_oct = (cidr.split('/')[0]).split('.') -%}
+        {%- set guest_oct = (guest_cidr.split('/')[0]).split('.') -%}
+        {%- if host_oct[0:3] == guest_oct[0:3] -%}
+          {%- set _ = res.append(ifn) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ res }}
+
+- name: Resolve bridge_iface_resolved
+  set_fact:
+    bridge_iface_resolved: >-
+      {%- if 'eno1' in bridged_ifs_same_subnet -%}
+        eno1
+      {%- elif default_iface_trim and (default_iface_trim in bridged_ifs_same_subnet) -%}
+        {{ default_iface_trim }}
+      {%- elif bridged_ifs_same_subnet | length > 0 -%}
+        {{ bridged_ifs_same_subnet[0] }}
+      {%- else -%}
+        {{ '' }}
+      {%- endif %}
+
+- name: Flag NAT fallback
+  set_fact:
+    need_nat: "{{ (bridge_iface_resolved | length) == 0 }}"
+
+- name: Read current NIC1 mode/binding
+  delegate_to: localhost
+  command:
+    argv: [VBoxManage, showvminfo, "{{ vm_name }}", --machinereadable]
+  register: vm_netinfo
+  changed_when: false
+  failed_when: false
+
+- name: Parse current NIC1 and bridge binding
+  set_fact:
+    vm_nic1_mode: "{{ (vm_netinfo.stdout | regex_search('^nic1=\"([^\"]+)\"', '\\1', multiline=True) | default('')) | trim }}"
+    vm_bridgeadapter1: "{{ (vm_netinfo.stdout | regex_search('^bridgeadapter1=\"([^\"]*)\"', '\\1', multiline=True) | default('')) | trim }}"
+
+- name: Configure NIC1 as BRIDGED on resolved interface (only if different)
+  when:
+    - not need_nat
+    - vm_nic1_mode != 'bridged' or vm_bridgeadapter1 != bridge_iface_resolved
+  delegate_to: localhost
+  command:
+    argv:
+      - VBoxManage
+      - modifyvm
+      - "{{ vm_name }}"
+      - --nic1
+      - bridged
+      - --bridgeadapter1
+      - "{{ bridge_iface_resolved }}"
+      - --nictype1
+      - virtio
+
+- name: Configure NIC1 as NAT (only if needed)
+  when:
+    - need_nat
+    - vm_nic1_mode != 'nat'
+  delegate_to: localhost
+  command:
+    argv:
+      - VBoxManage
+      - modifyvm
+      - "{{ vm_name }}"
+      - --nic1
+      - nat
+      - --nictype1
+      - virtio
+
+# ========== NOW THAT NIC MODE IS SET, CAPTURE MAC ==========
+- name: Read NIC info from VirtualBox (machine-readable)
+  delegate_to: localhost
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vminfo
+  changed_when: false
+  failed_when: false
+
+- name: Extract primary MAC (colon, lowercase)
+  set_fact:
+    primary_mac: >-
+      {{
+        (
+          vminfo.stdout
+          | regex_search('macaddress1="([0-9A-F]+)"', '\1')
+          | default('')
+        )
+        | lower
+        | regex_replace('(..)(?=.)', '\1:')
+      }}
+
+# ========== CLOUD-INIT SEED (render AFTER NIC + need_nat are known) ==========
+- name: Create cloud-init network-config file
+  copy:
+    dest: "{{ cloud_image_dir }}/network-config"
+    content: |
+      ---
+      version: 2
+      ethernets:
+        nic0:
+          match:
+            macaddress: "{{ primary_mac }}"
+            driver: virtio_net
+          set-name: eth0
+          {% if need_nat %}
+          dhcp4: true
+          dhcp6: true
+          {% else %}
+          dhcp4: false
+          dhcp6: false
+          addresses:
+            - "{{ static_ip }}{{ '/24' if '/' not in static_ip else '' }}"
+          routes:
+            - to: default
+              via: "{{ gateway }}"
+          nameservers:
+            addresses: [{{ nameservers | join(', ') }}]
+          {% endif %}
+  become: yes
+
+- name: Create cloud-init user-data file
+  copy:
+    dest: "{{ cloud_image_dir }}/user-data"
+    content: |
+      #cloud-config
+      # yamllint disable rule:line-length
+      ---
+      package_update: true
+      packages:
+        - cloud-guest-utils
+        - e2fsprogs
+
+      growpart:
+        mode: auto
+        devices:
+          - "/"
+        ignore_growroot_disabled: false
+      resize_rootfs: true
+
+      hostname: "{{ hostname }}"
+      fqdn: "{{ hostname }}.mysettings.com"
+
+      users:
+        - name: ubuntu
+          shell: /bin/bash
+          sudo: ALL=(ALL) NOPASSWD:ALL
+          groups: sudo
+          lock_passwd: false
+          ssh_authorized_keys:
+            - "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+
+      ssh_pwauth: false
+
+      chpasswd:
+        expire: false
+        list:
+          - ubuntu:yoboiboi
+
+      write_files:
+        - path: /etc/hosts
+          permissions: "0644"
+          content: |
+            127.0.0.1 localhost
+            {{ static_ip }} {{ hostname }}.mysettings.com {{ hostname }}
+          append: true
+
+      runcmd:
+        - [ "usermod", "--shell", "/bin/bash", "{{ ansible_user }}" ]
+        - [ "hostnamectl", "set-hostname", "{{ hostname }}" ]
+        - [ "growpart", "/dev/sda", "1" ]
+        - [ "resize2fs", "/dev/sda1" ]
+        - [ "systemctl", "enable", "--now", "ssh" ]
+        - [ "sed", "-i", "s/^#\\?PasswordAuthentication.*/PasswordAuthentication no/", "/etc/ssh/sshd_config" ]
+        - [ "sed", "-i", "s/^#\\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/", "/etc/ssh/sshd_config" ]
+        - [ "sed", "-i", "s/^#\\?PermitRootLogin.*/PermitRootLogin no/", "/etc/ssh/sshd_config" ]
+        - [ "systemctl", "restart", "ssh" ]
+  become: yes
+
+- name: Create cloud-init meta-data file
+  copy:
+    dest: "{{ cloud_image_dir }}/meta-data"
+    content: |
+      ---
+      instance-id: {{ vm_name }}
+      local-hostname: {{ vm_name }}
+  become: yes
+
+# --- VALIDATE SEED (allow DHCP or static) ---
+- name: Parse network-config as YAML (fail if malformed)
+  vars:
+    netcfg_path: "{{ cloud_image_dir }}/network-config"
+  set_fact:
+    netcfg_parsed: "{{ lookup('file', netcfg_path) | from_yaml }}"
+
+- name: Capture NIC keys from network-config
+  set_fact:
+    netcfg_nic_keys: "{{ (netcfg_parsed.get('ethernets', {}) | dict2items | map(attribute='key') | list) | default([]) }}"
+
+- name: Pick first NIC key for validation
+  set_fact:
+    netcfg_nic0: "{{ netcfg_nic_keys[0] | default('') }}"
+
+- name: Compute mode flags for assert
+  set_fact:
+    netcfg_is_dhcp4: "{{ netcfg_parsed.ethernets[netcfg_nic0].get('dhcp4', false) | bool }}"
+    netcfg_has_addrs: "{{ 'addresses' in netcfg_parsed.ethernets[netcfg_nic0] }}"
+    netcfg_has_routes: "{{ 'routes' in netcfg_parsed.ethernets[netcfg_nic0] }}"
+    netcfg_has_namesrv: "{{ 'nameservers' in netcfg_parsed.ethernets[netcfg_nic0] }}"
+
+- name: Assert minimal schema for network-config (DHCP or static)
+  assert:
+    that:
+      - netcfg_parsed is mapping
+      - netcfg_parsed.version == 2
+      - "'ethernets' in netcfg_parsed"
+      - netcfg_parsed.ethernets is mapping
+      - netcfg_nic0 | length > 0
+      - netcfg_parsed.ethernets[netcfg_nic0] is mapping
+      - netcfg_is_dhcp4
+        or
+        (netcfg_has_addrs and (netcfg_parsed.ethernets[netcfg_nic0].addresses | length > 0)
+         and netcfg_has_routes and netcfg_has_namesrv)
+    fail_msg: "network-config invalid: needs dhcp4: true OR a complete static block."
+
+- name: Parse user-data as YAML (fail if malformed)
+  vars:
+    userdata_path: "{{ cloud_image_dir }}/user-data"
+  set_fact:
+    userdata_parsed: "{{ lookup('file', userdata_path) | from_yaml }}"
+
+- name: Assert user-data has basic cloud-config shape
+  assert:
+    that:
+      - userdata_parsed is mapping
+      - "'hostname' in userdata_parsed"
+      - "'users' in userdata_parsed"
+    fail_msg: "user-data is missing expected keys (hostname/users)."
+
+- block:
+    - name: Dummy gate (does nothing if all good)
+      debug:
+        msg: "cloud-init seed validated"
+  rescue:
+    - name: Show seed files with line numbers for quick diff
+      shell: |
+        echo '--- network-config ---'; nl -ba {{ cloud_image_dir }}/network-config || true
+        echo; echo '--- user-data ---'; nl -ba {{ cloud_image_dir }}/user-data || true
+      changed_when: false
+    - name: Fail early with friendly guidance
+      fail:
+        msg: >-
+          Seed validation failed. Check the line-numbered dump above.
+          Most common cause: YAML indentation under 'ethernets:'.
+
+# ========== BUILD & ATTACH ISO ==========
+- name: Generate NoCloud ISO
+  command: >
+    genisoimage -output "{{ nocloud_iso }}"
+      -volid CIDATA -joliet-long -rock
+      "{{ cloud_image_dir }}/user-data"
+      "{{ cloud_image_dir }}/meta-data"
+      "{{ cloud_image_dir }}/network-config"
+  become: yes
+
+- name: Attach Cloud-Init ISO
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+      --storagectl "SATA Controller"
+      --port 1 --device 0 --type dvddrive --medium "{{ nocloud_iso }}"
+
+# ========== BOOT ==========
+- name: Set VM memory and CPUs
+  command: >
+    VBoxManage modifyvm "{{ vm_name }}" --memory 8192 --cpus 8
+
+- name: Start VM headless
+  command: VBoxManage startvm "{{ vm_name }}" --type gui
+  changed_when: false
+
+- name: Ping guest static IP to confirm L2/L3 reachability (best-effort)
+  delegate_to: localhost
+  shell: |
+    ping -c 3 -W 1 {{ static_ip }} >/dev/null 2>&1 || exit 1
+  register: ping_guest
+  changed_when: false
+  failed_when: false
+
+- name: Show ping result
+  debug:
+    msg: "Ping to {{ static_ip }}: {{ 'reachable' if ping_guest.rc == 0 else 'no reply' }}"
+
+- name: Wait for SSH availability (only for bridged/static)
+  when: not need_nat
+  wait_for:
+    host: "{{ static_ip }}"
+    port: 22
+    delay: 15
+    timeout: 300

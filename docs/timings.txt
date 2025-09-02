@@ -1,0 +1,82 @@
+VIRTUALBOX
+sodo@pop-os:~/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --skip-tags blobfuse2 --ask-become-pass -v
+
+Playbook run took 0 days, 0 hours, 11 minutes, 40 seconds
+Sunday 31 August 2025  15:45:07 -0400 (0:00:00.090)       0:11:40.369 ********* 
+=============================================================================== 
+docker : Bring up Docker Compose V2 stack -------------------------------------------------------- 194.63s
+docker : Build the GigHive Docker image on the VM ------------------------------------------------ 177.49s
+base : Upgrade all packages to the latest available versions -------------------------------------- 85.37s
+post_build_checks : Pause for X seconds to let the stack settle ----------------------------------- 60.06s
+base : Install required build-and-runtime dependencies (incl. Docker) ----------------------------- 32.50s
+cloud_init : Wait for SSH availability ------------------------------------------------------------ 29.28s
+base : Update APT cache --------------------------------------------------------------------------- 15.36s
+base : Sync scripts to the VM (excluding cloud-init) ---------------------------------------------- 14.01s
+base : Sync reduced video directory (development subset) ------------------------------------------ 11.99s
+validate_app : Install ping and netcat in Apache container ----------------------------------------- 5.77s
+base : Sync reduced audio directory ---------------------------------------------------------------- 5.60s
+cloud_init : Start VM headless --------------------------------------------------------------------- 5.57s
+cloud_init : Convert VMDK to VDI ------------------------------------------------------------------- 4.24s
+security_basic_auth : Install passlib for htpasswd bcrypt ------------------------------------------ 3.83s
+base : Add Docker’s APT repository (multi-arch) ---------------------------------------------------- 3.46s
+base : Install Docker Engine & Compose V2 plugin (distro packages) --------------------------------- 2.46s
+Gathering Facts ------------------------------------------------------------------------------------ 2.46s
+post_build_checks : Check Docker service status ---------------------------------------------------- 2.05s
+docker : Ensure Docker SDK for Python is installed ------------------------------------------------- 1.88s
+docker : Ensure python3-pip is installed ----------------------------------------------------------- 1.87s
+
+
+BAREMETAL
+sodo@pop-os:~/gighive$ ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml   --tags set_targets,base,docker,security_basic_auth,security_owasp_crs,post_build_checks,validate_app -v
+
+Playbook run took 0 days, 0 hours, 5 minutes, 53 seconds
+Saturday 30 August 2025  11:57:22 -0400 (0:00:00.029)       0:05:53.965 ******* 
+=============================================================================== 
+docker : Bring up Docker Compose V2 stack ----------------------------------------------------------- 71.35s
+post_build_checks : Pause for X seconds to let the stack settle ------------------------------------- 60.03s
+docker : Stage BlueGreen GUI overrides into web_root when enabled ----------------------------------- 59.92s
+base : Update APT cache ----------------------------------------------------------------------------- 14.10s
+base : Sync scripts to the VM (excluding cloud-init) ------------------------------------------------ 13.34s
+base : Add Docker’s APT repository (multi-arch) ----------------------------------------------------- 12.88s
+validate_app : Install ping and netcat in Apache container ------------------------------------------ 11.62s
+post_build_checks : Check Docker service status ------------------------------------------------------ 6.98s
+docker : Ensure python3-pip is installed ------------------------------------------------------------- 6.21s
+base : Install Docker Engine & Compose V2 plugin (distro packages) ----------------------------------- 6.07s
+security_basic_auth : Ensure passlib/bcrypt present (Debian/Ubuntu) ---------------------------------- 6.03s
+Gathering Facts -------------------------------------------------------------------------------------- 4.13s
+base : Upgrade all packages to the latest available versions ----------------------------------------- 3.45s
+docker : Build the GigHive Docker image on the VM ---------------------------------------------------- 2.58s
+post_build_checks : Assert htpasswd exists on host (bind-mount source) ------------------------------- 2.31s
+Gathering Facts -------------------------------------------------------------------------------------- 2.17s
+base : Install required build-and-runtime dependencies (incl. Docker) -------------------------------- 2.06s
+security_basic_auth : Install passlib for htpasswd bcrypt -------------------------------------------- 1.99s
+base : Recursively fix file permissions under /home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/html --- 1.88s
+base : Refresh CA certificates ----------------------------------------------------------------------- 1.81s
+
+
+AZURE
+sodo@pop-os:~/gighive$ ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2 -v
+
+Playbook run took 0 days, 0 hours, 47 minutes, 23 seconds
+Saturday 30 August 2025  12:26:58 -0400 (0:00:00.696)       0:47:23.786 ******* 
+=============================================================================== 
+docker : Build the GigHive Docker image on the VM ------------------------------------------------- 1087.38s
+docker : Bring up Docker Compose V2 stack ---------------------------------------------------------- 760.45s
+base : Sync reduced video directory (development subset) ------------------------------------------- 382.11s
+base : Sync scripts to the VM (excluding cloud-init) ----------------------------------------------- 335.87s
+base : Sync reduced audio directory ----------------------------------------------------------------- 65.11s
+post_build_checks : Pause for X seconds to let the stack settle ------------------------------------- 60.02s
+security_basic_auth : Install passlib for htpasswd bcrypt ------------------------------------------- 21.91s
+docker : Ensure python3-pip is installed ------------------------------------------------------------ 16.02s
+security_basic_auth : Ensure passlib/bcrypt present (Debian/Ubuntu) --------------------------------- 11.97s
+base : Add Docker’s APT repository (multi-arch) ------------------------------------------------------ 8.27s
+base : Update APT cache ------------------------------------------------------------------------------ 7.89s
+validate_app : Install ping and netcat in Apache container ------------------------------------------- 7.61s
+docker : Deploy GigHive HTML to web_root ------------------------------------------------------------- 5.22s
+docker : Ensure Docker SDK for Python is installed --------------------------------------------------- 4.06s
+post_build_checks : Assert htpasswd exists on host (bind-mount source) ------------------------------- 3.41s
+post_build_checks : Check Docker service status ------------------------------------------------------ 3.34s
+Gathering Facts -------------------------------------------------------------------------------------- 2.82s
+base : Install Docker Engine & Compose V2 plugin (distro packages) ----------------------------------- 2.08s
+base : Ensure audio_dir exists with proper ownership ------------------------------------------------- 1.96s
+base : Recursively fix directory permissions under /home/azureuser/scripts/gighive/ansible/roles/docker/files/apache/html --- 1.93s

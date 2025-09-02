@@ -1,0 +1,100 @@
+# ------------------------------------------------------
+# Security headers (requires mod_headers)
+# ------------------------------------------------------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "no-referrer-when-downgrade"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    {% if gighive_hsts_enabled | default(false) %}
+    Header always set Strict-Transport-Security "{{ gighive_hsts_value | default('max-age=31536000; includeSubDomains; preload') }}"
+    {% endif %}
+</IfModule>
+
+# Never serve cache/logs over HTTP
+<Directory "/var/www/html/var/cache">
+    Require all denied
+</Directory>
+
+<VirtualHost *:443>
+    ServerName {{ gighive_server_name }}
+    ServerAlias {{ gighive_server_alias }}
+    {% if gighive_server_name != gighive_host %}
+    ServerAlias {{ gighive_host }}
+    {% endif %}
+    DocumentRoot /var/www/html
+    DirectoryIndex index.php
+
+    SSLEngine on
+    SSLCertificateFile {{ gighive_ssl_cert_file | default('/etc/ssl/certs/origin_cert.pem') }}
+    SSLCertificateKeyFile {{ gighive_ssl_key_file | default('/etc/ssl/private/origin_key.pem') }}
+    SSLProtocol {{ gighive_ssl_protocols | default('all -SSLv3 -TLSv1 -TLSv1.1 +TLSv1.3') }}
+    SSLCipherSuite {{ gighive_ssl_cipher_suite | default('HIGH:!aNULL:!MD5') }}
+    SSLHonorCipherOrder {{ gighive_ssl_honor_order | default('on') }}
+    Protocols {{ gighive_protocols | default('h2 http/1.1') }}
+
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+    # -------------------------------
+    # No /api directory — keep rewrites minimal
+    # -------------------------------
+    RewriteEngine On
+    # If you later want front-controller routing under /src, uncomment:
+    # RewriteCond %{REQUEST_FILENAME} !-f
+    # RewriteRule ^src(/.*)?$ /src/index.php [L,QSA]
+
+    # -------------------------------
+    # Root is public, but no indexes
+    # -------------------------------
+    <Directory "/var/www/html">
+        AllowOverride None
+        Options -Indexes +FollowSymLinks
+        Require all granted
+    </Directory>
+
+    # ------------------------------------------------------
+    # Protect non-root application paths with Basic Auth
+    # ------------------------------------------------------
+    # Deny cache outright (no auth challenge)
+    <LocationMatch "^/app/cache(/|$)">
+        Require all denied
+    </LocationMatch>
+    
+    # --- PUBLIC HOMEPAGE ---
+    # (No auth block here, so / and /index.php stay open)
+    
+    # --- EXISTING PROTECTED AREAS (any valid user) ---
+    <LocationMatch "^/(?:app/(?!cache(?:/|$)).*|db|debug|src|vendor|video|audio)(?:/|$)">
+        AuthType Basic
+        AuthName "GigHive Protected"
+        AuthBasicProvider file
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require valid-user
+    </LocationMatch>
+    
+    # --- ADMIN-ONLY: change-password page ---
+    <Files "changethepasswords.php">
+        AuthType Basic
+        AuthName "GigHive Admin"
+        AuthBasicProvider file
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin
+    </Files>
+
+    # ------------------------------------------------------
+    # Extra safety: never serve these sensitive files
+    # ------------------------------------------------------
+    <FilesMatch "^(composer\.(json|lock)|config\.php)$">
+        Require all denied
+    </FilesMatch>
+
+    # Also block hidden/dotfiles (e.g., .htpasswd, .env) just in case
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+
+    # ensure Authorization header reaches PHP-FPM/proxy_fcgi
+    SetEnvIfNoCase Authorization "^(.*)" HTTP_AUTHORIZATION=$1
+</VirtualHost>
+

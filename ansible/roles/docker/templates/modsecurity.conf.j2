@@ -1,0 +1,44 @@
+# --- ModSecurity base ---
+#SecRuleEngine DetectionOnly
+SecRuleEngine {{ modsec_enable | default(false) | bool | ternary('On','DetectionOnly') }}
+SecRequestBodyAccess On
+SecResponseBodyAccess Off
+SecStatusEngine Off
+SecTmpDir /var/cache/modsecurity
+SecDataDir /var/cache/modsecurity
+
+# Reasonable limits (tune for your app & infra)
+SecRequestBodyLimit 26214400
+SecRequestBodyNoFilesLimit 131072
+SecRequestBodyInMemoryLimit 1048576
+SecPcreMatchLimit 100000
+SecPcreMatchLimitRecursion 100000
+
+# Prevent evasion via UTF-8 or weird encodings
+SecUnicodeMapFile /etc/modsecurity/unicode.mapping
+SecDefaultAction "phase:1,log,pass"
+SecDefaultAction "phase:2,log,pass"
+
+# Audit log (only on relevant events)
+SecAuditEngine RelevantOnly
+SecAuditLogParts ABIJDEFHZ
+SecAuditLogType Serial
+SecAuditLog /var/log/apache2/modsec_audit.log
+SecAuditLogRelevantStatus "^(?:5|4(?!04))"
+
+# Optional: tighten upload endpoint specifically (example path)
+<LocationMatch "^/src">
+    SecRuleEngine On
+    SecRequestBodyAccess On
+    # Require multipart for uploads
+    SecRule REQUEST_HEADERS:Content-Type "!@beginsWith multipart/form-data" \
+        "id:1201,phase:2,deny,status:415,msg:'Uploads must be multipart/form-data'"
+    # Enforce body/file size (matches PHP/app & Apache limits)
+    SecRule REQUEST_BODY_LENGTH "@gt 26214400" \
+        "id:1202,phase:2,deny,status:413,msg:'Payload too large (>25MB)'"
+
+    # Allow-list common media types by magic sniff (ModSec inspects; still verify in app)
+    # Block if extension is executable or archive you don’t process
+    SecRule FILES_NAMES "\.(php\d?|phtml|phar|cgi|pl|asp|aspx|jsp|jar|exe|sh|bat|cmd|com|msi|js|html?|svgz?|7z|zip|rar|gz|bz2|xz)$" \
+        "id:1203,phase:2,deny,status:400,msg:'Disallowed extension for upload'"
+</LocationMatch>

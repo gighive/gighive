@@ -1,0 +1,421 @@
+---
+# roles/base/tasks/main.yml
+
+- name: Set the system hostname
+  ansible.builtin.hostname:
+    name: "{{ vm_name }}"
+
+- name: Remove any legacy Docker apt source file
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/docker.list
+    state: absent
+  become: yes
+
+- name: Update APT cache
+  ansible.builtin.apt:
+    update_cache: yes
+  become: yes
+
+- name: Ensure Ansible remote_tmp directory exists with safe permissions
+  ansible.builtin.file:
+    path: /tmp/.ansible/tmp
+    state: directory
+    mode: '1777'
+
+- name: Fetch Docker’s GPG key into a keyring
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+  become: yes
+
+- name: Add Docker’s APT repository (multi-arch)
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch=amd64,arm64 signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/ubuntu
+      {{ ansible_lsb.codename }} stable
+    filename: docker
+    state: present
+
+- name: Upgrade all packages to the latest available versions
+  ansible.builtin.apt:
+    upgrade: dist
+  become: yes
+
+- name: Install required build-and-runtime dependencies (incl. Docker)
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    name:
+      - software-properties-common
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg-agent
+      - lsb-release
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose
+      - docker-compose-plugin
+      - wget
+      - curl
+      - net-tools
+      - audispd-plugins
+      - auditd
+      - inotify-tools
+      - python3-docker
+      - python3-pip
+
+- name: Install Python-based docker-compose via pip3
+  ansible.builtin.pip:
+    name: docker-compose
+    executable: pip3
+  become: yes
+
+- name: Install Docker Engine & Compose V2 plugin (distro packages)
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: present
+    update_cache: yes
+  tags: docker
+
+- name: Verify "docker compose" is callable
+  ansible.builtin.command: docker compose version
+  register: compose_cli
+  changed_when: false
+  tags: docker
+
+- name: Fail early if Compose V2 CLI is missing
+  ansible.builtin.fail:
+    msg: >
+      Compose V2 plugin not found on the host.
+      Make sure the package `docker-compose-plugin` is installed
+      and that `docker compose version` succeeds.
+  when: compose_cli.rc != 0
+  tags: docker
+
+- name: Replace ~/.bashrc with managed aliases
+  become: yes
+  vars:
+    bashrc_path: "{{ root_dir }}/.bashrc"
+  ansible.builtin.copy:
+    dest: "{{ bashrc_path }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+    content: |
+      # ANSIBLE MANAGED .bashrc – all aliases below
+      alias ll='ls -alF'
+      alias la='ls -A'
+      alias l='ls -CF'
+      alias ns='netstat -na | grep "LISTEN "'
+      alias dus='du -m --max-depth=1'
+      alias py='/usr/bin/python'
+      export GIGHIVE_HOME="$HOME/gighive"
+      alias files='cd {{ docker_dir }}'
+
+- name: Install and refresh CA certificates
+  block:
+    - name: Install ca-certificates
+      ansible.builtin.apt:
+        name: ca-certificates
+        state: present
+
+    - name: Refresh CA certificates
+      ansible.builtin.command:
+        cmd: update-ca-certificates
+
+- name: Add ansible_user user to sudoers
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ ansible_user }}"
+    content: "{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL\n"
+    mode: "0440"
+    owner: root
+    group: root
+
+- name: Validate sudoers configuration
+  ansible.builtin.command:
+    cmd: visudo -c
+  register: visudo_check
+  changed_when: false
+
+- name: Show visudo validation output
+  ansible.builtin.debug:
+    var: visudo_check.stdout
+
+- name: Ensure correct ownership & permissions for web_root & video_dir
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: "{{ ansible_user }}"
+    group: www-data
+    mode: "{{ item.mode }}"
+    state: directory
+  loop:
+    - { path: "{{ web_root }}", mode: "0775" }
+    - { path: "{{ video_dir }}", mode: "0775" }
+
+- name: Ensure scripts_dir directory exists
+  ansible.builtin.file:
+    path: "{{ scripts_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  tags:
+    - sync_scripts
+
+#- name: Ensure target directory is owned by ansible_user
+#  ansible.builtin.file:
+#    path: "{{ web_root }}"
+#    state: directory
+#    recurse: yes
+#    owner: "{{ ansible_user }}"
+#    group: "{{ ansible_user }}"
+#  become: yes
+#  tags:
+#    - sync_scripts
+
+- name: Ensure scripts_dir is owned by ubuntu
+  file:
+    path: "{{ scripts_dir }}"
+    owner: "{{ ansible_user }}" 
+    group: "{{ ansible_user }}"
+    mode: "0755"
+    recurse: yes
+  become: yes
+  tags:
+    - sync_scripts
+
+- name: Sync scripts to the VM (excluding cloud-init)
+  delegate_to: localhost
+  become: no
+  ansible.builtin.synchronize:
+    src: "{{ scripts_home }}/"
+    dest: "{{ scripts_dir }}"
+    archive: false
+    recursive: yes
+    links: yes
+    #delete: yes
+    perms: false
+    rsync_opts:
+      - "--exclude=cloud-init/"
+      - "--exclude=*.vdi"
+      - "--exclude=*.vmdk"
+      - "--no-group"
+      - "--no-perms"
+    use_ssh_args: yes
+    _ssh_args: "-o StrictHostKeyChecking=no"
+  tags:
+    - sync_scripts
+
+- name: Ensure video directory exists and is writable by Apache
+  become: true
+  file:
+    path: "{{ web_root }}/video"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0775'
+  tags:
+    - sync_scripts
+
+- name: Ensure audio directory exists and is writable by Apache
+  become: true
+  file:
+    path: "{{ web_root }}/audio"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0775'
+  tags:
+    - sync_scripts
+
+- name: Ensure prepped_csvs/full is owned by {{ ansible_user }}
+  become: true
+  ansible.builtin.file:
+    path: "{{ configs_dir }}/prepped_csvs/full"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}" 
+  tags: sync_csvs
+
+- name: Ensure prepped_csvs/sample is owned by {{ ansible_user }}
+  become: true
+  ansible.builtin.file:
+    path: "{{ configs_dir }}/prepped_csvs/sample"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}" 
+  tags: sync_csvs
+
+- name: Ensure video_dir exists with proper ownership
+  become: yes
+  ansible.builtin.file:
+    path: "{{ video_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}" 
+    group: www-data
+    mode: "0775"
+
+- name: Sync full video directory
+  delegate_to: localhost
+  become: false
+  synchronize:
+    mode: push
+    src:      "{{ video_home }}/"
+    dest:     "{{ video_dir }}"
+    archive:  yes
+    compress: yes
+    copy_links: yes
+    delay_updates: false
+    rsync_opts:
+      - "--inplace"
+      - "--no-p"
+      - "--no-o"
+      - "--no-g"
+    _ssh_args: "-o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3"
+    use_ssh_args: true
+  when:  # logical AND below
+    - sync_videos
+    - not reduced_videos     # and only if not explicitly asking for reduced
+# you could also make this more explicit using this logic:
+#  - (sync_videos | default(false) | bool)
+#  - not (reduced_videos | default(false) | bool)
+
+- name: Sync reduced video directory (development subset)
+  delegate_to: localhost
+  become: false
+  synchronize:
+    mode: push
+    src:      "{{ video_home }}/"
+    dest:     "{{ video_dir }}"
+    archive:  yes
+    compress: yes
+    copy_links: yes
+    delay_updates: false
+    rsync_opts:
+      - "--inplace"
+      - "--include=StormPigs20021024*"
+#      - "--include=StormPigs202[45]*"
+      - "--exclude=*"
+      - "--no-p"
+      - "--no-o"
+      - "--no-g"
+    _ssh_args: "-o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3"
+    use_ssh_args: true
+  when:  # logical AND below
+    - sync_videos
+    - reduced_videos
+# This also works: when: (sync_videos | bool) and (reduced_videos | bool)
+
+- name: Ensure audio_dir exists with proper ownership
+  become: yes
+  ansible.builtin.file:
+    path: "{{ audio_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}" 
+    group: www-data
+    mode: "0775"
+
+- name: Sync full audio directory
+  delegate_to: localhost
+  become: false
+  synchronize:
+    mode: push
+    src:      "{{ audio_home }}/"
+    dest:     "{{ audio_dir }}"
+    archive:  yes
+    compress: yes
+    copy_links: yes
+    delay_updates: false
+    rsync_opts:
+      - "--inplace"
+      - "--no-p"
+      - "--no-o"
+      - "--no-g"
+    _ssh_args: "-o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3"
+    use_ssh_args: true
+  when:
+    - sync_audio
+    - not reduced_audio     # and only if not explicitly asking for reduced
+
+- name: Sync reduced audio directory
+  delegate_to: localhost
+  become: false
+  synchronize:
+    mode: push
+    src:      "{{ audio_home }}/"
+    dest:     "{{ audio_dir }}"
+    archive:  yes
+    compress: yes
+    copy_links: yes
+    delay_updates: false
+    rsync_opts:
+      - "--inplace"
+      - "--include=2005*"
+      - "--exclude=*"
+      - "--no-p"
+      - "--no-o"
+      - "--no-g"
+    _ssh_args: "-o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3"
+    use_ssh_args: true
+  when:
+    - sync_audio
+    - reduced_audio
+
+- name: Recursively fix directory permissions under {{ web_root }}
+  ansible.builtin.command: >
+    find {{ web_root }} -type d -exec chmod 755 {} \;
+
+- name: Recursively fix file permissions under {{ web_root }}
+  ansible.builtin.command: >
+    find {{ web_root }} -type f -exec chmod 644 {} \;
+
+- name: Recursively fix directory permissions under {{ video_dir }}
+  ansible.builtin.command: >
+    find {{ video_dir }} -type d -exec chmod 755 {} \;
+
+- name: Recursively fix file permissions under {{ video_dir }}
+  ansible.builtin.command: >
+    find {{ video_dir }} -type f -exec chmod 644 {} \;
+
+- name: Set system timezone to Eastern Time
+  ansible.builtin.timezone:
+    name: America/New_York
+
+- name: Ensure the host’s own hostname is in /etc/hosts
+  become: yes
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^127\\.0\\.1\\.1\\s+{{ ansible_hostname }}$"
+    line: "127.0.1.1 {{ ansible_hostname }}"
+    state: present
+
+- name: Stop and disable systemd-resolved
+  systemd:
+    name: systemd-resolved
+    state: stopped
+    enabled: false
+
+- name: Remove any existing /etc/resolv.conf (symlink or file)
+  file:
+    path: /etc/resolv.conf
+    state: absent
+
+- name: Create custom /etc/resolv.conf
+  copy:
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      nameserver 192.168.1.1
+      nameserver 8.8.8.8
+      nameserver 1.1.1.1
+      options edns0 trust-ad
+      search mynetworksettings.com
+
+- name: Restart networking service so the new resolv.conf is used
+  systemd:
+    name: systemd-networkd
+    state: restarted

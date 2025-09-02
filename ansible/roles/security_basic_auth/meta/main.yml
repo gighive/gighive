@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: you
+  description: Manage Basic Auth users for Apache and reload the service
+  license: MIT
+  min_ansible_version: "2.13"
+dependencies: []
+collections:
+  - community.general
+

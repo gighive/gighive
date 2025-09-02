@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: you
+  description: Cloud‐init helpers
+# …
+collections:
+  - community.general
+

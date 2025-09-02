@@ -1,0 +1,15 @@
+#
+# GigHive minimal OWASP CRS setup
+# Feel free to replace with official crs-setup.conf from OWASP CRS v4.4+
+#
+
+# Example: set paranoia level (0=light, 1=medium)
+SecAction "id:900001,phase:1,nolog,pass,t:none,setvar:tx.paranoia_level=1"
+
+# Tune anomaly scoring threshold (e.g., 5–10)
+SecAction "id:900002,phase:1,nolog,pass,t:none,setvar:tx.anomaly_score_threshold=5"
+
+# Optionally disable specific rule IDs if they trigger false positives early
+# SecRuleRemoveById 981176
+#
+

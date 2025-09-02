@@ -1,0 +1,33 @@
+# Ignore env files and secrets
+# Ignore env files and secrets
+.env
+*.env
+
+# Ignore temporary or backup files
+*.bak
+*.swp
+*~
+
+# Ignore virtual disk images
+*.vdi
+*.vmdk
+*.iso
+
+# Docker volumes (if any)
+volumes/
+
+# Debug directories
+**/debug/
+
+# Backup directories
+**/backup/
+
+# Log files
+*.log
+
+# OS/system junk
+.DS_Store
+Thumbs.db
+
+# Terraform local state & plugins
+**/terraform/.terraform/

@@ -1,0 +1,7 @@
+# azure-prereqs.txt
+ansible[azure]
+azure-cli
+msgraph-core
+packaging
+jinja2-cli
+

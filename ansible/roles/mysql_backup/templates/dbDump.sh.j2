@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Template: dbDump.sh.j2
+# Purpose: Dump MySQL from the running container using values from .env.mysql
+# - Uses Ansible vars:
+#     mysql_env_file, mysql_backups_dir
+# - Writes: {{ mysql_backups_dir }}/<DB>_YYYY-MM-DD_HHMMSS.sql.gz
+# - Logs: stdout/stderr (crontab redirects to backups/cron.log)
+
+set -Eeuo pipefail
+umask 027
+
+# Log unexpected errors too
+trap 'rc=$?; echo "$(date -Is) ERROR: unexpected failure (exit $rc)"; exit $rc' ERR
+
+# --- Locate and load env file (from group_vars) ---
+ENV_FILE="{{ mysql_env_file }}"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "$(date -Is) ERROR: Env file not found: $ENV_FILE" >&2
+  exit 1
+fi
+
+# Export KEY=VALUE pairs defined in .env.mysql
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+
+# --- Derive settings from env ---
+# Container name / service
+CONTAINER="${DB_HOST:-}"
+if [[ -z "$CONTAINER" ]]; then
+  echo "$(date -Is) ERROR: DB_HOST not set in $ENV_FILE" >&2
+  exit 1
+fi
+
+# Database name
+DB_NAME="${MYSQL_DATABASE:-}"
+if [[ -z "$DB_NAME" ]]; then
+  echo "$(date -Is) ERROR: MYSQL_DATABASE not set in $ENV_FILE" >&2
+  exit 1
+fi
+
+# Credentials: prefer root if root password is provided, else fall back to app user
+if [[ -n "${MYSQL_ROOT_PASSWORD:-}" ]]; then
+  DB_USER="root"
+  DB_PASSWORD="$MYSQL_ROOT_PASSWORD"
+elif [[ -n "${MYSQL_USER:-}" && -n "${MYSQL_PASSWORD:-}" ]]; then
+  DB_USER="$MYSQL_USER"
+  DB_PASSWORD="$MYSQL_PASSWORD"
+else
+  echo "$(date -Is) ERROR: No usable credentials in $ENV_FILE (need MYSQL_ROOT_PASSWORD or MYSQL_USER + MYSQL_PASSWORD)" >&2
+  exit 1
+fi
+
+# Ensure docker is available for this user/session
+if ! command -v docker >/dev/null 2>&1; then
+  echo "$(date -Is) ERROR: docker not found in PATH" >&2
+  exit 1
+fi
+# Optional: ensure docker daemon responds (avoids silent failures under cron)
+if ! docker ps >/dev/null 2>&1; then
+  echo "$(date -Is) ERROR: docker daemon not responding" >&2
+  exit 1
+fi
+
+# --- Ensure backups directory exists (from group_vars) ---
+BACKUPS_DIR="{{ mysql_backups_dir }}"
+mkdir -p "$BACKUPS_DIR"
+
+# --- Compose output file name with date+time to prevent same-day overwrite ---
+STAMP="$(date +'%F_%H%M%S')"
+OUTFILE="${BACKUPS_DIR}/${DB_NAME}_${STAMP}.sql.gz"
+
+echo "$(date -Is) START: dumping ${DB_NAME} from container ${CONTAINER} to ${OUTFILE}"
+
+if docker exec -e MYSQL_PWD="$DB_PASSWORD" -i "$CONTAINER" \
+  mysqldump -u"$DB_USER" --single-transaction --quick --lock-tables=0 \
+  --routines --events --triggers --default-character-set=utf8mb4 \
+  --databases "$DB_NAME" \
+| gzip > "$OUTFILE"
+then
+  chmod 0640 "$OUTFILE"
+  # optional integrity check
+  if gzip -t "$OUTFILE"; then
+    BYTES=$(stat -c%s "$OUTFILE" 2>/dev/null || echo "?")
+    echo "$(date -Is) OK: wrote $BYTES bytes to $OUTFILE"
+    # update "latest" symlink
+    ln -sfn "$(basename "$OUTFILE")" "${BACKUPS_DIR}/${DB_NAME}_latest.sql.gz"
+    echo "$(date -Is) INFO: updated latest symlink -> ${DB_NAME}_latest.sql.gz"
+  else
+    echo "$(date -Is) ERROR: gzip integrity check failed for $OUTFILE"
+    exit 1
+  fi
+else
+  rc=$?
+  echo "$(date -Is) ERROR: dump failed (exit $rc)"
+  exit $rc
+fi
+

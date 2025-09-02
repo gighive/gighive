@@ -1,0 +1,28 @@
+- name: VARSCOPE | task-visible variables (filtered)
+  ansible.builtin.debug:
+    msg:
+      host: "{{ inventory_hostname }}"
+      groups: "{{ group_names }}"
+      vars_filtered: >-
+        {{
+          vars
+          | dict2items
+          | selectattr('key','match', varscope_prefix_regex)
+          | rejectattr('key','in', varscope_redact_keys)
+          | items2dict
+        }}
+      redacted_present: >-
+        {{
+          vars
+          | dict2items
+          | selectattr('key','in', varscope_redact_keys)
+          | map(attribute='key')
+          | list
+        }}
+    verbosity: "{{ varscope_min_verbosity }}"
+
+- name: VARSCOPE | gathered facts
+  ansible.builtin.debug:
+    var: ansible_facts
+    verbosity: "{{ varscope_min_verbosity }}"
+

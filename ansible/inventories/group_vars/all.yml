@@ -1,0 +1,7 @@
+# One true repo root
+repo_root: "{{ lookup('env','GIGHIVE_HOME') | default((playbook_dir | dirname | dirname), true) }}"
+
+# Convenience paths
+roles_dir: "{{ repo_root }}/ansible/roles"
+cloud_init_files_dir: "{{ roles_dir }}/cloud_init/files"
+

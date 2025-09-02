@@ -1,0 +1,53 @@
+#cloud-config
+# yamllint disable rule:line-length
+---
+package_update: true
+packages:
+  - cloud-guest-utils
+  - e2fsprogs
+
+growpart:
+  mode: auto
+  devices:
+    - "/"
+  ignore_growroot_disabled: false
+resize_rootfs: true
+
+hostname: {{ hostname }}
+fqdn: {{ hostname }}.mysettings.com
+
+users:
+  - name: ubuntu
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    lock_passwd: false
+    ssh_authorized_keys:
+      - {{ my_ssh_key | quote }}
+
+ssh_pwauth: true
+
+chpasswd:
+  expire: false
+  list:
+    - ubuntu:yoboiboi
+
+write_files:
+  - path: /etc/hosts
+    permissions: "0644"
+    content: |
+      127.0.0.1 localhost
+      {{ static_ip }} {{ hostname }}.mysettings.com {{ hostname }}
+    append: true
+
+runcmd:
+  - [ "usermod", "--shell", "/bin/bash", "{{ ansible_user }}" ]
+  - [ "hostnamectl", "set-hostname", "{{ hostname }}" ]
+  - [ "growpart", "/dev/sda", "1" ]
+  - [ "resize2fs", "/dev/sda1" ]
+  - [ "systemctl", "enable", "--now", "ssh" ]
+  - [ "sed", "-i", "s/^#\\?PasswordAuthentication.*/PasswordAuthentication no/", "/etc/ssh/sshd_config" ]
+  - [ "sed", "-i", "s/^#\\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/", "/etc/ssh/sshd_config" ]
+  - [ "sed", "-i", "s/^#\\?PermitRootLogin.*/PermitRootLogin no/", "/etc/ssh/sshd_config" ]
+  - [ "systemctl", "restart", "ssh" ]
+

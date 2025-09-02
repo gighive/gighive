@@ -1,0 +1,67 @@
+---
+- name: Ensure script and backups directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ mysql_backup_user }}"
+    group: "{{ mysql_backup_user }}"
+    mode: "0750"
+  loop:
+    - "{{ mysql_backup_script_dir }}"
+    - "{{ mysql_backups_dir }}"
+
+- name: Install dbDump.sh
+  ansible.builtin.template:
+    src: dbDump.sh.j2
+    dest: "{{ mysql_backup_script_dir }}/dbDump.sh"
+    owner: "{{ mysql_backup_user }}"
+    group: "{{ mysql_backup_user }}"
+    mode: "0750"
+
+# Cron environment so docker is found and bash is used
+- name: Set cron SHELL to bash
+  ansible.builtin.cron:
+    name: "SHELL"
+    env: true
+    value: "/bin/bash"
+    user: "{{ mysql_backup_user }}"
+
+- name: Set cron PATH for docker
+  ansible.builtin.cron:
+    name: "PATH"
+    env: true
+    value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    user: "{{ mysql_backup_user }}"
+
+- name: Schedule daily MySQL dump
+  ansible.builtin.cron:
+    name: "Daily MySQL dump (from .env.mysql)"
+    user: "{{ mysql_backup_user }}"
+    minute: "{{ mysql_dump_minute }}"
+    hour: "{{ mysql_dump_hour }}"
+    job: "cd {{ mysql_backup_script_dir }} && ./dbDump.sh >> {{ mysql_backup_log }} 2>&1"
+
+- name: Prune backups older than {{ mysql_backup_retention_days }} days (DB name from .env.mysql)
+  ansible.builtin.cron:
+    name: "Prune MySQL backups older than {{ mysql_backup_retention_days }} days"
+    user: "{{ mysql_backup_user }}"
+    minute: "{{ mysql_prune_minute }}"
+    hour: "{{ mysql_prune_hour }}"
+    job: >-
+      bash -lc 'set -Eeuo pipefail;
+      ENV_FILE="{{ mysql_env_file }}";
+      [[ ! -f "$ENV_FILE" ]] && echo "ERROR: Env file not found: $ENV_FILE" >&2 && exit 1;
+      set -a; source "$ENV_FILE"; set +a;
+      DB_NAME="${MYSQL_DATABASE:-}";
+      [[ -z "$DB_NAME" ]] && echo "ERROR: MYSQL_DATABASE not set in $ENV_FILE" >&2 && exit 1;
+      find "{{ mysql_backups_dir }}" -type f -name "${DB_NAME}_*.sql.gz"
+      -mtime +{{ mysql_backup_retention_days }} -print -delete >> "{{ mysql_backup_log }}" 2>&1'
+
+- name: Install dbRestore.sh
+  ansible.builtin.template:
+    src: dbRestore.sh.j2
+    dest: "{{ mysql_backup_script_dir }}/dbRestore.sh"
+    owner: "{{ mysql_backup_user }}"
+    group: "{{ mysql_backup_user }}"
+    mode: "0750"
+

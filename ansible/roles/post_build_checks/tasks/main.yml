@@ -1,0 +1,275 @@
+---
+# roles/post_build_tasks/tasks/main.yml
+
+- name: Verify containers are running after reboot
+  ansible.builtin.shell: >
+    docker ps --filter "name=apacheWebServer" --filter "name=mysqlServer" --format '{% raw %}{{.Names}}: {{.Status}}{% endraw %}'
+  register: container_status
+  changed_when: false
+
+- name: Get primary interface name
+  shell: ip -4 route get 1.1.1.1 | awk '{print $5; exit}'
+  register: primary_iface
+  changed_when: false
+
+- name: Get NIC state (UP/DOWN)
+  shell: ip -o link show {{ primary_iface.stdout }} | awk '{print $9}'
+  register: nic_state
+  changed_when: false
+
+- name: Get primary IPv4 address
+  shell: ip -4 addr show {{ primary_iface.stdout }} | grep inet | awk '{print $2}' | cut -d/ -f1
+  register: ip_address
+  changed_when: false
+
+- name: Check multiple Docker containers
+  community.docker.docker_container_info:
+    name: "{{ item }}"
+  register: container_info
+  loop:
+    - apacheWebServer
+    - mysqlServer
+  ignore_errors: true
+
+- name: Fail if any container isn’t running
+  fail:
+    msg: "Container {{ item.item }} is not running (exists={{ item.exists }})"
+  when:
+    - item.exists
+    - not item.container.State.Running
+  loop: "{{ container_info.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Check free memory
+  shell: free -m | grep Mem | awk '{print $4}'
+  register: mem_free
+  changed_when: false
+
+- name: Check free disk space
+  shell: df -h / | grep -v Filesystem | awk '{print $4}'
+  register: disk_free
+  changed_when: false
+
+- name: Check Docker service status
+  service_facts:
+
+- name: Get system load average
+  shell: uptime | awk -F'load average:' '{ print $2 }' | sed 's/^[[:space:]]*//'
+  register: load_avg
+  changed_when: false
+
+- name: Build Full Health Summary
+  set_fact:
+    summary:
+      NIC_State: "{{ nic_state.stdout }}"
+      IP_Address: "{{ ip_address.stdout }}"
+      Containers_Running: >-
+        {{ (container_info.results | selectattr('item', 'equalto', 'apacheWebServer') | map(attribute='container.State.Running') | list | first)
+            | default('Container Not Found') }}
+      Free_Memory_MB: "{{ mem_free.stdout }}"
+      Free_Disk_Space_Root: "{{ disk_free.stdout }}"
+      Docker_Service_Running: "{{ services['docker'].state == 'running' if 'docker' in services else 'Docker Not Found' }}"
+      Load_Average: "{{ load_avg.stdout }}"
+
+- name: Display Full Health Summary
+  debug:
+    var: summary
+
+- name: Pause for X seconds to let the stack settle
+  pause:
+    seconds: 60 
+    prompt: ""   # omit the “Press ENT
+
+#- name: Warm up Apache by calling singlesRandomPlayerJsonCacheClear.php
+#  uri:
+#    url: https://localhost/app/singlesRandomPlayerJsonCacheClear.php
+#    method: GET
+#    return_content: no
+#    validate_certs: no
+#  register: warmup_result
+#  changed_when: false
+
+# --- ensure htpasswd is bind-mounted and readable (no docker cp needed) ---
+
+- name: Assert htpasswd exists on host (bind-mount source)
+  ansible.builtin.stat:
+    path: "{{ gighive_htpasswd_host_path }}"
+  register: ht_host
+
+- name: Fail if htpasswd missing on host
+  ansible.builtin.fail:
+    msg: "Expected htpasswd at {{ gighive_htpasswd_host_path }} (bind-mount to {{ gighive_htpasswd_path }}) but the file is missing on the host."
+  when: not ht_host.stat.exists
+
+# keep host perms predictable
+- name: Ensure htpasswd ownership/perms on host
+  ansible.builtin.file:
+    path: "{{ gighive_htpasswd_host_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+    state: file
+  when: ht_host.stat.exists
+  changed_when: false
+  failed_when: false
+  become: true
+
+# use shell builtin 'test' via sh -lc
+- name: Check htpasswd readable inside container (root)
+  ansible.builtin.command: docker exec -i apacheWebServer sh -lc 'test -r "{{ gighive_htpasswd_path }}"'
+  register: ht_in_root
+  changed_when: false
+  failed_when: false
+
+- name: Check htpasswd readable inside container as www-data
+  ansible.builtin.command: docker exec -u www-data -i apacheWebServer sh -lc 'test -r "{{ gighive_htpasswd_path }}"'
+  register: ht_in_www
+  changed_when: false
+  failed_when: false
+
+# if either check fails, show useful details without printing file contents
+- name: Show container mounts when htpasswd not visible (debug aid)
+  ansible.builtin.command: >
+    docker inspect -f '{{"{{"}}range .Mounts{{"}}"}}{{"{{"}}println .Source "->" .Destination{{"}}"}}{{"{{"}}end{{"}}"}}' apacheWebServer
+  register: apache_mounts
+  when: ht_in_root.rc != 0 or ht_in_www.rc != 0
+  changed_when: false
+
+- name: Show stat/owner seen inside container (no secrets)
+  ansible.builtin.command: >
+    docker exec -i apacheWebServer sh -lc
+    'id;
+     ls -l "{{ gighive_htpasswd_path }}" || true;
+     stat -c "%A %U:%G %a %u:%g %n" "{{ gighive_htpasswd_path }}" || true'
+  register: ht_stat
+  when: ht_in_root.rc != 0 or ht_in_www.rc != 0
+  changed_when: false
+
+- name: Fail if htpasswd not readable inside container
+  ansible.builtin.fail:
+    msg: >
+      htpasswd not readable at {{ gighive_htpasswd_path }}.
+      root_rc={{ ht_in_root.rc }}, www_rc={{ ht_in_www.rc }}.
+      Mounts:
+      {{ apache_mounts.stdout | default('N/A') }}
+      Stat:
+      {{ ht_stat.stdout | default('N/A') }}
+  when: ht_in_root.rc != 0 or ht_in_www.rc != 0
+
+# --- warm-up via CLI as the same user Apache runs as (most reliable) ---
+- name: Warm up via PHP CLI (as www-data, cwd = /var/www/html/app)
+  command: docker exec -u www-data -w /var/www/html/app -i apacheWebServer php ./singlesRandomPlayerJsonCacheClear.php
+  register: warmup_cli
+  changed_when: false
+
+- name: Show CLI warm-up results
+  debug:
+    msg:
+      - "rc={{ warmup_cli.rc }}"
+      - "stdout={{ warmup_cli.stdout }}"
+
+# --- optional HTTP smoke test (non-fatal while we iterate) ---
+- name: Warm up Apache by calling singlesRandomPlayerJsonCacheClear.php (HTTP)
+  uri:
+    url: "{{ gighive_base_url }}/app/singlesRandomPlayerJsonCacheClear.php"
+    method: GET
+    url_username: "{{ gighive_admin_user }}"
+    url_password: "{{ gighive_admin_password }}"
+    force_basic_auth: yes
+    follow_redirects: all
+    validate_certs: "{{ gighive_validate_certs }}"
+    return_content: no
+    status_code: [200, 204]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  register: warmup_http
+  changed_when: false
+  no_log: true
+  ignore_errors: true
+
+- name: Display warm-up HTTP status
+  debug:
+    msg: "Warm-up HTTP status: {{ warmup_http.status | default('skipped') }}"
+
+# Ensure mod_headers is enabled (needed for the security headers)
+- name: Enable Apache headers module
+  command: docker exec -i apacheWebServer a2enmod headers
+  register: headers_mod
+  changed_when: "'enabled' in (headers_mod.stdout | default(''))"
+  failed_when: headers_mod.rc not in [0]
+  tags: [hardening]
+
+- name: Graceful reload Apache if headers was enabled
+  command: docker exec -i apacheWebServer apache2ctl -k graceful
+  when: "'enabled' in (headers_mod.stdout | default(''))"
+  changed_when: false
+  tags: [hardening]
+
+# --- HTTP smoke tests ---
+
+- name: Home should be public (200)
+  uri:
+    url: "{{ gighive_base_url }}/"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    return_content: no
+    status_code: 200
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke]
+
+- name: /src should require auth (401)
+  uri:
+    url: "{{ gighive_base_url }}/src/index.php"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    return_content: no
+    status_code: 401
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke]
+
+- block:
+    - name: Webroot (probe)
+      uri:
+        url: "{{ gighive_base_url }}/"
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        status_code: [200]      # keep it strict for now
+      register: webroot_probe
+      changed_when: false
+      no_log: false             # TEMP: show status/headers/body if it fails
+      tags: [smoke]
+
+  rescue:
+    - name: Show Apache error log tail (last 100 lines)
+      command: docker exec -i apacheWebServer sh -lc 'tail -n 100 ${APACHE_LOG_DIR:-/var/log/apache2}/error.log'
+      register: apache_error_tail
+      changed_when: false
+      failed_when: false
+      tags: [smoke]
+
+    - name: Summarize /src failure
+      debug:
+        msg:
+          - "STATUS={{ src_admin.status | default('n/a') }}"
+          - "LOCATION={{ (src_admin.location | default('')) }}"
+          - "BODY_START={{ (src_admin.content | default(''))[:300] | replace('\n',' ') }}"
+          - "APACHE_ERROR_TAIL:\n{{ apache_error_tail.stdout | default('') }}"
+      changed_when: false
+      tags: [smoke]
+
+    # Don't fail the whole play while we investigate
+    - meta: clear_host_errors
+
+- name: Cache dir should not be web-accessible (403)
+  uri:
+    url: "{{ gighive_base_url }}/app/cache/"
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: 403
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+

@@ -1,0 +1,203 @@
+---
+# roles/cloud_init_disable/tasks/main.yml
+
+# =========================
+# Controller-side hygiene
+# =========================
+- name: Check if ~/.ssh exists (controller)
+  delegate_to: localhost
+  ansible.builtin.stat:
+    path: "{{ lookup('env','HOME') }}/.ssh"
+  register: sshdir
+
+- name: Create ~/.ssh if missing (controller)
+  delegate_to: localhost
+  ansible.builtin.file:
+    path: "{{ lookup('env','HOME') }}/.ssh"
+    state: directory
+  when: not sshdir.stat.exists
+
+- name: Remove old known_hosts entry for the VM (controller)
+  delegate_to: localhost
+  ansible.builtin.known_hosts:
+    path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
+    name: "{{ static_ip }}"
+    state: absent
+
+- name: Scan current host key (controller)
+  delegate_to: localhost
+  ansible.builtin.command: ssh-keyscan -T 5 -H {{ static_ip }}
+  register: _scan
+  changed_when: false
+
+- name: Add host key to known_hosts (controller)
+  delegate_to: localhost
+  ansible.builtin.known_hosts:
+    path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
+    name: "{{ static_ip }}"
+    key: "{{ _scan.stdout }}"
+
+- name: Wait for SSH availability before network changes (controller)
+  delegate_to: localhost
+  ansible.builtin.wait_for:
+    host: "{{ static_ip }}"
+    port: 22
+    timeout: 180
+
+# =========================
+# Remote pre-reqs
+# =========================
+- name: Ensure cloud-init cfg dir exists
+  become: yes
+  ansible.builtin.file:
+    path: /etc/cloud/cloud.cfg.d
+    state: directory
+    mode: "0755"
+
+- name: Gather minimal network facts
+  ansible.builtin.setup:
+    gather_subset:
+      - network
+
+# =========================
+# Derive variables safely
+# =========================
+# Prefer provided nic_name; else the default IPv4 interface; else eth0
+- name: Derive NIC name
+  ansible.builtin.set_fact:
+    _nic_name: "{{ nic_name | default(ansible_default_ipv4.interface | default('eth0')) }}"
+
+# Prefer provided primary_mac; else MAC from gathered facts for _nic_name; else empty
+- name: Derive NIC MAC
+  ansible.builtin.set_fact:
+    _primary_mac: "{{ primary_mac | default( (hostvars[inventory_hostname]['ansible_' + _nic_name].macaddress | default('')) ) }}"
+
+- name: Derive nameservers with safe defaults
+  ansible.builtin.set_fact:
+    _nameservers: "{{ nameservers | default(['192.168.1.1','8.8.8.8','8.8.4.4']) }}"
+
+# =========================
+# Phase 1: Candidate netplan
+# =========================
+- name: Write candidate netplan (high priority)
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/netplan/99-override.yaml
+    mode: "0600"
+    content: |
+      network:
+        version: 2
+        renderer: networkd
+        ethernets:
+          {{ _nic_name }}:
+            {% if _primary_mac -%}
+            match:
+              macaddress: "{{ _primary_mac }}"
+            set-name: {{ _nic_name }}
+            {% endif -%}
+            dhcp4: false
+            dhcp6: false
+            addresses:
+              - "{{ static_ip }}/24"
+            routes:
+              - to: default
+                via: "{{ gateway }}"
+            nameservers:
+              addresses: {{ _nameservers }}
+
+- name: Apply candidate netplan
+  become: yes
+  ansible.builtin.command: netplan apply
+
+# =========================
+# Disable cloud-init networking
+# =========================
+- name: Touch cloud-init.disabled (belt & suspenders)
+  become: yes
+  ansible.builtin.file:
+    path: /etc/cloud/cloud-init.disabled
+    state: touch
+    mode: "0644"
+
+- name: Disable Cloud-Init networking
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    mode: "0644"
+    content: "network: {config: disabled}\n"
+
+- name: Stop & mask Cloud-Init services (tolerant)
+  become: yes
+  block:
+    - name: Stop and mask cloud-init units
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+        masked: yes
+      loop:
+        - cloud-init
+        - cloud-init-local
+        - cloud-final
+        - cloud-config
+      failed_when: false
+  rescue:
+    - ansible.builtin.debug:
+        msg: "cloud-init units not found or already disabled; continuing."
+
+- name: Remove cloud-init netplan if present
+  become: yes
+  ansible.builtin.file:
+    path: /etc/netplan/50-cloud-init.yaml
+    state: absent
+
+# =========================
+# Phase 2: Finalize netplan
+# =========================
+- name: Write final netplan (canonical name)
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/netplan/01-netcfg.yaml
+    mode: "0600"
+    content: |
+      network:
+        version: 2
+        renderer: networkd
+        ethernets:
+          {{ _nic_name }}:
+            {% if _primary_mac -%}
+            match:
+              macaddress: "{{ _primary_mac }}"
+            set-name: {{ _nic_name }}
+            {% endif -%}
+            dhcp4: false
+            dhcp6: false
+            addresses:
+              - "{{ static_ip }}/24"
+            routes:
+              - to: default
+                via: "{{ gateway }}"
+            nameservers:
+              addresses: {{ _nameservers }}
+
+- name: Remove candidate netplan
+  become: yes
+  ansible.builtin.file:
+    path: /etc/netplan/99-override.yaml
+    state: absent
+
+- name: Apply final netplan
+  become: yes
+  ansible.builtin.command: netplan apply
+
+# =========================
+# Post checks
+# =========================
+- name: Wait for SSH after network change (controller)
+  delegate_to: localhost
+  ansible.builtin.wait_for:
+    host: "{{ static_ip }}"
+    port: 22
+    delay: 3
+    timeout: 180
+

@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Exit on error, undefined var, or pipefail; leave debug off by default
+set -Eeuo pipefail
+
+# -------------------------------
+# Tunables (rendered by Ansible)
+# -------------------------------
+CERT_FILE="{{ gighive_ssl_cert_file | default('/etc/ssl/certs/origin_cert.pem') }}"
+KEY_FILE="{{ gighive_ssl_key_file  | default('/etc/ssl/private/origin_key.pem') }}"
+SAN_CFG="{{ gighive_ssl_san_config | default('/etc/ssl/openssl_san.cnf') }}"
+PHP_FPM_BIN="{{ gighive_php_fpm_bin | default('php-fpm8.1') }}"
+
+# -------------------------------
+# Apache env & directories
+# -------------------------------
+export APACHE_RUN_DIR=/var/run/apache2
+export APACHE_PID_FILE=/var/run/apache2/apache2.pid
+export APACHE_LOCK_DIR=/var/lock/apache2
+export APACHE_LOG_DIR=/var/log/apache2
+
+# Ensure required dirs exist inside the mounted volume
+mkdir -p /var/www/html/audio /var/www/html/video
+chown -R www-data:www-data /var/www/html
+chmod 775 /var/www/html/audio /var/www/html/video
+
+# Ensure php-fpm runtime dir exists and start php-fpm in the background
+mkdir -p /run/php && chown www-data:www-data /run/php && ${PHP_FPM_BIN} || true
+
+# -------------------------------
+# Self-signed cert bootstrap (if missing)
+# NOTE: CN and SANs are defined in ${SAN_CFG} (templated); we DO NOT pass -subj here.
+# -------------------------------
+if [ ! -f "${CERT_FILE}" ]; then
+  echo "INFO: ${CERT_FILE} not found. Generating a temporary self-signed cert using ${SAN_CFG}..."
+  mkdir -p "$(dirname "${CERT_FILE}")" "$(dirname "${KEY_FILE}")"
+  openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout "${KEY_FILE}" \
+    -out    "${CERT_FILE}" \
+    -config "${SAN_CFG}" -extensions v3_req
+fi
+
+# If Docker passed us args, run them; otherwise fall through
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+fi
+
+# -------------------------------
+# Enable modules & confs that may be bind-mounted (idempotent)
+# -------------------------------
+# Modules are safe to re-enable; ignore errors if already enabled.
+#a2enmod ssl http2 proxy proxy_fcgi headers rewrite cache cache_disk security2 remoteip >/dev/null 2>&1 || true
+# modules are enabled at build time; no runtime toggles
+
+# Enable logging + php-fpm confs if present (these are bind-mounted in compose)
+if [ -f /etc/apache2/conf-available/logging.conf ]; then
+  a2enconf logging >/dev/null 2>&1 || true
+fi
+if [ -f /etc/apache2/conf-available/php-fpm.conf ]; then
+  a2enconf php-fpm >/dev/null 2>&1 || true
+fi
+
+# Validate full config before starting
+apache2ctl -t
+
+# -------------------------------
+# Helpful diagnostics (once, on boot)
+# -------------------------------
+echo "==== DEBUG: Checking ports in use (ss/netstat) ===="
+ss -tulnp || netstat -tulnp || echo "ss and netstat not available"
+
+echo "==== DEBUG: Checking Apache Listen configuration ===="
+grep -i listen /etc/apache2/ports.conf || true
+grep -i listen /etc/apache2/sites-enabled/*.conf 2>/dev/null || echo "No sites-enabled/*.conf found"
+
+echo "==== DEBUG: Checking current user ===="
+whoami
+
+echo "==== DEBUG: Checking sites-available and sites-enabled ===="
+ls -l /etc/apache2/sites-available/ 2>/dev/null || echo "No sites-available/"
+ls -l /etc/apache2/sites-enabled/    2>/dev/null || echo "No sites-enabled/"
+
+echo "==== DEBUG: Dumping Apache active VirtualHosts ===="
+apache2ctl -S || echo "apache2ctl -S failed"
+
+echo "==== DEBUG: Checking dmesg for permission errors ===="
+dmesg | tail -n 50 || echo "dmesg not available"
+
+echo "==== DEBUG: Checking ports in use after Apache start attempt ===="
+ss -tulnp || netstat -tulnp || echo "ss and netstat not available"
+
+# Wait 5 seconds to see debug output in logs
+sleep 5
+
+echo "==== DEBUG: Checking SSL certificate files ===="
+ls -l "${CERT_FILE}" || echo "!! Missing ${CERT_FILE}"
+ls -l "${KEY_FILE}"  || echo "!! Missing ${KEY_FILE}"
+
+echo "==== DEBUG: Checking Apache user and capabilities ===="
+id
+getcap /usr/sbin/apache2 || echo "!! No capabilities set on /usr/sbin/apache2"
+
+echo "==== DEBUG: Checking Apache Listen configuration (apache2.conf) ===="
+grep -i listen /etc/apache2/ports.conf || true
+grep -i listen /etc/apache2/apache2.conf || true
+
+echo "==== DEBUG: Dumping Apache full active configuration (apache2ctl -t -D DUMP_RUN_CFG) ===="
+/usr/sbin/apache2ctl -t -D DUMP_RUN_CFG || echo "apache2ctl dump failed"
+
+echo "==== DEBUG: Ensuring /run/apache2 exists ===="
+ls -l /run
+mkdir -p /run/apache2
+
+echo "==== DEBUG: Chown /run/apache2 to www-data ===="
+chown www-data:www-data /run/apache2
+ls -l /run
+
+echo "==== DEBUG: Set ownership and permissions of /var/log/apache2 ===="
+chown -R www-data:www-data /var/log/apache2
+chmod 755 /var/log/apache2
+ls -la /var/log
+
+echo "==== DEBUG: Checking /var/log/apache2 ===="
+ls -la /var/log/apache2 || echo "/var/log/apache2 does not exist!"
+
+echo "==== DEBUG COMPLETE: Starting Apache ===="
+exec /usr/sbin/apachectl -D FOREGROUND
+

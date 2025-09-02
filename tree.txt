@@ -1,0 +1,46 @@
+.
+├── 1prereqsInstall.sh
+├── 2bootstrap.sh
+├── 3deleteAll.sh
+├── ansible
+│   ├── callback_plugins
+│   ├── inventories
+│   │   ├── group_vars
+│   │   ├── inventory_azure.yml
+│   │   ├── inventory_azure.yml.j2
+│   │   ├── inventory_baremetal.yml
+│   │   └── inventory_virtualbox.yml
+│   ├── playbooks
+│   │   └── site.yml
+│   ├── roles
+│   │   ├── base
+│   │   ├── blobfuse2
+│   │   ├── cloud_init
+│   │   ├── cloud_init_disable
+│   │   ├── docker
+│   │   ├── mysql_backup
+│   │   ├── nfs_mount
+│   │   ├── post_build_checks
+│   │   ├── security_basic_auth
+│   │   ├── security_owasp_crs
+│   │   ├── validate_app
+│   │   └── varscope
+│   └── vdiLockedWriteDelete.sh
+├── ansible.cfg
+├── assets
+│   ├── audio
+│   └── video
+├── azure.env
+├── azure-prereqs.txt
+├── CHANGELOG.md
+├── docs
+│   ├── commonissue1.txt
+│   ├── commonissue2.txt
+│   ├── index.html
+│   ├── PREREQS.md
+│   ├── README.md
+│   └── timings.txt
+├── inventory.ini
+├── sonar-project.properties
+├── terraform
+└── tree.txt

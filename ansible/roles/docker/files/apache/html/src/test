@@ -1,0 +1,48 @@
+<?php
+require __DIR__ . '/../../vendor/autoload.php';  // Ensure autoload is correct
+
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\OpenApi(
+ *     @OA\Info(
+ *         version="1.0.0",
+ *         title="StormPigs API",
+ *         description="API documentation for StormPigs",
+ *         @OA\Contact(
+ *             name="Scott Frase",
+ *             email="frases@hotmail.com"
+ *         ),
+ *         @OA\License(
+ *             name="MIT",
+ *             url="https://opensource.org/licenses/MIT"
+ *         )
+ *     ),
+ *     @OA\Server(
+ *         url="https://musiclibrary-dev/api",
+ *         description="Production Server"
+ *     )
+ * )
+ */
+
+/**
+ * @OA\PathItem(
+ *     path="/songs"
+ * )
+ */
+
+/**
+ * @OA\PathItem(
+ *     path="/files/song/{songId}"
+ * )
+ */
+
+/**
+ * @OA\PathItem(
+ *     path="/files/jam/{jamId}"
+ * )
+ */
+
+header('Content-Type: application/json');
+echo json_encode(OpenApi\Generator::scan([__DIR__]), JSON_PRETTY_PRINT);
+

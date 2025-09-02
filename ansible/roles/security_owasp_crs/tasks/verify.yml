@@ -1,0 +1,80 @@
+# roles/security_owasp_crs/tasks/verify.yml
+- name: apachectl -V (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "(apachectl -V || apache2ctl -V) | egrep 'HTTPD_ROOT|SERVER_CONFIG_FILE' || true"
+  register: apache_info
+  changed_when: false
+
+- name: Show HTTPD_ROOT and SERVER_CONFIG_FILE (container)
+  debug:
+    msg: "{{ apache_info.stdout_lines | default([]) }}"
+
+- name: Check if ModSecurity module is loaded (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "(apachectl -M || apache2ctl -M) | grep -E '^ security2_module' || true"
+  register: apache_modules
+  changed_when: false
+
+- name: Show ModSecurity load status (container)
+  debug:
+    msg: "{{ apache_modules.stdout_lines | default([]) }}"
+
+- name: Apache syntax check (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "(apachectl -t || apache2ctl -t)"
+  register: apache_syntax
+  changed_when: false
+  check_mode: false
+  failed_when: (apache_syntax.rc | default(1) | int) != 0
+  retries: 3
+  delay: 2
+  until: (apache_syntax.rc | default(1) | int) == 0
+
+- name: Show syntax check result (container)
+  debug:
+    msg: "{{ (apache_syntax.stdout | default('')) ~ (apache_syntax.stderr | default('')) }}"
+
+- name: Check unicode.mapping in container
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "test -f /etc/modsecurity/unicode.mapping"
+  register: unicode_map
+  changed_when: false
+  failed_when: unicode_map.rc != 0
+
+- name: Check modsecurity.conf mounted in container
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "test -f /etc/modsecurity/modsecurity.conf"
+  register: modsec_conf
+  changed_when: false
+  failed_when: modsec_conf.rc != 0
+
+- name: Ensure audit log file exists and perms OK (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "touch /var/log/apache2/modsec_audit.log && chown www-data:www-data /var/log/apache2/modsec_audit.log && chmod 0640 /var/log/apache2/modsec_audit.log"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Read SecRuleEngine setting (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: >-
+      /bin/sh -lc "awk 'BEGIN{IGNORECASE=1}
+      /^[[:space:]]*SecRuleEngine[[:space:]]+/ {print tolower($2); exit}'
+      /etc/modsecurity/modsecurity.conf || true"
+  register: modsec_engine
+  changed_when: false
+
+# 2) Normalize to a fact we can safely reference
+- name: Set fact for ModSecurity engine mode
+  set_fact:
+    modsec_engine_mode: "{{ (modsec_engine.stdout | default('') | trim) }}"
+
+- name: Show ModSecurity enforcement status
+  debug:
+    msg: "🔍 ModSecurity SecRuleEngine is set to '{{ modsec_engine_mode | default('(unset)') }}'."
