@@ -122,11 +122,9 @@ cd $GIGHIVE_HOME;./3deleteAll.sh
 ## Option B: VirtualBox
 ```bash
 # 1. Decide on an IP in your home network that you'd like to use. 
+Edit the ansible_host field in $GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml 
 
-# 2. Edit the inventory file and put in that IP of the target vm you'll create
-$GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml
-
-# 3. Run Ansible 
+# 2. Run Ansible 
 cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass
 ```
 

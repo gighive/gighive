@@ -1,0 +1,120 @@
+---
+# Put this as the FIRST play in ansible/playbooks/site.yml
+- name: Preflight require GIGHIVE_HOME
+  hosts: all                # match whatever inventory you use
+  gather_facts: no
+  any_errors_fatal: true
+  tags: always              # runs even when you pass --tags ...
+  tasks:
+    - name: Fail fast if GIGHIVE_HOME is not set
+      ansible.builtin.fail:
+        msg: >
+          Environment variable GIGHIVE_HOME is not set.
+          Export it first:  export GIGHIVE_HOME=$HOME/gighive
+      when: (lookup('env','GIGHIVE_HOME') | default('')) | length == 0
+
+    - name: Show GIGHIVE_HOME (for sanity)
+      ansible.builtin.debug:
+        msg: "GIGHIVE_HOME = {{ lookup('env','GIGHIVE_HOME') }}"
+      when: (lookup('env','GIGHIVE_HOME') | default('')) | length > 0
+
+- name: Provision VM in VirtualBox
+  hosts: gighive
+  connection: local
+  tags: [ vbox_provision,cloud_init ]
+  collections:
+    - community.general
+  roles:
+    - cloud_init
+
+- name: Disable Cloud-Init inside VM
+  hosts: gighive
+  become: yes
+  tags: [ vbox_provision,cloud_init_disable ]
+
+  roles:
+    - cloud_init_disable
+
+- name: Configure target VM
+  hosts: target_vms
+  become: true
+  tags: [ set_targets ]
+
+  pre_tasks:
+    # primitives
+    - name: Set primitive roots
+      set_fact:
+        root_dir: "{{ '/root' if ansible_user == 'root' else '/home/' ~ ansible_user }}"
+        roles_dir: "{{ repo_root }}/ansible/roles"
+  
+    # controller: base source root
+    - name: Set controller root for docker files
+      set_fact:
+        docker_files_src: "{{ roles_dir }}/docker/files"
+  
+    # controller: more sources
+    - name: Set controller-side source paths
+      set_fact:
+        web_root_src: "{{ docker_files_src }}/apache/html"
+        configs_src: "{{ docker_files_src }}/mysql/externalConfigs"
+        dbscripts_src: "{{ docker_files_src }}/mysql/dbScripts"
+        scripts_home: "{{ repo_root }}"          # <-- controller source (your $GIGHIVE_HOME)
+        scripts_dir: "{{ root_dir }}/scripts/gighive"   # <-- VM destination
+
+    # VM: primitives
+    - name: Set VM primitives
+      set_fact:
+        docker_dir: "{{ scripts_dir }}/ansible/roles/docker/files"
+        video_dir: "{{ root_dir }}/video"
+        audio_dir: "{{ root_dir }}/audio"
+        #root_scripts: "{{ root_dir }}/scripts"
+  
+    # VM: derived from docker_dir
+    - name: Set VM paths derived from docker_dir
+      set_fact:
+        configs_dir: "{{ docker_dir }}/mysql/externalConfigs"
+        dbscripts_dir: "{{ docker_dir }}/mysql/dbScripts"
+        web_root: "{{ docker_dir }}/apache/html"
+
+# 1) Global preflight snapshot (runs once per host at the start)
+- name: Preflight varscope
+  hosts: all
+  gather_facts: true
+  roles:
+    - role: varscope
+  tags: [varscope]
+
+- name: 🚀 Configure and mount on gighive virtual hosts or ubuntu bare metal
+  hosts: target_vms
+  become: yes
+  collections:
+    - community.general
+    - community.docker
+  vars:
+    media_path: /var/www/media
+    tmp_path:  /mnt/blobfusetmp
+    modsec_enable: true
+    crs_enable: false
+  roles:
+    - role: base
+      tags: [ base ]
+    - role: docker
+      tags: [ docker ]
+    - role: security_basic_auth
+      tags: [ security_basic_auth ]
+    - role: security_owasp_crs
+      tags: [ security_owasp_crs ]
+    - role: post_build_checks
+      tags: [ post_build_checks ]
+    - role: validate_app
+      tags: [ validate_app ]
+    - role: mysql_backup
+      tags: [ mysql_backup ]
+
+# 3) Optional: global postflight snapshot (final state)
+- name: Postflight varscope
+  hosts: all
+  gather_facts: false
+  roles:
+    - role: varscope
+  tags: [varscope]
