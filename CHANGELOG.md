@@ -1,5 +1,31 @@
 *** 
 releaseNotes20250905.txt
+Changes: Fix for missing audio_full variable.  Tested on azure, performance improved from 50m to 15m setup time.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/inventory_azure.yml
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   docs/README.md
+	modified:   docs/timings.txt
+	modified:   terraform/tfplan
+
+ToDo: fix upload.php
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample jam
+ToDo: Make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt
+ToDo: clear db script
+
+*** 
+releaseNotes20250905.txt
 Changes: Normalize database names to metadata standard, cascading changes for MediaController, SessionRepository, load_and_transform.sql and 9_csvprep.  Fixed timing issue with security_owasp_crs in cert creation. 
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -34,22 +60,7 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample/songs.csv
 	modified:   ansible/roles/security_owasp_crs/tasks/verify.yml
 	modified:   ansible/vdiLockedWriteDelete.sh
-	new file:   bfg.jar
 	modified:   docs/README.md
-
-ToDo: standardize csv header names
-ToDo: test on other two platforms
-ToDo: make sure create/update database fields are populated
-ToDo: verify media fields are complete..maybe standardize them?
-ToDo: fix upload.php
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample jam
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: Make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt
-ToDo: clear db script
-ToDo: need a solve for people rerunning script and resetting password file back to default
 
 *** 
 releaseNotes20250902.txt

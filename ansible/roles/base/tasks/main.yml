@@ -315,7 +315,7 @@
   become: false
   synchronize:
     mode: push
-    src:      "{{ audio_home }}/"
+    src:      "{{ audio_full }}/"
     dest:     "{{ audio_dir }}"
     archive:  yes
     compress: yes

@@ -57,26 +57,27 @@ base : Refresh CA certificates -------------------------------------------------
 AZURE
 sodo@pop-os:~/gighive$ ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2 -v
 
-Playbook run took 0 days, 0 hours, 47 minutes, 23 seconds
-Saturday 30 August 2025  12:26:58 -0400 (0:00:00.696)       0:47:23.786 ******* 
+Playbook run took 0 days, 0 hours, 15 minutes, 48 seconds
+Friday 05 September 2025  14:54:20 -0400 (0:00:00.130)       0:15:48.969 ****** 
 =============================================================================== 
-docker : Build the GigHive Docker image on the VM ------------------------------------------------- 1087.38s
-docker : Bring up Docker Compose V2 stack ---------------------------------------------------------- 760.45s
-base : Sync reduced video directory (development subset) ------------------------------------------- 382.11s
-base : Sync scripts to the VM (excluding cloud-init) ----------------------------------------------- 335.87s
-base : Sync reduced audio directory ----------------------------------------------------------------- 65.11s
-post_build_checks : Pause for X seconds to let the stack settle ------------------------------------- 60.02s
-security_basic_auth : Install passlib for htpasswd bcrypt ------------------------------------------- 21.91s
-docker : Ensure python3-pip is installed ------------------------------------------------------------ 16.02s
-security_basic_auth : Ensure passlib/bcrypt present (Debian/Ubuntu) --------------------------------- 11.97s
-base : Add Docker’s APT repository (multi-arch) ------------------------------------------------------ 8.27s
-base : Update APT cache ------------------------------------------------------------------------------ 7.89s
-validate_app : Install ping and netcat in Apache container ------------------------------------------- 7.61s
-docker : Deploy GigHive HTML to web_root ------------------------------------------------------------- 5.22s
-docker : Ensure Docker SDK for Python is installed --------------------------------------------------- 4.06s
-post_build_checks : Assert htpasswd exists on host (bind-mount source) ------------------------------- 3.41s
-post_build_checks : Check Docker service status ------------------------------------------------------ 3.34s
-Gathering Facts -------------------------------------------------------------------------------------- 2.82s
-base : Install Docker Engine & Compose V2 plugin (distro packages) ----------------------------------- 2.08s
-base : Ensure audio_dir exists with proper ownership ------------------------------------------------- 1.96s
-base : Recursively fix directory permissions under /home/azureuser/scripts/gighive/ansible/roles/docker/files/apache/html --- 1.93s
+docker : Bring up Docker Compose V2 stack --------------------------------------------------------------------------------------------- 289.76s
+docker : Build the GigHive Docker image on the VM ------------------------------------------------------------------------------------- 190.14s
+base : Upgrade all packages to the latest available versions -------------------------------------------------------------------------- 129.62s
+base : Sync scripts to the VM (excluding cloud-init) ----------------------------------------------------------------------------------- 61.72s
+post_build_checks : Pause for X seconds to let the stack settle ------------------------------------------------------------------------ 60.05s
+base : Install required build-and-runtime dependencies (incl. Docker) ------------------------------------------------------------------ 47.47s
+base : Update APT cache ---------------------------------------------------------------------------------------------------------------- 17.11s
+security_basic_auth : Install passlib for htpasswd bcrypt ------------------------------------------------------------------------------ 14.43s
+validate_app : Install ping and netcat in Apache container ----------------------------------------------------------------------------- 12.51s
+docker : Ensure python3-pip is installed ----------------------------------------------------------------------------------------------- 12.04s
+security_basic_auth : Ensure passlib/bcrypt present (Debian/Ubuntu) -------------------------------------------------------------------- 12.03s
+base : Sync reduced video directory (development subset) ------------------------------------------------------------------------------- 11.34s
+Gathering Facts ------------------------------------------------------------------------------------------------------------------------- 7.18s
+base : Add Docker’s APT repository (multi-arch) ----------------------------------------------------------------------------------------- 7.02s
+base : Sync reduced audio directory ----------------------------------------------------------------------------------------------------- 4.22s
+base : Ensure prepped_csvs/full is owned by azureuser ----------------------------------------------------------------------------------- 3.12s
+post_build_checks : Check Docker service status ----------------------------------------------------------------------------------------- 2.92s
+base : Install Python-based docker-compose via pip3 ------------------------------------------------------------------------------------- 2.38s
+base : Set system timezone to Eastern Time ---------------------------------------------------------------------------------------------- 2.19s
+base : Install Docker Engine & Compose V2 plugin (distro packages) ---------------------------------------------------------------------- 2.16s
+

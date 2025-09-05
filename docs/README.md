@@ -109,12 +109,12 @@ export ARM_TENANT_ID=[put your tenant id/mgmt group id here]
 
 # 2. Provision infrastructure
 ./2bootstrap.sh
+- watch for the prompts to..
+.. apply Terraform plan 
+.. update the ansible inventory file and finally,
+.. run the ansible_playbook
 
-..part of ./2bootstrap.sh will be running ansible .. 
-cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_azure.yml \
- ansible/playbooks/site.yml
-
-# 3. If you're finished, delete all resources in Azure
+# 3. If you're finished with the VM, delete all resources in Azure
 cd $GIGHIVE_HOME;./3deleteAll.sh 
 ```
 

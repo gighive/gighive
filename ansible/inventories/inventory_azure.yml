@@ -5,7 +5,7 @@ all:
       ansible_python_interpreter: /home/sodo/.ansible-azure/bin/python
 
     azure_vm:
-      ansible_host: 52.226.133.32
+      ansible_host: 13.92.126.83
       ansible_user: azureuser
       ansible_python_interpreter: /usr/bin/python3
       ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
