@@ -27,7 +27,7 @@ set -uo pipefail
 # Defaults (your values)
 # ----------------------
 UUID_DEFAULT="de0c2506-0d5b-44d6-903f-fbe325fabc21"
-VDI_DEFAULT="/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi"
+VDI_DEFAULT="$GIGHIVE_HOME/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi"
 
 UUID="${UUID_DEFAULT}"
 VDI_PATH="${VDI_DEFAULT}"

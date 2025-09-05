@@ -17,8 +17,16 @@
     state: directory
   when: not sshdir.stat.exists
 
+#- name: Remove old known_hosts entry for the VM (controller)
+#  delegate_to: localhost
+#  ansible.builtin.known_hosts:
+#    path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
+#    name: "{{ static_ip }}"
+#    state: absent
+
 - name: Remove old known_hosts entry for the VM (controller)
   delegate_to: localhost
+  become: false
   ansible.builtin.known_hosts:
     path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
     name: "{{ static_ip }}"
@@ -30,8 +38,16 @@
   register: _scan
   changed_when: false
 
+#- name: Add host key to known_hosts (controller)
+#  delegate_to: localhost
+#  ansible.builtin.known_hosts:
+#    path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
+#    name: "{{ static_ip }}"
+#    key: "{{ _scan.stdout }}"
+
 - name: Add host key to known_hosts (controller)
   delegate_to: localhost
+  become: false
   ansible.builtin.known_hosts:
     path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
     name: "{{ static_ip }}"

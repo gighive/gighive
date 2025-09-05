@@ -1,4 +1,4 @@
-session_id,name,date,description,image_path,crew,location,rating,summary,pub_date,explicit,duration,keywords
+session_id,title,date,description,cover_image_url,crew,location,rating,summary,published_at,explicit,duration,keywords
 1,Jan 1,1997-01-01,,images/jam/blank.jpg,"Maximus, Snuffler, Zig",,,,,0,,
 2,Jan 23,1997-01-23,,images/jam/blank.jpg,"Bavo, James, Maximus, NickDub, Snuffler, Zig, unknown",,,,,0,,
 3,Jun 23,1997-06-23,,images/jam/blank.jpg,"Bavo, Haze, Maximus, SRC, Snuffler, Stu, TBonk, Zig",,,,,0,,
@@ -64,7 +64,7 @@ session_id,name,date,description,image_path,crew,location,rating,summary,pub_dat
 63,Nov 17,2001-11-17,,images/jam/blank.jpg,"Giant Peach, Maximus, PChoff, SRC, Snuffler, Stu, SweetP, TBonk, Trebor, Zig",,,,,0,,
 64,Dec 12,2001-12-12,,images/jam/blank.jpg,"Maximus, SRC, Snuffler, SweetP, TBonk, Trebor",,,,,0,,
 65,May 2,2002-05-02,,images/jam/blank.jpg,"Maximus, SRC, Snuffler, Stone Golem, SweetP, Trebor",,,,,0,,
-66,Oct 24,2002-10-24,,images/jam/20021024.jpg,"Ankhboy, Maximus, SRC, Snuffler, Stu, SweetP, TBonk, Trebor",,**** Snuffler Rating,,,0,,
+66,Oct 24,2002-10-24,,images/jam/20021024.jpg,"Ankhboy, Maximus, SRC, Snuffler, Stu, SweetP, TBonk, Trebor",,****,,,0,,
 67,Nov 25,2002-11-25,,/images/jam/blank.jpg,"Snuffler, unknown",,,,,0,,
 68,Dec 18,2002-12-18,,images/jam/blank.jpg,"Maximus, SRC, Snuffler, Stu, SweetP, Trebor",,,,,0,,
 69,Jan 22,2003-01-22,,/images/jam/blank.jpg,"Snuffler, unknown",,,,,0,,
@@ -95,7 +95,7 @@ session_id,name,date,description,image_path,crew,location,rating,summary,pub_dat
 94,Aug 31,2006-08-31,,images/jam/20060831.jpg,"EvilG, Maximus, NickDub, PChoff, SRC, Snuffler, Stu","Smash Studios, NYC",***,Running out the summer like a dog chasing water from a sprinkler,2006-08-13 23:52:50,0,1:45:05,"stormpigs,rock,psychadelic,blues,jam"
 95,Nov 2,2006-11-02,,images/jam/20061102.jpg,"EvilG, NickDub, SRC, Snuffler, TBonk","Smash Studios, NYC",** 1/2,"Aches and pains this round yielding some linear jams, good natured ribbing lightens the heart and soul and makes up for less than stellar performances",2006-11-16 11:32:40,1,1:01:31,"stormpigs,rock,psychadelic,blues,jam"
 96,Jan 11,2007-01-11,,images/jam/20070111.jpg,"EvilG, Hi-Fi, HiredGun, Maximus, NickDub, SRC, Snuffler, Stu","Smash Studios, NYC",***,"Worry that there may be too many guitarists, thankfully, these concerns go unwarranted, as the players work within the realm of aural sanity and take care not to tread on each others toes",2007-02-13 01:24:59,1,1:24:59,"stormpigs,rock,psychadelic,blues,jam"
-97,Jan 13,2007-01-13,,images/jam/20070113.jpg,"Ironlung, Maximus, NickDub, PChoff, Snuffler","Lambertville, NJ",*** 1/2,"Kicking the New Year off in rousing fashion with this seventeen minute gem, fabulous guitar work",2007-01-28 17:27:00,0,17:27,"stormpigs,rock,psychadelic,blues,jam"
+97,Jan 13,2007-01-13,,images/jam/20070113.jpg,"Ironlung, Maximus, NickDub, PChoff, Snuffler","Lambertville, NJ",****,"Kicking the New Year off in rousing fashion with this seventeen minute gem, fabulous guitar work",2007-01-28 17:27:00,0,17:27,"stormpigs,rock,psychadelic,blues,jam"
 98,Feb 27,2007-02-27,,images/jam/20070227.jpg,"EvilG, HiredGun, Maximus, Snuffler, TBonk","Smash Studios, NYC",**,"A slow night as the boys were a bit scattered, a couple interesting bits from some Pigs not seen recently, HiredGun and EvilG and it's worth a listen",2010-03-28 10:31:06,0,1:01:01,"rock,jam,guitar noodling,steely dan"
 99,Sep 12,2007-09-12,,images/jam/20070912.jpg,"NickDub, PChoff, SRC, Snuffler, Stu, TBonk","Ultrasound Studios, NYC",** 1/2,"Some early dross, but the boys wake up to give a fine performance",2008-03-01 16:54:27,1,1:37:09,"stormpigs,rock,funk,blues,jam"
 100,Feb 6,2008-02-06,,images/jam/20080206.jpg,"Ironlung, Maximus, SRC, Snuffler, Stu, TBonk","Ultrasound Studios, NYC",** 1/2,"A little sleepy tonight, but still manage to work the quarry",2008-02-19 10:43:14,1,1:50:38,"stormpigs,rock,funk,blues,jam"

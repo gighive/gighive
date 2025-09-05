@@ -65,35 +65,16 @@ SET
   title = NULLIF(@name, ''),
   cover_image_url = NULLIF(@image_path, ''),
   published_at = NULLIF(@pub_date, ''),
-
+  @norm_rating := REPLACE(REPLACE(LOWER(@rating_raw),' ',''),'★','*'),
+  @numeric_rating := CASE WHEN @norm_rating REGEXP '^[0-9]+(\.[0-9]+)?$'
+      THEN CAST(@norm_rating AS DECIMAL(3,1)) ELSE NULL END,
+  @stars_count := (LENGTH(@norm_rating) - LENGTH(REPLACE(@norm_rating,'*',''))),
+  @has_half := CASE WHEN @norm_rating REGEXP '(^|[^0-9])1/2([^0-9]|$)|half' THEN 0.5 ELSE 0 END,
+  @val := COALESCE(@numeric_rating, @stars_count + @has_half),
   rating = CASE
     WHEN @rating_raw IS NULL OR @rating_raw = '' THEN NULL
-    ELSE CAST(
-      LEAST(
-        5,
-        GREATEST(
-          1,
-          COALESCE(
-            /* numeric like '3' or '2.5' */
-            CASE
-              WHEN REPLACE(REPLACE(LOWER(@rating_raw),' ',''),'★','*') REGEXP '^[0-9]+(\\.[0-9]+)?$'
-                THEN CAST(REPLACE(REPLACE(LOWER(@rating_raw),' ',''),'★','*') AS DECIMAL(3,1))
-              ELSE NULL
-            END,
-            /* stars + optional half */
-            (LENGTH(REPLACE(REPLACE(LOWER(@rating_raw),' ',''),'★','*'))
-             - LENGTH(REPLACE(REPLACE(REPLACE(LOWER(@rating_raw),' ',''),'★','*'),'*','')))
-            + CASE
-                WHEN REPLACE(REPLACE(LOWER(@rating_raw),' ',''),'★','*') REGEXP '(^|[^0-9])1/2([^0-9]|$)|half'
-                  THEN 0.5
-                ELSE 0
-              END
-          )
-        )
-      ) AS DECIMAL(2,1)
-    )
+    ELSE CAST(LEAST(5, GREATEST(1, @val)) AS DECIMAL(2,1))
   END,
-
   duration_seconds = CASE
     WHEN @duration REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}$' THEN TIME_TO_SEC(STR_TO_DATE(@duration, '%H:%i:%s'))
     WHEN @duration REGEXP '^[0-9]{1,2}:[0-9]{2}$' THEN TIME_TO_SEC(STR_TO_DATE(CONCAT('00:', @duration), '%H:%i:%s'))

@@ -1,4 +1,13 @@
 # roles/security_owasp_crs/tasks/verify.yml
+- name: Ensure apacheWebServer container is running
+  community.docker.docker_container_info:
+    name: apacheWebServer
+  register: cinfo
+  retries: 30
+  delay: 1
+  until: cinfo.container is defined and cinfo.container.State.Status == "running"
+  changed_when: false
+
 - name: apachectl -V (container)
   community.docker.docker_container_exec:
     container: apacheWebServer
@@ -20,6 +29,38 @@
 - name: Show ModSecurity load status (container)
   debug:
     msg: "{{ apache_modules.stdout_lines | default([]) }}"
+
+# --- Wait for cert AND key, using your group_vars paths ---
+- name: Wait for TLS cert file (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "test -s {{ gighive_ssl_cert_file | quote }}"
+  register: cert_check
+  retries: 30
+  delay: 1
+  until: cert_check.rc == 0
+  changed_when: false
+
+- name: Wait for TLS key file (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "test -s {{ gighive_ssl_key_file | quote }}"
+  register: key_check
+  retries: 30
+  delay: 1
+  until: key_check.rc == 0
+  changed_when: false
+
+# Optional: quick sanity on the generated cert
+- name: Show certificate subject (container)
+  community.docker.docker_container_exec:
+    container: apacheWebServer
+    command: /bin/sh -lc "openssl x509 -in {{ gighive_ssl_cert_file | quote }} -noout -subject -issuer || true"
+  register: cert_subject
+  changed_when: false
+
+- debug:
+    msg: "{{ cert_subject.stdout_lines | default([]) }}"
 
 - name: Apache syntax check (container)
   community.docker.docker_container_exec:

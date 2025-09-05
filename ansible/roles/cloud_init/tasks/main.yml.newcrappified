@@ -1,0 +1,535 @@
+# roles/cloud_init/tasks/main.yml
+
+# ========== PREREQS ==========
+- name: Ensure ISO tools present on control
+  become: yes
+  delegate_to: localhost
+  run_once: true
+  package:
+    name:
+      - genisoimage
+      - cloud-image-utils
+    state: present
+
+- name: Init primary_mac fact
+  set_fact:
+    primary_mac: ""
+
+# ========== MEDIA PREP ==========
+- name: Ensure cloud image VMDK is present
+  stat:
+    path: "{{ cloud_image_vmdk }}"
+  register: vmdk_stat
+
+- name: Download Ubuntu cloud image if missing
+  get_url:
+    url: "{{ cloud_image_url }}"
+    dest: "{{ cloud_image_vmdk }}"
+    mode: "0644"
+  when: not vmdk_stat.stat.exists
+
+# --- PRE-CLONE: fully detach + unregister any VDI at this path; remove only if bad ---
+# 1) Find the UUID that VirtualBox has registered for this Location (even if inaccessible)
+- name: Discover existing VDI UUID from VB registry (by exact Location match)
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    DISK="{{ cloud_image_vdi }}"
+    VBoxManage list hdds | awk -v d="$DISK" '
+      BEGIN{uuid=""}
+      $1=="UUID:"{uuid=$2}
+      $1=="Location:" && $2==d{print uuid; exit 0}
+    '
+  args: { executable: /bin/bash }
+  register: vdi_uuid_lookup
+  changed_when: false
+  failed_when: false
+
+- name: Set fact vdi_uuid (may be empty)
+  set_fact:
+    vdi_uuid: "{{ (vdi_uuid_lookup.stdout | trim) | default('') }}"
+
+- name: Detach VDI from THIS VM only (by path)
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    DISK="{{ cloud_image_vdi }}"
+    VM="{{ vm_name }}"
+    SLOTS=$(VBoxManage showvminfo "$VM" --machinereadable | awk -v d="$DISK" -F= '$2==("\"" d "\""){print $1}')
+    [ -z "$SLOTS" ] && exit 0
+    while IFS= read -r SLOT; do
+      [ -z "$SLOT" ] && continue
+      CTL="${SLOT%-*-*}"
+      PORT="${SLOT#*-}"; PORT="${PORT%-*}"
+      DEV="${SLOT##*-}"
+      CTL="${CTL%\"}"; CTL="${CTL#\"}"
+      VBoxManage storageattach "$VM" --storagectl "$CTL" --port "$PORT" --device "$DEV" --medium none || true
+    done <<< "$SLOTS"
+  args: { executable: /bin/bash }
+  changed_when: false
+  failed_when: false
+
+# Optional: also detach by ImageUUID for THIS VM (covers odd cases)
+- name: Detach VDI from THIS VM only (by ImageUUID)
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    VM="{{ vm_name }}"
+    UUID="{{ vdi_uuid | default('') }}"
+    [ -z "$UUID" ] && exit 0
+    UUID_LC="$(echo "$UUID" | tr 'A-Z' 'a-z')"
+    while IFS='=' read -r KEY VAL; do
+      case "$KEY" in *-ImageUUID-*) ;; *) continue ;; esac
+      VAL="${VAL%\"}"; VAL="${VAL#\"}"
+      VAL_LC="$(echo "$VAL" | tr 'A-Z' 'a-z')"
+      if [ "$VAL_LC" = "$UUID_LC" ] || [ "$VAL_LC" = "{${UUID_LC}}" ]; then
+        SLOT="${KEY/-ImageUUID/}"
+        CTL="${SLOT%-*-*}"
+        PORT="${SLOT#*-}"; PORT="${PORT%-*}"
+        DEV="${SLOT##*-}"
+        CTL="${CTL%\"}"; CTL="${CTL#\"}"
+        VBoxManage storageattach "$VM" --storagectl "$CTL" --port "$PORT" --device "$DEV" --medium none || true
+      fi
+    done < <(VBoxManage showvminfo "$VM" --machinereadable)
+  args: { executable: /bin/bash }
+  changed_when: false
+  failed_when: false
+
+- name: Fail if other VMs (not {{ vm_name }}) still reference this VDI
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    DISK="{{ cloud_image_vdi }}"
+    SELF="{{ vm_name }}"
+    offenders=""
+    while IFS= read -r VM; do
+      [ "$VM" = "$SELF" ] && continue
+      if VBoxManage showvminfo "$VM" --machinereadable | awk -v d="$DISK" -F= '$2==("\"" d "\""){found=1} END{exit found?0:1}'; then
+        offenders="${offenders} ${VM}"
+      fi
+    done < <(VBoxManage list vms | awk -F\" '$2!~/<inaccessible>/{print $2}')
+    if [ -n "$offenders" ]; then
+      echo "VDI is still attached to other VM(s):${offenders}"
+      exit 1
+    fi
+  args: { executable: /bin/bash }
+  changed_when: false
+
+# 3) Unregister the medium from the VB registry (by UUID first, then by path)
+- name: Unregister VDI by UUID (braced form) if present
+  delegate_to: localhost
+  command: VBoxManage closemedium disk "{{ '{' ~ vdi_uuid ~ '}' }}"
+  when: vdi_uuid | length > 0
+  failed_when: false
+  changed_when: false
+
+- name: Unregister VDI by path (fallback; safe no-op if already closed)
+  delegate_to: localhost
+  command: VBoxManage closemedium disk "{{ cloud_image_vdi }}"
+  failed_when: false
+  changed_when: false
+
+# 4) Remove on-disk VDI ONLY if it is corrupt/inaccessible/0-byte
+- name: Stat VDI on filesystem (if present)
+  stat:
+    path: "{{ cloud_image_vdi }}"
+  register: vdi_stat
+
+- name: Probe medium state (for 'inaccessible' or 'Capacity 0')
+  delegate_to: localhost
+  shell: |
+    VBoxManage showmediuminfo disk "{{ cloud_image_vdi }}" || true
+  args: { executable: /bin/bash }
+  register: vdi_info
+  changed_when: false
+  failed_when: false
+
+# Extract the single VM name that holds this VDI (string, not list)
+- name: Extract VM that holds this VDI (if any)
+  set_fact:
+    vdi_in_use_by: "{{ (vdi_info.stdout | regex_findall('(?m)^In use by VMs:\\s*(\\S+)') | first | default('')) }}"
+
+# Safety: refuse to touch other people's VMs
+- name: Abort if another VM (not {{ vm_name }}) still references this VDI
+  delegate_to: localhost
+  fail:
+    msg: "VDI {{ cloud_image_vdi }} is still referenced by VM '{{ vdi_in_use_by }}'. Refusing to modify other VMs."
+  when:
+    - vdi_in_use_by | length > 0
+    - vdi_in_use_by != vm_name
+
+# Key step: if our VM holds it, unregister it (no --delete) so media registry releases the medium
+- name: Temporarily unregister {{ vm_name }} to clear machine media registry
+  delegate_to: localhost
+  command: VBoxManage unregistervm "{{ vm_name }}"
+  when: vdi_in_use_by == vm_name
+  register: vm_unreg
+  failed_when: false
+  changed_when: vm_unreg.rc == 0
+
+- name: Extract VM that holds this VDI (if any)
+  set_fact:
+    vdi_in_use_by: >-
+      {{ (vdi_info.stdout | regex_search('(?m)^In use by VMs:\\s*(\\S+)', '\\1'))
+         | default('', true) | string }}
+
+# Safety: if some other VM (not our target) is holding it, stop with a clear error
+- name: Abort if another VM (not {{ vm_name }}) still references this VDI
+  delegate_to: localhost
+  fail:
+    msg: "VDI {{ cloud_image_vdi }} is still referenced by VM '{{ vdi_in_use_by }}'. Refusing to modify other people's VMs."
+  when:
+    - vdi_in_use_by | length > 0
+    - vdi_in_use_by != vm_name
+
+# If our own VM holds it, temporarily unregister the VM (no --delete). We'll recreate it later.
+- name: Temporarily unregister {{ vm_name }} to clear machine media registry
+  delegate_to: localhost
+  command: VBoxManage unregistervm "{{ vm_name }}"
+  when:
+    - vdi_in_use_by == vm_name
+  register: vm_unreg
+  failed_when: false
+  changed_when: vm_unreg.rc == 0
+
+# After unregistering, close the stale medium by UUID (if we discovered one), then by path (no-op if already closed)
+- name: Close stale medium by UUID (braced) if present
+  delegate_to: localhost
+  command: VBoxManage closemedium disk "{{ '{' ~ vdi_uuid ~ '}' }}"
+  when: vdi_uuid | length > 0
+  failed_when: false
+  changed_when: false
+
+- name: Close stale medium by path (fallback)
+  delegate_to: localhost
+  command: VBoxManage closemedium disk "{{ cloud_image_vdi }}"
+  failed_when: false
+  changed_when: false
+
+# Remove on-disk file unconditionally now that the VM is unregistered (we're about to reclone it fresh)
+- name: Ensure VDI file is absent before re-clone
+  file:
+    path: "{{ cloud_image_vdi }}"
+    state: absent
+
+
+- name: Remove on-disk VDI only if inaccessible or zero-byte
+  file:
+    path: "{{ cloud_image_vdi }}"
+    state: absent
+  when:
+    - vdi_stat.stat.exists | default(false)
+    - (vdi_stat.stat.size | int) < 1048576
+      or (vdi_info.stdout is search('(?m)^State:\\s*inaccessible'))
+      or (vdi_info.stdout is search('(?m)^Capacity:\\s*0 MBytes'))
+
+# 5) Final sanity: ensure registry no longer has any HDD at this Location
+- name: Validate registry has no HDD bound to this Location
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    DISK="{{ cloud_image_vdi }}"
+    if VBoxManage list hdds | awk -v d="$DISK" '$1=="Location:" && $2==d {found=1} END{exit found?1:0}'; then
+      exit 0
+    fi
+  args: { executable: /bin/bash }
+  register: hdd_registry_check
+  changed_when: false
+  failed_when: hdd_registry_check.rc != 0
+
+# ------------------------------------------------------------------
+
+- name: Convert VMDK to VDI (force normal/standard variant)
+  delegate_to: localhost
+  command: >
+    VBoxManage clonemedium disk "{{ cloud_image_vmdk }}"
+    "{{ cloud_image_vdi }}" --format VDI --variant Standard
+  args:
+    creates: "{{ cloud_image_vdi }}"
+
+# Optional: verify fresh medium looks sane
+- name: Report VDI after clone
+  delegate_to: localhost
+  shell: |
+    VBoxManage showmediuminfo disk "{{ cloud_image_vdi }}" | egrep '^(UUID|State|Type|Location|Capacity):'
+  args: { executable: /bin/bash }
+  register: vdi_report_after_clone
+  changed_when: false
+  failed_when: false
+
+- name: Show VDI report
+  debug:
+    msg: "{{ vdi_report_after_clone.stdout_lines | default([]) }}"
+
+# ========== VM LIFECYCLE ==========
+- name: (Optional) Nuke the VM
+  command: VBoxManage unregistervm "{{ vm_name }}" --delete
+  when: build_fresh_vm | default(false)
+  ignore_errors: true
+
+- name: Check if VM exists
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vm_query
+  changed_when: false
+  failed_when: false
+
+- name: Flag vm_exists
+  set_fact:
+    vm_exists: "{{ vm_query.rc == 0 }}"
+
+- name: Create & register VM if missing
+  command: >
+    VBoxManage createvm --name "{{ vm_name }}"
+    --ostype Ubuntu_64 --register
+  when: not vm_exists
+
+- name: Gather VM info
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vm_info
+  changed_when: false
+  failed_when: false
+
+- name: Power off VM if running
+  command: VBoxManage controlvm "{{ vm_name }}" poweroff
+  when: vm_info.stdout.find('VMState="poweroff"') == -1
+  ignore_errors: true
+
+- name: Wait for VM to reach poweroff state
+  shell: |
+    until VBoxManage showvminfo "{{ vm_name }}" --machinereadable | grep -q '^VMState="poweroff"$'; do
+      sleep 1
+    done
+
+# ========== FORCE NIC1 TO BRIDGED + VIRTIO ==========
+- name: Detect host default route interface
+  delegate_to: localhost
+  command:
+    argv:
+      - bash
+      - -lc
+      - ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if ($i=="dev"){print $(i+1); exit}}'
+  register: default_iface
+  changed_when: false
+  failed_when: false
+
+- name: Normalize default iface
+  set_fact:
+    bridge_iface_resolved: "{{ (default_iface.stdout | default('')) | trim }}"
+
+- name: Configure NIC1 as BRIDGED virtio
+  delegate_to: localhost
+  command:
+    argv:
+      - VBoxManage
+      - modifyvm
+      - "{{ vm_name }}"
+      - --nic1
+      - bridged
+      - --bridgeadapter1
+      - "{{ bridge_iface_resolved }}"
+      - --nictype1
+      - virtio
+
+# ========== STORAGE ==========
+- name: Ensure SATA controller exists
+  delegate_to: localhost
+  shell: |
+    if ! VBoxManage showvminfo "{{ vm_name }}" --machinereadable | grep -Eq 'storagecontrollername[0-9]+="SATA Controller"'; then
+      VBoxManage storagectl "{{ vm_name }}" --name "SATA Controller" --add sata --controller IntelAhci
+    fi
+
+# --- PRE-RESIZE SAFETY: make sure VDI is NOT attached anywhere ---
+- name: Detach VDI from ANY VM before resize (belt-and-suspenders)
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    DISK="{{ cloud_image_vdi }}"
+    while IFS= read -r VM; do
+      while IFS= read -r SLOT; do
+        [ -z "$SLOT" ] && continue
+        CTL="${SLOT%-*-*}"
+        PORT="${SLOT#*-}"; PORT="${PORT%-*}"
+        DEV="${SLOT##*-}"
+        CTL="${CTL%\"}"; CTL="${CTL#\"}"
+        VBoxManage storageattach "$VM" --storagectl "$CTL" --port "$PORT" --device "$DEV" --medium none || true
+      done < <(VBoxManage showvminfo "$VM" --machinereadable | awk -v d="$DISK" -F= '$2==("\"" d "\""){print $1}')
+    done < <(VBoxManage list vms | awk -F\" '{print $2}')
+  args: { executable: /bin/bash }
+  changed_when: false
+  failed_when: false
+# -----------------------------------------------------------------
+
+# Use byte-precise resize to avoid 0.0 MB issue on some VBox versions
+- name: Compute target disk size in bytes
+  set_fact:
+    disk_size_bytes: "{{ (disk_size_mb | int) * 1024 * 1024 }}"
+
+- name: Assert VDI is not locked (fail early if still in use)
+  delegate_to: localhost
+  shell: |
+    if VBoxManage showmediuminfo "{{ cloud_image_vdi }}" | grep -q '^In use by'; then
+      echo "VDI is locked by a VM; detach before resizing."
+      exit 1
+    fi
+  changed_when: false
+
+- name: Resize VDI disk (byte-precise)
+  delegate_to: localhost
+  command: >
+    VBoxManage modifymedium disk "{{ cloud_image_vdi }}" --resizebyte {{ disk_size_bytes }}
+
+- name: Attach VDI disk
+  delegate_to: localhost
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+    --storagectl "SATA Controller"
+    --port 0 --device 0 --type hdd --medium "{{ cloud_image_vdi }}"
+
+# ========== CAPTURE MAC ==========
+- name: Read NIC info from VirtualBox (machine-readable)
+  delegate_to: localhost
+  command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+  register: vminfo
+  changed_when: false
+  failed_when: false
+
+# Parse macaddress1 line without plugins; ensure STRING (not list)
+- name: Extract macaddress1 line
+  set_fact:
+    mac_line: "{{ (vminfo.stdout_lines | select('search', '^macaddress1=') | list | first | default('')) }}"
+
+- name: Ensure macaddress1 was found
+  assert:
+    that:
+      - mac_line != ''
+    fail_msg: "Could not find macaddress1 in VBoxManage output."
+
+- name: Extract primary MAC raw hex (quotes stripped, lowercased)
+  set_fact:
+    primary_mac_raw: "{{ mac_line.split('=')[1] | replace('\"', '') | lower }}"
+
+# Format into colon-separated octets (core filter only)
+- name: Format MAC address into colon-separated form
+  set_fact:
+    primary_mac: "{{ primary_mac_raw | regex_replace('(..)(?!$)', '\\1:') }}"
+
+- name: Show resolved primary_mac
+  debug:
+    msg: "primary_mac resolved to {{ primary_mac }}"
+
+# ========== SEED RENDERING ==========
+- name: Ensure seed directory exists
+  file:
+    path: "{{ cloud_image_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Validate MAC looks sane
+  assert:
+    that:
+      - primary_mac is match('^([0-9a-f]{2}:){5}[0-9a-f]{2}$')
+    fail_msg: "Could not parse macaddress1 from VBoxManage output. Got: '{{ primary_mac_raw | default(\"<none>\") }}'"
+
+- name: Normalize CIDR suffix if not present
+  set_fact:
+    cidr_ip: "{{ static_ip if '/' in static_ip else static_ip ~ '/24' }}"
+
+- name: Render cloud-init network-config (netplan v2)
+  copy:
+    dest: "{{ cloud_image_dir }}/network-config"
+    mode: "0644"
+    content: |
+      version: 2
+      ethernets:
+        nic0:
+          match:
+            macaddress: "{{ primary_mac }}"
+            driver: virtio_net
+          set-name: eth0
+          dhcp4: false
+          dhcp6: false
+          addresses:
+            - "{{ cidr_ip }}"
+          routes:
+            - to: default
+              via: "{{ gateway }}"
+          nameservers:
+            addresses: [{{ nameservers | join(', ') }}]
+
+- name: Read SSH public key 
+  set_fact: 
+    my_ssh_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+
+- name: Create cloud-init user-data file
+  become: yes
+  template:
+    src: user-data.j2
+    dest: "{{ cloud_image_dir }}/user-data"
+
+- name: Create cloud-init meta-data file
+  become: yes
+  copy:
+    dest: "{{ cloud_image_dir }}/meta-data"
+    content: |
+      ---
+      instance-id: {{ vm_name }}
+      local-hostname: {{ vm_name }}
+
+# ========== VALIDATION ==========
+- name: Parse network-config as YAML
+  vars:
+    netcfg_path: "{{ cloud_image_dir }}/network-config"
+  set_fact:
+    netcfg_parsed: "{{ lookup('file', netcfg_path) | from_yaml }}"
+
+- name: Assert static network-config schema
+  assert:
+    that:
+      - netcfg_parsed.version == 2
+      - "'ethernets' in netcfg_parsed"
+      - netcfg_parsed.ethernets.nic0.addresses | length > 0
+      - "'routes' in netcfg_parsed"
+      - "'nameservers' in netcfg_parsed"
+    fail_msg: "network-config missing required static keys."
+
+- name: Parse user-data as YAML
+  vars:
+    userdata_path: "{{ cloud_image_dir }}/user-data"
+  set_fact:
+    userdata_parsed: "{{ lookup('file', userdata_path) | from_yaml }}"
+
+- name: Assert user-data has hostname and users
+  assert:
+    that:
+      - "'hostname' in userdata_parsed"
+      - "'users' in userdata_parsed"
+
+# ========== ISO + BOOT ==========
+- name: Generate NoCloud ISO
+  become: yes
+  command: >
+    genisoimage -output "{{ nocloud_iso }}"
+    -volid CIDATA -joliet-long -rock
+    "{{ cloud_image_dir }}/user-data"
+    "{{ cloud_image_dir }}/meta-data"
+    "{{ cloud_image_dir }}/network-config"
+
+- name: Attach Cloud-Init ISO
+  command: >
+    VBoxManage storageattach "{{ vm_name }}"
+    --storagectl "SATA Controller"
+    --port 1 --device 0 --type dvddrive --medium "{{ nocloud_iso }}"
+
+- name: Set VM memory and CPUs
+  command: VBoxManage modifyvm "{{ vm_name }}" --memory 8192 --cpus 8
+
+- name: Start VM headless
+  command: VBoxManage startvm "{{ vm_name }}" --type headless
+  changed_when: false
+
+- name: Wait for SSH availability
+  wait_for:
+    host: "{{ static_ip }}"
+    port: 22
+    delay: 15
+    timeout: 300

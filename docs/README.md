@@ -82,7 +82,7 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 ```bash
 # 1. Set GIGHIVE_HOME variable
 export GIGHIVE_HOME=<location of where you cloned gighive>
-eg: export GIGHIVE_HOME=/home/user/gighive
+eg: export GIGHIVE_HOME=/home/$USER/gighive
 
 # 2. Install Azure, Terraform and Ansible prerequisites 
 cd $GIGHIVE_HOME;./1prereqsInstall.sh

@@ -8,11 +8,26 @@ final class MediaController
 {
     public function __construct(private SessionRepository $repo) {}
 
+    private static function h(?string $v): string
+    {
+        return htmlspecialchars((string)$v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    private static function secondsToHms(?string $seconds): string
+    {
+        if ($seconds === null || $seconds === '' || !ctype_digit((string)$seconds)) {
+            return '';
+        }
+        $s = (int)$seconds;
+        $h = intdiv($s, 3600);
+        $m = intdiv($s % 3600, 60);
+        $sec = $s % 60;
+        return sprintf('%02d:%02d:%02d', $h, $m, $sec);
+    }
+
     public function list(): Response
     {
         $rows = $this->repo->fetchMediaList();
-
-        $escape = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
         $html  = '<!DOCTYPE html>';
         $html .= '<html lang="en"><head>';
@@ -31,61 +46,60 @@ final class MediaController
 
         $html .= '<h1>Sessions</h1>';
         $html .= '<table id="searchableTable" data-sort-order="asc"><thead><tr>';
-        $html .= '<th onclick="sortTable(0)"><h4>#</h4><input type="text" onkeyup="searchTable(0)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(1)"><h4>Date</h4><input type="text" onkeyup="searchTable(1)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(2)"><h4>Rating</h4><input type="text" onkeyup="searchTable(2)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(3)"><h4>Keywords</h4><input type="text" onkeyup="searchTable(3)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(4)"><h4>Duration</h4><input type="text" onkeyup="searchTable(4)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(5)"><h4>Location</h4><input type="text" onkeyup="searchTable(5)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(6)"><h4>Summary</h4><input type="text" onkeyup="searchTable(6)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(7)"><h4>Crew</h4><input type="text" onkeyup="searchTable(7)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(8)"><h4>Song Name</h4><input type="text" onkeyup="searchTable(8)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(9)"><h4>File Type</h4><input type="text" onkeyup="searchTable(9)" placeholder="Search..."></th>';
-        $html .= '<th onclick="sortTable(10)"><h4>File</h4><input type="text" onkeyup="searchTable(10)" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(0)"><h4>#</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(1)"><h4>Date</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(2)"><h4>Rating</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(3)"><h4>Keywords</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(4)"><h4>Duration</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(5)"><h4>Location</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(6)"><h4>Summary</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(7)"><h4>Crew</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(8)"><h4>Song Name</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(9)"><h4>File Type</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(10)"><h4>File</h4><input type="text" placeholder="Search..."></th>';
         $html .= '</tr></thead><tbody>';
 
         $counter = 1;
         foreach ($rows as $row) {
-            $jamDate  = $row['jam_date']          ?? $row['session_date']     ?? '';
-            $location = $row['location']          ?? $row['session_location'] ?? '';
-            $song     = $row['song_name']         ?? '';
-            $crew     = $row['crew']              ?? '';
-            $rating   = $row['rating']            ?? '';
-            $keywords = $row['keywords']          ?? '';
-            $duration = $row['duration']          ?? '';
-            $summary  = $row['summary']           ?? '';
-            $typeRaw  = (string)($row['file_type'] ?? '');
-            $file     = (string)($row['file_name'] ?? '');
+            // standardized fields
+            $date      = (string)($row['date'] ?? '');
+            $rating    = (string)($row['rating'] ?? '');
+            $keywords  = (string)($row['keywords'] ?? '');
+            $duration  = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
+            $location  = (string)($row['location'] ?? '');
+            $summary   = (string)($row['summary'] ?? '');
+            $crew      = (string)($row['crew'] ?? '');
+            $songTitle = (string)($row['song_title'] ?? '');
+            $typeRaw   = (string)($row['file_type'] ?? '');
+            $file      = (string)($row['file_name'] ?? '');
 
             // Determine directory by file extension: .mp3 => /audio, .mp4 => /video
-            $ext     = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-            $dir     = ($ext === 'mp3') ? '/audio' : (($ext === 'mp4') ? '/video' : '');
-
-            // Fallback to using file_type if it already matches "audio" or "video"
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            $dir = ($ext === 'mp3') ? '/audio' : (($ext === 'mp4') ? '/video' : '');
             if ($dir === '' && ($typeRaw === 'audio' || $typeRaw === 'video')) {
                 $dir = '/' . $typeRaw;
             }
-
-            $url  = ($dir && $file) ? $dir . '/' . rawurlencode($file) : '#';
+            $url = ($dir && $file) ? $dir . '/' . rawurlencode($file) : '#';
 
             $html .= '<tr>'
-                  .  '<td>' . $counter++                . '</td>'
-                  .  '<td>' . $escape($jamDate)         . '</td>'
-                  .  '<td>' . $escape($rating)          . '</td>'
-                  .  '<td>' . $escape($keywords)        . '</td>'
-                  .  '<td>' . $escape($duration)        . '</td>'
-                  .  '<td>' . $escape($location)        . '</td>'
-                  .  '<td>' . $escape($summary)         . '</td>'
-                  .  '<td>' . $escape($crew)            . '</td>'
-                  .  '<td>' . $escape($song)            . '</td>'
-                  .  '<td>' . $escape($typeRaw)         . '</td>'
-                  .  '<td>' . ($url !== '#' ? '<a href="' . $escape($url) . '" target="_blank">Download</a>' : '') . '</td>'
+                  .  '<td>' . $counter++              . '</td>'
+                  .  '<td>' . self::h($date)          . '</td>'
+                  .  '<td>' . self::h($rating)        . '</td>'
+                  .  '<td>' . self::h($keywords)      . '</td>'
+                  .  '<td>' . self::h($duration)      . '</td>'
+                  .  '<td>' . self::h($location)      . '</td>'
+                  .  '<td>' . self::h($summary)       . '</td>'
+                  .  '<td>' . self::h($crew)          . '</td>'
+                  .  '<td>' . self::h($songTitle)     . '</td>'
+                  .  '<td>' . self::h($typeRaw)       . '</td>'
+                  .  '<td>' . ($url !== '#' ? '<a href="' . self::h($url) . '" target="_blank">Download</a>' : '') . '</td>'
                   .  '</tr>';
         }
 
         $html .= '</tbody></table>';
         $html .= '<script>';
-        $html .= 'function searchTable(colIndex){const input=document.querySelectorAll("thead input")[colIndex];const filter=input.value.toUpperCase();const table=document.getElementById("searchableTable");const rows=table.getElementsByTagName("tr");for(let i=1;i<rows.length;i++){const cells=rows[i].getElementsByTagName("td");const txt=(cells[colIndex]?.innerText||"").toUpperCase();rows[i].style.display=txt.indexOf(filter)>-1?"":"none";}}';
+        $html .= 'function filterTable(){const inputs=document.querySelectorAll("thead input");const table=document.getElementById("searchableTable");const rows=table.getElementsByTagName("tr");for(let i=1;i<rows.length;i++){let visible=true;const cells=rows[i].getElementsByTagName("td");inputs.forEach((input,colIndex)=>{const filter=input.value.toUpperCase();if(filter){const txt=(cells[colIndex]?.innerText||"").toUpperCase();if(txt.indexOf(filter)===-1){visible=false;}}});rows[i].style.display=visible?"":"none";}}';
+        $html .= 'document.querySelectorAll("thead input").forEach((input)=>{input.addEventListener("keyup",filterTable);});';
         $html .= 'function sortTable(colIndex){const table=document.getElementById("searchableTable");const tbody=table.tBodies[0];const rows=Array.from(tbody.rows);const asc=table.dataset.sortOrder!=="asc";rows.sort((a,b)=>{let A=a.cells[colIndex].innerText.trim().toUpperCase();let B=b.cells[colIndex].innerText.trim().toUpperCase();let nA=parseFloat(A),nB=parseFloat(B);if(!isNaN(nA)&&!isNaN(nB))return asc?nA-nB:nB-nA;return asc?A.localeCompare(B):B.localeCompare(A);});table.dataset.sortOrder=asc?"asc":"desc";rows.forEach(r=>tbody.appendChild(r));}';
         $html .= '</script>';
         $html .= '</body></html>';
@@ -93,4 +107,3 @@ final class MediaController
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $html);
     }
 }
-
