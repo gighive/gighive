@@ -7,6 +7,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Welcome</title>
+  <!-- Favicons -->
+  <link rel="icon" href="/images/icons/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/images/icons/favicon-16.png" sizes="16x16">
+  <link rel="icon" type="image/png" href="/images/icons/favicon-32.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="/images/icons/favicon-48.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/images/icons/favicon-64.png" sizes="64x64">
+  <link rel="icon" type="image/png" href="/images/icons/favicon-128.png" sizes="128x128">
+  <link rel="icon" type="image/png" href="/images/icons/favicon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png" sizes="180x180">
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     body { margin:0; background:#0b1020; color:#e9eef7; }

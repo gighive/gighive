@@ -1,5 +1,10 @@
 *** 
 releaseNotes20250906.txt
+Changes: Added gighive favicon and associated files: ansible/roles/docker/files/apache/html/images/icons/
+
+
+*** 
+releaseNotes20250906.txt
 Changes: Readme update.
 
 sodo@pop-os:~/scripts/gighive$ git status
