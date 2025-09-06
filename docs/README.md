@@ -4,7 +4,7 @@ layout: default
 ---
 # GigHive Music and Video Library 
 
-GigHive is an **open-source deployment framework** for hosting a band’s music library and jam sessions.  Or a wedding photographer could use it for their guests to upload photos.  It packages **Apache**, **MySQL**, and supporting automation into a fully reproducible environment using **Docker, Ansible, and Terraform**.  
+GigHive is an **open-source deployment framework** for hosting your own media library, a band’s library or fan videos, or even videos uploaded by guests from events like a wedding.  It packages **Apache**, **MySQL**, and supporting automation into a fully reproducible environment using **Docker, Ansible, and Terraform**.  It has a very simple interface: a splash page, a single database of stored videos and an upload utility.
 
 This project is designed to be portable, easy to deploy, and suitable for local development or cloud environments (Azure supported out of the box).
 
@@ -23,6 +23,14 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 - **Containerized Deployment**  
   - Docker containers for all core services  
+
+---
+
+## 🧑‍💻 Development Environment
+- Use the included Ansible + Docker setup to run locally.  
+- Access services:  
+  - Apache web server → `http://localhost:8080`  
+  - MySQL database → `localhost:3306`  
 
 ---
 
@@ -95,13 +103,6 @@ Note VirtualBox install will require a reboot.
 ```
 
 ---
-
-## ⚙️ Setup & Installation
-- Once installed, there will be a splash page, a link to the database and a link to the uploads page. Simple! Oh, and a page for the admins to reset default password.
-- Default install will populate the database with ~10 sample video and audio files. These can be deleted later with <a href="">database reset procedure</a>.
-- Default password set in $GIGHIVE_HOME/ansible/inventories/group_vars files.
-
----
 ## Option A: Azure
 ```bash
 # 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
@@ -141,18 +142,10 @@ cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_baremetal.yml
 
 ---
 
-## 🧑‍💻 Development Environment
-- Use the included Ansible + Docker setup to run locally.  
-- Access services:  
-  - Apache web server → `http://localhost:8080`  
-  - MySQL database → `localhost:3306`  
-  - Portainer → `http://localhost:9000`  
-
----
-
-## 📊 CI/CD & Quality
-- **SonarCloud** integration via GitHub Actions  
-- Linting and testing scripts under `.github/`  
+## ⚙️ Setup & Installation
+- Once installed, there will be a splash page, a link to the database and a link to the uploads page. Simple! Oh, and a page for the admins to reset default password.
+- Default install will populate the database with ~10 sample video and audio files. These can be deleted later with <a href="">database reset procedure</a>.
+- Default password set in $GIGHIVE_HOME/ansible/inventories/group_vars files.
 
 ---
 
@@ -160,7 +153,6 @@ cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_baremetal.yml
 GigHive Community Edition is licensed under the MIT License.
 This edition is intended for self-hosted, single-tenant use cases.
 For SaaS or multi-tenant solutions, please see GigHive Cloud (proprietary).
-
 
 ---
 
