@@ -1,6 +1,33 @@
 *** 
 releaseNotes20250906.txt
+Changes: Readme update.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   docs/README.md
+
+ToDo: fix upload.php
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample jam
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250906.txt
 Changes: Added new timeline, removed old one. Should reduce noise from sonarqube testing.
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml   --skip-tags blobfuse2,vbox_provision,mysql_backup --tags set_targets,base,docker,post_build_checks
+- minimal run of local vm that already exists
 
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -19,15 +46,6 @@ Changes to be committed:
 	new file:   ansible/roles/docker/files/apache/blue_green/timeline/modern-timeline-enhanced.js
 	new file:   ansible/roles/docker/files/apache/blue_green/timeline/timeline-api.php
 	deleted:    ansible/roles/docker/files/apache/blue_green/timeline_2.3.0
-
-ToDo: fix upload.php
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample jam
-ToDo: Make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20250905.txt
