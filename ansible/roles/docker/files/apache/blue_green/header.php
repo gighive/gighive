@@ -53,60 +53,24 @@
 <!-- Google tag (gtag.js) END -->
 
 <?php if (basename($_SERVER['PHP_SELF']) === 'index.php'): ?>
-<!-- Timeline START -->
-<script src="/timeline_2.3.0/timeline_ajax/simile-ajax-api.js" type="text/javascript"></script>
-<script src="/timeline_2.3.0/timeline_js/timeline-api.js" type="text/javascript"></script>
-    <script>
-        SimileAjax.History.enabled = false;
-	var tl;
-	function formatHalfDecade(date) {
-    		const year = date.getFullYear();
-    		return `${Math.floor(year / 5) * 5}-${Math.floor(year / 5) * 5 + 4}`;
-	}
-	function onLoad() 
-	{
-		var eventSource = new Timeline.DefaultEventSource();
-		var theme = Timeline.ClassicTheme.create();
-/*		theme.ether.backgroundColors[0] = '#635e5e';
-		theme.ether.backgroundColors[1] = '#404040';*/
-		theme.ether.backgroundColors[0] = '#5b4a08';
-		theme.ether.backgroundColors[1] = '#EFBF04';
-
-		theme.ether.highlightColor = '#E00';
-		theme.ether.highlightOpacity = '30';
-		theme.event.bubble.width = 360;
-		theme.event.bubble.height = 540;
-		theme.timeline_start = new Date('1998');
-        theme.timeline_stop = new Date('2025');
-		var bandInfos = [
-			Timeline.createBandInfo({
-				eventSource:	eventSource,
-				date:		"Apr 14 2011 00:00:00 EST",
-				width:		"20%",
-				intervalUnit:	Timeline.DateTime.MONTH,
-				intervalPixels:	100
-			}),
-			Timeline.createBandInfo({
-				eventSource:	eventSource,
-				date:		"May 14 2011 00:00:00 EST",
-				width:		"80%",
-				intervalUnit:	Timeline.DateTime.YEAR,
-				intervalPixels:	60
-			})
-
-		];
-		bandInfos[1].syncWith = 0;
-		bandInfos[1].highlight = true;
-		tl = Timeline.create(document.getElementById("my-timeline"), bandInfos);
-		tl.loadXML("timeline.xml", function(xml, url) { eventSource.loadXML(xml, url); });
-	}
-    </script>
-<!-- Timeline END -->
+    <!-- Modern Timeline Styles -->
+    <link rel="stylesheet" type="text/css" href="timeline/modern-timeline-enhanced.css">
+    
+    <!-- Modern Timeline Script -->
+    <script type="text/javascript" src="timeline/modern-timeline-enhanced.js"></script>
+    
+    <!-- Modal for event details -->
+    <div id="event-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div id="modal-content" style="background: #1a1a1a; border: 2px solid #EB0; border-radius: 8px; padding: 20px; max-width: 600px; max-height: 80%; overflow-y: auto; position: relative;">
+            <button id="close-modal" style="position: absolute; top: 10px; right: 15px; background: none; border: none; color: #EB0; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+    </div>
+<!-- Modern Timeline END -->
 <?php endif; ?>
 </head>
 
 <?php if (basename($_SERVER['PHP_SELF']) === 'index.php'): ?>
-    <body onload="onLoad();">
+    <body onload="initStormPigsTimeline();">
 <?php else: ?>
     <body>
 <?php endif; ?>

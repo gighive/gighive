@@ -1,4 +1,35 @@
 *** 
+releaseNotes20250906.txt
+Changes: Added new timeline, removed old one. Should reduce noise from sonarqube testing.
+
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/roles/docker/files/apache/blue_green/header.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/timeline-api.js
+	deleted:    ansible/roles/docker/files/apache/blue_green/timeline.xml
+	new file:   ansible/roles/docker/files/apache/blue_green/timeline/README.md
+	new file:   ansible/roles/docker/files/apache/blue_green/timeline/modern-timeline-enhanced.css
+	new file:   ansible/roles/docker/files/apache/blue_green/timeline/modern-timeline-enhanced.js
+	new file:   ansible/roles/docker/files/apache/blue_green/timeline/timeline-api.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/timeline_2.3.0
+
+ToDo: fix upload.php
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample jam
+ToDo: Make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20250905.txt
 Changes: Fix for missing audio_full variable.  Tested on azure, performance improved from 50m to 15m setup time.
 
@@ -14,15 +45,6 @@ Changes to be committed:
 	modified:   docs/README.md
 	modified:   docs/timings.txt
 	modified:   terraform/tfplan
-
-ToDo: fix upload.php
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample jam
-ToDo: Make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt
-ToDo: clear db script
 
 *** 
 releaseNotes20250905.txt

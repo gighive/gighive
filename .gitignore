@@ -21,6 +21,7 @@ volumes/
 
 # Backup directories
 **/backup/
+**/_archive/
 
 # Log files
 *.log
