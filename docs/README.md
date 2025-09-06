@@ -14,7 +14,6 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 - **Automated Infrastructure**  
   - Provisioning with **Terraform** (Azure-ready)  
   - Configuration with **Ansible**  
-  - CI/CD with **GitHub Actions**  
 
 - **Web + Database Stack**  
   - Apache HTTP Server (custom-built with HTTP/2/3 support)  
@@ -145,9 +144,10 @@ cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_baremetal.yml
 ---
 
 ## ⚙️ Setup & Installation
-- Once installed, there will be a splash page, a link to the database and a link to the uploads page. Simple! Oh, and a page for the admins to reset default password.
+- Once installed, there will be a splash page, a link to the database and a link to the uploads page. Simple! 
 - Default install will populate the database with ~10 sample video and audio files. These can be deleted later with <a href="">database reset procedure</a>.
 - Default password set in $GIGHIVE_HOME/ansible/inventories/group_vars files.
+- Admin utility: a page for the admins to reset default password in GUI as well.
 
 ---
 

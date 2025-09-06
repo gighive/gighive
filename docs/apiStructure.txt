@@ -1,0 +1,32 @@
+sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache/blue_green/db$ head -40 database.php 
+<?php declare(strict_types=1);
+namespace Production\Api\Controllers;
+
+use Production\Api\Repositories\SessionRepository; // includes SQL
+use Production\Api\Infrastructure\Database;        // has DB connection string
+use Production\Api\Controllers\MediaController;    // has pointer to SessionRepository and has HTML for UX display
+
+
+sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache/blue_green/db$ head -15 ../timeline/timeline-api.php 
+<?php
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET');
+header('Access-Control-Allow-Headers: Content-Type');
+
+// Autoload and use env-based DB configuration (no credentials in code)
+require_once __DIR__ . '/../vendor/autoload.php';
+use Production\Api\Infrastructure\Database;
+
+try {
+    // Create PDO from environment variables (DB_HOST, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD, DB_CHARSET)
+    $pdo = Database::createFromEnv();
+    
+    // Query to get ALL sessions, even those without songs or musicians
+    $sql = <<<SQL
+SELECT 
+    sesh.session_id
+
+timeline-api.php has the db connection and SQL statement in one, but then points to 
+
+so it does not seem to be following the same model as database.php.

@@ -1,0 +1,21 @@
+Recommended MVC shape for your project
+
+Controller (application layer)
+Purpose: Orchestrate a request. Validate inputs, call services/repositories, return a response.
+Rule: No SQL and no HTML in controllers.
+In your tree: Production\Api\Controllers\MediaController should only coordinate and return a PSR-7 Response (you’re already using GuzzleHttp\Psr7\Response in 
+db/database.php
+).
+Repository (data access)
+Purpose: Encapsulate SQL and persistence access.
+In your tree: Production\Api\Repositories\SessionRepository is correctly holding the SQL.
+View/Presenter (presentation layer)
+Purpose: Render HTML or transform models to JSON. Keep this out of controllers.
+Options:
+Template engine (Twig, Plates) under, e.g., views/
+Simple PHP templates (include files) if you want zero dependencies
+Presenters/Transformers to shape data for the view or for JSON APIs
+Rule of thumb: Controllers produce a ViewModel/DTO, pass it to a template, or serialize it to JSON.
+Domain/Service layer (optional but helpful)
+Purpose: Non-trivial business rules, composition, caching, pagination, authorization checks, etc.
+Where: src/Domain/ or src/Services/ (e.g., TimelineService) that aggregates multiple repositories.

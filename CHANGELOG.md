@@ -1,6 +1,46 @@
 *** 
 releaseNotes20250906.txt
+Changes: Jibe timeline-api.php with db/database.php's MVC structure, document MVC general/specific, fix 2006_04_06 jam files.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/roles/docker/files/apache/blue_green/src/Controllers/MediaController.php
+	new file:   ansible/roles/docker/files/apache/blue_green/src/Presentation/ViewRenderer.php
+	new file:   ansible/roles/docker/files/apache/blue_green/src/Views/media/list.php
+	new file:   ansible/roles/docker/files/apache/blue_green/test_render.php
+	new file:   ansible/roles/docker/files/apache/blue_green/views/media/list.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/song_files.csv
+	modified:   docs/README.md
+	new file:   docs/apiStructure.txt
+	new file:   docs/mvcModel.txt
+	new file:   docs/mvcModelmc1.txt
+	new file:   docs/mvcModelmc2.txt
+
+ToDo: clean cruft out of directory
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: fix upload.php
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250906.txt
 Changes: Point timeline to src/Infrastructure/Database.php and readme update.
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml   --skip-tags blobfuse2,vbox_provision,mysql_backup --tags set_targets,base,docker,post_build_checks
+- minimal run of local vm that already exists
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -11,16 +51,6 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/roles/docker/files/apache/blue_green/timeline/timeline-api.php
 	modified:   docs/README.md
-
-ToDo: fix upload.php
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample jam
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250906.txt
