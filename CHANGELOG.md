@@ -1,7 +1,49 @@
 *** 
 releaseNotes20250906.txt
+Changes: Readme update.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/README.md
+ 
+ToDo: fix upload.php
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample jam
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250906.txt
 Changes: Added gighive favicon and associated files: ansible/roles/docker/files/apache/html/images/icons/
 
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	new file:   ansible/roles/docker/files/apache/html/favicon.ico
+	new file:   ansible/roles/docker/files/apache/html/images/icons/apple-touch-icon.png
+	new file:   ansible/roles/docker/files/apache/html/images/icons/favicon-128.png
+	new file:   ansible/roles/docker/files/apache/html/images/icons/favicon-16.png
+	new file:   ansible/roles/docker/files/apache/html/images/icons/favicon-192.png
+	new file:   ansible/roles/docker/files/apache/html/images/icons/favicon-256.png
+	new file:   ansible/roles/docker/files/apache/html/images/icons/favicon-32.png
+	new file:   ansible/roles/docker/files/apache/html/images/icons/favicon-48.png
+	new file:   ansible/roles/docker/files/apache/html/images/icons/favicon-64.png
+	new file:   ansible/roles/docker/files/apache/html/images/icons/favicon.ico
+	modified:   ansible/roles/docker/files/apache/html/index.php
 
 *** 
 releaseNotes20250906.txt
@@ -16,16 +58,6 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/inventories/group_vars/gighive.yml
 	modified:   docs/README.md
-
-ToDo: fix upload.php
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample jam
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250906.txt

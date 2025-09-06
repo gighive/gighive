@@ -79,7 +79,7 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 ---
 
 ## ⚙️ Preparation
-- Do these steps before moving ahead with one of the options below.
+### Do these steps before moving ahead with one of the options below.
 ```bash
 # 1. Set GIGHIVE_HOME variable
 export GIGHIVE_HOME=<location of where you cloned gighive>
