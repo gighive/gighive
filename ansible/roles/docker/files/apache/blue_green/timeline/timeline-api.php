@@ -4,15 +4,13 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Database configuration
-$host = 'mysqlServer';
-$dbname = 'music_db';
-$username = 'appuser';
-$password = 'musiclibrary'; // Update with actual password
+// Autoload and use env-based DB configuration (no credentials in code)
+require_once __DIR__ . '/../vendor/autoload.php';
+use Production\Api\Infrastructure\Database;
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Create PDO from environment variables (DB_HOST, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD, DB_CHARSET)
+    $pdo = Database::createFromEnv();
     
     // Query to get ALL sessions, even those without songs or musicians
     $sql = <<<SQL

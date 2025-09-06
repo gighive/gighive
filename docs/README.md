@@ -111,7 +111,8 @@ export ARM_TENANT_ID=[put your tenant id/mgmt group id here]
 
 # 2. Provision infrastructure
 ./2bootstrap.sh
-- watch for the prompts to..
+
+Watch and respond to these prompts:
 .. apply Terraform plan 
 .. update the ansible inventory file and finally,
 .. run the ansible_playbook
@@ -124,9 +125,10 @@ cd $GIGHIVE_HOME;./3deleteAll.sh
 ## Option B: VirtualBox
 ```bash
 # 1. Decide on an IP in your home network that you'd like to use. 
-Edit the ansible_host field in $GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml 
 
-# 2. Run Ansible 
+# 2. Edit the "ansible_host" field in $GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml 
+
+# 3. Run Ansible 
 cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass
 ```
 
