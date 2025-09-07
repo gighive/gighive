@@ -8,6 +8,10 @@ class StormPigsTimeline {
         this.dragMoved = false; // track whether a drag occurred to suppress click
         this.startX = 0;
         this.scrollLeft = 0;
+        this.lastMouseX = null; // last known mouse X within container viewport
+        this.lastCenterContentX = null; // last known content coordinate at viewport center
+        this._savedScrollExact = null;   // exact scrollLeft snapshot around modal
+        this.modalOpen = false;          // prevent interactions while modal is open
         this.zoomLevel = 0.63;
         this.minZoom = 0.2;
         this.maxZoom = 20;
@@ -26,7 +30,11 @@ class StormPigsTimeline {
                 
                 // Handle new response format with debug info
                 if (data.events) {
-                    this.events = data.events;
+                    // Normalize IDs to strings to avoid strict-equality mismatches on click
+                    this.events = data.events.map(ev => ({
+                        ...ev,
+                        id: String(ev.id)
+                    }));
                     console.log(`Loaded ${this.events.length} events from database`);
                 } else {
                     // Fallback for old format
@@ -335,8 +343,22 @@ class StormPigsTimeline {
         const container = document.getElementById('timeline-container');
         
         // Store bound functions for removal later
-        this.boundZoomIn = () => this.zoom(1.5);
-        this.boundZoomOut = () => this.zoom(0.67);
+        this.boundZoomIn = () => {
+            if (this.modalOpen) return;
+            const containerEl = document.getElementById('timeline-container');
+            const centerX = containerEl ? Math.floor(containerEl.clientWidth / 2) : 0;
+            const anchorX = (this.lastMouseX !== null && containerEl && this.lastMouseX >= 0 && this.lastMouseX <= containerEl.clientWidth)
+                ? this.lastMouseX : centerX;
+            this.zoomAt(1.5, anchorX);
+        };
+        this.boundZoomOut = () => {
+            if (this.modalOpen) return;
+            const containerEl = document.getElementById('timeline-container');
+            const centerX = containerEl ? Math.floor(containerEl.clientWidth / 2) : 0;
+            const anchorX = (this.lastMouseX !== null && containerEl && this.lastMouseX >= 0 && this.lastMouseX <= containerEl.clientWidth)
+                ? this.lastMouseX : centerX;
+            this.zoomAt(0.67, anchorX);
+        };
         this.boundFitAll = () => this.fitAll();
         this.boundMouseDown = (e) => {
             this.isDragging = true;
@@ -354,6 +376,8 @@ class StormPigsTimeline {
             container.style.cursor = 'grab';
         };
         this.boundMouseMove = (e) => {
+            const rect = container.getBoundingClientRect();
+            this.lastMouseX = e.clientX - rect.left; // track last mouse position in viewport coords
             if (!this.isDragging) return;
             e.preventDefault();
             const x = e.pageX - container.offsetLeft;
@@ -363,10 +387,18 @@ class StormPigsTimeline {
                 this.dragMoved = true; // mark as a drag to suppress click
             }
         };
+        this.boundScroll = () => {
+            // Track the content coordinate under the viewport center
+            const centerX = Math.floor(container.clientWidth / 2);
+            this.lastCenterContentX = container.scrollLeft + centerX;
+        };
         this.boundWheel = (e) => {
+            if (this.modalOpen) return;
             e.preventDefault();
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-            this.zoom(zoomFactor);
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left; // relative to container viewport
+            this.zoomAt(zoomFactor, mouseX);
         };
         this.boundTouchStart = (e) => {
             this.isDragging = true;
@@ -404,7 +436,7 @@ class StormPigsTimeline {
 
             const eventElement = e.target.closest('.modern-timeline-event');
             if (eventElement) {
-                const eventId = eventElement.getAttribute('data-event-id');
+                const eventId = String(eventElement.getAttribute('data-event-id'));
                 this.showEventDetail(eventId);
             }
         };
@@ -434,6 +466,10 @@ class StormPigsTimeline {
 
         // Mouse wheel zoom
         container.addEventListener('wheel', this.boundWheel);
+        // Track scroll position continuously
+        container.addEventListener('scroll', this.boundScroll);
+        // Initialize center snapshot
+        this.boundScroll();
 
         // Touch events
         container.addEventListener('touchstart', this.boundTouchStart);
@@ -490,25 +526,57 @@ class StormPigsTimeline {
     }
 
     zoom(factor) {
-        const oldZoom = this.zoomLevel;
-        this.zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel * factor));
-        
-        if (this.zoomLevel !== oldZoom) {
-            const container = document.getElementById('timeline-container');
-            const oldScrollLeft = container.scrollLeft;
-            const oldScrollRatio = oldScrollLeft / (container.scrollWidth - container.clientWidth);
-            
-            this.render();
-            this.setupEventListeners();
-            
-            // Maintain scroll position
-            setTimeout(() => {
-                const newScrollLeft = oldScrollRatio * (container.scrollWidth - container.clientWidth);
-                container.scrollLeft = newScrollLeft;
-            }, 10);
-            
-            document.getElementById('zoom-level').textContent = `Zoom: ${Math.round(this.zoomLevel * 100)}%`;
+        const container = document.getElementById('timeline-container');
+        if (!container) return;
+        let anchorX;
+        if (this.lastMouseX !== null && this.lastMouseX >= 0 && this.lastMouseX <= container.clientWidth) {
+            anchorX = this.lastMouseX;
+        } else if (typeof this.lastCenterContentX === 'number') {
+            // Map stored content center back to current viewport X
+            anchorX = Math.max(0, Math.min(container.clientWidth, this.lastCenterContentX - container.scrollLeft));
+        } else {
+            anchorX = Math.floor(container.clientWidth / 2);
         }
+        this.zoomAt(factor, anchorX);
+    }
+
+    zoomAt(factor, anchorViewportX) {
+        const container = document.getElementById('timeline-container');
+        const track = document.getElementById('timeline-track');
+        if (!container) return;
+
+        const oldZoom = this.zoomLevel;
+        // Use virtual width to avoid DOM timing issues
+        const oldContentWidth = this.getTrackWidth();
+        // Clamp anchor within viewport
+        const _anchorX = Math.max(0, Math.min(container.clientWidth, anchorViewportX));
+        const anchorContentX = container.scrollLeft + _anchorX; // content coord under cursor
+
+        this.zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel * factor));
+        if (this.zoomLevel === oldZoom) return;
+
+        this.render();
+        this.setupEventListeners();
+
+        // After re-render, compute new scrollLeft so that the same content point stays under the cursor
+        // Use rAF to wait for layout to settle
+        requestAnimationFrame(() => {
+            const newContainer = document.getElementById('timeline-container');
+            const newTrack = document.getElementById('timeline-track');
+            const baseContainer = newContainer || container; // fallback just in case
+            const newContentWidth = this.getTrackWidth();
+            const safeOldWidth = Math.max(1, oldContentWidth);
+            const ratio = Math.max(0.0001, newContentWidth / safeOldWidth);
+            const newAnchorContentX = anchorContentX * ratio;
+            const maxScroll = Math.max(0, newContentWidth - baseContainer.clientWidth);
+            const target = newAnchorContentX - _anchorX;
+            const newScrollLeft = Math.max(0, Math.min(maxScroll, target));
+            baseContainer.scrollLeft = newScrollLeft;
+            const label = document.getElementById('zoom-level');
+            if (label) label.textContent = `Zoom: ${Math.round(this.zoomLevel * 100)}%`;
+            // Refresh center snapshot
+            this.lastCenterContentX = newScrollLeft + Math.floor(baseContainer.clientWidth / 2);
+        });
     }
 
     fitAll() {
@@ -525,6 +593,15 @@ class StormPigsTimeline {
         const isVisible = modal && getComputedStyle(modal).display !== 'none';
         const event = this.events.find(e => e.id === eventId);
         if (!event) return;
+
+        // Save current viewport center content coordinate and virtual width
+        const container = document.getElementById('timeline-container');
+        const centerX = container ? Math.floor(container.clientWidth / 2) : 0;
+        this._savedCenterContentX = container ? (container.scrollLeft + centerX) : 0;
+        this._savedTrackWidth = this.getTrackWidth();
+        // Also save exact left-edge alignment so we can restore 1:1
+        this._savedScrollLeftExact = container ? container.scrollLeft : 0;
+        this._savedClientWidth = container ? container.clientWidth : 0;
 
         const eventDate = new Date(event.start);
         const modalContent = document.getElementById('modal-content');
@@ -567,12 +644,49 @@ class StormPigsTimeline {
         `;
 
         if (!isVisible) {
+            const scBefore = container ? container.scrollLeft : 0;
+            this.modalOpen = true;
             document.getElementById('event-modal').style.display = 'flex';
+            // Final guard: restore exact scroll on next frame in case layout shifted
+            requestAnimationFrame(() => {
+                const c = document.getElementById('timeline-container');
+                if (c) c.scrollLeft = scBefore;
+                // Double-guard with timers for Chrome
+                setTimeout(()=>{ const cc=document.getElementById('timeline-container'); if(cc) cc.scrollLeft=scBefore; }, 0);
+                setTimeout(()=>{ const cc=document.getElementById('timeline-container'); if(cc) cc.scrollLeft=scBefore; }, 50);
+            });
         }
     }
 
     closeModal() {
         document.getElementById('event-modal').style.display = 'none';
+        // Restore viewport so the same content point remains centered
+        const container = document.getElementById('timeline-container');
+        if (container && typeof this._savedTrackWidth === 'number') {
+            const newWidth = this.getTrackWidth();
+            const ratio = Math.max(0.0001, newWidth / Math.max(1, this._savedTrackWidth));
+            // Primary restore: left-edge mapping
+            const leftMapped = Math.max(0, Math.min(newWidth - container.clientWidth, this._savedScrollLeftExact * ratio));
+            container.scrollLeft = leftMapped;
+            requestAnimationFrame(() => {
+                const c = document.getElementById('timeline-container');
+                if (c) c.scrollLeft = leftMapped;
+                // Secondary restore (center-based) as a fallback if needed
+                if (typeof this._savedCenterContentX === 'number') {
+                    const newCenterContentX = this._savedCenterContentX * ratio;
+                    const centerMapped = Math.max(0, Math.min(newWidth - c.clientWidth, newCenterContentX - Math.floor(c.clientWidth / 2)));
+                    c.scrollLeft = centerMapped;
+                    requestAnimationFrame(()=>{ if (c) c.scrollLeft = centerMapped; });
+                    this.lastCenterContentX = newCenterContentX;
+                }
+                // Extra guards
+                setTimeout(()=>{ const cc=document.getElementById('timeline-container'); if(cc) cc.scrollLeft = centerMapped ?? leftMapped; }, 0);
+                setTimeout(()=>{ const cc=document.getElementById('timeline-container'); if(cc) cc.scrollLeft = centerMapped ?? leftMapped; }, 50);
+                this.modalOpen = false;
+            });
+            // Ensure snapshot reflects DOM after close
+            this.boundScroll && this.boundScroll();
+        }
     }
 
     navigateToYear(year) {

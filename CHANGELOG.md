@@ -1,5 +1,18 @@
 *** 
 releaseNotes20250907.txt
+Changes: Fixed timeline zoom in issue, still scrolls left, but we'll fix later.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/blue_green/timeline/modern-timeline-enhanced.js
+
+*** 
+releaseNotes20250907.txt
 Changes: Massive amount of changes to update database to include new columns for upload, created upload api/php pages, updated composer.json and .lock manually (procedure in docs), moved csv scripts to ../dbScripts/loadutilities 
 
 sodo@pop-os:~/scripts/gighive$ git status
