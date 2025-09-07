@@ -50,6 +50,8 @@ IGNORE 1 LINES
   session_id,
   @name,
   date,
+  @org_name,
+  @event_type,
   description,
   @image_path,
   @crew,         -- ignored (normalized elsewhere)
@@ -65,6 +67,8 @@ SET
   title = NULLIF(@name, ''),
   cover_image_url = NULLIF(@image_path, ''),
   published_at = NULLIF(@pub_date, ''),
+  org_name = COALESCE(NULLIF(@org_name, ''), 'default'),
+  event_type = NULLIF(@event_type, ''),
 
   rating = CASE
     WHEN @rating_raw IS NULL OR @rating_raw = '' THEN NULL
@@ -149,7 +153,8 @@ INTO TABLE files
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 LINES TERMINATED BY '\r\n'
 IGNORE 1 LINES
-(file_id, file_name, file_type);
+(file_id, file_name, file_type, @duration_seconds)
+SET duration_seconds = NULLIF(@duration_seconds, '');
 
 -- 7) Song ↔ File
 LOAD DATA INFILE '/var/lib/mysql-files/song_files.csv'

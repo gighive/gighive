@@ -40,7 +40,9 @@
           <td><?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['rating'] ?? '', ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['keywords'] ?? '', ENT_QUOTES) ?></td>
-          <td><?= htmlspecialchars($r['duration'] ?? '', ENT_QUOTES) ?></td>
+          <td data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
+            <?= htmlspecialchars($r['duration'] ?? '', ENT_QUOTES) ?>
+          </td>
           <td><?= htmlspecialchars($r['location'] ?? '', ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['summary'] ?? '', ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['crew'] ?? '', ENT_QUOTES) ?></td>
@@ -81,8 +83,17 @@
       const rows=Array.from(tbody.rows);
       const asc=table.dataset.sortOrder!=='asc';
       rows.sort((a,b)=>{
-        let A=a.cells[colIndex].innerText.trim().toUpperCase();
-        let B=b.cells[colIndex].innerText.trim().toUpperCase();
+        const cellA=a.cells[colIndex];
+        const cellB=b.cells[colIndex];
+        const dA=cellA?.dataset?.num ?? '';
+        const dB=cellB?.dataset?.num ?? '';
+        if(dA!==''||dB!==''){
+          const nA=parseFloat(dA||'0');
+          const nB=parseFloat(dB||'0');
+          return asc? nA-nB : nB-nA;
+        }
+        let A=cellA.innerText.trim().toUpperCase();
+        let B=cellB.innerText.trim().toUpperCase();
         let nA=parseFloat(A), nB=parseFloat(B);
         if(!isNaN(nA)&&!isNaN(nB)) return asc? nA-nB : nB-nA;
         return asc? A.localeCompare(B) : B.localeCompare(A);

@@ -1,0 +1,22 @@
+sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache/blue_green$ composer require james-heinrich/getid3:^1.9
+./composer.json has been updated
+Running composer update james-heinrich/getid3
+Loading composer repositories with package information
+Updating dependencies
+Lock file operations: 1 install, 0 updates, 0 removals
+  - Locking james-heinrich/getid3 (v1.9.23)
+Writing lock file
+Installing dependencies from lock file (including require-dev)
+Package operations: 1 install, 0 updates, 0 removals
+  - Downloading james-heinrich/getid3 (v1.9.23)
+  - Installing james-heinrich/getid3 (v1.9.23): Extracting archive
+7 package suggestions were added by new dependencies, use `composer suggest` to see details.
+Generating autoload files
+5 packages you are using are looking for funding.
+Use the `composer fund` command to find out more!
+No security vulnerability advisories found.
+sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache/blue_green$ composer dump-autoload -o
+Generating optimized autoload files
+Generated optimized autoload files containing 320 classes
+sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache/blue_green$ composer validate
+./composer.json is valid

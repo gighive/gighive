@@ -37,6 +37,9 @@ final class MediaController
             $rating    = (string)($row['rating'] ?? '');
             $keywords  = (string)($row['keywords'] ?? '');
             $duration  = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
+            $durationSec = isset($row['duration_seconds']) && $row['duration_seconds'] !== null
+                ? (string)$row['duration_seconds']
+                : '';
             $location  = (string)($row['location'] ?? '');
             $summary   = (string)($row['summary'] ?? '');
             $crew      = (string)($row['crew'] ?? '');
@@ -57,6 +60,7 @@ final class MediaController
                 'rating'    => $rating,
                 'keywords'  => $keywords,
                 'duration'  => $duration,
+                'durationSec' => $durationSec,
                 'location'  => $location,
                 'summary'   => $summary,
                 'crew'      => $crew,

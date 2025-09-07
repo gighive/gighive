@@ -1,0 +1,109 @@
+erDiagram
+  GENRES {
+    int genre_id PK
+    varchar name
+    datetime created_at
+    datetime updated_at
+  }
+
+  STYLES {
+    int style_id PK
+    varchar name
+    datetime created_at
+    datetime updated_at
+  }
+
+  SESSIONS {
+    int session_id PK
+    varchar title
+    date date
+    datetime published_at
+    int duration_seconds
+    varchar cover_image_url
+    varchar location
+    text description
+    text summary
+    text keywords
+    decimal rating
+    bool explicit
+    varchar event_type
+    varchar org_name
+    datetime created_at
+    datetime updated_at
+  }
+
+  SONGS {
+    int song_id PK
+    varchar title
+    int duration_seconds
+    int genre_id FK
+    int style_id FK
+    varchar type
+    datetime created_at
+    datetime updated_at
+  }
+
+  FILES {
+    int file_id PK
+    varchar file_name
+    varchar file_type
+    int session_id FK
+    int seq
+    varchar mime_type
+    bigint size_bytes
+    varchar checksum_sha256
+    datetime created_at
+    datetime updated_at
+  }
+
+  SESSION_SONGS {
+    int session_id FK
+    int song_id FK
+    int position
+    int duration_seconds
+  }
+
+  SONG_FILES {
+    int song_id FK
+    int file_id FK
+  }
+
+  MUSICIANS {
+    int musician_id PK
+    varchar name
+    datetime created_at
+    datetime updated_at
+  }
+
+  SESSION_MUSICIANS {
+    int session_id FK
+    int musician_id FK
+    varchar role
+  }
+
+  USERS {
+    int id PK
+    varchar email
+    char password_hash
+    bool is_active
+    char activation_token
+    char reset_token
+    datetime reset_expires
+    int failed_logins
+    datetime locked_until
+    datetime created_at
+  }
+
+  GENRES ||--o{ SONGS : has
+  STYLES ||--o{ SONGS : has
+
+  SESSIONS ||--o{ SESSION_SONGS : has
+  SONGS ||--o{ SESSION_SONGS : has
+
+  SONGS ||--o{ SONG_FILES : has
+  FILES ||--o{ SONG_FILES : has
+
+  SESSIONS ||--o{ FILES : has
+
+  SESSIONS ||--o{ SESSION_MUSICIANS : has
+  MUSICIANS ||--o{ SESSION_MUSICIANS : has

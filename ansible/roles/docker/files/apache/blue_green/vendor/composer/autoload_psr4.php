@@ -12,7 +12,7 @@ return array(
     'Symfony\\Component\\Finder\\' => array($vendorDir . '/symfony/finder'),
     'Psr\\Log\\' => array($vendorDir . '/psr/log/src'),
     'Psr\\Http\\Message\\' => array($vendorDir . '/psr/http-factory/src', $vendorDir . '/psr/http-message/src'),
-    'Production\\Api\\Controllers\\' => array($baseDir . '/src/Controllers'),
+    'Production\\Api\\' => array($baseDir . '/src'),
     'OpenApi\\' => array($vendorDir . '/zircote/swagger-php/src'),
     'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),
 );

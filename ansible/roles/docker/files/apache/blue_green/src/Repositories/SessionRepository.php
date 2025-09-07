@@ -17,7 +17,7 @@ SELECT
     sesh.date                             AS date,
     sesh.rating                           AS rating,
     sesh.keywords                         AS keywords,
-    sesh.duration_seconds                 AS duration_seconds,
+    f.duration_seconds                    AS duration_seconds,
     sesh.location                         AS location,
     sesh.summary                          AS summary,
     GROUP_CONCAT(DISTINCT m.name ORDER BY m.name SEPARATOR ', ') AS crew,

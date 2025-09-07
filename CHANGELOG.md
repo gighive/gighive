@@ -1,6 +1,107 @@
 *** 
+releaseNotes20250907.txt
+Changes: Massive amount of changes to update database to include new columns for upload, created upload api/php pages, updated composer.json and .lock manually (procedure in docs), moved csv scripts to ../dbScripts/loadutilities 
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	new file:   ansible/roles/docker/files/apache/blue_green/.user.ini
+	new file:   ansible/roles/docker/files/apache/blue_green/api/uploads.php
+	modified:   ansible/roles/docker/files/apache/blue_green/composer.json
+	modified:   ansible/roles/docker/files/apache/blue_green/composer.lock
+	new file:   ansible/roles/docker/files/apache/blue_green/docs/openapi.yaml
+	new file:   ansible/roles/docker/files/apache/blue_green/docs/templates/files.csv
+	new file:   ansible/roles/docker/files/apache/blue_green/docs/templates/session_songs.csv
+	new file:   ansible/roles/docker/files/apache/blue_green/docs/templates/sessions.csv
+	new file:   ansible/roles/docker/files/apache/blue_green/docs/templates/song_files.csv
+	new file:   ansible/roles/docker/files/apache/blue_green/docs/templates/songs.csv
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/Controllers/BaseController.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/Controllers/FileController.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/Controllers/JamController.php
+	modified:   ansible/roles/docker/files/apache/blue_green/src/Controllers/MediaController.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/Controllers/SongController.php
+	new file:   ansible/roles/docker/files/apache/blue_green/src/Controllers/UploadController.php
+	new file:   ansible/roles/docker/files/apache/blue_green/src/Infrastructure/FileStorage.php
+	new file:   ansible/roles/docker/files/apache/blue_green/src/Repositories/FileRepository.php
+	modified:   ansible/roles/docker/files/apache/blue_green/src/Repositories/SessionRepository.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/Router.php
+	new file:   ansible/roles/docker/files/apache/blue_green/src/Services/UploadService.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/TestApi.php
+	new file:   ansible/roles/docker/files/apache/blue_green/src/Validation/UploadValidator.php
+	modified:   ansible/roles/docker/files/apache/blue_green/src/Views/media/list.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/api-docs.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/index.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/openapi.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/openapi_definition.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/routes.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/test
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/test-openapi.php
+	deleted:    ansible/roles/docker/files/apache/blue_green/src/test_annotations.php
+	modified:   ansible/roles/docker/files/apache/blue_green/timeline/timeline-api.php
+	new file:   ansible/roles/docker/files/apache/blue_green/upload_form.php
+	modified:   ansible/roles/docker/files/apache/blue_green/vendor/composer/autoload_classmap.php
+	modified:   ansible/roles/docker/files/apache/blue_green/vendor/composer/autoload_psr4.php
+	modified:   ansible/roles/docker/files/apache/blue_green/vendor/composer/autoload_static.php
+	modified:   ansible/roles/docker/files/apache/blue_green/vendor/composer/installed.json
+	modified:   ansible/roles/docker/files/apache/blue_green/vendor/composer/installed.php
+	new file:   ansible/roles/docker/files/apache/blue_green/vendor/james-heinrich/getid3/*
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/cleaned_stormpigs_database.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/doAllFull.sh
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/doAllSample.sh
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_sample.py
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/cleaned_stormpigs_database_augmented.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/files.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/musicians.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_musicians.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_songs.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/sessions.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/song_files.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/songs.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/select.sql
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/load_and_transform.sql
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/cleaned_stormpigs_database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/sessions.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample/cleaned_stormpigs_database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample/files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample/sessions.csv
+	modified:   ansible/roles/docker/templates/.env.j2
+	new file:   docs/composerRebuild.txt
+	new file:   docs/databaseErd.png
+	new file:   docs/mcDatabaseERD.txt
+	renamed:    docs/mvcModelmc1.txt -> docs/mcMvcModel1.txt
+	renamed:    docs/mvcModelmc2.txt -> docs/mcMvcModel2.txt
+	new file:   docs/mvcModel.png
+	new file:   docs/mvcModel_myImplementation.png
+
+ToDo: merge front end ux changes from blue_green into html
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
 releaseNotes20250906.txt
 Changes: Jibe timeline-api.php with db/database.php's MVC structure, document MVC general/specific, fix 2006_04_06 jam files.
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml   --skip-tags blobfuse2,vbox_provision,mysql_backup --tags set_targets,base,docker,post_build_checks
+- minimal run of local vm that already exists
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml   --skip-tags blobfuse2,vbox_provision,mysql_backup --tags set_targets,base,docker,post_build_checks -v
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -23,24 +124,14 @@ Changes to be committed:
 	new file:   docs/mvcModelmc1.txt
 	new file:   docs/mvcModelmc2.txt
 
-ToDo: clean cruft out of directory
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: fix upload.php
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
-
 *** 
 releaseNotes20250906.txt
 Changes: Point timeline to src/Infrastructure/Database.php and readme update.
 
 Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml   --skip-tags blobfuse2,vbox_provision,mysql_backup --tags set_targets,base,docker,post_build_checks
 - minimal run of local vm that already exists
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml   --skip-tags blobfuse2,vbox_provision,mysql_backup --tags set_targets,base,docker,post_build_checks -v
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master

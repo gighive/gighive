@@ -72,9 +72,9 @@ SQL;
     // Transform to timeline format
     $timeline_events = [];
     foreach ($sessions as $session) {
-        // Generate event ID from date
+        // Use session_id as unique event ID (supports multiple sessions on same date)
         $date = new DateTime($session['date']);
-        $event_id = $date->format('Ymd');
+        $event_id = (int)$session['session_id'];
         
         // Format title (use session title or fallback to date format)
         $title = $session['title'] ?: $date->format('M j');
@@ -91,7 +91,10 @@ SQL;
             'crew' => $session['crew'] ?: '',
             'songList' => $session['song_list'] ?: '',
             'image' => $session['cover_image_url'] ?: '',
-            'link' => $session['media_link'] ?: ''
+            'link' => $session['media_link'] ?: '',
+            // Future-proof fields (may be null until migration is applied)
+            'orgName' => $session['org_name'] ?? null,
+            'eventType' => $session['event_type'] ?? null,
         ];
     }
     

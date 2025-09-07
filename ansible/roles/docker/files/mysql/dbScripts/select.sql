@@ -40,9 +40,20 @@ SELECT '' AS "\n";
 SELECT * FROM song_files LIMIT 10;
 SELECT '' AS "\n\n";
 
+SELECT '===== MUSICIANS TABLE =====' AS "";
+SELECT COUNT(*) AS "Total Rows in musicians" FROM song_files;
+SELECT '' AS "\n";
+SELECT * FROM musicians LIMIT 10;
+SELECT '' AS "\n\n";
+
+SELECT '===== SESSION MUSICIANS TABLE =====' AS "";
+SELECT COUNT(*) AS "Total Rows in session_musicians" FROM song_files;
+SELECT '' AS "\n";
+SELECT * FROM session_musicians LIMIT 10;
+SELECT '' AS "\n\n";
+
 SELECT '===== USERS TABLE =====' AS "";
 SELECT COUNT(*) AS "Total Rows in users" FROM users;
 SELECT '' AS "\n";
 SELECT * FROM users LIMIT 10;
 SELECT '' AS "\n\n";
-

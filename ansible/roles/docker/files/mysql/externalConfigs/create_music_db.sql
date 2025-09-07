@@ -36,9 +36,13 @@ CREATE TABLE sessions (
     keywords TEXT,
     rating DECIMAL(2,1),             -- 1-5 optional
     explicit TINYINT(1) DEFAULT 0,
+    -- New fields to support multiple event types/orgs per date
+    event_type ENUM('band','wedding') DEFAULT NULL,
+    org_name VARCHAR(128) NOT NULL DEFAULT 'default',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT unique_session_date UNIQUE (date)  -- Ensures only one session per calendar day
+    -- Allow multiple sessions per date by org
+    CONSTRAINT unique_session_date_org UNIQUE (date, org_name)
 );
 
 CREATE TABLE songs (
@@ -47,7 +51,8 @@ CREATE TABLE songs (
     duration_seconds INT NULL,  -- store as seconds
     genre_id INT,
     style_id INT,
-    type ENUM('loop', 'song') NOT NULL,
+    -- Broaden to support generic event labels (e.g., wedding table names)
+    type ENUM('loop', 'song', 'event_label') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (genre_id) REFERENCES genres(genre_id) ON DELETE SET NULL,
@@ -61,8 +66,18 @@ CREATE TABLE files (
     file_id INT PRIMARY KEY AUTO_INCREMENT,
     file_name VARCHAR(4096) NOT NULL,
     file_type ENUM('audio', 'video') NOT NULL,
+    -- Link directly to session for easy association and per-session sequencing
+    session_id INT NULL,
+    seq INT NULL,
+    duration_seconds INT NULL,
+    -- Useful metadata for uploads
+    mime_type VARCHAR(255) NULL,
+    size_bytes BIGINT NULL,
+    checksum_sha256 CHAR(64) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_files_session FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE SET NULL,
+    CONSTRAINT uq_files_session_seq UNIQUE (session_id, seq)
 );
 
 -- Many-to-many: sessions ↔ songs
