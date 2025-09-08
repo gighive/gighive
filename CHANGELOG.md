@@ -1,6 +1,18 @@
 *** 
 releaseNotes20250908.txt
-Changes: Added databaseERD.png to Gighive's index page, 
+Changes: Added databaseERD.png to Gighive's index page, added media size limit vars at bottom of ubuntu.yml
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/ubuntu.yml
+	renamed:    docs/databaseErd.png -> docs/images/databaseErd.png
+	modified:   docs/index.html
+
 *** 
 releaseNotes20250907.txt
 Changes: Fixed timeline zoom in issue, still scrolls left, but we'll fix later.
