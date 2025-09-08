@@ -1,5 +1,30 @@
 *** 
 releaseNotes20250908.txt
+Changes: Moved upload under /db
+
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/blue_green/db/upload_form.php
+
+ToDo: merge front end ux changes from blue_green into html
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250908.txt
 Changes: Added databaseERD.png to Gighive's index page, added media size limit vars at bottom of ubuntu.yml
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -112,19 +137,6 @@ Changes to be committed:
 	renamed:    docs/mvcModelmc2.txt -> docs/mcMvcModel2.txt
 	new file:   docs/mvcModel.png
 	new file:   docs/mvcModel_myImplementation.png
-
-ToDo: merge front end ux changes from blue_green into html
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250906.txt
