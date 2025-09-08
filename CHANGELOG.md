@@ -1,6 +1,13 @@
 *** 
+releaseNotes20250908.txt
+Changes: Added databaseERD.png to Gighive's index page, 
+*** 
 releaseNotes20250907.txt
 Changes: Fixed timeline zoom in issue, still scrolls left, but we'll fix later.
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,post_build_checks
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml   --skip-tags blobfuse2,vbox_provision,mysql_backup --tags set_targets,base,docker,post_build_checks -v
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
