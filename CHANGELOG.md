@@ -1,5 +1,33 @@
 *** 
 releaseNotes20250908.txt
+Changes: Add a page for coming soon instructional videos.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/comingsoon.html
+	modified:   docs/index.html
+ 
+ToDo: add a home button to the Sessions page
+ToDo: merge front end ux changes from blue_green into html
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250908.txt
 Changes: Add a page describing security features.
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -29,20 +57,6 @@ Changes to be committed:
 	deleted:    ansible/roles/docker/files/apache/blue_green/upload_form.php
 	new file:   docs/images/uploadutility.png
 	modified:   docs/index.html
-
-ToDo: add a home button to the Sessions page
-ToDo: merge front end ux changes from blue_green into html
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250908.txt
