@@ -1,6 +1,6 @@
 *** 
 releaseNotes20250908.txt
-Changes: Add a page for coming soon instructional videos.
+Changes: README.md update
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -9,9 +9,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   docs/comingsoon.html
-	modified:   docs/index.html
- 
+	modified:   docs/README.md
+
 ToDo: add a home button to the Sessions page
 ToDo: merge front end ux changes from blue_green into html
 ToDo: make csv mgmt easier
@@ -26,6 +25,20 @@ ToDo: Fill in documentation on github.io, make instructory videos and add them t
 ToDo: Integrate Let's Encrypt for future
 ToDo: Cron to upload backup to Ansible controller 
 
+*** 
+releaseNotes20250908.txt
+Changes: Add a page for coming soon instructional videos.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/comingsoon.html
+	modified:   docs/index.html
+ 
 *** 
 releaseNotes20250908.txt
 Changes: Add a page describing security features.
