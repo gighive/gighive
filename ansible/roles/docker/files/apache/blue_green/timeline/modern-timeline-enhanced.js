@@ -635,7 +635,7 @@ class StormPigsTimeline {
                     ${event.link ? `
                         <div class="modern-detail-actions">
                             <button class="modern-detail-play-button" onclick="window.open('${event.link}', '_blank')">
-                                ${event.link.includes('.mp4') ? '▶ Watch Video' : '♪ Listen to Audio'}
+                                ${event.link.includes('.mp4') ? '▶ Video Snippet' : '♪ Listen to Audio'}
                             </button>
                         </div>
                     ` : ''}

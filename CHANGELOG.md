@@ -1,15 +1,23 @@
 *** 
 releaseNotes20250908.txt
-Changes: Moved upload under /db
+Changes: Deleted old files, added image for Gighive README, changed Watch Video to Video Snippet 
 
+sodo@pop-os:~/scripts/gighive$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   ansible/roles/docker/files/apache/blue_green/db/upload_form.php
+	modified:   ansible/roles/base/tasks/main.yml
+	deleted:    ansible/roles/docker/files/apache/blue_green/stormpigsDatabase.php
+	modified:   ansible/roles/docker/files/apache/blue_green/timeline/modern-timeline-enhanced.js
+	deleted:    ansible/roles/docker/files/apache/blue_green/unified_stormpigs_database.csv
+	deleted:    ansible/roles/docker/files/apache/blue_green/upload_form.php
+	new file:   docs/images/uploadutility.png
+	modified:   docs/index.html
 
+ToDo: add a home button to the Sessions page
 ToDo: merge front end ux changes from blue_green into html
 ToDo: make csv mgmt easier
 ToDo: migrate changes to gighive
@@ -22,6 +30,22 @@ ToDo: select 2015-09-19 as sample
 ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
 ToDo: Integrate Let's Encrypt for future
 ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250908.txt
+Changes: Moved upload under /db
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+Last run: ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/blue_green/db/upload_form.php
 
 *** 
 releaseNotes20250908.txt

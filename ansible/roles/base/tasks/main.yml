@@ -186,7 +186,7 @@
     archive: false
     recursive: yes
     links: yes
-    #delete: yes
+    delete: yes
     perms: false
     rsync_opts:
       - "--exclude=cloud-init/"
