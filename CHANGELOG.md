@@ -1,5 +1,18 @@
 *** 
 releaseNotes20250908.txt
+Changes: Add a page describing security features.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   docs/SECURITY.md
+	modified:   docs/index.html
+
+*** 
+releaseNotes20250908.txt
 Changes: Deleted old files, added image for Gighive README, changed Watch Video to Video Snippet 
 
 sodo@pop-os:~/scripts/gighive$ git status
