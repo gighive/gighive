@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Security | gighive</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Security" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://gighive.github.io/gighive/SECURITY.html" />
+<meta property="og:url" content="https://gighive.github.io/gighive/SECURITY.html" />
+<meta property="og:site_name" content="gighive" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Security" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Security","url":"https://gighive.github.io/gighive/SECURITY.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/gighive/assets/css/style.css?v=4a15f2d4f88b908327e8dfa1128be205b5bcad32">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/gighive/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://gighive.github.io/gighive/">gighive</a></h1>
+      
+
+      <h1 id="gighive-security-overview">GigHive Security Overview</h1>
+
+<p>This document summarizes the primary security controls implemented in the GigHive stack and how to configure them per environment.</p>
+
+<h2 id="highlights-most-to-least-critical">Highlights (Most to Least Critical)</h2>
+
+<ul>
+  <li><strong>Authentication on sensitive paths</strong>
+    <ul>
+      <li>Basic Auth is enforced via Apache <code class="language-plaintext highlighter-rouge">LocationMatch</code> for protected areas.</li>
+      <li>Protected prefixes include: <code class="language-plaintext highlighter-rouge">/db</code>, <code class="language-plaintext highlighter-rouge">/src</code>, <code class="language-plaintext highlighter-rouge">/vendor</code>, <code class="language-plaintext highlighter-rouge">/audio</code>, <code class="language-plaintext highlighter-rouge">/video</code>, and <code class="language-plaintext highlighter-rouge">/app/</code> (excluding <code class="language-plaintext highlighter-rouge">/app/cache</code>).</li>
+      <li>Config: <code class="language-plaintext highlighter-rouge">ansible/roles/docker/templates/default-ssl.conf.j2</code> under the <code class="language-plaintext highlighter-rouge">LocationMatch</code> block.</li>
+      <li>Credentials file path: <code class="language-plaintext highlighter-rouge">{{ gighive_htpasswd_path }}</code> (defaults to <code class="language-plaintext highlighter-rouge">/etc/apache2/gighive.htpasswd</code>).</li>
+    </ul>
+  </li>
+  <li><strong>TLS hardening and optional HSTS</strong>
+    <ul>
+      <li>TLS 1.3 enabled with strong ciphers and order preference.</li>
+      <li>Optional HSTS can be enabled via group vars to enforce HTTPS on clients.</li>
+      <li>Config: <code class="language-plaintext highlighter-rouge">default-ssl.conf.j2</code> (TLS params); <code class="language-plaintext highlighter-rouge">default-ssl.conf.j2</code> HSTS header; additional cache headers in <code class="language-plaintext highlighter-rouge">apache2.conf.j2</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Web Application Firewall (ModSecurity + CRS)</strong>
+    <ul>
+      <li>ModSecurity and Core Rule Set templates are included and loaded to mitigate common web attacks.</li>
+      <li>Config includes: <code class="language-plaintext highlighter-rouge">apache2.conf.j2</code> (includes modsecurity), <code class="language-plaintext highlighter-rouge">templates/security2.conf.j2</code>, and <code class="language-plaintext highlighter-rouge">templates/crs-setup.conf.j2</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Secure Apache defaults</strong>
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">.htaccess</code> is disabled (centralized config, faster and safer).</li>
+      <li>Directory indexes disabled, cache/log directories denied.</li>
+      <li>Sensitive files (e.g., <code class="language-plaintext highlighter-rouge">composer.json</code>, <code class="language-plaintext highlighter-rouge">composer.lock</code>, <code class="language-plaintext highlighter-rouge">config.php</code>, dotfiles) are denied.</li>
+      <li>Config: <code class="language-plaintext highlighter-rouge">default-ssl.conf.j2</code> <code class="language-plaintext highlighter-rouge">&lt;Directory "/var/www/html"&gt; AllowOverride None, Options -Indexes</code>, <code class="language-plaintext highlighter-rouge">&lt;FilesMatch&gt;</code> deny blocks.</li>
+    </ul>
+  </li>
+  <li><strong>Application-layer upload hardening</strong>
+    <ul>
+      <li>App-level upload size cap via <code class="language-plaintext highlighter-rouge">UPLOAD_MAX_BYTES</code>.</li>
+      <li>MIME inspection via PHP <code class="language-plaintext highlighter-rouge">fileinfo</code> (<code class="language-plaintext highlighter-rouge">finfo</code>), checksum SHA-256, and sanitized filenames with per-type storage under <code class="language-plaintext highlighter-rouge">/audio</code> or <code class="language-plaintext highlighter-rouge">/video</code>.</li>
+      <li>Code: <code class="language-plaintext highlighter-rouge">ansible/roles/docker/files/apache/blue_green/src/Validation/UploadValidator.php</code>, <code class="language-plaintext highlighter-rouge">src/Services/UploadService.php</code>.</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="protected-paths">Protected Paths</h2>
+
+<p>Auth is enforced by Apache for the following URI prefixes:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">/db</code></li>
+  <li><code class="language-plaintext highlighter-rouge">/src</code></li>
+  <li><code class="language-plaintext highlighter-rouge">/vendor</code></li>
+  <li><code class="language-plaintext highlighter-rouge">/audio</code></li>
+  <li><code class="language-plaintext highlighter-rouge">/video</code></li>
+  <li><code class="language-plaintext highlighter-rouge">/app/</code> (excluding <code class="language-plaintext highlighter-rouge">/app/cache</code>)</li>
+</ul>
+
+<p>To protect an additional path (e.g., <code class="language-plaintext highlighter-rouge">/upload</code>), add a block to <code class="language-plaintext highlighter-rouge">default-ssl.conf.j2</code>:</p>
+
+<div class="language-apache highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">&lt;</span><span class="nl">LocationMatch</span><span class="sr"> "^/upload(?:/|$)"</span><span class="p">&gt;
+</span>  <span class="nc">AuthType</span> <span class="ss">Basic</span>
+  <span class="nc">AuthName</span> "GigHive Protected"
+  <span class="nc">AuthBasicProvider</span> <span class="ss">file</span>
+  <span class="nc">AuthUserFile</span> {{ gighive_htpasswd_path }}
+  <span class="nc">Require</span> valid-user
+<span class="p">&lt;/</span><span class="nl">LocationMatch</span><span class="p">&gt;
+</span></code></pre></div></div>
+
+<h2 id="environment--configuration">Environment &amp; Configuration</h2>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">.env</code> variables are rendered from <code class="language-plaintext highlighter-rouge">ansible/roles/docker/templates/.env.j2</code> and populated via group vars in <code class="language-plaintext highlighter-rouge">ansible/inventories/group_vars/gighive.yml</code>.</li>
+  <li>Relevant variables:
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">UPLOAD_MAX_BYTES</code>: Application max upload size (bytes).</li>
+      <li><code class="language-plaintext highlighter-rouge">FILENAME_SEQ_PAD</code>: Filename sequence padding (default 5).</li>
+    </ul>
+  </li>
+</ul>
+
+<p>Example in <code class="language-plaintext highlighter-rouge">group_vars/gighive.yml</code>:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">filename_seq_pad</span><span class="pi">:</span> <span class="m">5</span>
+<span class="na">upload_max_bytes</span><span class="pi">:</span> <span class="m">1500000000</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">.env.j2</code> wires them through to the container environment.</p>
+
+<h2 id="phpapache-integration">PHP/Apache Integration</h2>
+
+<ul>
+  <li>PHP handled via FPM proxy: <code class="language-plaintext highlighter-rouge">SetHandler "proxy:unix:/run/php/php8.1-fpm.sock|fcgi://localhost"</code> for <code class="language-plaintext highlighter-rouge">*.php</code>.</li>
+  <li>Authorization header is explicitly passed to PHP-FPM: <code class="language-plaintext highlighter-rouge">SetEnvIfNoCase Authorization</code> in <code class="language-plaintext highlighter-rouge">default-ssl.conf.j2</code>.</li>
+</ul>
+
+<h2 id="waf-notes">WAF Notes</h2>
+
+<ul>
+  <li>ModSecurity is included; ensure CRS is in enforcement mode in production.</li>
+  <li>Tune false positives by adding exceptions to <code class="language-plaintext highlighter-rouge">security2.conf.j2</code> / CRS setup.</li>
+</ul>
+
+<h2 id="dependency-management">Dependency Management</h2>
+
+<ul>
+  <li>Composer uses a committed <code class="language-plaintext highlighter-rouge">composer.lock</code> to ensure reproducible builds.</li>
+  <li>Docker build runs <code class="language-plaintext highlighter-rouge">composer install --no-dev --optimize-autoloader --classmap-authoritative</code> inside the image.</li>
+</ul>
+
+<h2 id="hardening-checklist-per-environment">Hardening Checklist (Per Environment)</h2>
+
+<ul>
+  <li><strong>Enable HSTS</strong> in <code class="language-plaintext highlighter-rouge">group_vars</code> (production only):
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">gighive_hsts_enabled: true</code></li>
+    </ul>
+  </li>
+  <li><strong>Rotate and manage Basic Auth credentials</strong> (<code class="language-plaintext highlighter-rouge">gighive.htpasswd</code>):
+    <ul>
+      <li>Default path inside container: <code class="language-plaintext highlighter-rouge">/etc/apache2/gighive.htpasswd</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Set upload limits</strong> according to expected media size:
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">upload_max_bytes</code> (app), and align PHP/nginx/Apache body limits if changed.</li>
+    </ul>
+  </li>
+  <li><strong>Review protected paths</strong>: ensure any admin tools or upload forms live under protected prefixes (e.g., <code class="language-plaintext highlighter-rouge">/db</code>).</li>
+  <li><strong>Verify ModSecurity/CRS</strong> is active and logs are monitored.</li>
+</ul>
+
+<h2 id="filepath-references">File/Path References</h2>
+
+<ul>
+  <li>Apache config templates:
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">ansible/roles/docker/templates/apache2.conf.j2</code></li>
+      <li><code class="language-plaintext highlighter-rouge">ansible/roles/docker/templates/default-ssl.conf.j2</code></li>
+      <li><code class="language-plaintext highlighter-rouge">ansible/roles/docker/templates/security2.conf.j2</code></li>
+      <li><code class="language-plaintext highlighter-rouge">ansible/roles/docker/templates/crs-setup.conf.j2</code></li>
+    </ul>
+  </li>
+  <li>App upload code:
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">ansible/roles/docker/files/apache/blue_green/src/Validation/UploadValidator.php</code></li>
+      <li><code class="language-plaintext highlighter-rouge">ansible/roles/docker/files/apache/blue_green/src/Services/UploadService.php</code></li>
+    </ul>
+  </li>
+  <li>Env/config:
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">ansible/roles/docker/templates/.env.j2</code></li>
+      <li><code class="language-plaintext highlighter-rouge">ansible/inventories/group_vars/gighive.yml</code></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="reporting-security-issues">Reporting Security Issues</h2>
+
+<p>Please report suspected vulnerabilities privately to the repository owner/maintainers. Provide:</p>
+
+<ul>
+  <li>A clear description of the issue and impact.</li>
+  <li>Reproduction steps or proof-of-concept where possible.</li>
+  <li>Affected endpoints/paths and configuration context.</li>
+</ul>
+
+<p>We will acknowledge receipt and work on a fix with an appropriate disclosure timeline.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>
+

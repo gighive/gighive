@@ -1,0 +1,24 @@
+{
+  "name": "gighive/api",
+  "description": "REST API for Gighive",
+  "type": "project",
+  "require": {
+    "php": ">=7.4",
+    "guzzlehttp/psr7": "^2.0",
+    "psr/http-message": "^1.0",
+    "zircote/swagger-php": "^4.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Production\\Api\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "../tests/"
+    }
+  },
+  "minimum-stability": "stable",
+  "license": "MIT"
+}
+

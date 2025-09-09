@@ -1,0 +1,109 @@
+<?php declare(strict_types=1);
+namespace Production\Api\Controllers;
+
+use GuzzleHttp\Psr7\Response;
+use Production\Api\Repositories\SessionRepository;
+
+final class MediaController
+{
+    public function __construct(private SessionRepository $repo) {}
+
+    private static function h(?string $v): string
+    {
+        return htmlspecialchars((string)$v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    private static function secondsToHms(?string $seconds): string
+    {
+        if ($seconds === null || $seconds === '' || !ctype_digit((string)$seconds)) {
+            return '';
+        }
+        $s = (int)$seconds;
+        $h = intdiv($s, 3600);
+        $m = intdiv($s % 3600, 60);
+        $sec = $s % 60;
+        return sprintf('%02d:%02d:%02d', $h, $m, $sec);
+    }
+
+    public function list(): Response
+    {
+        $rows = $this->repo->fetchMediaList();
+
+        $html  = '<!DOCTYPE html>';
+        $html .= '<html lang="en"><head>';
+        $html .= '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+        $html .= '<link rel="stylesheet" href="../header.css">';
+        $html .= '<title>Media Database</title>';
+        $html .= '<style>';
+        $html .= 'body{font-family:system-ui,Arial,sans-serif;margin:0;padding:1rem;}';
+        $html .= 'h1{margin:0 auto 1rem auto;max-width:1350px;}';
+        $html .= 'table{width:1350px;table-layout:fixed;border-collapse:collapse;margin:0 auto;}';
+        $html .= 'th,td{border:1px solid #ddd;padding:8px;vertical-align:top;word-wrap:break-word;}';
+        $html .= 'th{background:#f6f6f6;text-align:left;cursor:pointer;}';
+        $html .= 'thead input{width:100%;box-sizing:border-box;margin-top:4px;}';
+        $html .= '</style>';
+        $html .= '</head><body>';
+
+        $html .= '<h1>Sessions</h1>';
+        $html .= '<table id="searchableTable" data-sort-order="asc"><thead><tr>';
+        $html .= '<th onclick="sortTable(0)"><h4>#</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(1)"><h4>Date</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(2)"><h4>Rating</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(3)"><h4>Keywords</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(4)"><h4>Duration</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(5)"><h4>Location</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(6)"><h4>Summary</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(7)"><h4>Crew</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(8)"><h4>Song Name</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(9)"><h4>File Type</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '<th onclick="sortTable(10)"><h4>File</h4><input type="text" placeholder="Search..."></th>';
+        $html .= '</tr></thead><tbody>';
+
+        $counter = 1;
+        foreach ($rows as $row) {
+            // standardized fields
+            $date      = (string)($row['date'] ?? '');
+            $rating    = (string)($row['rating'] ?? '');
+            $keywords  = (string)($row['keywords'] ?? '');
+            $duration  = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
+            $location  = (string)($row['location'] ?? '');
+            $summary   = (string)($row['summary'] ?? '');
+            $crew      = (string)($row['crew'] ?? '');
+            $songTitle = (string)($row['song_title'] ?? '');
+            $typeRaw   = (string)($row['file_type'] ?? '');
+            $file      = (string)($row['file_name'] ?? '');
+
+            // Determine directory by file extension: .mp3 => /audio, .mp4 => /video
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            $dir = ($ext === 'mp3') ? '/audio' : (($ext === 'mp4') ? '/video' : '');
+            if ($dir === '' && ($typeRaw === 'audio' || $typeRaw === 'video')) {
+                $dir = '/' . $typeRaw;
+            }
+            $url = ($dir && $file) ? $dir . '/' . rawurlencode($file) : '#';
+
+            $html .= '<tr>'
+                  .  '<td>' . $counter++              . '</td>'
+                  .  '<td>' . self::h($date)          . '</td>'
+                  .  '<td>' . self::h($rating)        . '</td>'
+                  .  '<td>' . self::h($keywords)      . '</td>'
+                  .  '<td>' . self::h($duration)      . '</td>'
+                  .  '<td>' . self::h($location)      . '</td>'
+                  .  '<td>' . self::h($summary)       . '</td>'
+                  .  '<td>' . self::h($crew)          . '</td>'
+                  .  '<td>' . self::h($songTitle)     . '</td>'
+                  .  '<td>' . self::h($typeRaw)       . '</td>'
+                  .  '<td>' . ($url !== '#' ? '<a href="' . self::h($url) . '" target="_blank">Download</a>' : '') . '</td>'
+                  .  '</tr>';
+        }
+
+        $html .= '</tbody></table>';
+        $html .= '<script>';
+        $html .= 'function filterTable(){const inputs=document.querySelectorAll("thead input");const table=document.getElementById("searchableTable");const rows=table.getElementsByTagName("tr");for(let i=1;i<rows.length;i++){let visible=true;const cells=rows[i].getElementsByTagName("td");inputs.forEach((input,colIndex)=>{const filter=input.value.toUpperCase();if(filter){const txt=(cells[colIndex]?.innerText||"").toUpperCase();if(txt.indexOf(filter)===-1){visible=false;}}});rows[i].style.display=visible?"":"none";}}';
+        $html .= 'document.querySelectorAll("thead input").forEach((input)=>{input.addEventListener("keyup",filterTable);});';
+        $html .= 'function sortTable(colIndex){const table=document.getElementById("searchableTable");const tbody=table.tBodies[0];const rows=Array.from(tbody.rows);const asc=table.dataset.sortOrder!=="asc";rows.sort((a,b)=>{let A=a.cells[colIndex].innerText.trim().toUpperCase();let B=b.cells[colIndex].innerText.trim().toUpperCase();let nA=parseFloat(A),nB=parseFloat(B);if(!isNaN(nA)&&!isNaN(nB))return asc?nA-nB:nB-nA;return asc?A.localeCompare(B):B.localeCompare(A);});table.dataset.sortOrder=asc?"asc":"desc";rows.forEach(r=>tbody.appendChild(r));}';
+        $html .= '</script>';
+        $html .= '</body></html>';
+
+        return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $html);
+    }
+}
