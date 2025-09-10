@@ -6,7 +6,7 @@ services:
       context: "./apache"
       dockerfile: Dockerfile
       args:
-        BLUE_GREEN: "{{ blue_green | default('false') }}"
+        APP_FLAVOR: "{{ app_flavor | default('stormpigs') }}"
     image: ubuntu22.04apache-img:1.00
     env_file:
       - ./apache/externalConfigs/.env

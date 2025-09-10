@@ -26,8 +26,8 @@ nocloud_iso: "{{ cloud_init_files_dir }}/seed.iso"
 
 ansible_remote_tmp: "/tmp/.ansible/tmp"
 
-# these vars control blue_green deployments both for ux and db
-blue_green: false
+# app flavor (controls overlay at build time); database_full kept as-is
+app_flavor: gighive
 database_full: true
 
 # these vars control full/reduced set of media

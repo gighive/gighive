@@ -54,23 +54,24 @@ RUN a2dismod mpm_prefork \
  && a2enmod mpm_event http2 proxy proxy_fcgi setenvif ssl headers \
  && apt-get purge -y 'libapache2-mod-php*' || true
 
-ARG BLUE_GREEN=false
+ARG APP_FLAVOR=stormpigs
 
-# 1) Copy only composer manifests, install deps
-COPY html/composer.json html/composer.lock ${WEB_ROOT}/
+# 1) Copy only composer manifests, install deps (from canonical webroot)
+COPY webroot/composer.json webroot/composer.lock ${WEB_ROOT}/
 # Set working directory to web root
 WORKDIR ${WEB_ROOT}
 RUN composer install \
     --no-dev --optimize-autoloader --classmap-authoritative
 
-# 2) Copy the rest of your app’s code
-COPY html/ ${WEB_ROOT}/
+# 2) Copy the rest of the canonical app’s code
+COPY webroot/ ${WEB_ROOT}/webroot/
 
-## Overlay blue_green optional gui code by flipping switch below
-COPY blue_green/ ${WEB_ROOT}/blue_green/
-RUN if [ "$BLUE_GREEN" != "true" ]; then \
-      rm -rf ${WEB_ROOT}/blue_green; \
-    fi
+# 3) Overlay GigHive look-and-feel (small set of files)
+COPY overlays/gighive/ ${WEB_ROOT}/webroot/
+
+# 4) Ensure a root index exists (serve canonical app at /)
+#    Option A: redirect to /webroot/index.php (keep canonical tree separate)
+RUN printf '%s\n' '<?php header("Location: /webroot/index.php", true, 302); exit; ?>' > ${WEB_ROOT}/index.php
 
 # Then pull in Guzzle, optimize, set perms
 # Clean up temporary SAN config file

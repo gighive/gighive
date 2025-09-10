@@ -160,8 +160,7 @@
       - gighive_server_name is regex("^[A-Za-z0-9.-]+$")  # naive host check, not IP
     fail_msg: "gighive_server_name should be a hostname (CN), not an IP."
 
-- import_tasks: overlay_gighive_webroot.yml
-  tags: docker
+  # Removed deploy-time overlay: handled at build-time now
 
 - name: Build the GigHive Docker image on the VM
   community.docker.docker_image:
@@ -173,7 +172,7 @@
    build:
      path: "{{ docker_dir }}/apache"
      args:
-       BLUE_GREEN: "{{ blue_green | ternary('true','false') }}"
+       APP_FLAVOR: "{{ app_flavor | default('stormpigs') }}"
   tags: [docker]
 
 - name: Bring up Docker Compose V2 stack

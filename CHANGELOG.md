@@ -1,18 +1,16 @@
 *** 
 releaseNotes20250908.txt
-Changes: README.md update
+Changes: Prune getID3 demos directory from vendor (production hardening), plus migrated blue_green source directory to html (gighive).  
 
-sodo@pop-os:~/scripts/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
+Six differences shown below:
+* index.php (root): This is one of the intentional differences you mentioned. We should decide which variant is canonical and keep only that difference.
+* src/Views/media/list.php: This also differs. If blue_green is canonical, I can sync html’s version to match, unless you want to keep the inline CSS and small tweaks we just reverted/adjusted.
+* html/src/index.php: Exists only under html/src. If this is not needed, we can remove it; otherwise, we should add it to the “overlay” list of intentional differences.
+* SECURITY.html: Exists only under html. That’s fine if you want the html root to directly serve this static security page. If not needed in runtime webroot, we can exclude it.
+* images/uploadutility.png: Exists only in html/images.
 
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   docs/README.md
-
-ToDo: add a home button to the Sessions page
-ToDo: merge front end ux changes from blue_green into html
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: simplify deployment by using one canonical source code directory and overlay gighive changes on top
 ToDo: make csv mgmt easier
 ToDo: migrate changes to gighive
 ToDo: fix timeline for sessions with 20060831 video link
@@ -24,6 +22,19 @@ ToDo: select 2015-09-19 as sample
 ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
 ToDo: Integrate Let's Encrypt for future
 ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250908.txt
+Changes: README.md update
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/README.md
 
 *** 
 releaseNotes20250908.txt
