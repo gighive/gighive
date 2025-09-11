@@ -1,4 +1,8 @@
 *** 
+releaseNotes20250910.txt
+Changes: Unification of webroot, fixed logic for switch in Dockerfile based on app_flavor (changes upon build: always in docker/tasks/main.yml
+
+*** 
 releaseNotes20250908.txt
 Changes: Prune getID3 demos directory from vendor (production hardening), plus migrated blue_green source directory to html (gighive).  
 

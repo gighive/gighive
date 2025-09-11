@@ -31,7 +31,7 @@ This document summarizes the primary security controls implemented in the GigHiv
 - **Application-layer upload hardening**
   - App-level upload size cap via `UPLOAD_MAX_BYTES`.
   - MIME inspection via PHP `fileinfo` (`finfo`), checksum SHA-256, and sanitized filenames with per-type storage under `/audio` or `/video`.
-  - Code: `ansible/roles/docker/files/apache/blue_green/src/Validation/UploadValidator.php`, `src/Services/UploadService.php`.
+  - Code: `ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php`, `ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php`.
 
 ## Protected Paths
 
@@ -108,8 +108,8 @@ upload_max_bytes: 1500000000
   - `ansible/roles/docker/templates/security2.conf.j2`
   - `ansible/roles/docker/templates/crs-setup.conf.j2`
 - App upload code:
-  - `ansible/roles/docker/files/apache/blue_green/src/Validation/UploadValidator.php`
-  - `ansible/roles/docker/files/apache/blue_green/src/Services/UploadService.php`
+  - `ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php`
+  - `ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php`
 - Env/config:
   - `ansible/roles/docker/templates/.env.j2`
   - `ansible/inventories/group_vars/gighive.yml`

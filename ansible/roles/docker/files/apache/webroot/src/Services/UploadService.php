@@ -74,8 +74,8 @@ final class UploadService
         $labelSlug = $label !== '' ? $this->slugify($label) : 'media';
         $finalName = sprintf('%s%s_%s_%s.%s', $orgSlug, $ymd, $seqPadded, $labelSlug, $ext ?: 'bin');
 
-        $baseDir  = dirname(__DIR__, 2); // .../blue_green
-        $targetDir = $baseDir . '/' . $fileType; // /audio or /video under blue_green
+        $baseDir  = dirname(__DIR__, 2); // .../webroot (app web root directory)
+        $targetDir = $baseDir . '/' . $fileType; // /audio or /video under webroot
         $this->storage->ensureDir($targetDir);
         $targetPath = $this->uniquePath($targetDir, $finalName);
 

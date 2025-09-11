@@ -63,15 +63,15 @@ WORKDIR ${WEB_ROOT}
 RUN composer install \
     --no-dev --optimize-autoloader --classmap-authoritative
 
-# 2) Copy the rest of the canonical app’s code
-COPY webroot/ ${WEB_ROOT}/webroot/
+# 2) Copy the rest of the canonical app’s code into the web root
+COPY webroot/ ${WEB_ROOT}/
 
-# 3) Overlay GigHive look-and-feel (small set of files)
-COPY overlays/gighive/ ${WEB_ROOT}/webroot/
-
-# 4) Ensure a root index exists (serve canonical app at /)
-#    Option A: redirect to /webroot/index.php (keep canonical tree separate)
-RUN printf '%s\n' '<?php header("Location: /webroot/index.php", true, 302); exit; ?>' > ${WEB_ROOT}/index.php
+# 3) Stage overlay; apply only when building GigHive flavor
+COPY overlays/gighive/ /opt/gighive-overlay/
+RUN if [ "$APP_FLAVOR" = "gighive" ]; then \
+      cp -a /opt/gighive-overlay/. ${WEB_ROOT}/; \
+    fi \
+ && rm -rf /opt/gighive-overlay
 
 # Then pull in Guzzle, optimize, set perms
 # Clean up temporary SAN config file
