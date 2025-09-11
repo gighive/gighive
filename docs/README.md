@@ -77,7 +77,6 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 │   ├── README.md
 │   └── timings.txt
 ├── inventory.ini
-├── sonar-project.properties
 ├── terraform
 │   └── variables.tf
 └── tree.txt

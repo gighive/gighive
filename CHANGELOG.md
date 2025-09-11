@@ -1,20 +1,26 @@
 *** 
 releaseNotes20250910.txt
-Changes: Unification of webroot, fixed logic for switch in Dockerfile based on app_flavor (changes upon build: always in docker/tasks/main.yml
+Changes: Remove .props files
 
 *** 
-releaseNotes20250908.txt
-Changes: Prune getID3 demos directory from vendor (production hardening), plus migrated blue_green source directory to html (gighive).  
+releaseNotes20250910.txt
+Changes: Unification of webroot, fixed logic for switch in Dockerfile based on app_flavor (changes upon build: always in docker/tasks/main.yml
 
-Six differences shown below:
-* index.php (root): This is one of the intentional differences you mentioned. We should decide which variant is canonical and keep only that difference.
-* src/Views/media/list.php: This also differs. If blue_green is canonical, I can sync html’s version to match, unless you want to keep the inline CSS and small tweaks we just reverted/adjusted.
-* html/src/index.php: Exists only under html/src. If this is not needed, we can remove it; otherwise, we should add it to the “overlay” list of intentional differences.
-* SECURITY.html: Exists only under html. That’s fine if you want the html root to directly serve this static security page. If not needed in runtime webroot, we can exclude it.
-* images/uploadutility.png: Exists only in html/images.
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+sodo@pop-os:~/scripts/gighive$ git status | head -40
+On branch master
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/roles/docker/files/apache/Dockerfile
 
 ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: simplify deployment by using one canonical source code directory and overlay gighive changes on top
+ToDo: document supported media types
 ToDo: make csv mgmt easier
 ToDo: migrate changes to gighive
 ToDo: fix timeline for sessions with 20060831 video link
@@ -26,6 +32,17 @@ ToDo: select 2015-09-19 as sample
 ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
 ToDo: Integrate Let's Encrypt for future
 ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250908.txt
+Changes: Prune getID3 demos directory from vendor (production hardening), plus migrated blue_green source directory to html (gighive).  
+
+Six differences shown below:
+* index.php (root): This is one of the intentional differences you mentioned. We should decide which variant is canonical and keep only that difference.
+* src/Views/media/list.php: This also differs. If blue_green is canonical, I can sync html’s version to match, unless you want to keep the inline CSS and small tweaks we just reverted/adjusted.
+* html/src/index.php: Exists only under html/src. If this is not needed, we can remove it; otherwise, we should add it to the “overlay” list of intentional differences.
+* SECURITY.html: Exists only under html. That’s fine if you want the html root to directly serve this static security page. If not needed in runtime webroot, we can exclude it.
+* images/uploadutility.png: Exists only in html/images.
 
 *** 
 releaseNotes20250908.txt

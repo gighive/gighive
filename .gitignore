@@ -1,5 +1,4 @@
 # Ignore env files and secrets
-# Ignore env files and secrets
 .env
 *.env
 
@@ -7,6 +6,9 @@
 *.bak
 *.swp
 *~
+
+# Ignore properties files
+*.properties
 
 # Ignore virtual disk images
 *.vdi
