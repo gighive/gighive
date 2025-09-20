@@ -188,6 +188,7 @@
     links: yes
     delete: yes
     perms: false
+    times: yes
     rsync_opts:
       - "--exclude=cloud-init/"
       - "--exclude=*.vdi"

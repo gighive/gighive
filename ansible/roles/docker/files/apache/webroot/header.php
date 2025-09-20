@@ -54,10 +54,12 @@
 
 <?php if (basename($_SERVER['PHP_SELF']) === 'index.php'): ?>
     <!-- Modern Timeline Styles -->
-    <link rel="stylesheet" type="text/css" href="timeline/modern-timeline-enhanced.css">
+    <?php $tl_css_v = @filemtime(__DIR__ . '/timeline/modern-timeline-enhanced.css'); ?>
+    <link rel="stylesheet" type="text/css" href="timeline/modern-timeline-enhanced.css<?php echo $tl_css_v ? ('?v=' . $tl_css_v) : ''; ?>">
     
     <!-- Modern Timeline Script -->
-    <script type="text/javascript" src="timeline/modern-timeline-enhanced.js"></script>
+    <?php $tl_js_v = @filemtime(__DIR__ . '/timeline/modern-timeline-enhanced.js'); ?>
+    <script type="text/javascript" src="timeline/modern-timeline-enhanced.js<?php echo $tl_js_v ? ('?v=' . $tl_js_v) : ''; ?>"></script>
     
     <!-- Modal for event details -->
     <div id="event-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">

@@ -1,11 +1,13 @@
 /* Enhanced Modern Timeline Styles for StormPigs */
 .modern-timeline-wrapper {
   width: 100%;
-  height: 340px;
+  /* Allow content (like the debug panel) below the timeline to be visible */
+  height: auto;
   border: 1px solid #EB0;
   background: black;
   position: relative;
-  overflow: hidden;
+  /* Do not clip children; the timeline container itself manages scrolling */
+  overflow: visible;
 }
 
 .timeline-controls {
@@ -45,12 +47,16 @@
 .modern-timeline-container {
   width: 100%;
   height: 340px;
-  overflow-x: auto;
+  /* Force horizontal scroll to exist so Safari doesn't suppress scrollLeft changes */
+  overflow-x: scroll;
   overflow-y: hidden;
   cursor: grab;
   scrollbar-width: thin;
   scrollbar-color: #666600 #000;
   position: relative;
+  /* Safari/WebKit: avoid momentum/animated scrolling interfering with programmatic sets */
+  -webkit-overflow-scrolling: auto;
+  scroll-behavior: auto;
 }
 
 .modern-timeline-container::-webkit-scrollbar {
