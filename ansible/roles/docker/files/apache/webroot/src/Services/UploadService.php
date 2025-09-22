@@ -59,6 +59,11 @@ final class UploadService
         $rating    = trim((string)($post['rating'] ?? ''));
         $notes     = trim((string)($post['notes'] ?? ''));
 
+        // Validate required fields
+        if ($label === '') {
+            throw new \InvalidArgumentException('Label is required');
+        }
+
         // Ensure a session exists (by date + org_name); create if not present
         $sessionId = $this->ensureSession($eventDate, $orgName, $eventType, $location, $rating, $notes, $keywords);
 
@@ -100,16 +105,17 @@ final class UploadService
             'checksum_sha256' => $checksum,
         ]);
 
-        // Optional: link to a label (song or wedding table name)
-        if ($label !== '') {
-            $songType = ($eventType === 'wedding') ? 'event_label' : 'song';
-            $songId = $this->ensureSong($label, $songType);
-            $this->ensureSessionSong($sessionId, $songId);
-            $this->linkSongFile($songId, $id);
-        }
+        // Link to a label (song or wedding table name)
+        $songType = ($eventType === 'wedding') ? 'event_label' : 'song';
+        $songId = $this->ensureSong($label, $songType);
+        $this->ensureSessionSong($sessionId, $songId);
+        $this->linkSongFile($songId, $id);
 
-        // Optional: participants mapping (store names only for now; normalization later)
-        if ($participants !== '') {
+        // Optional: participants mapping (now gated by env to avoid session-wide pollution)
+        // Set UPLOAD_PARTICIPANTS_MODE to 'session' to enable previous behavior.
+        // Future modes could include 'file' or 'song' after schema changes.
+        $participantsMode = getenv('UPLOAD_PARTICIPANTS_MODE') ?: 'none'; // default: do nothing
+        if ($participantsMode === 'session' && $participants !== '') {
             $this->attachParticipants($sessionId, $participants);
         }
 

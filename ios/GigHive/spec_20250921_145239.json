@@ -1,0 +1,61 @@
+configs:
+  Debug: debug
+  Release: release
+name: GigHive
+options:
+  deploymentTarget:
+    iOS: '14.0'
+  minimumXcodeGenVersion: 2.38.0
+packages: {}
+schemes:
+  GigHive:
+    build:
+      targets:
+        GigHive: all
+        GigHiveShare: all
+settings:
+  base:
+    CURRENT_PROJECT_VERSION: 1
+    ENABLE_BITCODE: false
+    MARKETING_VERSION: 1e+0
+targets:
+  GigHive:
+    dependencies: []
+    entitlements:
+      path: Configs/GigHive.entitlements
+    info:
+      path: Configs/AppInfo.plist
+    platform: iOS
+    scheme:
+      testTargets: []
+    settings:
+      CODE_SIGN_STYLE: Automatic
+      IPHONEOS_DEPLOYMENT_TARGET: 1.4e+1
+      PRODUCT_BUNDLE_IDENTIFIER: com.yourcompany.GigHive
+      PRODUCT_NAME: GigHive
+      SWIFT_VERSION: 5.9e+0
+    sources:
+    - path: Sources/App
+    type: application
+  GigHiveShare:
+    dependencies:
+    - target: GigHive
+    entitlements:
+      path: Configs/GigHiveShare.entitlements
+    info:
+      path: Sources/ShareExtension/Info.plist
+    platform: iOS
+    scheme:
+      testTargets: []
+    settings:
+      CODE_SIGN_STYLE: Automatic
+      IPHONEOS_DEPLOYMENT_TARGET: 1.4e+1
+      PRODUCT_BUNDLE_IDENTIFIER: com.yourcompany.GigHive.Share
+      PRODUCT_NAME: GigHiveShare
+      SWIFT_VERSION: 5.9e+0
+    settingsPostfix:
+      INFOPLIST_FILE: Sources/ShareExtension/Info.plist
+    sources:
+    - path: Sources/ShareExtension
+    type: app-extension
+

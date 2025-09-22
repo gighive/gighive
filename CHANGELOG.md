@@ -1,4 +1,108 @@
 *** 
+releaseNotes20250921.txt
+Changes: Added iphone app and modified upload_form.php
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   .perm_test
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/roles/docker/files/apache/webroot/.user.ini
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	new file:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/templates/apache2.conf.j2
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/templates/modsecurity.conf.j2
+	new file:   ios/GigHive/._CHECKLIST.md
+	new file:   ios/GigHive/._GigHive.xcodeproj
+	new file:   ios/GigHive/CHECKLIST.md
+	new file:   ios/GigHive/Configs/AppInfo.plist
+	new file:   ios/GigHive/Configs/GigHive.entitlements
+	new file:   ios/GigHive/Configs/GigHiveShare.entitlements
+	new file:   ios/GigHive/GigHive.xcodeproj/._project.xcworkspace
+	new file:   ios/GigHive/GigHive.xcodeproj/project.pbxproj
+	new file:   ios/GigHive/GigHive.xcodeproj/project.xcworkspace/._contents.xcworkspacedata
+	new file:   ios/GigHive/GigHive.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+	new file:   ios/GigHive/GigHive.xcodeproj/project.xcworkspace/xcuserdata/sodo.xcuserdatad/UserInterfaceState.xcuserstate
+	new file:   ios/GigHive/GigHive.xcodeproj/xcshareddata/xcschemes/._GigHive.xcscheme
+	new file:   ios/GigHive/GigHive.xcodeproj/xcshareddata/xcschemes/._GigHiveShare.xcscheme
+	new file:   ios/GigHive/GigHive.xcodeproj/xcshareddata/xcschemes/GigHive.xcscheme
+	new file:   ios/GigHive/GigHive.xcodeproj/xcshareddata/xcschemes/GigHiveShare.xcscheme
+	new file:   ios/GigHive/README.md
+	new file:   ios/GigHive/Sources/App/._UploadFormView.swift
+	new file:   ios/GigHive/Sources/App/GigHiveApp.swift
+	new file:   ios/GigHive/Sources/App/PickerBridges.swift
+	new file:   ios/GigHive/Sources/App/SettingsStore.swift
+	new file:   ios/GigHive/Sources/App/UploadClient.swift
+	new file:   ios/GigHive/Sources/App/UploadFormView.swift
+	new file:   ios/GigHive/Sources/ShareExtension/Info.plist
+	new file:   ios/GigHive/Sources/ShareExtension/ShareViewController.swift
+	new file:   ios/GigHive/project.yml
+	new file:   ios/GigHive/spec_20250921_145239.json
+	new file:   ios/GigHive/testUpload.sh
+	new file:   ios/GigHive/tools/debug_xcodegen.sh
+
+*** 
+releaseNotes20250920.txt
+Changes: Timeline fix and 20240724 session database update
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+Last run: ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/header.php
+	new file:   ansible/roles/docker/files/apache/webroot/images/jam/20250724.jpg
+	modified:   ansible/roles/docker/files/apache/webroot/timeline/modern-timeline-enhanced.css
+	modified:   ansible/roles/docker/files/apache/webroot/timeline/modern-timeline-enhanced.js
+	modified:   ansible/roles/docker/files/apache/webroot/vodcast.xml
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/cleaned_stormpigs_database.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/cleaned_stormpigs_database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/files.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_musicians.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_songs.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/sessions.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/song_files.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/songs.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/cleaned_stormpigs_database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/session_musicians.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/session_songs.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/sessions.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/song_files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/songs.csv
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: Link upload, get that working, put 4GB limit
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
 releaseNotes20250910.txt
 Changes: Remove .props files
 
@@ -18,20 +122,6 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/inventories/group_vars/gighive.yml
 	modified:   ansible/roles/docker/files/apache/Dockerfile
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250908.txt

@@ -7,8 +7,9 @@ SecStatusEngine Off
 SecTmpDir /var/cache/modsecurity
 SecDataDir /var/cache/modsecurity
 
-# Reasonable limits (tune for your app & infra)
-SecRequestBodyLimit 26214400
+# Reasonable limits (tuned higher for large media uploads)
+# ~5GB body limit to accommodate up to ~4GB files
+SecRequestBodyLimit 5368709120
 SecRequestBodyNoFilesLimit 131072
 SecRequestBodyInMemoryLimit 1048576
 SecPcreMatchLimit 100000
@@ -26,19 +27,15 @@ SecAuditLogType Serial
 SecAuditLog /var/log/apache2/modsec_audit.log
 SecAuditLogRelevantStatus "^(?:5|4(?!04))"
 
-# Optional: tighten upload endpoint specifically (example path)
-<LocationMatch "^/src">
+# Allow large bodies on API upload endpoint explicitly
+<LocationMatch "^/api/uploads\.php$">
     SecRuleEngine On
     SecRequestBodyAccess On
+    SecRequestBodyLimit 5368709120
     # Require multipart for uploads
     SecRule REQUEST_HEADERS:Content-Type "!@beginsWith multipart/form-data" \
         "id:1201,phase:2,deny,status:415,msg:'Uploads must be multipart/form-data'"
-    # Enforce body/file size (matches PHP/app & Apache limits)
-    SecRule REQUEST_BODY_LENGTH "@gt 26214400" \
-        "id:1202,phase:2,deny,status:413,msg:'Payload too large (>25MB)'"
-
-    # Allow-list common media types by magic sniff (ModSec inspects; still verify in app)
-    # Block if extension is executable or archive you don’t process
-    SecRule FILES_NAMES "\.(php\d?|phtml|phar|cgi|pl|asp|aspx|jsp|jar|exe|sh|bat|cmd|com|msi|js|html?|svgz?|7z|zip|rar|gz|bz2|xz)$" \
+    # Disallow dangerous extensions by filename as a safety net
+    SecRule FILES_NAMES "\.(php\d?|phtml|phar|cgi|pl|asp|aspx|jsp|jar|exe|sh|bat|cmd|com|msi)$" \
         "id:1203,phase:2,deny,status:400,msg:'Disallowed extension for upload'"
 </LocationMatch>

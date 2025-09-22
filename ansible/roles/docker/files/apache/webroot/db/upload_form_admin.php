@@ -1,15 +1,15 @@
 <?php declare(strict_types=1);
-// Minimal manual UI for testing Upload API (StormPigs)
+// Admin upload form with advanced fields visible. Protect this path with Basic Auth for admins only.
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>StormPigs Upload</title>
+  <title>StormPigs Upload (Admin)</title>
   <style>
     body { font-family: system-ui, Arial, sans-serif; margin: 2rem; }
-    form { max-width: 640px; }
+    form { max-width: 720px; }
     label { display: block; margin-top: 12px; font-weight: 600; }
     input[type="text"], input[type="date"], input[type="number"], textarea, select { width: 100%; padding: 8px; box-sizing: border-box; }
     input[type="file"] { margin-top: 8px; }
@@ -18,16 +18,14 @@
     .legend { color: #666; font-size: 12px; margin-top: 8px; }
     .row { display: flex; align-items: center; gap: 8px; }
     .row label.inline { display: inline; font-weight: 400; margin-top: 0; }
-    .admin-link { margin-top: 16px; display: inline-block; font-size: 14px; text-decoration: underline; }
     /* simple in-flight indicator (no XHR, no percent) */
     #status { margin-top: 12px; font-size: 14px; color: #333; }
     .spinner { display:inline-block; width:14px; height:14px; border:2px solid #999; border-top-color: transparent; border-radius:50%; animation: spin 0.8s linear infinite; margin-left:8px; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
-  <!-- This page is under /db/, protected by Basic Auth via Apache LocationMatch -->
 </head>
 <body>
-  <h1>Upload Media</h1>
+  <h1>Upload Media (Admin)</h1>
   <form id="uploadForm" action="/api/uploads.php" method="POST" enctype="multipart/form-data">
     <label for="file">Media file (audio/video) *</label>
     <input id="file" name="file" type="file" accept="audio/*,video/*" required />
@@ -53,9 +51,25 @@
     </div>
     <div class="hint">If checked, the label will be set to "Auto YYYY-MM-DD" based on the Event date.</div>
 
+    <hr />
+    <h3>Advanced (Admin)</h3>
+    <label for="participants">Participants</label>
+    <input id="participants" name="participants" type="text" placeholder="Comma-separated names" />
+
+    <label for="keywords">Keywords</label>
+    <input id="keywords" name="keywords" type="text" placeholder="Comma-separated keywords" />
+
+    <label for="location">Location</label>
+    <input id="location" name="location" type="text" />
+
+    <label for="rating">Rating</label>
+    <input id="rating" name="rating" type="text" placeholder="1-5 or text" />
+
+    <label for="notes">Notes</label>
+    <textarea id="notes" name="notes" rows="3"></textarea>
+
     <button id="btnUpload" type="submit">Upload</button>
     <div class="legend">* = mandatory</div>
-    <a class="admin-link" href="/db/upload_form_admin.php">For Admins</a>
     <div id="status" style="display:none;">Uploading…<span class="spinner"></span></div>
   </form>
 
@@ -65,8 +79,7 @@
       const labelInput = document.getElementById('label');
       const dateInput = document.getElementById('event_date');
       const form = document.getElementById('uploadForm');
-
-      // rolled back: no localStorage persistence
+      // rolled back: no localStorage persistence or XHR
 
       function ymd(d) {
         const dt = new Date(d);
@@ -100,13 +113,12 @@
           labelInput.focus();
           return;
         }
-        // show simple in-flight indicator and disable upload button
+        // simple indicator and disable button
         try {
           document.getElementById('status').style.display = 'block';
           const btn = document.getElementById('btnUpload');
           if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
         } catch(_) {}
-        // submit the form normally
         form.submit();
       });
     })();

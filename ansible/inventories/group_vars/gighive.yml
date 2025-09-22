@@ -58,7 +58,7 @@ gighive_htpasswd_mode: "0640"
 apache_group: www-data
 
 # htpasswd vars coming up
-protected_paths: ['app','db','debug','src','vendor']
+protected_paths: ['app','api','db','debug','src','vendor']
 
 #gighive_host — what tests hit (can be IP or hostname)
 #gighive_server_name — what goes into the cert (CN + DNS.1)
@@ -112,5 +112,5 @@ filename_seq_pad: 5
 
 # Application-level upload size cap in bytes (honored by UploadValidator)
 # Defaults to ~1.5GB if unset; set here for clarity and centralized control
-upload_max_bytes: 1500000000
+upload_max_bytes: 4000000000
 

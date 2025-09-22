@@ -15,6 +15,7 @@ final class SessionRepository
         $sql = <<<SQL
 SELECT
     sesh.date                             AS date,
+    sesh.org_name                         AS org_name,
     sesh.rating                           AS rating,
     sesh.keywords                         AS keywords,
     f.duration_seconds                    AS duration_seconds,

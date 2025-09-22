@@ -34,6 +34,7 @@ final class MediaController
         $viewRows = [];
         foreach ($rows as $row) {
             $date      = (string)($row['date'] ?? '');
+            $orgName   = (string)($row['org_name'] ?? '');
             $rating    = (string)($row['rating'] ?? '');
             $keywords  = (string)($row['keywords'] ?? '');
             $duration  = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
@@ -57,6 +58,7 @@ final class MediaController
             $viewRows[] = [
                 'idx'       => $counter++,
                 'date'      => $date,
+                'org_name'  => $orgName,
                 'rating'    => $rating,
                 'keywords'  => $keywords,
                 'duration'  => $duration,

@@ -88,3 +88,12 @@ ErrorLog  ${APACHE_LOG_DIR}/error.log
 #LoadModule security2_module /usr/lib/apache2/modules/mod_security2.so
 IncludeOptional /etc/modsecurity/modsecurity.conf
 
+
+# Restrict admin-only upload form
+<Location "/db/upload_form_admin.php">
+    AuthType Basic
+    AuthName "Gighive Admin"
+    AuthUserFile {{ gighive_htpasswd_path }}
+    Require user {{ admin_user }}
+</Location>
+
