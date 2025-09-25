@@ -35,7 +35,7 @@
     <label for="event_date">Event date *</label>
     <input id="event_date" name="event_date" type="date" required value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES) ?>" />
 
-    <label for="org_name">Organization name *</label>
+    <label for="org_name">Band or wedding party name *</label>
     <input id="org_name" name="org_name" type="text" value="StormPigs" />
     <div class="hint">Band name or wedding short name</div>
 
@@ -45,7 +45,7 @@
       <option value="wedding">wedding</option>
     </select>
 
-    <label for="label">Label *</label>
+    <label for="label">Song title or wedding table / identifier *</label>
     <input id="label" name="label" type="text" placeholder="Song title or wedding table label" required />
     <div class="row">
       <input id="auto_label" type="checkbox" />

@@ -80,10 +80,10 @@
 <table border="0" cellpadding="0" cellspacing="0" width="875" class="center">
     <tr>
 	<td align="center" valign="top" colspan="7">
-		<a href="db/database.php">the database</a>&nbsp;&nbsp;&nbsp;
-		<a href="singlesRandomPlayer.php">auto play everything</a>&nbsp;&nbsp;&nbsp;
-		<a href="loops.php">loops</A>&nbsp;&nbsp;&nbsp;
-		<a href="http://stormpigs.blogspot.com">blog</a>&nbsp;&nbsp;&nbsp;
+		        <a href="db/database.php">the database</a>&nbsp;&nbsp;&nbsp;
+        <a href="db/singlesRandomPlayer.php">auto play everything</a>&nbsp;&nbsp;&nbsp;
+        <a href="loops.php">loops</A>&nbsp;&nbsp;&nbsp;
+        <a href="http://stormpigs.blogspot.com">blog</a>&nbsp;&nbsp;&nbsp;
 	</td>
     </tr>
     <tr>

@@ -1,4 +1,47 @@
 *** 
+releaseNotes20250924.txt
+Changes: Fixed randomizer, made label changes to upload_form, created apache log diag script.
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/inventories/group_vars/ubuntu.yml
+	modified:   ansible/roles/cloud_init/files/network-config
+	modified:   ansible/roles/cloud_init/files/seed.iso
+	new file:   ansible/roles/docker/files/apache/diag-apache-logs.sh
+	new file:   ansible/roles/docker/files/apache/webroot/db/singlesRandomPlayer.php
+	renamed:    ansible/roles/docker/files/apache/webroot/singlesRandomPlayer.php -> ansible/roles/docker/files/apache/webroot/db/singlesRandomPlayer.php.old
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/header.php
+	deleted:    ansible/roles/docker/files/apache/webroot/singlesRandomPlayerJsonCacheClear.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Controllers/RandomController.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Views/media/random_player.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Views/media/random_simple.php
+	modified:   ios/GigHive/._GigHive.xcodeproj
+	modified:   ios/GigHive/GigHive.xcodeproj/project.xcworkspace/xcuserdata/sodo.xcuserdatad/UserInterfaceState.xcuserstate
+	new file:   testVideo.sh
+	renamed:    ansible/vdiLockedWriteDelete.sh -> vdiLockedWriteDelete.sh
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
 releaseNotes20250921.txt
 Changes: Added iphone app and modified upload_form.php
 
@@ -87,20 +130,6 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/sessions.csv
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/song_files.csv
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/songs.csv
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: Link upload, get that working, put 4GB limit
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: run Qualys scan locally, behind cloudflare, get sp site up and running
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250910.txt

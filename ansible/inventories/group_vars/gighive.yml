@@ -8,7 +8,6 @@ nameservers:
   - "8.8.8.8"
   - "8.8.4.4"
 bridge_iface: "enp8s0"
-#disk_size_mb: 64000
 disk_size_mb: 222000
 
 # Ansible host specific paths (user = sodo) THESE ARE SOURCES FOR VIDEOS and AUDIO FILES, LEAVING ABSOLUTE
@@ -26,7 +25,7 @@ nocloud_iso: "{{ cloud_init_files_dir }}/seed.iso"
 
 ansible_remote_tmp: "/tmp/.ansible/tmp"
 
-# app flavor (controls overlay at build time); database_full kept as-is
+# app flavor for build-time overlay; database_full kept as-is
 app_flavor: stormpigs
 database_full: true
 
