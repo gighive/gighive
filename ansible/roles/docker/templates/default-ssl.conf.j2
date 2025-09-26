@@ -72,6 +72,30 @@
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require valid-user
     </LocationMatch>
+
+    # --- UPLOAD FORMS: admin + uploader ---
+    <Location "/db/upload_form.php">
+        AuthType Basic
+        AuthName "GigHive"
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin uploader
+    </Location>
+
+    # --- ADMIN UPLOAD FORM: admin only ---
+    <Location "/db/upload_form_admin.php">
+        AuthType Basic
+        AuthName "GigHive Admin"
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin
+    </Location>
+
+    # --- UPLOAD API: admin + uploader ---
+    <Location "/api/uploads.php">
+        AuthType Basic
+        AuthName "GigHive"
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin uploader
+    </Location>
     
     # --- ADMIN-ONLY: change-password page ---
     <Files "changethepasswords.php">

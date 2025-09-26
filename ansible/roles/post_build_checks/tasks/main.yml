@@ -81,17 +81,6 @@
     seconds: 60 
     prompt: ""   # omit the “Press ENT
 
-#- name: Warm up Apache by calling singlesRandomPlayerJsonCacheClear.php
-#  uri:
-#    url: https://localhost/app/singlesRandomPlayerJsonCacheClear.php
-#    method: GET
-#    return_content: no
-#    validate_certs: no
-#  register: warmup_result
-#  changed_when: false
-
-# --- ensure htpasswd is bind-mounted and readable (no docker cp needed) ---
-
 - name: Assert htpasswd exists on host (bind-mount source)
   ansible.builtin.stat:
     path: "{{ gighive_htpasswd_host_path }}"
@@ -157,41 +146,6 @@
       {{ ht_stat.stdout | default('N/A') }}
   when: ht_in_root.rc != 0 or ht_in_www.rc != 0
 
-# --- warm-up via CLI as the same user Apache runs as (most reliable) ---
-#- name: Warm up via PHP CLI (as www-data, cwd = /var/www/html/app)
-#  command: docker exec -u www-data -w /var/www/html/app -i apacheWebServer php ./singlesRandomPlayerJsonCacheClear.php
-#  register: warmup_cli
-#  changed_when: false
-#
-#- name: Show CLI warm-up results
-#  debug:
-#    msg:
-#      - "rc={{ warmup_cli.rc }}"
-#      - "stdout={{ warmup_cli.stdout }}"
-
-# --- optional HTTP smoke test (non-fatal while we iterate) ---
-#- name: Warm up Apache by calling singlesRandomPlayerJsonCacheClear.php (HTTP)
-#  uri:
-#    url: "{{ gighive_base_url }}/app/singlesRandomPlayerJsonCacheClear.php"
-#    method: GET
-#    url_username: "{{ gighive_admin_user }}"
-#    url_password: "{{ gighive_admin_password }}"
-#    force_basic_auth: yes
-#    follow_redirects: all
-#    validate_certs: "{{ gighive_validate_certs }}"
-#    return_content: no
-#    status_code: [200, 204]
-#    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
-#  register: warmup_http
-#  changed_when: false
-#  no_log: true
-#  ignore_errors: true
-
-#- name: Display warm-up HTTP status
-#  debug:
-#    msg: "Warm-up HTTP status: {{ warmup_http.status | default('skipped') }}"
-
-# Ensure mod_headers is enabled (needed for the security headers)
 - name: Enable Apache headers module
   command: docker exec -i apacheWebServer a2enmod headers
   register: headers_mod
