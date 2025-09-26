@@ -1,6 +1,14 @@
+will need a third set of changes for the changethepassword.php
+
+*** 
+releaseNotes20250926.txt
+Changes: Upload confirmation HTML with database link, per-row anchors in database list and header anchor rename
+
 *** 
 releaseNotes20250926.txt
 Changes: Secondary set of changes to add uploader user to gighive.yml and security_auth_basic/tasks/main.yml
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
