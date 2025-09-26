@@ -1,6 +1,6 @@
 <?php
 /**
- * changethepasswords.php — updates 'admin' and 'viewer' in an Apache .htpasswd.
+ * changethepasswords.php — updates 'admin', 'viewer', and 'uploader' in an Apache .htpasswd.
  * Point to the target file with env var GIGHIVE_HTPASSWD_PATH (recommended).
  * Default matches your vhost variable path for Option 1:
  *   /var/www/private/gighive.htpasswd
@@ -116,14 +116,17 @@ $messages = [];
 $errors   = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $admin_pw    = $_POST['admin_password']          ?? '';
-    $admin_cfm   = $_POST['admin_password_confirm']  ?? '';
-    $viewer_pw   = $_POST['viewer_password']         ?? '';
-    $viewer_cfm  = $_POST['viewer_password_confirm'] ?? '';
+    $admin_pw     = $_POST['admin_password']           ?? '';
+    $admin_cfm    = $_POST['admin_password_confirm']   ?? '';
+    $viewer_pw    = $_POST['viewer_password']          ?? '';
+    $viewer_cfm   = $_POST['viewer_password_confirm']  ?? '';
+    $uploader_pw  = $_POST['uploader_password']        ?? '';
+    $uploader_cfm = $_POST['uploader_password_confirm']?? '';
 
     $errors = array_merge(
-        validate_password('Admin',  $admin_pw,  $admin_cfm),
-        validate_password('Viewer', $viewer_pw, $viewer_cfm)
+        validate_password('Admin',    $admin_pw,    $admin_cfm),
+        validate_password('Viewer',   $viewer_pw,   $viewer_cfm),
+        validate_password('Uploader', $uploader_pw, $uploader_cfm)
     );
 
     if (!$errors) {
@@ -140,12 +143,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $map = file_exists($HTPASSWD_FILE) ? load_htpasswd($HTPASSWD_FILE) : [];
 
-            if (!array_key_exists('admin',  $map)) $map['admin']  = '';
-            if (!array_key_exists('viewer', $map)) $map['viewer'] = '';
+            if (!array_key_exists('admin',    $map)) $map['admin']    = '';
+            if (!array_key_exists('viewer',   $map)) $map['viewer']   = '';
+            if (!array_key_exists('uploader', $map)) $map['uploader'] = '';
 
-            $map['admin']  = password_hash($admin_pw,  PASSWORD_BCRYPT);
-            $map['viewer'] = password_hash($viewer_pw, PASSWORD_BCRYPT);
-            if ($map['admin'] === false || $map['viewer'] === false) {
+            $map['admin']    = password_hash($admin_pw,    PASSWORD_BCRYPT);
+            $map['viewer']   = password_hash($viewer_pw,   PASSWORD_BCRYPT);
+            $map['uploader'] = password_hash($uploader_pw, PASSWORD_BCRYPT);
+            if ($map['admin'] === false || $map['viewer'] === false || $map['uploader'] === false) {
                 throw new RuntimeException("Failed to generate bcrypt hashes.");
             }
 
@@ -214,6 +219,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <input type="password" id="viewer_password" name="viewer_password" required minlength="8" />
           <label for="viewer_password_confirm">Confirm viewer password</label>
           <input type="password" id="viewer_password_confirm" name="viewer_password_confirm" required minlength="8" />
+        </div>
+
+        <div class="row">
+          <h2>Uploader</h2>
+          <label for="uploader_password">New uploader password</label>
+          <input type="password" id="uploader_password" name="uploader_password" required minlength="8" />
+          <label for="uploader_password_confirm">Confirm uploader password</label>
+          <input type="password" id="uploader_password_confirm" name="uploader_password_confirm" required minlength="8" />
         </div>
 
         <p class="muted">A timestamped backup of the current file will be created before updating.</p>
