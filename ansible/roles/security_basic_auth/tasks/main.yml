@@ -1,20 +1,4 @@
 ---
-# Always reset htpasswd by recreating its contents with bcrypt (no temp files),
-# detect read-only mount, and verify immediately.
-#
-# Vars used from group_vars/gighive.yml:
-#   gighive_htpasswd_path: /var/www/private/gighive.htpasswd
-#   gighive_htpasswd_owner: www-data
-#   gighive_htpasswd_group: www-data
-#   gighive_htpasswd_mode: "0640"
-#   admin_user: admin
-#   viewer_user: viewer
-#   gighive_admin_password: "supersecretadmin"
-#   gighive_viewer_password: "supersecretviewer"
-#   gighive_apache_container: apacheWebServer   # optional; if set+exists, verify inside container too
-
-# ===================== HOST: prerequisites =====================
-# --- Option B: Ensure host htpasswd exists and is a regular file (idempotent) ---
 - name: Assert required vars for Basic Auth (host side)
   ansible.builtin.assert:
     that:
