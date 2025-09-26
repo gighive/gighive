@@ -1,140 +1,111 @@
-# Minimal Changes to Add an "uploader" Role (Apache Basic Auth)
+# Minimal Changes to Add an "uploader" Role (Current Model: htpasswd + Require valid-user)
 
-This document outlines the smallest set of changes to introduce an "uploader" role alongside existing `admin` and `viewer` users, while making `viewer` truly read‑only. It keeps the current htpasswd‑based authentication model and applies authorization with Apache directives (no application code changes required).
+This document reflects your current Apache setup:
 
-## Goals
-- Add a new Apache auth group: `uploaders`.
-- Restrict upload endpoints/forms to `uploaders` and `admins` only.
-- Ensure `viewer` can browse/read but cannot upload.
-- Minimize changes: prefer local `.htaccess` rules or small vhost Location blocks.
+- You use a single htpasswd file for authentication.
+- Authorization largely uses `Require valid-user`.
+- There is no `/etc/apache2/groups` file today.
 
-## 1) Update Apache auth group file
-Add an `uploaders` line to your existing Apache group file (sibling to your current `viewers` and `admins`). Example (path will match your current setup, e.g. `/etc/apache2/groups`):
+Goal: introduce an effective "uploader" role with minimal changes, without introducing Apache groups right now.
 
-```
-viewers: alice bob
-uploaders: charlie
-admins: admin
-```
+## Minimal approach (no groups): use `Require user` on upload endpoints
 
-- Keep using the same htpasswd file you already have (e.g., `/etc/apache2/gighive.htpasswd`).
-- Create uploader users with `htpasswd` if they do not exist yet.
+Keep browse/read areas as-is (using `Require valid-user`), but make upload endpoints/forms stricter by allowing only a small allowlist of usernames (uploaders and admin) via `Require user`.
 
-## 2) Restrict upload forms (deny viewer)
-Add `.htaccess` next to each upload form to allow only `uploaders` and `admins`.
+### 1) Protect upload forms
+Place stanzas in an `.htaccess` next to your DB upload forms (or in the vhost, if you prefer that style). Example `.htaccess` in `webroot/db/`:
 
-File: `webroot/db/.htaccess` (or per‑file stanzas in your existing db/.htaccess)
 ```apache
 <Files "upload_form.php">
   AuthType Basic
   AuthName "GigHive"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  AuthGroupFile /etc/apache2/groups
-  Require group uploaders admins
+  Require user admin uploader1 uploader2
 </Files>
 
 <Files "upload_form_admin.php">
   AuthType Basic
   AuthName "GigHive Admin"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  AuthGroupFile /etc/apache2/groups
-  Require group admins
+  Require user admin
 </Files>
 ```
 
 Notes:
-- This is the most surgical approach and avoids touching other areas.
-- Ensure your vhost allows `.htaccess` to apply auth (`AllowOverride AuthConfig` or `AllowOverride All`).
+- Replace `uploader1 uploader2` with the actual usernames permitted to upload.
+- Ensure your vhost allows `.htaccess` to apply auth (AllowOverride AuthConfig or All).
 
-## 3) Restrict the Upload API endpoint (deny viewer)
-Place an `.htaccess` in the API directory to protect the upload endpoint:
+### 2) Protect the Upload API endpoint
+Add a `.htaccess` in `webroot/api/` to restrict the `uploads.php` handler to the same allowlist:
 
-File: `webroot/api/.htaccess`
 ```apache
 <Files "uploads.php">
   AuthType Basic
   AuthName "GigHive"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  AuthGroupFile /etc/apache2/groups
-  Require group uploaders admins
+  Require user admin uploader1 uploader2
 </Files>
 ```
 
-This ensures only `uploaders` and `admins` can POST uploads.
-
-## 4) Keep browse/read pages open to all authenticated users
-If you currently gate browse areas (e.g., `/db/database.php`, random players) via `Require valid-user` or an equivalent, you can:
-
-- Leave as‑is (any htpasswd user can browse), or
-- Make it explicit with groups:
+### 3) Leave browse/read pages as `Require valid-user`
+Your current config already protects broader app paths using `Require valid-user` (any authenticated account):
 
 ```apache
-# Example in db/.htaccess or vhost
-<Files "database.php">
+<LocationMatch "^/(?:app/(?!cache(?:/|$)).*|api|db|debug|src|vendor|video|audio)(?:/|$)">
   AuthType Basic
-  AuthName "GigHive"
+  AuthName "GigHive Protected"
+  AuthBasicProvider file
   AuthUserFile /etc/apache2/gighive.htpasswd
-  AuthGroupFile /etc/apache2/groups
-  Require group viewers uploaders admins
-</Files>
+  Require valid-user
+</LocationMatch>
 ```
 
-Either approach is fine; the key point is that upload endpoints are stricter.
+You can keep this as-is so viewers can still browse read-only pages. The `.htaccess` snippets above will override with stricter `Require user` for the specific upload endpoints.
 
-## 5) Optional: vhost alternative instead of .htaccess
-If you prefer to keep auth in vhost templates (e.g., `default-ssl.conf.j2`), add per‑path Location/Files blocks mirroring the above:
+### 4) Optional: do it in vhost instead of .htaccess
+If you prefer vhost templates (e.g., `default-ssl.conf.j2`) over .htaccess, mirror the same logic with `<Location>` or `<Files>` blocks:
 
 ```apache
 <Location "/db/upload_form.php">
   AuthType Basic
   AuthName "GigHive"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  AuthGroupFile /etc/apache2/groups
-  Require group uploaders admins
+  Require user admin uploader1 uploader2
 </Location>
 
 <Location "/db/upload_form_admin.php">
   AuthType Basic
   AuthName "GigHive Admin"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  AuthGroupFile /etc/apache2/groups
-  Require group admins
+  Require user admin
 </Location>
 
 <Location "/api/uploads.php">
   AuthType Basic
   AuthName "GigHive"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  AuthGroupFile /etc/apache2/groups
-  Require group uploaders admins
+  Require user admin uploader1 uploader2
 </Location>
 ```
 
-## 6) Modules and overrides checklist
-- Enable these Apache modules (usually already on):
-  - `mod_auth_basic`, `mod_authn_file`, `mod_authz_user`, `mod_authz_groupfile`
-- Ensure `.htaccess` is allowed to set auth (if using .htaccess):
-  - In vhost: `AllowOverride AuthConfig` (or `All`) for the relevant directories.
+### 5) Modules and overrides checklist
+- Ensure these Apache modules are enabled (usually already on):
+  - `mod_auth_basic`, `mod_authn_file`, `mod_authz_user`
+- If using .htaccess, confirm your vhost allows it:
+  - `AllowOverride AuthConfig` (or `All`) for the relevant directories.
 
-## 7) Test matrix
+### 6) Test matrix
 - Viewer user:
-  - Can browse `/db/database.php` and other read‑only pages.
-  - Is denied (HTTP 401/403) on `/db/upload_form.php` and `/api/uploads.php`.
-- Uploader user:
+  - Can browse `/db/database.php` and other read-only pages (valid-user).
+  - Is denied (401/403) on `/db/upload_form.php` and `/api/uploads.php`.
+- Uploader user (named in Require user):
   - Can access `/db/upload_form.php` and upload via `/api/uploads.php`.
   - Is denied on `/db/upload_form_admin.php`.
-  - Can still browse read‑only pages.
+  - Can still browse read-only pages.
 - Admin user:
   - Can access everything.
 
-## 8) No application code changes required
-- iOS and web upload flows continue to use Basic Auth; just supply an `uploader` credential when uploading.
-- MVC/PHP controllers remain unchanged—Apache enforces roles up front.
-
 ---
 
-This plan introduces only:
-- A new `uploaders` line in the Apache groups file.
-- Three small auth stanzas targeting: `db/upload_form.php`, `db/upload_form_admin.php` (admin‑only), and `api/uploads.php`.
-
-Everything else remains as it is.
+## Optional future enhancement: switch to groups later
+If you later prefer role names instead of explicit user allowlists, you can introduce an Apache `AuthGroupFile` (e.g., `/etc/apache2/groups`) and replace `Require user ...` with `Require group uploaders admins`. That requires enabling `mod_authz_groupfile` and maintaining a group file. For now, the `Require user` approach achieves the same outcome with the least change.

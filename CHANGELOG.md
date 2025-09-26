@@ -1,6 +1,6 @@
 *** 
 releaseNotes20250926.txt
-Changes: Prep for auth changes, uploader_minimal_changes.md
+Changes: Add currentauth explanation
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -8,9 +8,7 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	new file:   currentauth.md
-	new file:   docs/uploader_minimal_changes.md
+	renamed:    currentauth.md -> docs/currentauth.md
 
 ToDo: create a canonical md versions for the site and convert using composer recommendation
 ToDo: document supported media types
@@ -24,6 +22,54 @@ ToDo: Fill in documentation on github.io, make instructory videos and add them t
 ToDo: Integrate Let's Encrypt for future
 ToDo: Cron to upload backup to Ansible controller 
 
+*** 
+releaseNotes20250926.txt
+Changes: Prep for auth changes, uploader_minimal_changes.md
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   currentauth.md
+	new file:   docs/uploader_minimal_changes.md
+
+*** 
+releaseNotes20250925.txt
+Changes: Automated github CNAME change to add gighive.app
+
+Had to rebase
+
+sodo@pop-os:~/scripts/gighive$ git push origin master
+Enumerating objects: 12, done.
+Counting objects: 100% (12/12), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (9/9), done.
+Writing objects: 100% (9/9), 4.12 KiB | 4.12 MiB/s, done.
+Total 9 (delta 5), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (5/5), completed with 3 local objects.
+To github.com:gighive/gighive
+   b61b4d1..60ec0a8  master -> master
+sodo@pop-os:~/scripts/gighive$ git log -5
+commit 60ec0a8e2f78923da11cfbc8dbbc3ede63bc2d72 (HEAD -> master, origin/master, origin/HEAD)
+Author: Scott Frase <frases@hotmail.com>
+Date:   Fri Sep 26 08:42:43 2025 -0400
+
+    Update CHANGELOG
+
+commit 0f8ee7c32cb5dd538afe48999a7844b611303e52
+Author: Scott Frase <frases@hotmail.com>
+Date:   Fri Sep 26 08:32:54 2025 -0400
+
+    Changes: Prep for auth changes, uploader_minimal_changes.md
+
+commit b61b4d106137c384fe78ef6f0773090596229a32
+Author: gighive <frases@hotmail.com>
+Date:   Thu Sep 25 08:41:43 2025 -0400
+
+    Create CNAME
 *** 
 releaseNotes20250924.txt
 Changes: Fixed randomizer, made label changes to upload_form, created apache log diag script.
