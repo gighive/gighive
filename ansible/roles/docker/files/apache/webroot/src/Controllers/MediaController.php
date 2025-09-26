@@ -33,6 +33,7 @@ final class MediaController
         $counter = 1;
         $viewRows = [];
         foreach ($rows as $row) {
+            $id        = isset($row['id']) ? (string)$row['id'] : '';
             $date      = (string)($row['date'] ?? '');
             $orgName   = (string)($row['org_name'] ?? '');
             $rating    = (string)($row['rating'] ?? '');
@@ -56,6 +57,7 @@ final class MediaController
             $url = ($dir && $file) ? $dir . '/' . rawurlencode($file) : '';
 
             $viewRows[] = [
+                'id'        => $id,
                 'idx'       => $counter++,
                 'date'      => $date,
                 'org_name'  => $orgName,

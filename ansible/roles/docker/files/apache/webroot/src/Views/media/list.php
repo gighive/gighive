@@ -16,7 +16,7 @@
   </style>
 </head>
 <body>
-  <h1>Sessions</h1>
+  <h1 id="all">Sessions</h1>
   <table id="searchableTable" data-sort-order="asc">
     <thead>
       <tr>
@@ -36,7 +36,7 @@
     </thead>
     <tbody>
       <?php foreach ($rows as $r): ?>
-        <tr>
+        <tr id="media-<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>">
           <td><?= htmlspecialchars((string)$r['idx'], ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?></td>

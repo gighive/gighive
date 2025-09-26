@@ -14,6 +14,7 @@ final class SessionRepository
     {
         $sql = <<<SQL
 SELECT
+    f.file_id                           AS id,
     sesh.date                             AS date,
     sesh.org_name                         AS org_name,
     sesh.rating                           AS rating,
