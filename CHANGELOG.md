@@ -1,4 +1,9 @@
 *** 
+releaseNotes20250926.txt
+Changes: Prep for auth changes, uploader_minimal_changes.md
+
+
+*** 
 releaseNotes20250924.txt
 Changes: Fixed randomizer, made label changes to upload_form, created apache log diag script.
 
