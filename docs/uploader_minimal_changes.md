@@ -1,7 +1,8 @@
 # Minimal Changes to Add an "uploader" Role (Current Model: htpasswd + Require valid-user)
 
-This document reflects your current Apache setup:
+This document reflects your current Apache setup and user set:
 
+- Users: `admin` (existing), `viewer` (existing), and `uploader` (new to be added).
 - You use a single htpasswd file for authentication.
 - Authorization largely uses `Require valid-user`.
 - There is no `/etc/apache2/groups` file today.
@@ -10,17 +11,17 @@ Goal: introduce an effective "uploader" role with minimal changes, without intro
 
 ## Minimal approach (no groups): use `Require user` on upload endpoints
 
-Keep browse/read areas as-is (using `Require valid-user`), but make upload endpoints/forms stricter by allowing only a small allowlist of usernames (uploaders and admin) via `Require user`.
+Keep browse/read areas as-is (using `Require valid-user`), but make upload endpoints/forms stricter by allowing only a small allowlist of usernames (`admin` and `uploader`) via `Require user`.
 
 ### 1) Protect upload forms
-Place stanzas in an `.htaccess` next to your DB upload forms (or in the vhost, if you prefer that style). Example `.htaccess` in `webroot/db/`:
+Place stanzas in an `.htaccess` next to your DB upload forms (or in the vhost, if you prefer that style). Example `.htaccess` in `webroot/db/` with exactly these three users:
 
 ```apache
 <Files "upload_form.php">
   AuthType Basic
   AuthName "GigHive"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  Require user admin uploader1 uploader2
+  Require user admin uploader
 </Files>
 
 <Files "upload_form_admin.php">
@@ -32,18 +33,17 @@ Place stanzas in an `.htaccess` next to your DB upload forms (or in the vhost, i
 ```
 
 Notes:
-- Replace `uploader1 uploader2` with the actual usernames permitted to upload.
 - Ensure your vhost allows `.htaccess` to apply auth (AllowOverride AuthConfig or All).
 
 ### 2) Protect the Upload API endpoint
-Add a `.htaccess` in `webroot/api/` to restrict the `uploads.php` handler to the same allowlist:
+Add a `.htaccess` in `webroot/api/` to restrict the `uploads.php` handler to the same allowlist (admin + uploader):
 
 ```apache
 <Files "uploads.php">
   AuthType Basic
   AuthName "GigHive"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  Require user admin uploader1 uploader2
+  Require user admin uploader
 </Files>
 ```
 
@@ -63,14 +63,14 @@ Your current config already protects broader app paths using `Require valid-user
 You can keep this as-is so viewers can still browse read-only pages. The `.htaccess` snippets above will override with stricter `Require user` for the specific upload endpoints.
 
 ### 4) Optional: do it in vhost instead of .htaccess
-If you prefer vhost templates (e.g., `default-ssl.conf.j2`) over .htaccess, mirror the same logic with `<Location>` or `<Files>` blocks:
+If you prefer vhost templates (e.g., `default-ssl.conf.j2`) over .htaccess, mirror the same logic with `<Location>` or `<Files>` blocks (admin, viewer, uploader):
 
 ```apache
 <Location "/db/upload_form.php">
   AuthType Basic
   AuthName "GigHive"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  Require user admin uploader1 uploader2
+  Require user admin uploader
 </Location>
 
 <Location "/db/upload_form_admin.php">
@@ -84,7 +84,7 @@ If you prefer vhost templates (e.g., `default-ssl.conf.j2`) over .htaccess, mirr
   AuthType Basic
   AuthName "GigHive"
   AuthUserFile /etc/apache2/gighive.htpasswd
-  Require user admin uploader1 uploader2
+  Require user admin uploader
 </Location>
 ```
 
@@ -94,15 +94,15 @@ If you prefer vhost templates (e.g., `default-ssl.conf.j2`) over .htaccess, mirr
 - If using .htaccess, confirm your vhost allows it:
   - `AllowOverride AuthConfig` (or `All`) for the relevant directories.
 
-### 6) Test matrix
-- Viewer user:
+### 6) Test matrix (exact users: admin, viewer, uploader)
+- Viewer:
   - Can browse `/db/database.php` and other read-only pages (valid-user).
   - Is denied (401/403) on `/db/upload_form.php` and `/api/uploads.php`.
-- Uploader user (named in Require user):
+- Uploader:
   - Can access `/db/upload_form.php` and upload via `/api/uploads.php`.
   - Is denied on `/db/upload_form_admin.php`.
   - Can still browse read-only pages.
-- Admin user:
+- Admin:
   - Can access everything.
 
 ---
