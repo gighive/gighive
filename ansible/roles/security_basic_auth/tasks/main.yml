@@ -74,6 +74,20 @@
     - gighive_viewer_password is defined
     - (gighive_viewer_password | length) > 0
 
+- name: Optionally create/update uploader user in host htpasswd (bcrypt)
+  community.general.htpasswd:
+    path: "{{ gighive_htpasswd_host_path }}"
+    name: "{{ uploader_user }}"
+    password: "{{ gighive_uploader_password }}"
+    crypt_scheme: bcrypt
+    owner: "{{ gighive_htpasswd_owner | default('root') }}"
+    group: "{{ gighive_htpasswd_group | default('www-data') }}"
+    mode: "{{ gighive_htpasswd_mode  | default('0640') }}"
+  when:
+    - uploader_user is defined
+    - gighive_uploader_password is defined
+    - (gighive_uploader_password | length) > 0
+
 - name: Validate host htpasswd is a regular file (safety net)
   ansible.builtin.stat:
     path: "{{ gighive_htpasswd_host_path }}"
@@ -132,6 +146,15 @@
   become: true
   no_log: true
 
+- name: Ensure uploader in htpasswd (bcrypt)
+  ansible.builtin.htpasswd:
+    path: "{{ gighive_htpasswd_path }}"
+    name: "{{ uploader_user }}"
+    password: "{{ gighive_uploader_password }}"
+    crypt_scheme: bcrypt
+  become: true
+  no_log: true
+
 # ===================== HOST: verify =====================
 - name: Verify admin (host)
   ansible.builtin.shell: >
@@ -153,10 +176,25 @@
   failed_when: false
   no_log: true
 
+- name: Verify uploader (host)
+  ansible.builtin.shell: >
+    htpasswd -vb "{{ gighive_htpasswd_path }}" "{{ uploader_user }}" "{{ gighive_uploader_password }}"
+  args:
+    executable: /bin/bash
+  register: _v_uploader_host
+  changed_when: false
+  failed_when: false
+  no_log: true
+
 - name: Set verification facts (host)
   ansible.builtin.set_fact:
     admin_ok: "{{ (_v_admin_host.rc | default(1)) == 0 }}"
     viewer_ok: "{{ (_v_viewer_host.rc | default(1)) == 0 }}"
+  changed_when: false
+
+- name: Extend verification facts (host)
+  ansible.builtin.set_fact:
+    uploader_ok: "{{ (_v_uploader_host.rc | default(1)) == 0 }}"
   changed_when: false
 
 # Check if file exists
@@ -253,10 +291,29 @@
       delay: 2
       until: _http_viewer.status == 200
 
+    - name: Probe as uploader (expect 200)
+      ansible.builtin.uri:
+        url: "{{ gighive_auth_probe_url_eff }}"
+        method: GET
+        force_basic_auth: true
+        url_username: "{{ uploader_user }}"
+        url_password: "{{ gighive_uploader_password }}"
+        return_content: false
+        validate_certs: "{{ (not gighive_auth_probe_insecure | default(false)) and (gighive_validate_certs | default(true)) }}"
+        status_code: [200]
+      register: _http_uploader
+      changed_when: false
+      failed_when: false
+      no_log: true
+      retries: 3
+      delay: 2
+      until: _http_uploader.status == 200
+
     - name: Set HTTP verification facts
       ansible.builtin.set_fact:
         admin_http_ok: "{{ _http_admin.status == 200 }}"
         viewer_http_ok: "{{ _http_viewer.status == 200 }}"
+        uploader_http_ok: "{{ _http_uploader.status == 200 }}"
         unauth_http_locked: "{{ _http_noauth.status in [401, 403] }}"
       changed_when: false
 
@@ -265,13 +322,15 @@
         that:
           - admin_http_ok
           - viewer_http_ok
+          - uploader_http_ok
           - unauth_http_locked
         fail_msg: >-
           Basic Auth probe failed:
           admin={{ _http_admin.status | default('n/a') }},
           viewer={{ _http_viewer.status | default('n/a') }},
+          uploader={{ _http_uploader.status | default('n/a') }},
           unauth={{ _http_noauth.status | default('n/a') }}
-        success_msg: "Basic Auth verified via HTTP (admin/viewer OK; unauth blocked)."
+        success_msg: "Basic Auth verified via HTTP (admin/viewer/uploader OK; unauth blocked)."
 
 
     - name: Show HTTP verification summary (no secrets)
@@ -280,5 +339,6 @@
           - "Probe URL: {{ gighive_auth_probe_url_eff }}"
           - "admin_http_ok={{ admin_http_ok }}"
           - "viewer_http_ok={{ viewer_http_ok }}"
+          - "uploader_http_ok={{ uploader_http_ok }}"
           - "unauth_http_locked={{ unauth_http_locked }}"
   when: gighive_auth_probe_url_eff is defined
