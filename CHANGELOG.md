@@ -2,7 +2,50 @@ will need a third set of changes for the changethepassword.php
 
 *** 
 releaseNotes20250926.txt
+Changes: Documentation rename plus changethepasswords.php to add the uploader user
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/changethepasswords.php
+	new file:   docs/20250926changepasswords.md
+	renamed:    docs/currentauth.md -> docs/20250926currentauth.md
+	renamed:    docs/changes-2025-09-26.md -> docs/20250926overallchanges.md
+	renamed:    docs/securityauthchangesforuploader.md -> docs/20250926securityauthchanges.md
+	renamed:    docs/uploader_minimal_changes.md -> docs/20250926uploaderchanges.md
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250926.txt
 Changes: Upload confirmation HTML with database link, per-row anchors in database list and header anchor rename
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/api/uploads.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
 
 *** 
 releaseNotes20250926.txt
@@ -19,18 +62,6 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/inventories/group_vars/gighive.yml
 	modified:   ansible/roles/security_basic_auth/tasks/main.yml
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250926.txt
