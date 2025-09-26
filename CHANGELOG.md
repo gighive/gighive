@@ -1,5 +1,31 @@
 *** 
 releaseNotes20250926.txt
+Changes: Secondary set of changes to add uploader user to gighive.yml and security_auth_basic/tasks/main.yml
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/roles/security_basic_auth/tasks/main.yml
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250926.txt
 Changes: Minimal set of changes to consolidate uploader user into default-ssl.conf.j2
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -25,18 +51,6 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	renamed:    currentauth.md -> docs/currentauth.md
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250926.txt
