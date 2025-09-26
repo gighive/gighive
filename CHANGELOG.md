@@ -1,5 +1,21 @@
 *** 
 releaseNotes20250926.txt
+Changes: Minimal set of changes to consolidate uploader user into default-ssl.conf.j2
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   ansible/roles/docker/templates/apache2.conf.j2
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/security_basic_auth/tasks/main.yml
+
+*** 
+releaseNotes20250926.txt
 Changes: Add currentauth explanation
 
 sodo@pop-os:~/scripts/gighive$ git status
