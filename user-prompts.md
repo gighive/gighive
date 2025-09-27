@@ -435,3 +435,25 @@ duplicate output file '/Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-b
 
 - 2025-09-27T13:40:48-04:00
   - After a successful upload, please preprend UPLOAD SUCCESSFUL! in the debug message block, one line above the regular debug output
+
+- 2025-09-27T13:50:57-04:00
+  - i'd like to run two versions of db/database.php.  One that is the full version that shows all the fields.  Secondly, a simplified version where Rating, Keywords, Location, Summary and Crew are removed.  My intent is to use the simple version with the gighive app_flavor specified in inventories/group_vars, and the more complex with the stormpigs app_flavor version.  Give me a plan to accomplish this.
+
+- 2025-09-27T13:55:23-04:00
+  - for #2 we will do the reverse logic.  stormpigs is the base app_flavor and we overlay with gighive files as below.  so please adjust your instructions based on this information: sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache/overlays/gighive$ ll
+total 48
+-rw-rw-r-- 1 sodo sodo  9556 Sep 26 11:09 changethepasswords.php
+-rw-rw-r-- 1 sodo sodo  3115 Sep 10 19:09 comingsoon.html
+drwxrwxr-x 3 sodo sodo  4096 Sep 10 19:09 images
+-rw-rw-r-- 1 sodo sodo  4938 Sep 10 19:09 index.php
+-rw-rw-r-- 1 sodo sodo 12966 Sep 10 19:09 SECURITY.html
+drwxrwxr-x 3 sodo sodo  4096 Sep 10 19:09 src
+
+- 2025-09-27T13:57:04-04:00
+  - Please document this plan in /docs/featureGighiveDbOverlay.md
+
+- 2025-09-27T14:00:18-04:00
+  - 1) if not already in the /docs/feature*.md file, please add this information as it is important. 2) go ahead and proceed
+
+- 2025-09-27T14:09:30-04:00
+  - please rename the "Org" header on list.php for the gighive version of the database page to "Band or Event"

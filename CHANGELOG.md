@@ -1,5 +1,32 @@
 *** 
 releaseNotes20250927.txt
+Changes: Created reduced database page for gighive, files changed in overlay
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   ansible/roles/docker/files/apache/overlays/gighive/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/src/Views/media/list.php
+	new file:   docs/featureGighiveDbOverlay.md
+	modified:   user-prompts.md
+ 
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250927.txt
 Changes: iphone App fixed upload messaging
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -15,18 +42,6 @@ Changes to be committed:
 	new file:   ios/GigHive/Sources/App/UploadView.swift.bad
 	new file:   ios/GigHive/Sources/App/UploadView.swift.workingmoredebug
 	modified:   user-prompts.md
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250927.txt

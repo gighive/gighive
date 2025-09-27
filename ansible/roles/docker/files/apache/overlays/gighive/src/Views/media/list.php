@@ -7,8 +7,8 @@
   <title>Media Database</title>
   <style>
     body{font-family:system-ui,Arial,sans-serif;margin:0;padding:1rem;}
-    h1{margin:0 auto 1rem auto;max-width:1350px;}
-    table{width:1350px;table-layout:fixed;border-collapse:collapse;margin:0 auto;}
+    h1{margin:0 auto 1rem auto;max-width:900px;}
+    table{width:900px;table-layout:fixed;border-collapse:collapse;margin:0 auto;}
     th,td{border:1px solid #ddd;padding:8px;vertical-align:top;word-wrap:break-word;}
     th{background:#f6f6f6;text-align:left;cursor:pointer;}
     thead input{width:100%;box-sizing:border-box;margin-top:4px;}
@@ -21,15 +21,11 @@
       <tr>
         <th onclick="sortTable(0)"><h4>#</h4><input type="text" placeholder="Search..."></th>
         <th onclick="sortTable(1)"><h4>Date</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(2)"><h4>Rating</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(3)"><h4>Keywords</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(4)"><h4>Duration</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(5)"><h4>Location</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(6)"><h4>Summary</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(7)"><h4>Crew</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(8)"><h4>Song Name</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(9)"><h4>File Type</h4><input type="text" placeholder="Search..."></th>
-        <th onclick="sortTable(10)"><h4>File</h4><input type="text" placeholder="Search..."></th>
+        <th onclick="sortTable(2)"><h4>Band or Event</h4><input type="text" placeholder="Search..."></th>
+        <th onclick="sortTable(3)"><h4>Duration</h4><input type="text" placeholder="Search..."></th>
+        <th onclick="sortTable(4)"><h4>Song Name</h4><input type="text" placeholder="Search..."></th>
+        <th onclick="sortTable(5)"><h4>File Type</h4><input type="text" placeholder="Search..."></th>
+        <th onclick="sortTable(6)"><h4>File</h4><input type="text" placeholder="Search..."></th>
       </tr>
     </thead>
     <tbody>
@@ -37,14 +33,10 @@
         <tr>
           <td><?= htmlspecialchars((string)$r['idx'], ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?></td>
-          <td><?= htmlspecialchars($r['rating'] ?? '', ENT_QUOTES) ?></td>
-          <td><?= htmlspecialchars($r['keywords'] ?? '', ENT_QUOTES) ?></td>
+          <td><?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?></td>
           <td data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
             <?= htmlspecialchars($r['duration'] ?? '', ENT_QUOTES) ?>
           </td>
-          <td><?= htmlspecialchars($r['location'] ?? '', ENT_QUOTES) ?></td>
-          <td><?= htmlspecialchars($r['summary'] ?? '', ENT_QUOTES) ?></td>
-          <td><?= htmlspecialchars($r['crew'] ?? '', ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['songTitle'] ?? '', ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['type'] ?? '', ENT_QUOTES) ?></td>
           <td>
