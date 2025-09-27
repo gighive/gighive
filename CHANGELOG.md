@@ -1,4 +1,39 @@
-will need a third set of changes for the changethepassword.php
+*** 
+releaseNotes20250927.txt
+Changes: Tus implementation planning, phpinfo.php for testing
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/webroot/phpinfo.php
+	new file:   docs/testApacheHeaders.md
+	new file:   docs/tusclientchunkimplementation.md
+	new file:   docs/tusimplementation.md
+	new file:   ios/GigHive/Sources/App/Info.plist
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250926.txt
+Changes: Iphone App cleanup (appears as git log "Stop tracking AppleDouble and Xcode user-state files") 
 
 *** 
 releaseNotes20250926.txt
@@ -17,18 +52,6 @@ Changes to be committed:
 	renamed:    docs/changes-2025-09-26.md -> docs/20250926overallchanges.md
 	renamed:    docs/securityauthchangesforuploader.md -> docs/20250926securityauthchanges.md
 	renamed:    docs/uploader_minimal_changes.md -> docs/20250926uploaderchanges.md
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250926.txt
