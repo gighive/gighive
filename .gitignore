@@ -10,10 +10,21 @@
 # Ignore properties files
 *.properties
 
+# Ignore user-prompts.md 
+user-prompts.md
+
 # Ignore virtual disk images
 *.vdi
 *.vmdk
 *.iso
+
+# don't track apple stuff
+._*
+.DS_Store
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
 
 # Docker volumes (if any)
 volumes/
