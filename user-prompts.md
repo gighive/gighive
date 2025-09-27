@@ -153,3 +153,18 @@ A rolling log of the user's prompts to Cascade with timestamps provided by the I
 
 - 2025-09-27T08:25:19-04:00
   - 1) please put all of the tests that you just performed into /docs/testApacheHeaders.md and 2) can you create phpinfo.php in ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/debug and then i will test?
+
+- 2025-09-27T08:33:45-04:00
+  - here is the output of phpinfo.php: sodo@pop-os:~/scripts/gighive$ curl -u "uploader:secretuploader" https://dev.stormpigs.com/phpinfo.php [followed by full phpinfo HTML output]
+
+- 2025-09-27T08:36:10-04:00
+  - 1) please post the results of your chunked file analysis in the file /docs/chunkedfileconfiguration.md 2) i have removed user-prompts.md from .gitignore so that you can update the file with this prompt and the preceding one.
+
+- 2025-09-27T08:38:00-04:00
+  - is there any downside to raising memory limit of chunked uploads to 512M ?
+
+- 2025-09-27T08:39:49-04:00
+  - i see there is a /home/sodo/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/php-fpm.conf file..is that where we would add the memory_limit?
+
+- 2025-09-27T08:41:20-04:00
+  - oh, i see this file: /home/sodo/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/www.conf, that should be a good place, yes?

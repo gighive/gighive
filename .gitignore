@@ -10,9 +10,6 @@
 # Ignore properties files
 *.properties
 
-# Ignore user-prompts.md 
-user-prompts.md
-
 # Ignore virtual disk images
 *.vdi
 *.vmdk

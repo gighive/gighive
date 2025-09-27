@@ -1,5 +1,21 @@
 *** 
 releaseNotes20250927.txt
+Changes: Increase memory_limit for uploads from 32MB to 512MB, chunked upload configuration doc
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/externalConfigs/www.conf
+	new file:   docs/chunkedfileconfiguration.md
+	modified:   user-prompts.md
+
+*** 
+releaseNotes20250927.txt
 Changes: Tus implementation planning, phpinfo.php for testing
 
 Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
