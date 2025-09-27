@@ -168,3 +168,18 @@ A rolling log of the user's prompts to Cascade with timestamps provided by the I
 
 - 2025-09-27T08:41:20-04:00
   - oh, i see this file: /home/sodo/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/www.conf, that should be a good place, yes?
+
+- 2025-09-27T08:51:57-04:00
+  - ok, given this information, how does this change our plan laid out in tusclientchunkimplementation.md?
+
+- 2025-09-27T08:55:24-04:00
+  - 1) let's go with the next steps you laid out, but provide a detail plan for implementation first 2) update tusclientchunkimplementation.md with the plan you laid out 3) let's discuss the plan
+
+- 2025-09-27T08:58:49-04:00
+  - Answers: i assume video uploads up to 4GB in size so let's base configuration off that, as well as the capacity of the apache container given what we know about it's configuration.
+
+- 2025-09-27T09:00:26-04:00
+  - if you haven't already, please add your optimization summary to tusclientchunkimplementation.md
+
+- 2025-09-27T09:01:45-04:00
+  - ok, now what client side code do we need to change to enable this?  what is the plan for that (do not make any changes).
