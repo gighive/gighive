@@ -239,21 +239,6 @@ struct UploadView: View {
                             .disabled((!isUploading) && (isLoadingMedia || fileURL == nil || (label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)))
                             .padding(.top, 2)
 
-                        // Validation messages for mandatory fields
-                        if !isUploading && !isLoadingMedia {
-                            let validationMessages = getValidationMessages()
-                            if !validationMessages.isEmpty {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    ForEach(validationMessages, id: \.self) { message in
-                                        Text("⚠️ \(message)")
-                                            .font(.caption2)
-                                            .foregroundColor(.orange)
-                                    }
-                                }
-                                .padding(.top, 2)
-                            }
-                        }
-
                         if !debugLog.isEmpty {
                             Text(debugLog.joined(separator: " → "))
                                 .font(.caption2)
@@ -308,11 +293,9 @@ struct UploadView: View {
                     self.loadedFileSize = nil
                     self.fileURL = url
                     self.showPhotosPicker = false
-                    debugLog.append("loading file into memory...")
 
                     // Compute file size and only clear loading after minimum visible duration
                     DispatchQueue.global(qos: .userInitiated).async {
-                        debugLog.append("calculating file size...")
                         let minVisible: TimeInterval = 1.0
                         let sizeText: String = {
                             do {
@@ -329,7 +312,6 @@ struct UploadView: View {
                             self.loadedFileSize = sizeText
                             self.isLoadingMedia = false
                             self.mediaLoadingStartedAt = nil
-                            debugLog.append("file loaded successfully (\(sizeText))")
                             debugLog.append("picked from Photos")
                         }
                     }
@@ -364,11 +346,9 @@ struct UploadView: View {
                         self.loadedFileSize = nil
                         self.fileURL = url
                         self.showFilesPicker = false
-                        debugLog.append("loading file into memory...")
 
                         // Compute file size and only clear loading after minimum visible duration
                         DispatchQueue.global(qos: .userInitiated).async {
-                            debugLog.append("calculating file size...")
                             let minVisible: TimeInterval = 1.0
                             let sizeText: String = {
                                 do {
@@ -385,7 +365,6 @@ struct UploadView: View {
                                 self.loadedFileSize = sizeText
                                 self.isLoadingMedia = false
                                 self.mediaLoadingStartedAt = nil
-                                debugLog.append("file loaded successfully (\(sizeText))")
                                 debugLog.append("picked from Files")
                             }
                         }
@@ -424,37 +403,6 @@ struct UploadView: View {
         let df = DateFormatter()
         df.dateFormat = "yyyy-MM-dd"
         return "Auto \(df.string(from: eventDate))"
-    }
-
-    private func getValidationMessages() -> [String] {
-        var messages: [String] = []
-        
-        // Check media file
-        if fileURL == nil {
-            messages.append("Please select a media file")
-        }
-        
-        // Check username
-        if username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            messages.append("Username is required")
-        }
-        
-        // Check password
-        if password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            messages.append("Password is required")
-        }
-        
-        // Check organization name
-        if orgName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            messages.append("Band or wedding party name is required")
-        }
-        
-        // Check label (only if autogenerate is not checked)
-        if !autogenLabel && label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            messages.append("Song title or wedding identifier is required")
-        }
-        
-        return messages
     }
 
     // Reset the temporary cancelled label back to default when user edits anything
@@ -543,8 +491,6 @@ struct UploadView: View {
                     let url = components?.url ?? baseURL
                     successURL = url
                     failureCount = 0
-                    // Prepend success message to debug log
-                    debugLog.insert("UPLOAD SUCCESSFUL!", at: 0)
                     debugLog.append("db link=\(url.absoluteString)")
                     // Clear fields after success (update UI on main thread)
                     DispatchQueue.main.async {
