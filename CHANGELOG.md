@@ -1,5 +1,18 @@
 *** 
 releaseNotes20250927.txt
+Changes: Tus client implementation update
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   docs/tusclientchunkimplementation.md
+	modified:   user-prompts.md
+
+*** 
+releaseNotes20250927.txt
 Changes: Increase memory_limit for uploads from 32MB to 512MB, chunked upload configuration doc
 
 sodo@pop-os:~/scripts/gighive$ git status
