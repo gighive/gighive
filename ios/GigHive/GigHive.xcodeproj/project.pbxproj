@@ -16,8 +16,10 @@
 		8B24B334498A327D62A446AB /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10665C7A5AD48621FE5A6B8 /* SettingsStore.swift */; };
 		97B800A112CFC24A7174B7CD /* UploadFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDEEFDD52379BF2AE1CF64C /* UploadFormView.swift */; };
 		9BD9817722A2718FB2D58253 /* UploadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2782A5D354995ABF69E0D106 /* UploadClient.swift */; };
+		B03B449613874E62B20A3200 /* NetworkProgressUploadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A9BC7C10B6E0CD8A4204EDA /* NetworkProgressUploadClient.swift */; };
 		BECFC6AA8F6FE8DAB3DD8192 /* GigHiveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0FCB85B83FF6F1C6D5B07B /* GigHiveApp.swift */; };
 		C674A6561A91CCCB666A71E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E2BD80677E697C313615AB9A /* Assets.xcassets */; };
+		CA26C73C756BCD21A0A2904A /* TUSUploadClient_Clean.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A39673524D0344C70B16C7 /* TUSUploadClient_Clean.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,7 +37,8 @@
 		2782A5D354995ABF69E0D106 /* UploadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadClient.swift; sourceTree = "<group>"; };
 		27B7D8F789D32F70CA4F3E6F /* GigHive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GigHive.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4277A683C1B980C1C5B228C0 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
-		593FA484CF10D70E6F624D69 /* GigHiveShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GigHiveShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		593FA484CF10D70E6F624D69 /* GigHiveShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GigHiveShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A9BC7C10B6E0CD8A4204EDA /* NetworkProgressUploadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkProgressUploadClient.swift; sourceTree = "<group>"; };
 		6FDEEFDD52379BF2AE1CF64C /* UploadFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadFormView.swift; sourceTree = "<group>"; };
 		7A0FCB85B83FF6F1C6D5B07B /* GigHiveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GigHiveApp.swift; sourceTree = "<group>"; };
 		89281475A43AA7EDF94EE3D1 /* UploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadView.swift; sourceTree = "<group>"; };
@@ -43,6 +46,7 @@
 		A489F209BDAB477FEC85E098 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		AE94FF1BF6D908B86A2108CC /* PresentationDetentsCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationDetentsCompat.swift; sourceTree = "<group>"; };
 		CAC179A7A6931DD8F49D36DA /* PickerBridges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerBridges.swift; sourceTree = "<group>"; };
+		D0A39673524D0344C70B16C7 /* TUSUploadClient_Clean.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TUSUploadClient_Clean.swift; sourceTree = "<group>"; };
 		D10665C7A5AD48621FE5A6B8 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		E2BD80677E697C313615AB9A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -72,10 +76,12 @@
 			children = (
 				7A0FCB85B83FF6F1C6D5B07B /* GigHiveApp.swift */,
 				4277A683C1B980C1C5B228C0 /* LaunchScreen.storyboard */,
+				5A9BC7C10B6E0CD8A4204EDA /* NetworkProgressUploadClient.swift */,
 				CAC179A7A6931DD8F49D36DA /* PickerBridges.swift */,
 				AE94FF1BF6D908B86A2108CC /* PresentationDetentsCompat.swift */,
 				D10665C7A5AD48621FE5A6B8 /* SettingsStore.swift */,
 				04BF8F1B65BA95BB2142AE1C /* Theme.swift */,
+				D0A39673524D0344C70B16C7 /* TUSUploadClient_Clean.swift */,
 				2782A5D354995ABF69E0D106 /* UploadClient.swift */,
 				6FDEEFDD52379BF2AE1CF64C /* UploadFormView.swift */,
 				89281475A43AA7EDF94EE3D1 /* UploadView.swift */,
@@ -140,7 +146,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1640;
+				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					474F2977B888115D9AAE79C9 = {
 						ProvisioningStyle = Automatic;
@@ -187,9 +193,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				BECFC6AA8F6FE8DAB3DD8192 /* GigHiveApp.swift in Sources */,
+				B03B449613874E62B20A3200 /* NetworkProgressUploadClient.swift in Sources */,
 				39072A6D72CD83CA7DF794CF /* PickerBridges.swift in Sources */,
 				49009D21E3342CF9C8944C85 /* PresentationDetentsCompat.swift in Sources */,
 				8B24B334498A327D62A446AB /* SettingsStore.swift in Sources */,
+				CA26C73C756BCD21A0A2904A /* TUSUploadClient_Clean.swift in Sources */,
 				4CC143BC0546FAE655D2C6DC /* Theme.swift in Sources */,
 				9BD9817722A2718FB2D58253 /* UploadClient.swift in Sources */,
 				97B800A112CFC24A7174B7CD /* UploadFormView.swift in Sources */,
@@ -243,6 +251,7 @@
 				CODE_SIGN_ENTITLEMENTS = Configs/GigHive.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = WB7D4FC7XU;
 				INFOPLIST_FILE = Configs/AppInfo.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -293,11 +302,9 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = WB7D4FC7XU;
 				ENABLE_BITCODE = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -361,11 +368,9 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = WB7D4FC7XU;
 				ENABLE_BITCODE = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -413,6 +418,7 @@
 				CODE_SIGN_ENTITLEMENTS = Configs/GigHive.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = WB7D4FC7XU;
 				INFOPLIST_FILE = Configs/AppInfo.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (

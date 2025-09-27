@@ -4,8 +4,15 @@ import SwiftUI
 struct GigHiveApp: App {
     var body: some Scene {
         WindowGroup {
-            NavigationView {
-                UploadView { _ in }
+            if #available(iOS 16.0, *) {
+                NavigationStack {
+                    UploadView { _ in }
+                }
+            } else {
+                NavigationView {
+                    UploadView { _ in }
+                }
+                .navigationViewStyle(StackNavigationViewStyle())
             }
         }
     }

@@ -48,8 +48,12 @@ struct UploadView: View {
     @State private var failureCount: Int = 0
     @State private var uploadTask: Task<Void, Never>? = nil
     @State private var lastButtonStatus: String? = nil
+    @State private var currentUploadClient: UploadClient? = nil
     @State private var allowInsecureTLS = false
     @State private var isLoadingMedia = false
+    @State private var loadedFileSize: String? = nil
+    // Ensure loading text is visible for at least a minimum duration
+    @State private var mediaLoadingStartedAt: Date? = nil
     @State private var lastProgressBucket: Int = 0
 
     let onUpload: (UploadPayload) -> Void
@@ -127,8 +131,14 @@ struct UploadView: View {
 
                         LabeledField("Media file (audio/video) *") {
                             Menu {
-                                Button("From Photos", action: { isLoadingMedia = true; showPhotosPicker = true })
-                                Button("From Files", action: { isLoadingMedia = true; showFilesPicker = true })
+                                Button("From Photos", action: { 
+                                    loadedFileSize = nil  // Clear previous file size
+                                    showPhotosPicker = true 
+                                })
+                                Button("From Files", action: { 
+                                    loadedFileSize = nil  // Clear previous file size
+                                    showFilesPicker = true 
+                                })
                             } label: {
                                 HStack {
                                     Image(systemName: "paperclip")
@@ -144,8 +154,12 @@ struct UploadView: View {
                                 )
                                 .cornerRadius(10)
                             }
-                            if isLoadingMedia {
-                                Text("Loading media…")
+                            if isLoadingMedia || (fileURL != nil && loadedFileSize == nil) {
+                                Text("Loading media…please wait until media is uploaded and you see it's file size.")
+                                    .font(.caption2)
+                                    .foregroundColor(.red)
+                            } else if let fileSize = loadedFileSize {
+                                Text("File size: \(fileSize)")
                                     .font(.caption2)
                                     .foregroundColor(.red)
                             }
@@ -212,6 +226,9 @@ struct UploadView: View {
                                 isCancelling = true
                                 debugLog.append("cancelling…")
                                 uploadTask?.cancel()
+                                
+                                // Also cancel the underlying network upload task
+                                currentUploadClient?.cancelCurrentUpload()
                             } else {
                                 doUpload()
                             }
@@ -263,10 +280,47 @@ struct UploadView: View {
         .ghFullScreenBackground(GHTheme.bg)
         .sheet(isPresented: $showPhotosPicker) {
             PHPickerView { url in
-                self.fileURL = url
-                self.showPhotosPicker = false
-                self.isLoadingMedia = false
-                if url != nil { debugLog.append("picked from Photos") } else { debugLog.append("photos canceled") }
+                // Clear old debug log when selecting new file
+                debugLog = []
+
+                // Show loading immediately upon a valid selection, then dismiss picker
+                if let url = url {
+                    // Mark the start moment and show loading immediately
+                    self.mediaLoadingStartedAt = Date()
+                    self.isLoadingMedia = true
+                    self.loadedFileSize = nil
+                    self.fileURL = url
+                    self.showPhotosPicker = false
+
+                    // Compute file size and only clear loading after minimum visible duration
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        let minVisible: TimeInterval = 1.0
+                        let sizeText: String = {
+                            do {
+                                let bytes = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                                return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+                            } catch {
+                                return "unknown"
+                            }
+                        }()
+                        let started = self.mediaLoadingStartedAt ?? Date()
+                        let elapsed = Date().timeIntervalSince(started)
+                        let remaining = max(0, minVisible - elapsed)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
+                            self.loadedFileSize = sizeText
+                            self.isLoadingMedia = false
+                            self.mediaLoadingStartedAt = nil
+                            debugLog.append("picked from Photos")
+                        }
+                    }
+                } else {
+                    // User cancelled
+                    self.showPhotosPicker = false
+                    self.fileURL = nil
+                    self.loadedFileSize = nil
+                    self.isLoadingMedia = false
+                    debugLog.append("photos canceled")
+                }
             }
             .modifier(PresentationDetentsCompat())
         }
@@ -279,10 +333,47 @@ struct UploadView: View {
                     UTType.mp3
                 ],
                 onPick: { url in
-                    self.fileURL = url
-                    self.showFilesPicker = false
-                    self.isLoadingMedia = false
-                    if url != nil { debugLog.append("picked from Files") } else { debugLog.append("files canceled") }
+                    // Clear old debug log when selecting new file
+                    debugLog = []
+
+                    // Show loading immediately upon a valid selection, then dismiss picker
+                    if let url = url {
+                        // Mark the start moment and show loading immediately
+                        self.mediaLoadingStartedAt = Date()
+                        self.isLoadingMedia = true
+                        self.loadedFileSize = nil
+                        self.fileURL = url
+                        self.showFilesPicker = false
+
+                        // Compute file size and only clear loading after minimum visible duration
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            let minVisible: TimeInterval = 1.0
+                            let sizeText: String = {
+                                do {
+                                    let bytes = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                                    return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+                                } catch {
+                                    return "unknown"
+                                }
+                            }()
+                            let started = self.mediaLoadingStartedAt ?? Date()
+                            let elapsed = Date().timeIntervalSince(started)
+                            let remaining = max(0, minVisible - elapsed)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
+                                self.loadedFileSize = sizeText
+                                self.isLoadingMedia = false
+                                self.mediaLoadingStartedAt = nil
+                                debugLog.append("picked from Files")
+                            }
+                        }
+                    } else {
+                        // User cancelled
+                        self.showFilesPicker = false
+                        self.fileURL = nil
+                        self.loadedFileSize = nil
+                        self.isLoadingMedia = false
+                        debugLog.append("files canceled")
+                    }
                 }
             )
             .modifier(PresentationDetentsCompat())
@@ -322,6 +413,16 @@ struct UploadView: View {
     private func doUpload() {
         debugLog = ["button pressed"]
         guard let fileURL else { debugLog.append("no file chosen"); alertTitle = "Missing file"; alertMessage = "Please choose a media file from Photos or Files."; showResultAlert = true; return }
+        
+        // Add file size to debug log
+        do {
+            let fileSize = try fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+            let fileSizeText = ByteCountFormatter.string(fromByteCount: Int64(fileSize), countStyle: .file)
+            debugLog.append("file size: \(fileSizeText)")
+        } catch {
+            debugLog.append("file size: unknown")
+        }
+        
         guard let base = URL(string: serverURLString) else { debugLog.append("invalid server url"); alertTitle = "Invalid Server URL"; alertMessage = "Please enter a valid https:// server URL."; showResultAlert = true; return }
         let payload = UploadPayload(
             fileURL: fileURL,
@@ -333,12 +434,18 @@ struct UploadView: View {
         )
         // Build client using the provided server credentials
         let client = UploadClient(baseURL: base, basicAuth: (username, password), useBackgroundSession: false, allowInsecure: allowInsecureTLS)
+        currentUploadClient = client  // Store reference for cancellation
         isUploading = true
         isCancelling = false
         lastButtonStatus = nil
-        lastProgressBucket = 0
+        lastProgressBucket = 0  // Reset progress tracking for new upload
         uploadTask = Task { [serverURLString, orgName, eventType, label] in
-            defer { isUploading = false }
+            defer { 
+                isUploading = false
+                isCancelling = false  // Always reset cancelling state when task ends
+                loadedFileSize = nil  // Clear file size display after upload completes/cancels
+                currentUploadClient = nil  // Clear client reference
+            }
             do {
                 debugLog.append("contacting server \(serverURLString)")
                 // Pre-log the exact request URL to place progress after this line
@@ -348,15 +455,23 @@ struct UploadView: View {
                 var comps = URLComponents(url: apiURL, resolvingAgainstBaseURL: false)
                 comps?.queryItems = [URLQueryItem(name: "ui", value: "json")]
                 if let u = comps?.url { debugLog.append("url=\(u.absoluteString)") }
+                
+                // Show initial progress to let user know progress tracking is active
+                debugLog.append("0%..")
 
-                let (status, data, requestURL) = try await client.upload(payload, progress: { completed, total in
-                    guard total > 0 else { return }
+                let (status, data, requestURL) = try await client.uploadWithChunking(payload, progress: { completed, total in
+                    guard total > 0 else { 
+                        print("⚠️ Progress callback: total is 0")
+                        return 
+                    }
                     let percent = Int((Double(completed) / Double(total)) * 100.0)
                     let bucket = (percent / 10) * 10
+                    print("📈 UploadView Progress: \(completed)/\(total) bytes = \(percent)%, bucket=\(bucket), lastBucket=\(lastProgressBucket)")
                     if bucket >= 10 && bucket > lastProgressBucket {
                         DispatchQueue.main.async {
                             lastProgressBucket = bucket
                             debugLog.append("\(bucket)%..")
+                            print("✅ Added progress to debug log: \(bucket)%")
                         }
                     }
                 })
@@ -401,8 +516,11 @@ struct UploadView: View {
             } catch is CancellationError {
                 // Task was cancelled by user
                 debugLog.append("cancelled")
-                isCancelling = false
                 lastButtonStatus = "Upload Cancelled"
+                // Clear selected file after cancellation
+                DispatchQueue.main.async {
+                    self.fileURL = nil
+                }
                 // Reset back to default after 5 seconds
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                     if lastButtonStatus == "Upload Cancelled" {
@@ -414,8 +532,11 @@ struct UploadView: View {
                 // Map URLError.cancelled to a user-initiated cancel as well
                 if let urlErr = error as? URLError, urlErr.code == .cancelled {
                     debugLog.append("cancelled")
-                    isCancelling = false
                     lastButtonStatus = "Upload Cancelled"
+                    // Clear selected file after cancellation
+                    DispatchQueue.main.async {
+                        self.fileURL = nil
+                    }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                         if lastButtonStatus == "Upload Cancelled" {
                             lastButtonStatus = nil
