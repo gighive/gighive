@@ -3,16 +3,21 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		29990A45D239EBD1765249AA /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A489F209BDAB477FEC85E098 /* ShareViewController.swift */; };
 		39072A6D72CD83CA7DF794CF /* PickerBridges.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAC179A7A6931DD8F49D36DA /* PickerBridges.swift */; };
+		49009D21E3342CF9C8944C85 /* PresentationDetentsCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE94FF1BF6D908B86A2108CC /* PresentationDetentsCompat.swift */; };
+		4CC143BC0546FAE655D2C6DC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04BF8F1B65BA95BB2142AE1C /* Theme.swift */; };
+		57EC852635D164AD291093F7 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4277A683C1B980C1C5B228C0 /* LaunchScreen.storyboard */; };
+		62735CD70A08C4FD885C79FC /* UploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89281475A43AA7EDF94EE3D1 /* UploadView.swift */; };
 		8B24B334498A327D62A446AB /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10665C7A5AD48621FE5A6B8 /* SettingsStore.swift */; };
 		97B800A112CFC24A7174B7CD /* UploadFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDEEFDD52379BF2AE1CF64C /* UploadFormView.swift */; };
 		9BD9817722A2718FB2D58253 /* UploadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2782A5D354995ABF69E0D106 /* UploadClient.swift */; };
 		BECFC6AA8F6FE8DAB3DD8192 /* GigHiveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0FCB85B83FF6F1C6D5B07B /* GigHiveApp.swift */; };
+		C674A6561A91CCCB666A71E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E2BD80677E697C313615AB9A /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,15 +31,20 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		04BF8F1B65BA95BB2142AE1C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		2782A5D354995ABF69E0D106 /* UploadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadClient.swift; sourceTree = "<group>"; };
-		27B7D8F789D32F70CA4F3E6F /* GigHive.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GigHive.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		593FA484CF10D70E6F624D69 /* GigHiveShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GigHiveShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		27B7D8F789D32F70CA4F3E6F /* GigHive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GigHive.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4277A683C1B980C1C5B228C0 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		593FA484CF10D70E6F624D69 /* GigHiveShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GigHiveShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6FDEEFDD52379BF2AE1CF64C /* UploadFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadFormView.swift; sourceTree = "<group>"; };
 		7A0FCB85B83FF6F1C6D5B07B /* GigHiveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GigHiveApp.swift; sourceTree = "<group>"; };
+		89281475A43AA7EDF94EE3D1 /* UploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadView.swift; sourceTree = "<group>"; };
 		8BB812D531E316E19AC8653E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A489F209BDAB477FEC85E098 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		AE94FF1BF6D908B86A2108CC /* PresentationDetentsCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationDetentsCompat.swift; sourceTree = "<group>"; };
 		CAC179A7A6931DD8F49D36DA /* PickerBridges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerBridges.swift; sourceTree = "<group>"; };
 		D10665C7A5AD48621FE5A6B8 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		E2BD80677E697C313615AB9A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -61,10 +71,14 @@
 			isa = PBXGroup;
 			children = (
 				7A0FCB85B83FF6F1C6D5B07B /* GigHiveApp.swift */,
+				4277A683C1B980C1C5B228C0 /* LaunchScreen.storyboard */,
 				CAC179A7A6931DD8F49D36DA /* PickerBridges.swift */,
+				AE94FF1BF6D908B86A2108CC /* PresentationDetentsCompat.swift */,
 				D10665C7A5AD48621FE5A6B8 /* SettingsStore.swift */,
+				04BF8F1B65BA95BB2142AE1C /* Theme.swift */,
 				2782A5D354995ABF69E0D106 /* UploadClient.swift */,
 				6FDEEFDD52379BF2AE1CF64C /* UploadFormView.swift */,
+				89281475A43AA7EDF94EE3D1 /* UploadView.swift */,
 			);
 			name = App;
 			path = Sources/App;
@@ -73,6 +87,7 @@
 		EF3F9E81C200EBB9D290A609 = {
 			isa = PBXGroup;
 			children = (
+				E2BD80677E697C313615AB9A /* Assets.xcassets */,
 				688C093A5F5BE143D3054F19 /* App */,
 				551655A60FCE4B89DE87FF93 /* ShareExtension */,
 				006D390D9432D9646FE3E766 /* Products */,
@@ -105,6 +120,7 @@
 			buildConfigurationList = 30BF1E0EE647DAFBA22468E8 /* Build configuration list for PBXNativeTarget "GigHive" */;
 			buildPhases = (
 				386E489EE2361D4139D45B72 /* Sources */,
+				41BEDD4C3C017AB9244301F1 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -124,7 +140,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					474F2977B888115D9AAE79C9 = {
 						ProvisioningStyle = Automatic;
@@ -144,7 +160,6 @@
 			);
 			mainGroup = EF3F9E81C200EBB9D290A609;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -154,6 +169,18 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		41BEDD4C3C017AB9244301F1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C674A6561A91CCCB666A71E5 /* Assets.xcassets in Resources */,
+				57EC852635D164AD291093F7 /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		386E489EE2361D4139D45B72 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -161,9 +188,12 @@
 			files = (
 				BECFC6AA8F6FE8DAB3DD8192 /* GigHiveApp.swift in Sources */,
 				39072A6D72CD83CA7DF794CF /* PickerBridges.swift in Sources */,
+				49009D21E3342CF9C8944C85 /* PresentationDetentsCompat.swift in Sources */,
 				8B24B334498A327D62A446AB /* SettingsStore.swift in Sources */,
+				4CC143BC0546FAE655D2C6DC /* Theme.swift in Sources */,
 				9BD9817722A2718FB2D58253 /* UploadClient.swift in Sources */,
 				97B800A112CFC24A7174B7CD /* UploadFormView.swift in Sources */,
+				62735CD70A08C4FD885C79FC /* UploadView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -198,7 +228,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.GigHive.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gighive.GigHive.Share;
 				PRODUCT_NAME = GigHiveShare;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -219,7 +249,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.GigHive;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gighive.GigHive;
 				PRODUCT_NAME = GigHive;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -263,9 +293,11 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = WB7D4FC7XU;
 				ENABLE_BITCODE = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -329,9 +361,11 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = WB7D4FC7XU;
 				ENABLE_BITCODE = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -364,7 +398,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.GigHive.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gighive.GigHive.Share;
 				PRODUCT_NAME = GigHiveShare;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -385,7 +419,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.GigHive;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gighive.GigHive;
 				PRODUCT_NAME = GigHive;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;

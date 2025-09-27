@@ -14,12 +14,27 @@ struct UploadPayload {
     var notes: String?
 }
 
+// Insecure trust delegate — accepts any TLS certificate. Use ONLY when user opts in.
+final class InsecureTrustDelegate: NSObject, URLSessionDelegate {
+    static let shared = InsecureTrustDelegate()
+    private override init() { super.init() }
+
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+           let trust = challenge.protectionSpace.serverTrust {
+            completionHandler(.useCredential, URLCredential(trust: trust))
+        } else {
+            completionHandler(.performDefaultHandling, nil)
+        }
+    }
+}
+
 final class UploadClient {
     let baseURL: URL
     let session: URLSession
     let basicAuth: (user: String, pass: String)?
 
-    init(baseURL: URL, basicAuth: (String,String)? = nil, useBackgroundSession: Bool = false) {
+    init(baseURL: URL, basicAuth: (String,String)? = nil, useBackgroundSession: Bool = false, allowInsecure: Bool = false) {
         self.baseURL = baseURL
         self.basicAuth = basicAuth
         if useBackgroundSession {
@@ -29,7 +44,11 @@ final class UploadClient {
             cfg.waitsForConnectivity = true
             cfg.allowsExpensiveNetworkAccess = true
             cfg.allowsConstrainedNetworkAccess = true
-            self.session = URLSession(configuration: cfg)
+            if allowInsecure {
+                self.session = URLSession(configuration: cfg, delegate: InsecureTrustDelegate.shared, delegateQueue: nil)
+            } else {
+                self.session = URLSession(configuration: cfg)
+            }
         } else {
             let cfg = URLSessionConfiguration.ephemeral
             cfg.waitsForConnectivity = true
@@ -37,15 +56,28 @@ final class UploadClient {
             cfg.allowsConstrainedNetworkAccess = true
             cfg.timeoutIntervalForRequest = 120
             cfg.timeoutIntervalForResource = 600
-            self.session = URLSession(configuration: cfg)
+            if allowInsecure {
+                self.session = URLSession(configuration: cfg, delegate: InsecureTrustDelegate.shared, delegateQueue: nil)
+            } else {
+                self.session = URLSession(configuration: cfg)
+            }
         }
     }
-    func upload(_ payload: UploadPayload) async throws -> (status: Int, data: Data) {
-        var req = URLRequest(url: baseURL.appendingPathComponent("/api/uploads.php"))
+    func upload(_ payload: UploadPayload, progress: ((Int64, Int64) -> Void)? = nil) async throws -> (status: Int, data: Data, requestURL: URL) {
+        // Build https://<base>/api/uploads.php?ui=json without percent-encoding the '?'
+        let apiURL = baseURL
+            .appendingPathComponent("api")
+            .appendingPathComponent("uploads.php")
+        var components = URLComponents(url: apiURL, resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "ui", value: "json")]
+        guard let finalURL = components?.url else { throw URLError(.badURL) }
+        var req = URLRequest(url: finalURL)
         req.httpMethod = "POST"
 
         let boundary = "Boundary-\(UUID().uuidString)"
         req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        // Prefer JSON for programmatic handling; server supports ?ui=html for HTML confirmation.
+        req.setValue("application/json,text/html;q=0.9", forHTTPHeaderField: "Accept")
 
         if let basic = basicAuth {
             let token = Data("\(basic.user):\(basic.pass)".utf8).base64EncodedString()
@@ -83,11 +115,31 @@ final class UploadClient {
         body.append("\r\n".data(using: .utf8)!)
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
-        req.httpBody = body
+        // Use uploadTask so we can observe progress
+        return try await withCheckedThrowingContinuation { cont in
+            let task = session.uploadTask(with: req, from: body) { data, response, error in
+                if let error = error { cont.resume(throwing: error); return }
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                cont.resume(returning: (status, data ?? Data(), req.url ?? self.baseURL))
+            }
 
-        let (data, response) = try await session.data(for: req)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        return (status, data)
+            var obs: NSKeyValueObservation?
+            if let progressCb = progress {
+                let p = task.progress
+                // Ensure totalUnitCount is set (URLSession sets this automatically for uploadTask(from:))
+                obs = p.observe(\.completedUnitCount, options: [.new]) { prog, _ in
+                    progressCb(prog.completedUnitCount, max(prog.totalUnitCount, 0))
+                }
+            }
+
+            task.resume()
+
+            // Cleanup observer when task completes
+            task.taskDescription = "gighive.upload"
+            // Using a lightweight completion handler cleanup via KVO lifetime tied to task completion
+            // The observation will be deallocated when this scope exits after continuation resumes.
+            _ = obs
+        }
     }
 
     private func mimeType(for url: URL) -> String {

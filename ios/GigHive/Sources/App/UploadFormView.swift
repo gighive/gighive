@@ -158,7 +158,7 @@ struct UploadFormView: View {
         isUploading = true
         defer { isUploading = false }
         do {
-            let (status, data) = try await client.upload(payload)
+            let (status, data, _) = try await client.upload(payload)
             let bodyText = String(data: data, encoding: .utf8) ?? "(no body)"
             switch status {
             case 201:

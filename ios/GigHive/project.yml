@@ -13,14 +13,18 @@ targets:
     platform: iOS
     sources:
       - path: Sources/App
+      - path: Assets.xcassets
+    resources:
+      - path: Sources/App/LaunchScreen.storyboard
     info:
       path: Configs/AppInfo.plist
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.yourcompany.GigHive
+      PRODUCT_BUNDLE_IDENTIFIER: com.gighive.GigHive
       PRODUCT_NAME: GigHive
       SWIFT_VERSION: 5.9
       CODE_SIGN_STYLE: Automatic
       IPHONEOS_DEPLOYMENT_TARGET: 14.0
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
       path: Configs/GigHive.entitlements
     dependencies: []
@@ -34,7 +38,7 @@ targets:
     info:
       path: Sources/ShareExtension/Info.plist
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.yourcompany.GigHive.Share
+      PRODUCT_BUNDLE_IDENTIFIER: com.gighive.GigHive.Share
       PRODUCT_NAME: GigHiveShare
       SWIFT_VERSION: 5.9
       CODE_SIGN_STYLE: Automatic

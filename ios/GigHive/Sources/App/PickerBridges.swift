@@ -71,7 +71,7 @@ struct DocumentPickerView: UIViewControllerRepresentable {
         init(_ parent: DocumentPickerView) { self.parent = parent }
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             guard let url = urls.first else { parent.onPick(nil); return }
-            var isAccessed = url.startAccessingSecurityScopedResource()
+            let isAccessed = url.startAccessingSecurityScopedResource()
             defer { if isAccessed { url.stopAccessingSecurityScopedResource() } }
             // Copy to temp to ensure we own a stable file URL
             let ext = url.pathExtension
