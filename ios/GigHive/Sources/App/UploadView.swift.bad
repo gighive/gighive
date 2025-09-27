@@ -52,8 +52,6 @@ struct UploadView: View {
     @State private var allowInsecureTLS = false
     @State private var isLoadingMedia = false
     @State private var loadedFileSize: String? = nil
-    // Ensure loading text is visible for at least a minimum duration
-    @State private var mediaLoadingStartedAt: Date? = nil
     @State private var lastProgressBucket: Int = 0
 
     let onUpload: (UploadPayload) -> Void
@@ -126,103 +124,92 @@ struct UploadView: View {
                     }
                 }
 
-                GHCard(pad: 8) {
-                    VStack(alignment: .leading, spacing: 6) {
-
-                        LabeledField("Media file (audio/video) *") {
-                            Menu {
-                                Button("From Photos", action: { 
-                                    loadedFileSize = nil  // Clear previous file size
-                                    isLoadingMedia = true  // Show loading immediately when dropdown option is touched
-                                    showPhotosPicker = true 
-                                })
-                                Button("From Files", action: { 
-                                    loadedFileSize = nil  // Clear previous file size
-                                    isLoadingMedia = true  // Show loading immediately when dropdown option is touched
-                                    showFilesPicker = true 
-                                })
-                            } label: {
-                                HStack {
-                                    Image(systemName: "paperclip")
-                                    Text(fileURL?.lastPathComponent ?? "Choose File")
-                                        .lineLimit(1)
-                                }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(GHTheme.accent, lineWidth: 1.5)
-                                        .background(GHTheme.card.opacity(0.3))
-                                )
-                                .cornerRadius(10)
-                            }
-                            if isLoadingMedia || (fileURL != nil && loadedFileSize == nil) {
-                                Text("Loading media…please wait until media is uploaded and you see it's file size.")
-                                    .font(.caption2)
-                                    .foregroundColor(.red)
-                            } else if let fileSize = loadedFileSize {
-                                Text("File size: \(fileSize)")
-                                    .font(.caption2)
-                                    .foregroundColor(.red)
-                            }
+                LabeledField("Media file (audio/video) *") {
+                    Menu {
+                        Button("Choose File") {
+                            showPhotosPicker = true
                         }
-
-                        LabeledField("Event date *") {
-                            DatePicker("", selection: $eventDate, displayedComponents: .date)
-                                .labelsHidden()
-                                .datePickerStyle(CompactDatePickerStyle())
-                                .ghForeground(GHTheme.text)
-                                .environment(\.colorScheme, .dark)
+                        Button("From Files") { 
+                            showFilesPicker = true 
                         }
-
-                        LabeledField("Band or wedding party name *") {
-                            TextField("", text: $orgName)
-                                .keyboardType(.default)
-                                .ghWordsAutocap()
-                                .disableAutocorrection(true)
-                                .font(.footnote)
-                                .padding(.vertical, 2)
-                                .padding(.horizontal, 8)
-                                .ghForeground(GHTheme.text)
-                                .ghTint(GHTheme.caret)
-                                .ghBackgroundMaterial()
-                                .cornerRadius(6)
-                                .frame(height: 24)
+                    } label: {
+                        HStack {
+                            Image(systemName: "paperclip")
+                            Text(fileURL?.lastPathComponent ?? "Choose File")
+                                .lineLimit(1)
                         }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(GHTheme.accent, lineWidth: 1.5)
+                                .background(GHTheme.card.opacity(0.3))
+                        )
+                        .cornerRadius(10)
+                    }
+                    if let fileSize = loadedFileSize {
+                        Text("File size: \(fileSize)")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    }
+                }
 
-                        LabeledField("Event type *") {
-                            Picker("", selection: $eventType) {
-                                Text("band").tag("band")
-                                Text("wedding").tag("wedding")
-                            }
-                            .pickerStyle(.segmented)
-                        }
+                LabeledField("Event date *") {
+                    DatePicker("", selection: $eventDate, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(CompactDatePickerStyle())
+                        .ghForeground(GHTheme.text)
+                        .environment(\.colorScheme, .dark)
+                }
 
-                        LabeledField("Song title or wedding table / identifier *") {
-                            TextField("", text: $label)
-                                .keyboardType(.default)
-                                .disableAutocorrection(true)
-                                .font(.footnote)
-                                .padding(.vertical, 2)
-                                .padding(.horizontal, 8)
-                                .ghForeground(GHTheme.text)
-                                .ghTint(GHTheme.caret)
-                                .ghBackgroundMaterial()
-                                .cornerRadius(6)
-                                .frame(height: 24)
-                        }
+                LabeledField("Band or wedding party name *") {
+                    TextField("", text: $orgName)
+                        .keyboardType(.default)
+                        .ghWordsAutocap()
+                        .disableAutocorrection(true)
+                        .font(.footnote)
+                        .padding(.vertical, 2)
+                        .padding(.horizontal, 8)
+                        .ghForeground(GHTheme.text)
+                        .ghTint(GHTheme.caret)
+                        .ghBackgroundMaterial()
+                        .cornerRadius(6)
+                        .frame(height: 24)
+                }
 
-                        Toggle(isOn: $autogenLabel) {
-                            GHLabel(text: "Autogenerate label?")
-                        }
-                        .ghTint(GHTheme.accent)
+                LabeledField("Event type *") {
+                    Picker("", selection: $eventType) {
+                        Text("band").tag("band")
+                        Text("wedding").tag("wedding")
+                    }
+                    .pickerStyle(.segmented)
+                }
 
-                        if autogenLabel {
-                            Text("If checked, the label will be set to \"Auto YYYY-MM-DD\" based on the Event date.")
-                                .ghForeground(GHTheme.muted)
-                        }
+                LabeledField("Song title or wedding table / identifier *") {
+                    TextField("", text: $label)
+                        .keyboardType(.default)
+                        .disableAutocorrection(true)
+                        .font(.footnote)
+                        .padding(.vertical, 2)
+                        .padding(.horizontal, 8)
+                        .ghForeground(GHTheme.text)
+                        .ghTint(GHTheme.caret)
+                        .ghBackgroundMaterial()
+                        .cornerRadius(6)
+                        .frame(height: 24)
+                }
 
-                        Button(isCancelling ? "Cancelling…" : (isUploading ? "Uploading…" : (lastButtonStatus ?? "Upload")), action: {
+                Toggle(isOn: $autogenLabel) {
+                    GHLabel(text: "Autogenerate label?")
+                }
+                .ghTint(GHTheme.accent)
+
+                if autogenLabel {
+                    Text("If checked, the label will be set to \"Auto YYYY-MM-DD\" based on the Event date.")
+                        .ghForeground(GHTheme.muted)
+                }
+
+                Button(isCancelling ? "Cancelling…" : (isUploading ? "Uploading…" : (lastButtonStatus ?? "Upload")), action: {
                             if isUploading {
                                 // Second press: cancel
                                 isCancelling = true
@@ -238,21 +225,6 @@ struct UploadView: View {
                             .buttonStyle(GHButtonStyle(color: lastButtonStatus == "Upload Cancelled" ? .red : GHTheme.accent))
                             .disabled((!isUploading) && (isLoadingMedia || fileURL == nil || (label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)))
                             .padding(.top, 2)
-
-                        // Validation messages for mandatory fields
-                        if !isUploading && !isLoadingMedia {
-                            let validationMessages = getValidationMessages()
-                            if !validationMessages.isEmpty {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    ForEach(validationMessages, id: \.self) { message in
-                                        Text("⚠️ \(message)")
-                                            .font(.caption2)
-                                            .foregroundColor(.orange)
-                                    }
-                                }
-                                .padding(.top, 2)
-                            }
-                        }
 
                         if !debugLog.isEmpty {
                             Text(debugLog.joined(separator: " → "))
@@ -297,49 +269,19 @@ struct UploadView: View {
         .ghFullScreenBackground(GHTheme.bg)
         .sheet(isPresented: $showPhotosPicker) {
             PHPickerView { url in
-                // Clear old debug log when selecting new file
-                debugLog = []
-
-                // Show loading immediately upon a valid selection, then dismiss picker
+                fileURL = url
+                showPhotosPicker = false
                 if let url = url {
-                    // Mark the start moment and show loading immediately
-                    self.mediaLoadingStartedAt = Date()
-                    self.isLoadingMedia = true
-                    self.loadedFileSize = nil
-                    self.fileURL = url
-                    self.showPhotosPicker = false
-                    debugLog.append("loading file into memory...")
-
-                    // Compute file size and only clear loading after minimum visible duration
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        debugLog.append("calculating file size...")
-                        let minVisible: TimeInterval = 1.0
-                        let sizeText: String = {
-                            do {
-                                let bytes = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                                return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
-                            } catch {
-                                return "unknown"
-                            }
-                        }()
-                        let started = self.mediaLoadingStartedAt ?? Date()
-                        let elapsed = Date().timeIntervalSince(started)
-                        let remaining = max(0, minVisible - elapsed)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
-                            self.loadedFileSize = sizeText
-                            self.isLoadingMedia = false
-                            self.mediaLoadingStartedAt = nil
-                            debugLog.append("file loaded successfully (\(sizeText))")
-                            debugLog.append("picked from Photos")
-                        }
+                    // Calculate and show file size
+                    do {
+                        let fileSize = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                        let fileSizeText = ByteCountFormatter.string(fromByteCount: Int64(fileSize), countStyle: .file)
+                        loadedFileSize = fileSizeText
+                    } catch {
+                        loadedFileSize = "unknown"
                     }
                 } else {
-                    // User cancelled
-                    self.showPhotosPicker = false
-                    self.fileURL = nil
-                    self.loadedFileSize = nil
-                    self.isLoadingMedia = false
-                    debugLog.append("photos canceled")
+                    loadedFileSize = nil
                 }
             }
             .modifier(PresentationDetentsCompat())
@@ -353,49 +295,19 @@ struct UploadView: View {
                     UTType.mp3
                 ],
                 onPick: { url in
-                    // Clear old debug log when selecting new file
-                    debugLog = []
-
-                    // Show loading immediately upon a valid selection, then dismiss picker
+                    fileURL = url
+                    showFilesPicker = false
                     if let url = url {
-                        // Mark the start moment and show loading immediately
-                        self.mediaLoadingStartedAt = Date()
-                        self.isLoadingMedia = true
-                        self.loadedFileSize = nil
-                        self.fileURL = url
-                        self.showFilesPicker = false
-                        debugLog.append("loading file into memory...")
-
-                        // Compute file size and only clear loading after minimum visible duration
-                        DispatchQueue.global(qos: .userInitiated).async {
-                            debugLog.append("calculating file size...")
-                            let minVisible: TimeInterval = 1.0
-                            let sizeText: String = {
-                                do {
-                                    let bytes = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                                    return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
-                                } catch {
-                                    return "unknown"
-                                }
-                            }()
-                            let started = self.mediaLoadingStartedAt ?? Date()
-                            let elapsed = Date().timeIntervalSince(started)
-                            let remaining = max(0, minVisible - elapsed)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
-                                self.loadedFileSize = sizeText
-                                self.isLoadingMedia = false
-                                self.mediaLoadingStartedAt = nil
-                                debugLog.append("file loaded successfully (\(sizeText))")
-                                debugLog.append("picked from Files")
-                            }
+                        // Calculate and show file size
+                        do {
+                            let fileSize = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                            let fileSizeText = ByteCountFormatter.string(fromByteCount: Int64(fileSize), countStyle: .file)
+                            loadedFileSize = fileSizeText
+                        } catch {
+                            loadedFileSize = "unknown"
                         }
                     } else {
-                        // User cancelled
-                        self.showFilesPicker = false
-                        self.fileURL = nil
-                        self.loadedFileSize = nil
-                        self.isLoadingMedia = false
-                        debugLog.append("files canceled")
+                        loadedFileSize = nil
                     }
                 }
             )
@@ -424,37 +336,6 @@ struct UploadView: View {
         let df = DateFormatter()
         df.dateFormat = "yyyy-MM-dd"
         return "Auto \(df.string(from: eventDate))"
-    }
-
-    private func getValidationMessages() -> [String] {
-        var messages: [String] = []
-        
-        // Check media file
-        if fileURL == nil {
-            messages.append("Please select a media file")
-        }
-        
-        // Check username
-        if username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            messages.append("Username is required")
-        }
-        
-        // Check password
-        if password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            messages.append("Password is required")
-        }
-        
-        // Check organization name
-        if orgName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            messages.append("Band or wedding party name is required")
-        }
-        
-        // Check label (only if autogenerate is not checked)
-        if !autogenLabel && label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            messages.append("Song title or wedding identifier is required")
-        }
-        
-        return messages
     }
 
     // Reset the temporary cancelled label back to default when user edits anything
@@ -543,8 +424,6 @@ struct UploadView: View {
                     let url = components?.url ?? baseURL
                     successURL = url
                     failureCount = 0
-                    // Prepend success message to debug log
-                    debugLog.insert("UPLOAD SUCCESSFUL!", at: 0)
                     debugLog.append("db link=\(url.absoluteString)")
                     // Clear fields after success (update UI on main thread)
                     DispatchQueue.main.async {

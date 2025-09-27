@@ -318,3 +318,120 @@ duplicate output file '/Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-b
 
 - 2025-09-27T11:35:45-04:00
   - still same issue, i don't see the Loading media message until right before the File size indicator.  so Loading media seems to be in the wrong position in the sequence flow that I outlined.  please review and fix
+
+- 2025-09-27T11:38:32-04:00
+  - issue still is present..i don't see the Loading media message until right before the File size indicator.  so Loading media seems to be in the wrong position in the sequence flow that I outlined.  please review and fix
+
+- 2025-09-27T11:49:02-04:00
+  - can we strip down the Loading Media logic to bare bones?  i don't want any complex logic.  give me a plan for implementation. but don't make any changes.  just the plan
+
+- 2025-09-27T11:51:51-04:00
+  - i don't understand why we need a fixed delay.
+
+- 2025-09-27T11:55:54-04:00
+  - how about this change: // After file selected:
+1. Calculate size 2. Set isLoadingMedia = true and display Loading media <filesize>
+3. Start actual file processing (memory access)
+3. When processing completes → Notification that file loaded with file size, clear loading
+
+- 2025-09-27T12:00:06-04:00
+  - still only seeing the Loading media message flash after the file is loaded into memory.  let's review the logic again.  please list out the sequence of steps and let's review
+
+- 2025-09-27T12:00:55-04:00
+  - yes and if it fails again, let's review the logic again
+
+- 2025-09-27T12:02:20-04:00
+  - in that 6 step sequence, where is the initial calculation of the file size happening?
+
+- 2025-09-27T12:04:29-04:00
+  - ok, so it's at step 6 that loading happens..the previous steps are calculations, messaging, setting flags.  i think this looks right
+
+- 2025-09-27T12:07:48-04:00
+  - something is still wrong because that Loading media.. message only comes directly before the media is loaded into memory and then the file size notification pops up.  so we need to debug why the Loading media message is not being immediately displayed after the picker disappears.  can we add debugging to show us what's happening?
+
+- 2025-09-27T12:09:51-04:00
+  - will we see the steps numbered as in the list above so it's easy to tell where we are ?
+
+- 2025-09-27T12:10:57-04:00
+  - when you say console output, where is that console output appearing?  in xcode or in the app?
+
+- 2025-09-27T12:13:27-04:00
+  - i cleared build directory and rebuilt/ran, but don't see any output in the console window:
+
+- 2025-09-27T12:17:13-04:00
+  - still don't see anything am i in the right place in xcode?
+
+- 2025-09-27T12:18:34-04:00
+  - this area, correct?
+
+- 2025-09-27T12:21:35-04:00
+  - information does not appear in the debug window for either the simulator or the iphone.  what can i do to resolve this?  what was that test you gave me earlier?
+
+- 2025-09-27T12:25:22-04:00
+  - No TEST message appears in the simulator.  I checked the build config and it is set to debug, so no problem there.  for #2, i changed from auto to all and then touched the media file box in the app..did not output to the debug window
+
+- 2025-09-27T12:31:55-04:00
+  - OK this is interesting, i chose a large file 249MB.  The debug messages at the bottom of the screen below the upload button did not appear until that file was fully loaded!  so something tells me there is some global variable that is preventing the labels from firing when we want them to.  the debug messages being held back from display is the key.  there may be some special behavior a global setting is inhibiting
+
+- 2025-09-27T12:33:48-04:00
+  - the issue still persists..something is getting queued up and blocking the display of the debug messages..
+
+- 2025-09-27T12:36:52-04:00
+  - i cleaned project folder, rebuilt/reran, but still the issue persists..i don't see debug text until after file loaded
+
+- 2025-09-27T12:38:06-04:00
+  - hold on, maybe i misunderstood, should i rebuild/rerun the app and then just sit and wait for your timers to do their thing?
+
+- 2025-09-27T12:40:50-04:00
+  - i believe there is something wrong with your debug code, because the load messages have real file sizes..so your fake out is not working
+
+- 2025-09-27T12:43:47-04:00
+  - ok i tested..debug messages still don't appear until the end
+
+- 2025-09-27T12:47:07-04:00
+  - excellent! now the debug messages appear immediately and the loading media message appears and stays for 3 seconds.  so the issue was the picker callback was blocking the UI updates.  now let's put back the real file loading logic but keep it outside the picker callback using the onChange approach
+
+- 2025-09-27T12:49:21-04:00
+  - after selecting a media file, the loading messages and debug messages appeared at the same time.  Loading message stayed for 3 seconds.  Then File size says FAKE 300 MB.
+
+- 2025-09-27T12:56:50-04:00
+  - OK, i like the debug messages that appear below the Upload after the file is loaded into memory are good.  and i see the real file size now.  however, the issue that the Loading media message only flashes for a second after the file is loaded into memory and then gets superceded by the File Size indicator.  So the issue still persists.  Just need the Loading media message..maybe let's just use the lame method of displaying the "loading media" message right after we click the button under Media File selection box in the UI.  unless you have better ideas?
+
+- 2025-09-27T13:00:04-04:00
+  - well, i see that the loading message appears a little bit longer due to your additional .2 seconds, but again, this is lipstick on a pig because the real issue is that the Loading media message is being constrained from being displayed until the media loads, just like the debug messages are being constrained
+
+- 2025-09-27T13:02:43-04:00
+  - got a bunch of errors probably related to same expected declaration
+
+- 2025-09-27T13:04:29-04:00
+  - issues persist:
+
+- 2025-09-27T13:07:33-04:00
+  - do you have access to a working UploadView.swift previous to all these issues?  I'd rather just rollback
+
+- 2025-09-27T13:10:03-04:00
+  - i'm wondering if something got corrupted in xcode, because xcode is reporting those errors even after i clean the build directory and rebuilt
+
+- 2025-09-27T13:11:11-04:00
+  - i should just clean the build directory and rebuild .. no other steps, correct?
+
+- 2025-09-27T13:22:09-04:00
+  - ok, i rolled back to a working version of UploadView.swift from my git repo.  Let's integrate two changes that have value.  1) Please add those debug messages while loading that appear below the Upload button.  2) Also, add the "Loading Media" message to be displayed right after I touch the Media File selector.  This was the old version of the feature if you recall.
+
+- 2025-09-27T13:24:52-04:00
+  - No, the "Loading media" message should load right after i touch the Media File dropdown.  Currently, Loading media doesn't appear until the file selected is placed into memory
+
+- 2025-09-27T13:29:01-04:00
+  - The second issue was that you helped me add debug code that appeared below the upload button that gave us a summary of what was happening during the loading of the file into the iphone memory.  do you remember?
+
+- 2025-09-27T13:31:26-04:00
+  - yes, i understand it is working in the instance where we have pressed the upload button.  but what i am referring to was additional debugging for the loading of the chosen file into the iphone memory (unrelated to upload being pressed), but was displayed under the upload button.  do you recall that additional debugging for the file loading into memory that appeared under the upload button?
+
+- 2025-09-27T13:32:29-04:00
+  - Yes!
+
+- 2025-09-27T13:37:13-04:00
+  - can you display a message if any of the mandatory fields (marked with an *) in the gui aren't filled out?
+
+- 2025-09-27T13:40:48-04:00
+  - After a successful upload, please preprend UPLOAD SUCCESSFUL! in the debug message block, one line above the regular debug output
