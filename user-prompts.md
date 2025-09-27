@@ -183,3 +183,138 @@ A rolling log of the user's prompts to Cascade with timestamps provided by the I
 
 - 2025-09-27T09:01:45-04:00
   - ok, now what client side code do we need to change to enable this?  what is the plan for that (do not make any changes).
+
+- 2025-09-27T09:06:16-04:00
+  - please update the file /docs/tusimplementation.md with this information.
+
+- 2025-09-27T09:08:50-04:00
+  - let's review the Week 1: Foundation (TUS integration) changes needed
+
+- 2025-09-27T09:12:13-04:00
+  - 1) please add this information to /docs/tusimplementationweek1.md, 2) let's implement these changes
+
+- 2025-09-27T09:17:18-04:00
+  - oh hang on, i ran xcodegen from my macbook.  you are pointed at the linux server where the files reside.  so you can skip this step, i did it: macbook2025:GigHive sodo$ xcodegen generate
+⚙️  Generating plists...
+⚙️  Generating project...
+⚙️  Writing project...
+Created project at /Volumes/scripts/gighive/ios/GigHive/GigHive.xcodeproj
+
+- 2025-09-27T09:21:05-04:00
+  - got a build fail:
+
+- 2025-09-27T09:23:38-04:00
+  - do i need to run xcodegen or can i just clean the build folder and do apple-B?
+
+- 2025-09-27T09:25:15-04:00
+  - still receiving these errors after cleaning build and redoing build: 
+
+Showing Recent Issues
+
+Prepare build
+error: Multiple commands produce '/Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-bowiyndblzxoccemxpubbsodfman/Build/Products/Debug-iphoneos/GigHive.app/Info.plist'
+    note: Target 'GigHive' (project 'GigHive') has copy command from '/Volumes/scripts/gighive/ios/GigHive/Sources/App/Info.plist' to '/Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-bowiyndblzxoccemxpubbsodfman/Build/Products/Debug-iphoneos/GigHive.app/Info.plist'
+    note: Target 'GigHive' (project 'GigHive') has process command with output '/Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-bowiyndblzxoccemxpubbsodfman/Build/Products/Debug-iphoneos/GigHive.app/Info.plist'
+
+
+Multiple commands produce '/Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-bowiyndblzxoccemxpubbsodfman/Build/Products/Debug-iphoneos/GigHive.app/Info.plist'
+
+
+Build target GigHive of project GigHive with configuration Debug
+warning: duplicate output file '/Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-bowiyndblzxoccemxpubbsodfman/Build/Products/Debug-iphoneos/GigHive.app/Info.plist' on task: ProcessInfoPlistFile /Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-bowiyndblzxoccemxpubbsodfman/Build/Products/Debug-iphoneos/GigHive.app/Info.plist /Volumes/scripts/gighive/ios/GigHive/Configs/AppInfo.plist (in target 'GigHive' from project 'GigHive')
+
+
+duplicate output file '/Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-bowiyndblzxoccemxpubbsodfman/Build/Products/Debug-iphoneos/GigHive.app/Info.plist' on task: ProcessInfoPlistFile /Users/sodo/Library/Developer/Xcode/DerivedData/GigHive-bowiyndblzxoccemxpubbsodfman/Build/Products/Debug-iphoneos/GigHive.app/Info.plist /Volumes/scripts/gighive/ios/GigHive/Configs/AppInfo.plist
+
+- 2025-09-27T09:32:50-04:00
+  - ok, build worked.  but now we're back to the issue where the app doesn't take up the full screen and doesn't go edge to edge on iphone 12.  i see we have Is Initial View Controller selected, but how do we fix the edge to edge issue?
+
+- 2025-09-27T09:39:47-04:00
+  - ok basic upload worked.  to the debug text, i'd like to add the file size of the file being uploaded.  can we put that in the red debug text between "button pressed" and "contacting server" ?
+
+- 2025-09-27T09:46:58-04:00
+  - right now, we have two methods of uploading: non-chunked for files < 100MB or chunked for > 100MB.  for better user experience when needing to cancel an upload, shouldn't we default to chunked for all uploads?
+
+- 2025-09-27T09:51:00-04:00
+  - the last set of changes broke the "disable certificate checking" radio button, because even tho i have it selected, i get the debug message "you might be connecting to a server that is pretending" ...
+
+- 2025-09-27T09:52:38-04:00
+  - got error:
+
+- 2025-09-27T09:59:03-04:00
+  - when i select the media file, it currently says "loading media".  what i would like to add is after it loads the media, that a label appears right where "loading media" appeared that shows the file size of the loaded media. the text will stick around until the media is fully uploaded or cancelled.  again, this text will appear in that small red debug text.
+
+- 2025-09-27T10:07:02-04:00
+  - the file size indicator shows.  great.  now after i press the upload button to cancel, the button shows "Cancelling" but never resets the text of the button to "Upload" again after the cancellation takes place.  the button text should not revert to "Upload" again until we truly verify that the file upload has been cancelled, and not just because we pressed the button.  can you fix this?
+
+- 2025-09-27T10:13:15-04:00
+  - also, i notice after a file get cancelled, that the media file is still selected.  that field should reset as well.
+
+- 2025-09-27T10:14:38-04:00
+  - got error:
+
+- 2025-09-27T10:17:45-04:00
+  - Add this to "Loading media.." debug text: "please wait until media is uploaded and you see it's file size."
+
+- 2025-09-27T10:20:43-04:00
+  - i think something is wrong with the progress meter logic..the progress meter logic should be based on the statistics of the http upload.  but i observe when I'm on a celluar connection that for a 245MB file, that the progress meter indicates an almost instantaneous upload.  we need to fix the progress meter to actually calculate the real bytes uploaded by looking at the network stream.  1) are you aware that the progress meter is deficient in this way? 2) if so, let's fix this.
+
+- 2025-09-27T10:26:14-04:00
+  - go ahead and clean up the code
+
+- 2025-09-27T10:29:11-04:00
+  - got a build error:
+
+- 2025-09-27T10:30:43-04:00
+  - got errors.  first two are same as before, but errors 3/4 are new:
+
+- 2025-09-27T10:50:29-04:00
+  - a few issues:
+
+- 2025-09-27T10:52:48-04:00
+  - hang on, the screen size defaulted to not being edge to edge again..
+
+- 2025-09-27T10:53:58-04:00
+  - how can we stop this from happening?
+
+- 2025-09-27T10:55:25-04:00
+  - i guess i need to run xcodegen generate and the rebuild now, yes?
+
+- 2025-09-27T10:58:57-04:00
+  - the progress meter text (10%..20%..etc) is not showing in the debug area under the Upload button
+
+- 2025-09-27T11:01:28-04:00
+  - start with 0% uploaded immediately so that the user know that there is a progress meter forthcoming..
+
+- 2025-09-27T11:04:07-04:00
+  - after a successful or cancelled upload, please clear the debug area below the upload button AFTER a user selects a new file so that the user does not get confused by seeing the old debug text.
+
+- 2025-09-27T11:10:04-04:00
+  - interesting..when i hit cancel, the progress meter continued after 40% when i hit cancel until the file was loaded successfully.  is the cancel button taking advantage of the fact that we are doing chunked uploads?
+
+- 2025-09-27T11:12:53-04:00
+  - Continue
+
+- 2025-09-27T11:15:15-04:00
+  - build failed here:
+
+- 2025-09-27T11:18:56-04:00
+  - slight timing issue..when I select "Choose File", the "Loading media.." text immediately appears, even tho I haven't selected a file yet.  Please fix this so that text only appears AFTER i have selected a file.  Also, remove the space between "Loading media... " and "please wait until media is uploaded and you see it's file size."
+
+- 2025-09-27T11:21:30-04:00
+  - ooops..something went wrong because I now do not see Loading media notification at all after choosing a file!
+
+- 2025-09-27T11:23:30-04:00
+  - no still same issue, but this time, i see the Loading Media flash for a microsecond before it disappears.  Loading media text needs to display the entire time the file is being loaded into memory.
+
+- 2025-09-27T11:25:42-04:00
+  - no, still same issue.. i see the Loading Media flash for a microsecond before it disappears.  Loading media text needs to be immediately seen after I choose the file, until the file is fully loaded  into memory.
+
+- 2025-09-27T11:27:13-04:00
+  - no, still same issue!
+
+- 2025-09-27T11:32:35-04:00
+  - i cleaned build then rebuilt, but do not see that debug text.  in any case, i see this as a relatively simple task.  flow is: i press "Choose File", the picker appears, and I select the media file.  Right after I select the media file, picker disappears and the Loading media message appears until the file is copied to memory, after which the app displays File size notification.  this is sequential in nature, so I don't understand why we need any complex logic to fix this.  am i missing something?
+
+- 2025-09-27T11:35:45-04:00
+  - still same issue, i don't see the Loading media message until right before the File size indicator.  so Loading media seems to be in the wrong position in the sequence flow that I outlined.  please review and fix

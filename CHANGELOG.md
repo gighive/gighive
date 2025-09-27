@@ -1,5 +1,43 @@
 *** 
 releaseNotes20250927.txt
+Changes: iphone App gui and loading media changes
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   docs/tusimplementation.md
+	new file:   docs/tusimplementationweek1.md
+	new file:   docs/tusserverimplementation.md
+	modified:   ios/GigHive/Configs/AppInfo.plist
+	modified:   ios/GigHive/GigHive.xcodeproj/project.pbxproj
+	deleted:    ios/GigHive/GigHive.xcodeproj/project.xcworkspace/._contents.xcworkspacedata
+	modified:   ios/GigHive/GigHive.xcodeproj/xcshareddata/xcschemes/GigHive.xcscheme
+	modified:   ios/GigHive/GigHive.xcodeproj/xcshareddata/xcschemes/GigHiveShare.xcscheme
+	modified:   ios/GigHive/Sources/App/GigHiveApp.swift
+	new file:   ios/GigHive/Sources/App/NetworkProgressUploadClient.swift
+	new file:   ios/GigHive/Sources/App/TUSUploadClient_Clean.swift
+	modified:   ios/GigHive/Sources/App/UploadClient.swift
+	modified:   ios/GigHive/Sources/App/UploadView.swift
+	modified:   ios/GigHive/project.yml
+	modified:   user-prompts.md
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250927.txt
 Changes: Tus client implementation update
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -47,18 +85,6 @@ Changes to be committed:
 	new file:   docs/tusclientchunkimplementation.md
 	new file:   docs/tusimplementation.md
 	new file:   ios/GigHive/Sources/App/Info.plist
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250926.txt

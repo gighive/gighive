@@ -33,10 +33,13 @@ final class UploadClient {
     let baseURL: URL
     let session: URLSession
     let basicAuth: (user: String, pass: String)?
+    let allowInsecure: Bool
+    private var currentTUSClient: TUSUploadClient_Clean?
 
     init(baseURL: URL, basicAuth: (String,String)? = nil, useBackgroundSession: Bool = false, allowInsecure: Bool = false) {
         self.baseURL = baseURL
         self.basicAuth = basicAuth
+        self.allowInsecure = allowInsecure
         if useBackgroundSession {
             // Note: background sessions are not supported in app extensions.
             // Use only in the main app when long-running transfers are desired.
@@ -63,6 +66,38 @@ final class UploadClient {
             }
         }
     }
+    
+    /// Upload with chunked streaming for all files
+    /// Uses memory-efficient chunked approach for better cancellation and consistent UX
+    func uploadWithChunking(_ payload: UploadPayload, progress: ((Int64, Int64) -> Void)? = nil) async throws -> (status: Int, data: Data, requestURL: URL) {
+        
+        // Use chunked upload for ALL files for better cancellation and consistent UX
+        return try await uploadWithTUS(payload: payload, progress: progress)
+    }
+    
+    /// Upload using network-aware progress tracking for all files
+    private func uploadWithTUS(payload: UploadPayload, progress: ((Int64, Int64) -> Void)? = nil) async throws -> (status: Int, data: Data, requestURL: URL) {
+        // Use clean TUSUploadClient wrapper for real network progress tracking
+        let tusClient = TUSUploadClient_Clean(
+            baseURL: baseURL,
+            basicAuth: basicAuth,
+            allowInsecure: allowInsecure
+        )
+        self.currentTUSClient = tusClient  // Store reference for cancellation
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            tusClient.uploadFile(
+                payload: payload,
+                progressHandler: { completed, total in
+                    progress?(completed, total)
+                },
+                completion: { result in
+                    continuation.resume(with: result)
+                }
+            )
+        }
+    }
+    
     func upload(_ payload: UploadPayload, progress: ((Int64, Int64) -> Void)? = nil) async throws -> (status: Int, data: Data, requestURL: URL) {
         // Build https://<base>/api/uploads.php?ui=json without percent-encoding the '?'
         let apiURL = baseURL
@@ -153,5 +188,11 @@ final class UploadClient {
         case "mp3": return "audio/mpeg"
         default: return "application/octet-stream"
         }
+    }
+    
+    /// Cancel the current upload
+    func cancelCurrentUpload() {
+        currentTUSClient?.cancelUpload()
+        currentTUSClient = nil
     }
 }
