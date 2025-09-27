@@ -38,10 +38,12 @@ reduced_audio: false
 # Users
 admin_user: admin
 viewer_user: viewer
+uploader_user: uploader
 
 # Use vault/encrypted vars in real life:
 gighive_admin_password: "supersecretadmin"
 gighive_viewer_password: "supersecretviewer"
+gighive_uploader_password: "supersecretuploader"
 
 # htpasswd locations, one on the host, other on the container
 gighive_apache_container: apacheWebServer
