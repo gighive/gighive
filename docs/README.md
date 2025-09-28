@@ -4,9 +4,17 @@ layout: default
 ---
 # GigHive Music and Video Library 
 
-GigHive is an **open-source deployment framework** for hosting your own media library, a band’s library or fan videos, or even videos uploaded by guests from events like a wedding.  It packages **Apache**, **MySQL**, and supporting automation into a fully reproducible environment using **Docker, Ansible, and Terraform**.  It has a very simple interface: a splash page, a single database of stored videos and an upload utility.
+GigHive is an **open-source deployment framework** for hosting your own media library, a band’s library or fan videos, or even videos uploaded by guests from events like a wedding.  There are two pieces to Gighive:
+- A fully automated containerized environment (Apache web and MySQL) prebuilt with a media library database waiting to be filled up. 
+- Companion iPhone app for upload content (web-based version also built-in)
+
+The automation allows you to spin up a fully reproducible environment using **Docker, Ansible, and Terraform**.  It has a very simple interface: a splash page, a single database of stored videos and an upload utility.
 
 This project is designed to be portable, easy to deploy, and suitable for local development or cloud environments (Azure supported out of the box).
+
+Ubuntu 22.04 or Pop-OS on bare metal required. 
+
+Your choice of virtualbox, Azure or bare metal deployment targets.
 
 ---
 
@@ -16,8 +24,8 @@ This project is designed to be portable, easy to deploy, and suitable for local 
   - Configuration with **Ansible**  
 
 - **Web + Database Stack**  
-  - Apache HTTP Server (custom-built with HTTP/2/3 support)  
-  - MySQL database container for structured music/jam session data  
+  - Apache HTTP Server (custom-built with HTTP/2 support)  
+  - MySQL database container for structured music session or wedding event media
   - REST API layer (PHP-based) for audio/video file access  
 
 - **Containerized Deployment**  
@@ -148,7 +156,7 @@ cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_baremetal.yml
 ## ⚙️ Setup & Installation
 - Once installed, there will be a splash page, a link to the database and a link to the uploads page. Simple! 
 - Default install will populate the database with ~10 sample video and audio files. These can be deleted later with <a href="">database reset procedure</a>.
-- Default password set in $GIGHIVE_HOME/ansible/inventories/group_vars files.
+- Default password set in $GIGHIVE_HOME/ansible/inventories/group_vars files should be changed.
 - Admin utility: a page for the admins to reset default password in GUI as well.
 
 ---
