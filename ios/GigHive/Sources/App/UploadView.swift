@@ -157,7 +157,7 @@ struct UploadView: View {
                                 .cornerRadius(10)
                             }
                             if isLoadingMedia || (fileURL != nil && loadedFileSize == nil) {
-                                Text("Loading media…please wait until media is uploaded and you see it's file size.")
+                                Text("Loading media…please wait until media is loaded into iOS memory and you see it's file size.")
                                     .font(.caption2)
                                     .foregroundColor(.red)
                             } else if let fileSize = loadedFileSize {
@@ -429,11 +429,6 @@ struct UploadView: View {
     private func getValidationMessages() -> [String] {
         var messages: [String] = []
         
-        // Check media file
-        if fileURL == nil {
-            messages.append("Please select a media file")
-        }
-        
         // Check username
         if username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             messages.append("Username is required")
@@ -443,7 +438,12 @@ struct UploadView: View {
         if password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             messages.append("Password is required")
         }
-        
+
+        // Check media file
+        if fileURL == nil {
+            messages.append("Please select a media file")
+        }
+                
         // Check organization name
         if orgName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             messages.append("Band or wedding party name is required")
@@ -552,6 +552,7 @@ struct UploadView: View {
                         self.label = ""
                     }
                     debugLog.append("cleared file and label")
+                    debugLog.append("\n\nYou are free to upload another file.")
                 case 401:
                     alertTitle = "Unauthorized"
                     alertMessage = "401 Unauthorized. Check Basic Auth username/password."

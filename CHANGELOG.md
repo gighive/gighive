@@ -2,12 +2,8 @@
 releaseNotes20250928.txt
 Changes: Changed flavor to defaultcodebase, removed extraneous docs
 
-Changes: Changed flavor to defaultcodebase, removed extraneous docs
-*** 
-releaseNotes20250928.txt
-Changes: Changed flavor to defaultcodebase, removed extraneous docs
-
 Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+Last run: ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -23,8 +19,10 @@ Changes to be committed:
 	renamed:    docs/20250926overallchanges.md -> docs/20250926uploaderConfDetail.md
 	renamed:    docs/testApacheHeaders.md -> docs/chunkedHeaderTest.md
 	renamed:    docs/20250926changepasswords.md -> docs/featureChangedPasswordsPage.md
+	new file:   docs/featureFixShareExtension.md
 	renamed:    docs/tusserverimplementation.md -> docs/futureTusServerImplementation.md
 	deleted:    docs/tusclientchunkimplementation.md
+	modified:   user-prompts.md
 
 ToDo: create a canonical md versions for the site and convert using composer recommendation
 ToDo: document supported media types
