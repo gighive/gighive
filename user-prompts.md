@@ -465,3 +465,6 @@ drwxrwxr-x 3 sodo sodo  4096 Sep 10 19:09 src
 
 - 2025-09-28T09:54:59-04:00
   - please save the plan to fix share extension to the file /docs/featureFixShareExtension.md
+
+- 2025-09-28T10:21:29-04:00
+  - in the debug.log statements in uploadview.swift, how can I put a new line in the output of the debug statements to the iphone app screen?  what is the code?  please don't make any changes, just show me?
