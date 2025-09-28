@@ -1,5 +1,23 @@
 *** 
 releaseNotes20250928.txt
+Changes: Last changes before i delete ios app
+
+sodo@pop-os:~/scripts/gighive$ git commit -m "Changes: Last changes before i delete ios app"
+[master 659ee69] Changes: Last changes before i delete ios app
+ 3 files changed, 14 insertions(+), 12 deletions(-)
+sodo@pop-os:~/scripts/gighive$ git push
+Enumerating objects: 17, done.
+Counting objects: 100% (17/17), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (8/8), done.
+Writing objects: 100% (9/9), 1.04 KiB | 1.04 MiB/s, done.
+Total 9 (delta 6), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (6/6), completed with 6 local objects.
+To github.com:gighive/gighive
+   4cad31d..659ee69  master -> master
+
+*** 
+releaseNotes20250928.txt
 Changes: Changed flavor to defaultcodebase, removed extraneous docs
 
 Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
