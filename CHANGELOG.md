@@ -1,4 +1,40 @@
 *** 
+releaseNotes20250928.txt
+Changes: Updated .gitignore for iPhone app and moved txt docs around
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	renamed:    docs/apiStructure.txt -> docs/text/apiStructure.txt
+	renamed:    docs/build.txt -> docs/text/build.txt
+	renamed:    docs/commonissue1.txt -> docs/text/commonissue1.txt
+	renamed:    docs/commonissue2.txt -> docs/text/commonissue2.txt
+	renamed:    docs/composerRebuild.txt -> docs/text/composerRebuild.txt
+	renamed:    docs/mcDatabaseERD.txt -> docs/text/mcDatabaseERD.txt
+	renamed:    docs/mcMvcModel1.txt -> docs/text/mcMvcModel1.txt
+	renamed:    docs/mcMvcModel2.txt -> docs/text/mcMvcModel2.txt
+	renamed:    docs/mvcModel.txt -> docs/text/mvcModel.txt
+	renamed:    docs/timings.txt -> docs/text/timings.txt
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
 releaseNotes20250927.txt
 Changes: Created reduced database page for gighive, files changed in overlay
 
@@ -13,18 +49,6 @@ Changes to be committed:
 	new file:   docs/featureGighiveDbOverlay.md
 	modified:   user-prompts.md
  
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
-
 *** 
 releaseNotes20250927.txt
 Changes: iphone App fixed upload messaging
