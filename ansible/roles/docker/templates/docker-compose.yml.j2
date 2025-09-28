@@ -6,7 +6,7 @@ services:
       context: "./apache"
       dockerfile: Dockerfile
       args:
-        APP_FLAVOR: "{{ app_flavor | default('stormpigs') }}"
+        APP_FLAVOR: "{{ app_flavor | default('defaultcodebase') }}"
     image: ubuntu22.04apache-img:1.00
     env_file:
       - ./apache/externalConfigs/.env

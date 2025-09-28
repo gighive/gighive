@@ -457,3 +457,11 @@ drwxrwxr-x 3 sodo sodo  4096 Sep 10 19:09 src
 
 - 2025-09-27T14:09:30-04:00
   - please rename the "Org" header on list.php for the gighive version of the database page to "Band or Event"
+
+## 2025-09-28
+
+- 2025-09-28T08:42:55-04:00
+  - is the share extension working?
+
+- 2025-09-28T09:54:59-04:00
+  - please save the plan to fix share extension to the file /docs/featureFixShareExtension.md
