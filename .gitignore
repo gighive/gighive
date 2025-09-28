@@ -42,3 +42,53 @@ Thumbs.db
 
 # Terraform local state & plugins
 **/terraform/.terraform/
+
+# ALL XCODE DEV IGNORES
+# Xcode
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.xcworkspace/xcuserdata/
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+
+# Build products
+build/
+DerivedData/
+
+# Swift Package Manager
+/.build/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# Archives & Symbols
+*.xcarchive
+*.dSYM.zip
+*.dSYM
+
+# Provisioning profiles & signing
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.cer
+
+# App-specific sensitive files
+GoogleService-Info.plist   # Firebase
+Secrets.plist              # Custom secrets file (rename to match yours)
+.env                       # Environment variable files
+
+# General macOS cruft
+.DS_Store
+*.swp
+*.lock
