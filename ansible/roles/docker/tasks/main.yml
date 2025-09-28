@@ -172,7 +172,7 @@
    build:
      path: "{{ docker_dir }}/apache"
      args:
-       APP_FLAVOR: "{{ app_flavor | default('stormpigs') }}"
+       APP_FLAVOR: "{{ app_flavor | default('defaultcodebase') }}"
   tags: [docker]
 
 - name: Bring up Docker Compose V2 stack

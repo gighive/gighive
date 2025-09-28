@@ -1,5 +1,45 @@
 *** 
 releaseNotes20250928.txt
+Changes: Changed flavor to defaultcodebase, removed extraneous docs
+
+Changes: Changed flavor to defaultcodebase, removed extraneous docs
+*** 
+releaseNotes20250928.txt
+Changes: Changed flavor to defaultcodebase, removed extraneous docs
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/ubuntu.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	deleted:    docs/20250926currentauth.md
+	renamed:    docs/20250926overallchanges.md -> docs/20250926uploaderConfDetail.md
+	renamed:    docs/testApacheHeaders.md -> docs/chunkedHeaderTest.md
+	renamed:    docs/20250926changepasswords.md -> docs/featureChangedPasswordsPage.md
+	renamed:    docs/tusserverimplementation.md -> docs/futureTusServerImplementation.md
+	deleted:    docs/tusclientchunkimplementation.md
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: document supported media types
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
+ToDo: Integrate Let's Encrypt for future
+ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20250928.txt
 Changes: Updated .gitignore for iPhone app and moved txt docs around
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -21,18 +61,6 @@ Changes to be committed:
 	renamed:    docs/mcMvcModel2.txt -> docs/text/mcMvcModel2.txt
 	renamed:    docs/mvcModel.txt -> docs/text/mvcModel.txt
 	renamed:    docs/timings.txt -> docs/text/timings.txt
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20250927.txt

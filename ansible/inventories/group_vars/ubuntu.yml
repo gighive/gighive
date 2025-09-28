@@ -26,7 +26,7 @@ nocloud_iso: "{{ cloud_init_files_dir }}/seed.iso"
 ansible_remote_tmp: "/tmp/.ansible/tmp"
 
 # app flavor for build-time overlay; database_full kept as-is
-app_flavor: stormpigs
+app_flavor: defaultcodebase
 database_full: true
 
 # these vars control full/reduced set of media
