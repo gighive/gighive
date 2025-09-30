@@ -38,3 +38,11 @@
 [Examine the pre-requisites](PREREQS.html)
 
 [View the README](README.html)
+
+### License
+GigHive is dual-licensed:
+
+- **[MIT License](LICENSE_MIT.md)**: Free for personal, single-instance, non-commercial use.
+- **[Commercial License](LICENSE_COMMERCIAL.md)**: Required for SaaS, multi-tenant, or commercial use.
+
+👉 Contact us for commercial licensing.
