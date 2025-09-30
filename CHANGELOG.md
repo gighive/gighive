@@ -1,4 +1,8 @@
 *** 
+releaseNotes20250930.txt
+Changes: moved index.html to index.md.  Created COMMON.md for commonalities between index/README. Added licensing.
+
+*** 
 releaseNotes20250928.txt
 Changes: README.md changes
 

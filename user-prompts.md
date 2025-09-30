@@ -468,3 +468,17 @@ drwxrwxr-x 3 sodo sodo  4096 Sep 10 19:09 src
 
 - 2025-09-28T10:21:29-04:00
   - in the debug.log statements in uploadview.swift, how can I put a new line in the output of the debug statements to the iphone app screen?  what is the code?  please don't make any changes, just show me?
+
+## 2025-09-30
+
+- 2025-09-30T12:09:50-04:00
+  - ok please convert /docs/index.html to /docs/index.md
+
+- 2025-09-30T12:11:12-04:00
+  - do you see common elements between index.md and README.md files?
+
+- 2025-09-30T12:13:26-04:00
+  - ok, is there a better way to design index.md and README.md to pull out the common elements into a COMMON.md and then insert COMMON.md inside both files?  Does markdown have the ability to do that?  If so , create a plan to do this, but don't do it yet until I review the plan.
+
+- 2025-09-30T12:15:00-04:00
+  - execute the alternative manual approach please, but don't touch index.md and README.md
