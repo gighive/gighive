@@ -482,3 +482,6 @@ drwxrwxr-x 3 sodo sodo  4096 Sep 10 19:09 src
 
 - 2025-09-30T12:15:00-04:00
   - execute the alternative manual approach please, but don't touch index.md and README.md
+
+- 2025-09-30T12:23:07-04:00
+  - small problem with index.md..the icon is huge.  can you fix ?
