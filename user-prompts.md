@@ -485,3 +485,15 @@ drwxrwxr-x 3 sodo sodo  4096 Sep 10 19:09 src
 
 - 2025-09-30T12:23:07-04:00
   - small problem with index.md..the icon is huge.  can you fix ?
+
+- 2025-09-30T12:29:43-04:00
+  - can you convert LICENSE_MIT.md and LICENSE_COMMERCIAL.md to truly markdown?  right now they are text files
+
+- 2025-09-30T12:31:50-04:00
+  - i want to link those two files into index.md.  So place this text in the same format as the "How do I get started?" section, but put it at the very bottom of index.md.  you will link the MIT license and commercial license titles to the each of the two files that you just edited  ## License
+GigHive is dual-licensed:
+
+- **MIT License**: Free for personal, single-instance, non-commercial use.
+- **Commercial License**: Required for SaaS, multi-tenant, or commercial use.
+
+👉 Contact us for commercial licensing.
