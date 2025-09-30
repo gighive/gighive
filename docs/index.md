@@ -1,6 +1,6 @@
 # Welcome to GigHive!
 
-![GigHive bee mascot holding a camera and microphone](images/beelogo.png)
+<img src="images/beelogo.png" alt="GigHive bee mascot holding a camera and microphone" width="200" height="200">
 
 ## Gighive is a media database for you, your fans, or wedding guests.
 
