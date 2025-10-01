@@ -1,3 +1,10 @@
+<style>
+body {
+    background-color: #0b1020;
+    color: white;
+}
+</style>
+
 # Welcome to GigHive!
 
 <img src="images/beelogo.png" alt="GigHive bee mascot holding a camera and microphone" width="200" height="200">
@@ -45,4 +52,4 @@ GigHive is dual-licensed:
 - **[MIT License](LICENSE_MIT.md)**: Free for personal, single-instance, non-commercial use.
 - **[Commercial License](LICENSE_COMMERCIAL.md)**: Required for SaaS, multi-tenant, or commercial use.
 
-👉 Contact us for commercial licensing.
+👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">

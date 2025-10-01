@@ -171,3 +171,4 @@ For SaaS or multi-tenant solutions, please see GigHive Cloud (proprietary).
 ## 🤝 Contributing
 Contributions welcome! Please open issues and pull requests.  
 
+👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
