@@ -42,9 +42,9 @@ body {
 
 ### So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!
 
-[Examine the pre-requisites](PREREQS.html)
+<a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Examine the pre-requisites</a>
 
-[View the README](README.html)
+<a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a>
 
 ### License
 GigHive is dual-licensed:

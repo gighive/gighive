@@ -497,3 +497,12 @@ GigHive is dual-licensed:
 - **Commercial License**: Required for SaaS, multi-tenant, or commercial use.
 
 👉 Contact us for commercial licensing.
+
+## 2025-10-01
+
+- 2025-10-01T17:00:41-04:00
+  - can you make the two text items below as buttons in  /home/sodo/scripts/gighive/docs/index.md? "Examine the pre-requisites" and
+"View the README"
+
+- 2025-10-01T17:03:38-04:00
+  - can you add those as buttons in the following file: /home/sodo/scripts/gighive/ansible/roles/docker/files/apache/overlays/gighive/index.php.  you can use the existing button structure found on that php page.  put the buttons at the bottom of the "How do I get started?" stanza in index.php.
