@@ -27,7 +27,7 @@ ansible_remote_tmp: "/tmp/.ansible/tmp"
 
 # app flavor for build-time overlay; database_full kept as-is
 app_flavor: gighive
-database_full: true
+database_full: false
 
 # these vars control full/reduced set of media
 sync_video: true
