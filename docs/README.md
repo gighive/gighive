@@ -5,7 +5,7 @@ layout: default
 # GigHive Music and Video Library 
 
 GigHive is an **open-source deployment framework** for hosting your own media library, a band’s library or fan videos, or even videos uploaded by guests from events like a wedding.  There are two pieces to Gighive:
-- Scripts that build a vm and within, a fully automated Apache and MySQL containers.  MySQL is prebuilt with a media library database waiting to be populated.
+- Scripts that build a vm and within, fully automated Apache and MySQL containers. MySQL is prebuilt with a media library database waiting to be populated.  As a sample, it has a few audio and video clips from one of our other users.
 - Companion iPhone app for fans and wedding guests to upload content (web-based version also built-in).
 
 The automation allows you to spin up a fully reproducible environment using **Docker, Ansible, and Terraform**.  It has a very simple interface: a splash page, a single database of stored videos and an upload utility.
@@ -112,7 +112,7 @@ Note VirtualBox install will require a reboot.
 ```
 
 ---
-## Option A: Azure
+## Option A: Install to Azure VM (requires an Azure subscription)
 ```bash
 # 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 export ARM_SUBSCRIPTION_ID=[put your subscription id here]
@@ -131,7 +131,7 @@ cd $GIGHIVE_HOME;./3deleteAll.sh
 ```
 
 ---
-## Option B: VirtualBox
+## Option B: Create and install to new Virtualbox VM
 ```bash
 # 1. Decide on an IP in your home network that you'd like to use. 
 
@@ -142,7 +142,7 @@ cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_virtualbox.ym
 ```
 
 ---
-## Option C: Baremetal
+## Option C: Install to existing baremetal server in your environment
 ```bash
 # 1. Edit the inventory file and put the IP of your bare metal server that is prepped for Gighive 
 $GIGHIVE_HOME/ansible/inventories/inventory_baremetal.yml
