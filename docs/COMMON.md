@@ -44,6 +44,13 @@ REQUIREMENTS
 - index.md: "one page for the media library and one upload utility..that's all"
 - README.md: "a splash page, a single database of stored videos and an upload utility"
 
+### 7. CONTACT INFORMATION
+**Used in:** Both files (IDENTICAL TEXT)
+**Exact content to maintain:**
+```
+👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
+```
+
 ---
 
 ## MAINTENANCE GUIDELINES:
@@ -74,6 +81,7 @@ REQUIREMENTS
 
 ## CHANGE LOG:
 - 2025-09-30: Initial creation of common content reference
+- 2025-10-01: Added section 7 - Contact Information (shared contact line with email and bee logo)
 - Add future changes here with dates
 
 ---
