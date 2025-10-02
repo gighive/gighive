@@ -12,6 +12,12 @@ The automation allows you to spin up a fully reproducible environment using **Do
 
 This project is designed to be portable, easy to deploy, and suitable for local development or cloud environments (Azure supported out of the box).
 
+---
+
+REQUIREMENTS
+- Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS, installed on bare metal.**
+- Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
+
 ## Architecture
 
 <a href="images/architecture.png" target="_blank">
@@ -19,86 +25,6 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 </a>
 
 *Click the diagram above to view full size*
-
----
-
-REQUIREMENTS
-- Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS, installed on bare metal.**
-- Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
-
----
-
-## 🚀 Features
-- **Automated Infrastructure**  
-  - Provisioning with **Terraform** (Azure-ready)  
-  - Configuration with **Ansible**  
-
-- **Web + Database Stack**  
-  - Apache HTTP Server (custom-built with HTTP/2 support)  
-  - MySQL database container for structured music session or wedding event media
-  - REST API layer (PHP-based) for audio/video file access  
-
-- **Containerized Deployment**  
-  - Docker containers for all core services  
-
----
-
-## 🧑‍💻 Development Environment
-- Use the included Ansible + Docker setup to run locally.  
-- Access services:  
-  - Apache web server → `http://localhost:8080`  
-  - MySQL database → `localhost:3306`  
-
----
-
-## 📂 Repository Structure
-```
-├── 1prereqsInstall.sh
-├── 2bootstrap.sh
-├── 3deleteAll.sh
-├── ansible
-│   ├── callback_plugins
-│   ├── inventories
-│   │   ├── group_vars
-│   │   ├── inventory_azure.yml
-│   │   ├── inventory_azure.yml.j2
-│   │   ├── inventory_baremetal.yml
-│   │   └── inventory_virtualbox.yml
-│   ├── playbooks
-│   │   └── site.yml
-│   ├── roles
-│   │   ├── base
-│   │   ├── blobfuse2
-│   │   ├── cloud_init
-│   │   ├── cloud_init_disable
-│   │   ├── docker
-│   │   ├── mysql_backup
-│   │   ├── nfs_mount
-│   │   ├── post_build_checks
-│   │   ├── security_basic_auth
-│   │   ├── security_owasp_crs
-│   │   ├── validate_app
-│   │   └── varscope
-│   └── vdiLockedWriteDelete.sh
-├── ansible.cfg
-├── assets
-│   ├── audio
-│   └── video
-├── azure.env
-├── azure-prereqs.txt
-├── CHANGELOG.md
-├── docs
-│   ├── commonissue1.txt
-│   ├── commonissue2.txt
-│   ├── index.html
-│   ├── PREREQS.md
-│   ├── README.md
-│   └── timings.txt
-├── inventory.ini
-├── terraform
-│   └── variables.tf
-└── tree.txt
-```
 
 ---
 
@@ -168,6 +94,54 @@ cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_baremetal.yml
 - Default install will populate the database with ~10 sample video and audio files. These can be deleted later with <a href="">database reset procedure</a>.
 - Default password set in $GIGHIVE_HOME/ansible/inventories/group_vars files should be changed.
 - Admin utility: a page for the admins to reset default password in GUI as well.
+
+---
+
+
+## 📂 Repository Structure
+```
+├── 1prereqsInstall.sh
+├── 2bootstrap.sh
+├── 3deleteAll.sh
+├── ansible
+│   ├── inventories
+│   │   ├── group_vars
+│   │   ├── inventory_azure.yml
+│   │   ├── inventory_azure.yml.j2
+│   │   ├── inventory_baremetal.yml
+│   │   └── inventory_virtualbox.yml
+│   ├── playbooks
+│   │   └── site.yml
+│   ├── roles
+│   │   ├── base
+│   │   ├── blobfuse2
+│   │   ├── cloud_init
+│   │   ├── cloud_init_disable
+│   │   ├── docker
+│   │   ├── mysql_backup
+│   │   ├── nfs_mount
+│   │   ├── post_build_checks
+│   │   ├── security_basic_auth
+│   │   ├── security_owasp_crs
+│   │   ├── validate_app
+│   │   └── varscope
+│   └── vdiLockedWriteDelete.sh
+├── ansible.cfg
+├── assets
+│   ├── audio
+│   └── video
+├── azure.env
+├── azure-prereqs.txt
+├── CHANGELOG.md
+├── docs
+│   ├── index.html
+│   ├── PREREQS.md
+│   └── README.md
+├── inventory.ini
+├── terraform
+│   └── variables.tf
+└── tree.txt
+```
 
 ---
 
