@@ -15,8 +15,8 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 ---
 
 REQUIREMENTS
-- Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS, installed on bare metal.**
-- Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
+- Control Machine: Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS**, installed on bare metal for the Virtualbox implementation or you can install to a VM if you are deploying to an external Azure or bare metal server.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
+- Target Server: Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
 
 ## Architecture
 
