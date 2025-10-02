@@ -5,10 +5,10 @@ layout: default
 # GigHive Music and Video Library 
 
 GigHive is an **open-source deployment framework** for hosting your own media library, a band’s library or fan videos, or even videos uploaded by guests from events like a wedding.  There are two pieces to Gighive:
-- Scripts that build a vm and within, fully automated Apache and MySQL containers. MySQL is prebuilt with a media library database waiting to be populated.  As a sample, it has a few audio and video clips from one of our other users.
+- A pre-built web-accessible media library waiting to be populated.  This is the server piece. Gighive uses Ansible and Terraform to build a vm (or optionally, configure a bare metal server) and on top, a fast Apache server and MySQL database. It includes a few audio and video clips donated from one of our other users as a sample.
 - Companion iPhone app for fans and wedding guests to upload content (web-based version also built-in).
 
-The automation allows you to spin up a fully reproducible environment using **Docker, Ansible, and Terraform**.  It has a very simple interface: a splash page, a single database of stored videos and an upload utility.
+The automation spins up a fully reproducible environment using **Docker, Ansible, and Terraform**.  It has a very simple interface: a splash page, a single database of stored videos and an upload utility.
 
 This project is designed to be portable, easy to deploy, and suitable for local development or cloud environments (Azure supported out of the box).
 
