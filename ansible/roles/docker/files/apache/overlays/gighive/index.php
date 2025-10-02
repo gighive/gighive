@@ -75,8 +75,8 @@
       <li>Gighive includes a searchable, sortable one-page listing of media files and common attributes (date, location, people, rating, etc) stored <a href="images/databaseErd.png">in the database</a> along with an <a href="db/upload_form.php">upload utility</a>.</li> 
       <li>Here are <a href="comingsoon.html">instructional videos</a> on how to standup and manage your own Gighive.</li>
       </ul>
-      <p><a class="btn" href="PREREQS.html">Examine the pre-requisites</a></p>
-      <p><a class="btn" href="README.html">View the README</a></p>
+      <p><a class="btn" href="https://gighive.app/PREREQS.html">Examine the pre-requisites</a></p>
+      <p><a class="btn" href="https://gighive.app/README.html">View the README</a></p>
 
       <h3>For the future</h3>
       <ul>
