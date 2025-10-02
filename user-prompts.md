@@ -506,3 +506,14 @@ GigHive is dual-licensed:
 
 - 2025-10-01T17:03:38-04:00
   - can you add those as buttons in the following file: /home/sodo/scripts/gighive/ansible/roles/docker/files/apache/overlays/gighive/index.php.  you can use the existing button structure found on that php page.  put the buttons at the bottom of the "How do I get started?" stanza in index.php.
+
+## 2025-10-02
+
+- 2025-10-02T12:24:34-04:00
+  - is the beelogo image here a transparent image or not? https://gighive.app/
+
+- 2025-10-02T12:26:16-04:00
+  - please convert the white background to be transparent and then save the file
+
+- 2025-10-02T12:35:05-04:00
+  - in /home/sodo/scripts/gighive/docs/README.md, before the Prerequisites, insert a new section called Architecture and put a link to the architecture diagram at "/home/sodo/scripts/gighive/docs/images/architecture.png".  Reduce the size of the arch diagram to 400px high, but make it clickable to people can see a larger version.

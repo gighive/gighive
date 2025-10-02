@@ -33,7 +33,7 @@ body {
 - Gighive includes a searchable, sortable one-page listing of media files and common attributes (date, location, people, rating, etc) stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).
 - Here are [instructional videos](comingsoon.html) on how to standup and manage your own Gighive.
 
-### REQUIREMENTS
+### Requirements
 - Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS, installed on bare metal.**
 - Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
 

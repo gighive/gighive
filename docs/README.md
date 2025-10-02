@@ -12,6 +12,16 @@ The automation allows you to spin up a fully reproducible environment using **Do
 
 This project is designed to be portable, easy to deploy, and suitable for local development or cloud environments (Azure supported out of the box).
 
+## Architecture
+
+<a href="images/architecture.png" target="_blank">
+  <img src="images/architecture.png" alt="GigHive Architecture Diagram" height="400" style="cursor: pointer;">
+</a>
+
+*Click the diagram above to view full size*
+
+---
+
 REQUIREMENTS
 - Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS, installed on bare metal.**
 - Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
