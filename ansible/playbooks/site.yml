@@ -55,9 +55,9 @@
     # controller: more sources
     - name: Set controller-side source paths
       set_fact:
-        web_root_src: "{{ docker_files_src }}/apache/html"
-        configs_src: "{{ docker_files_src }}/mysql/externalConfigs"
-        dbscripts_src: "{{ docker_files_src }}/mysql/dbScripts"
+#        web_root_src: "{{ docker_files_src }}/apache/html"
+#        configs_src: "{{ docker_files_src }}/mysql/externalConfigs"
+#        dbscripts_src: "{{ docker_files_src }}/mysql/dbScripts"
         scripts_home: "{{ repo_root }}"          # <-- controller source (your $GIGHIVE_HOME)
         scripts_dir: "{{ root_dir }}/scripts/gighive"   # <-- VM destination
 
@@ -67,14 +67,14 @@
         docker_dir: "{{ scripts_dir }}/ansible/roles/docker/files"
         video_dir: "{{ root_dir }}/video"
         audio_dir: "{{ root_dir }}/audio"
-        #root_scripts: "{{ root_dir }}/scripts"
+#       root_scripts: "{{ root_dir }}/scripts"
   
     # VM: derived from docker_dir
     - name: Set VM paths derived from docker_dir
       set_fact:
         configs_dir: "{{ docker_dir }}/mysql/externalConfigs"
         dbscripts_dir: "{{ docker_dir }}/mysql/dbScripts"
-        web_root: "{{ docker_dir }}/apache/html"
+        web_root: "{{ docker_dir }}/apache/webroot"
 
 # 1) Global preflight snapshot (runs once per host at the start)
 - name: Preflight varscope
