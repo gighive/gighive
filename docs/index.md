@@ -42,9 +42,7 @@ These are shown in this <a href="images/architecture.png">architecture diagram</
 - Eventually, we will develop more interesting features. But for now, we've keeping it simple and easy to manage.
 
 ### So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!
-
 <a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a> <a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Parts List</a>
-
 ### License
 GigHive is dual-licensed:
 
