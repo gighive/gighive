@@ -517,3 +517,11 @@ GigHive is dual-licensed:
 
 - 2025-10-02T12:35:05-04:00
   - in /home/sodo/scripts/gighive/docs/README.md, before the Prerequisites, insert a new section called Architecture and put a link to the architecture diagram at "/home/sodo/scripts/gighive/docs/images/architecture.png".  Reduce the size of the arch diagram to 400px high, but make it clickable to people can see a larger version.
+
+## 2025-10-03
+
+- 2025-10-03T10:24:08-04:00
+  - what are the standard audio and video file formats gighive supports?  i think this information is somewhere in /home/sodo/scripts/gighive/ansible/roles/docker, probably the apache configs.
+
+- 2025-10-03T10:25:35-04:00
+  - can you put the supported audio and video formats in a comma separated list, along with their mime types in parentheses as you have them laid out in the bullets?

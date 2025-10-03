@@ -8,7 +8,8 @@ nameservers:
   - "8.8.8.8"
   - "8.8.4.4"
 bridge_iface: "enp8s0"
-disk_size_mb: 222000
+#disk_size_mb: 222000
+disk_size_mb: 64000
 
 # Ansible host specific paths (user = sodo) THESE ARE SOURCES FOR VIDEOS and AUDIO FILES, LEAVING ABSOLUTE
 video_full: "/home/sodo/videos/stormpigs/finals/singles/"
