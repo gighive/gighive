@@ -32,9 +32,9 @@ database_full: false
 
 # these vars control full/reduced set of media
 sync_video: true
-reduced_video: false
+reduced_video: true
 sync_audio: true
-reduced_audio: false
+reduced_audio: true
 
 # Users
 admin_user: admin

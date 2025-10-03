@@ -29,8 +29,7 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 ## ⚙️ Preparation
 ### Do these steps before moving ahead with one of the options below.
 ```bash
-# 1. Make sure you have id_rsa.pub or id_ed25519.pub in 
-./ssh for passwordless authentication, create as below
+# 1. Make sure you have id_rsa.pub or id_ed25519.pub in ./ssh for passwordless authentication:
 eg: ssh-keygen -t ed25519 -C "your_email@example.com" -f ./ssh/id_ed25519
 
 # 2. Clone the repo
@@ -43,8 +42,6 @@ eg: export GIGHIVE_HOME=/home/$USER/gighive
 # 4. Install Azure, Terraform and Ansible prerequisites 
 cd $GIGHIVE_HOME;./1prereqsInstall.sh
 Note VirtualBox install will require a reboot.
-
-
 ```
 
 ---
@@ -52,7 +49,9 @@ Note VirtualBox install will require a reboot.
 ## ⚙️ Decide on VM hard size that you will need
 ### Default is 64GB, 21GB of which will be used by the OS.  
 So you will have ~40GB of space for media files.
+
 ---
+
 ## Option A: Install to Azure VM (requires an Azure subscription)
 ```bash
 # 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
