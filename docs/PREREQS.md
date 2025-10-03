@@ -1,8 +1,8 @@
 ---
-title: Prerequisites
+title: Parts List
 layout: default
 ---
-# GigHive Prerequisites (Linux x86-64)
+# GigHive Parts List (Linux x86-64)
 
 This document outlines the **minimum requirements** for running the GigHive framework. For extended details, see `PREREQS_table.md`.
 
