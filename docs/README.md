@@ -47,8 +47,8 @@ Note VirtualBox install will require a reboot.
 ---
 
 ## ⚙️ Decide on VM hard size that you will need
-### Default is 64GB, 21GB of which will be used by the OS.  
-So you will have ~40GB of space for media files.
+### Default is 64GB, ~10GB of which will be used by the OS.  
+So you will have ~54GB of space for media files.
 
 ---
 
