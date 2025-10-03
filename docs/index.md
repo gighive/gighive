@@ -3,14 +3,14 @@ body {
     background-color: #121a33;
     color: white;
 }
+img {
+    background: transparent !important; /* ensure all images float cleanly */
+}
 </style>
 
-# Welcome to GigHive!
-
-<img src="images/beelogo.png" alt="GigHive bee mascot holding a camera and microphone" width="200" height="200">
-
+# Welcome to GigHive! 
 ## Gighive is a media database for you, your fans, or wedding guests.
-
+<img src="images/beelogo.png" alt="GigHive bee mascot holding a camera and microphone" width="200" height="200">
 ### If you're a musician
 - You can use it as a library of your bands sessions, audio and video files.
 - Have your fans upload videos from your gigs and utilize the footage from every conceivable angle.
@@ -34,17 +34,16 @@ body {
 - Here are [instructional videos](comingsoon.html) on how to standup and manage your own Gighive.
 
 ### Requirements
-- Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS, installed on bare metal.**
-- Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
+1. Control Machine: Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS, installed on bare metal.**
+2. Target Machine: Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
+These are shown in this <a href="images/architecture.png">architecture diagram</a>.
 
 ### For the future
 - Eventually, we will develop more interesting features. But for now, we've keeping it simple and easy to manage.
 
 ### So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!
 
-<a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Examine the pre-requisites</a>
-
-<a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a>
+<a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a> <a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Parts List</a>
 
 ### License
 GigHive is dual-licensed:
