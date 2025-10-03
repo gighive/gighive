@@ -3,13 +3,29 @@ body {
     background-color: #121a33;
     color: white;
 }
+
+/* Remove default Markdown heading styles and simulate custom headings */
+.custom-h1 {
+    font-size: 2em;      /* same as h1 */
+    font-weight: bold;
+    margin: 0.5em 0;
+}
+
+.custom-h2 {
+    font-size: 1.5em;    /* same as h2 */
+    font-weight: normal;
+    margin: 0.5em 0;
+    color: #ccc;         /* lighter shade for contrast, optional */
+}
+
 img {
-    background: transparent !important; /* ensure all images float cleanly */
+    background: transparent !important;
 }
 </style>
 
-# Welcome to GigHive! 
-## Gighive is a media database for you, your fans, or wedding guests.
+<div class="custom-h1">Welcome to GigHive!</div>
+<div class="custom-h2">Gighive is a media database for you, your fans, or wedding guests.</div>
+
 <img src="images/beelogo.png" alt="GigHive bee mascot holding a camera and microphone" width="200" height="200">
 ### If you're a musician
 - You can use it as a library of your bands sessions, audio and video files.
