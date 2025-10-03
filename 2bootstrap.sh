@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
+# Note: this script uses Azure CLI for it's work and relies on Azure SUBSCRIPTION and TENANT id's for authentication 
 set -euo pipefail
 IFS=$'\n\t'
 
 # HOW TO RUN
-# This script depends on azure.env file with a subscription and a tenant id.
-# 1 Create a file called azure.env.  It will look like this:
+# 1 This script depends on azure.env file in $GIGHIVE_HOME that includes two lines: a subscription and a tenant id. It will look like this:
 #export ARM_SUBSCRIPTION_ID=[put subscription id here]
 #export ARM_TENANT_ID=[put tenant id/mgmt group id here]
 
 # 2 Source the environment
-# . ~/azure.env
+# . azure.env
 
 # 3 Execute this script: ./2bootstrap.sh
 
@@ -33,6 +33,15 @@ if [ -f "$ENVIRONMENT" ]; then
   set -o allexport
   source "$ENVIRONMENT"
   set +o allexport
+fi
+
+# Ensure we are authenticated
+echo "==> Checking Azure authentication..."
+if ! az account get-access-token --query accessToken -o tsv &>/dev/null; then
+  echo "⚠️  No valid Azure session found (or token expired). Starting interactive login..."
+  az login --use-device-code
+else
+  echo "✅ Azure session is valid."
 fi
 
 # Parse backend.tfvars values
