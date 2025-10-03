@@ -46,6 +46,11 @@ Note VirtualBox install will require a reboot.
 ```
 
 ---
+
+## ⚙️ Decide on VM hard size that you will need
+### Default is 64GB, 21GB of which will be used by the OS.  
+So you will have ~40GB of space for media files.
+---
 ## Option A: Install to Azure VM (requires an Azure subscription)
 ```bash
 # 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
