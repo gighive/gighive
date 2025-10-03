@@ -73,20 +73,32 @@
       <h3>How do I get started?</h3>
       <ul>
       <li>Gighive includes a searchable, sortable one-page listing of media files and common attributes (date, location, people, rating, etc) stored <a href="images/databaseErd.png">in the database</a> along with an <a href="db/upload_form.php">upload utility</a>.</li> 
-      <li>Here are <a href="comingsoon.html">instructional videos</a> on how to standup and manage your own Gighive.</li>
       </ul>
-      <p><a class="btn" href="https://gighive.app/PREREQS.html">Examine the pre-requisites</a></p>
-      <p><a class="btn" href="https://gighive.app/README.html">View the README</a></p>
+
+      <h3>Media formats supported</h3>
+      <ul>
+      <li>Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4)</li>
+      <li>Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo)</li>
+      </ul>
+
+      <h3>So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!</h3>
+      <p><a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a> <a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Parts List</a></p>
+      <p><a class="btn" href="/db/database.php">Go to the Database (login required)</a></p>
+      <p><a class="btn" href="/changethepasswords.php">Change Passwords (Admin Only)</a></p>
+      <p>Note the database is currently populated with sample data that <a href="comingsoon.html">you can delete</a>.</p>
 
       <h3>For the future</h3>
       <ul>
       <li>Eventually, we will develop more interesting features. But for now, we've keeping it simple and easy to manage.</li>
       </ul>
 
-      <h3>So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!</h3>
-      <p><a class="btn" href="/db/database.php">Go to the Database (login required)</a></p>
-      <p><a class="btn" href="/changethepasswords.php">Change Passwords (Admin Only)</a></p>
-      <p>Note the database is currently populated with sample data that <a href="comingsoon.html">you can delete</a>.</p>
+<h3>License</h3>
+GigHive is dual-licensed:
+<ul>
+<li><b>[MIT License](LICENSE_MIT.md)</b>: Free for personal, single-instance, non-commercial use.</li>
+<li><b>[Commercial License](LICENSE_COMMERCIAL.md)</b>: Required for SaaS, multi-tenant, or commercial use.</li>
+</ul>
+👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
     </div>
   </div>
 </body>
