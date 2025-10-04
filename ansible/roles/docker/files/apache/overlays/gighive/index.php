@@ -79,6 +79,7 @@
       <ul>
       <li>Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4)</li>
       <li>Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo)</li>
+      <li>Note that .MOV and .AVI don't autoplay in the browser</li>
       </ul>
 
       <h3>So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!</h3>
@@ -95,10 +96,10 @@
 <h3>License</h3>
 GigHive is dual-licensed:
 <ul>
-<li><b>[MIT License](LICENSE_MIT.md)</b>: Free for personal, single-instance, non-commercial use.</li>
-<li><b>[Commercial License](LICENSE_COMMERCIAL.md)</b>: Required for SaaS, multi-tenant, or commercial use.</li>
+<li><b><a href="https://gighive.app/LICENSE_MIT.md">MIT License</a></b>: Free for personal, single-instance, non-commercial use.</li>
+<li><b><a href="https://gighive.app/LICENSE_COMMERCIAL.md">Commercial License</b>: Required for SaaS, multi-tenant, or commercial use.</li>
 </ul>
-👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
+👉 <a href="mailto:contactus@gighive.app">Contact Us</a> for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
     </div>
   </div>
 </body>

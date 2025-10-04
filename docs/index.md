@@ -56,6 +56,7 @@ These are shown in this <a href="images/architecture.png">architecture diagram</
 ### Media formats supported
 - Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4)
 - Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo)
+- Note that .MOV and .AVI don't autoplay in the browser
 
 ### For the future
 - Eventually, we will develop more interesting features. But for now, we've keeping it simple and easy to manage.
