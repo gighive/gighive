@@ -69,7 +69,7 @@ Example in `group_vars/gighive.yml`:
 
 ```yaml
 filename_seq_pad: 5
-upload_max_bytes: 1500000000
+upload_max_bytes: 4000000000 (4GB)
 ```
 
 `.env.j2` wires them through to the container environment.
@@ -123,3 +123,5 @@ Please report suspected vulnerabilities privately to the repository owner/mainta
 - Affected endpoints/paths and configuration context.
 
 We will acknowledge receipt and work on a fix with an appropriate disclosure timeline.
+
+👉 [security@gighive.app](mailto:security@gighive.app) <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">

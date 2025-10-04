@@ -113,4 +113,4 @@ filename_seq_pad: 5
 
 # Application-level upload size cap in bytes (honored by UploadValidator)
 # Defaults to ~1.5GB if unset; set here for clarity and centralized control
-upload_max_bytes: 4000000000
+upload_max_bytes: 4294967296

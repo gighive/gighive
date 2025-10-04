@@ -52,7 +52,19 @@ So you will have ~54GB of space for media files.
 
 ---
 
-## Option A: Install to Azure VM (requires an Azure subscription)
+## Option A: Create and install to new Virtualbox VM
+```bash
+# 1. Decide on an IP in your home network that you'd like to use. 
+
+# 2. Edit the "ansible_host" field in $GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml 
+
+# 3. Run Ansible 
+cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass
+```
+
+---
+
+## Option B: Install to Azure VM (requires an Azure subscription)
 ```bash
 # 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 export ARM_SUBSCRIPTION_ID=[put your subscription id here]
@@ -71,17 +83,7 @@ cd $GIGHIVE_HOME;./3deleteAll.sh
 ```
 
 ---
-## Option B: Create and install to new Virtualbox VM
-```bash
-# 1. Decide on an IP in your home network that you'd like to use. 
 
-# 2. Edit the "ansible_host" field in $GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml 
-
-# 3. Run Ansible 
-cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass
-```
-
----
 ## Option C: Install to existing baremetal server in your environment
 ```bash
 # 1. Edit the inventory file and put the IP of your bare metal server that is prepped for Gighive 
@@ -153,10 +155,11 @@ cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_baremetal.yml
 
 ---
 
-## 📜 License
-GigHive Community Edition is licensed under the MIT License.
-This edition is intended for self-hosted, single-tenant use cases.
-For SaaS or multi-tenant solutions, please see GigHive Cloud (proprietary).
+### License
+GigHive is dual-licensed:
+
+- **[MIT License](LICENSE_MIT.md)**: Free for personal, single-instance, non-commercial use.
+- **[Commercial License](LICENSE_COMMERCIAL.md)**: Required for SaaS, multi-tenant, or commercial use.
 
 ---
 
