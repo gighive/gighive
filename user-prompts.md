@@ -533,3 +533,6 @@ GigHive is dual-licensed:
 
 - 2025-10-08T17:01:05-04:00
   - hmmm..i loaded the new home page and no clicks register. Also, when I open up the hamburger, the menu that opens is dark like it is offlimits to interact with.
+
+- 2025-10-08T17:09:18-04:00
+  - Remove maintenance.md from the hamburger nav. add a section on streaming and add howdoesstreamingwork* and tusimplementationweek1.html files to it. add a server admin section and add howiswebrootworking.html and featureChangedPasswordspage.html
