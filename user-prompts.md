@@ -536,3 +536,24 @@ GigHive is dual-licensed:
 
 - 2025-10-08T17:09:18-04:00
   - Remove maintenance.md from the hamburger nav. add a section on streaming and add howdoesstreamingwork* and tusimplementationweek1.html files to it. add a server admin section and add howiswebrootworking.html and featureChangedPasswordspage.html
+
+- 2025-10-08T17:16:40-04:00
+  - are these two files accurate to the current state of affairs? -rw-rw-r-- 1 sodo sodo 4172 Sep 27 08:45 chunkedfileconfiguration.md -rw-rw-r-- 1 sodo sodo 6224 Sep 27 08:25 chunkedHeaderTest.md
+
+- 2025-10-08T17:17:52-04:00
+  - yes please
+
+- 2025-10-08T17:19:18-04:00
+  - remove the Webroot Configuration from the hamburger menu
+
+- 2025-10-08T17:20:56-04:00
+  - remove the entire Server Admin section that includes Password Management
+
+- 2025-10-08T17:22:36-04:00
+  - Add chunkedfileconfiguration.html to the Streaming section and call the link Upload Limits
+
+- 2025-10-08T17:26:20-04:00
+  - if you look at https://gighive.app and the files we have linked under the hamburger, does sharing that information pose any security risks?
+
+- 2025-10-08T17:28:31-04:00
+  - ok, go ahead and remove chunkedfile*
