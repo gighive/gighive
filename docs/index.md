@@ -168,8 +168,20 @@ img {
     <ul>
         <li><a href="README.html">🚀 Setup Guide</a></li>
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
-        <li><a href="MAINTENANCE-GUIDE.html">🔧 Maintenance</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
+    </ul>
+    
+    <h3>🎥 Streaming</h3>
+    <ul>
+        <li><a href="howdoesstreamingwork.html">📡 How Streaming Works</a></li>
+        <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
+        <li><a href="tusimplementationweek1.html">📤 TUS Upload Implementation</a></li>
+    </ul>
+    
+    <h3>🔧 Server Admin</h3>
+    <ul>
+        <li><a href="howiswebrootworking.html">🌐 Webroot Configuration</a></li>
+        <li><a href="featureChangedPasswordsPage.html">🔑 Password Management</a></li>
     </ul>
     
     <h3>📄 Legal</h3>
