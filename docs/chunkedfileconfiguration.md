@@ -17,10 +17,10 @@
 | `max_input_time` | **7200** seconds (2 hours) | 300 or unlimited | ✅ Excellent |
 | `file_uploads` | **On** | On | ✅ Enabled |
 
-#### ⚠️ Memory Configuration (Minor Issue)
+#### ✅ Memory Configuration (Excellent)
 | Setting | Current Value | Recommended | Status |
 |---------|---------------|-------------|---------|
-| `memoory_limit` | **512M** | 512M or higher | ✅ Excellent |
+| `memory_limit` | **1024M** (1GB) | 512M or higher | ✅ Excellent |
 
 #### ✅ Server Infrastructure (Excellent)
 - **PHP Version**: 8.1.2-1ubuntu2.22 (Modern, fully supports chunked uploads)
@@ -102,6 +102,22 @@ Your server configuration is **exceptional** for chunked uploads. The 4GB limits
 **Status**: ✅ **READY FOR CHUNKED UPLOAD IMPLEMENTATION**
 
 ---
-*Analysis performed: 2025-09-27*  
-*Server: gighive
-*Configuration source: phpinfo.php output*
+*Analysis performed: 2025-09-27, Updated: 2025-10-08*  
+*Server: gighive*  
+*Configuration source: .user.ini and current deployment files*
+
+## Current Configuration Update (2025-10-08)
+
+### ✅ Verified Current Settings
+Based on `/ansible/roles/docker/files/apache/webroot/.user.ini`:
+
+| Setting | Current Value | Status |
+|---------|---------------|---------|
+| `upload_max_filesize` | **4096M** (4GB) | ✅ Confirmed |
+| `post_max_size` | **4096M** (4GB) | ✅ Confirmed |
+| `memory_limit` | **1024M** (1GB) | ✅ Updated from 512M |
+| `max_file_uploads` | **50** | ✅ Confirmed |
+| `max_execution_time` | **7200** seconds | ✅ Confirmed |
+| `max_input_time` | **7200** seconds | ✅ Confirmed |
+
+**Note**: PHP-FPM timeout in `php-fpm.conf` is set to 300 seconds, but PHP ini settings override this for script execution.

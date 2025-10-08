@@ -176,13 +176,9 @@ img {
         <li><a href="howdoesstreamingwork.html">📡 How Streaming Works</a></li>
         <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
         <li><a href="tusimplementationweek1.html">📤 TUS Upload Implementation</a></li>
+        <li><a href="chunkedfileconfiguration.html">📊 Upload Limits</a></li>
     </ul>
     
-    <h3>🔧 Server Admin</h3>
-    <ul>
-        <li><a href="howiswebrootworking.html">🌐 Webroot Configuration</a></li>
-        <li><a href="featureChangedPasswordsPage.html">🔑 Password Management</a></li>
-    </ul>
     
     <h3>📄 Legal</h3>
     <ul>
