@@ -27,7 +27,7 @@ img {
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 1000;
+    z-index: 1002;
 }
 
 .hamburger-icon {
@@ -73,6 +73,8 @@ img {
     padding: 60px 20px 20px;
     box-shadow: -2px 0 10px rgba(0,0,0,0.3);
     overflow-y: auto;
+    z-index: 1001;
+    pointer-events: auto;
 }
 
 .nav-menu.active {
@@ -80,11 +82,12 @@ img {
 }
 
 .nav-menu h3 {
-    color: #2196F3;
+    color: #2196F3 !important;
     margin-bottom: 20px;
     font-size: 1.2em;
     border-bottom: 1px solid #2196F3;
     padding-bottom: 10px;
+    pointer-events: none;
 }
 
 .nav-menu ul {
@@ -98,17 +101,27 @@ img {
 }
 
 .nav-menu a {
-    color: white;
+    color: white !important;
     text-decoration: none;
     display: block;
     padding: 8px 12px;
     border-radius: 4px;
     transition: background-color 0.3s ease;
+    cursor: pointer;
+    pointer-events: auto;
 }
 
 .nav-menu a:hover {
-    background-color: #2196F3;
-    color: white;
+    background-color: #2196F3 !important;
+    color: white !important;
+}
+
+.nav-menu a:visited {
+    color: white !important;
+}
+
+.nav-menu a:active {
+    color: white !important;
 }
 
 .nav-overlay {

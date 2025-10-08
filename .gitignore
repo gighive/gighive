@@ -22,7 +22,7 @@
 # Xcode user state
 xcuserdata/
 *.xcuserstate
-user-prompts.md
+#user-prompts.md
 
 # Docker volumes (if any)
 volumes/

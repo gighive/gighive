@@ -530,3 +530,6 @@ GigHive is dual-licensed:
 
 - 2025-10-08T16:51:50-04:00
   - if you look at https://gighive.app, that page is a markdown file. Does markdown have the ability to put a little hamburger in the upper right hand corner that you could click and see a list of all the other markdown files would be listed so that people could learn about the gighive software?
+
+- 2025-10-08T17:01:05-04:00
+  - hmmm..i loaded the new home page and no clicks register. Also, when I open up the hamburger, the menu that opens is dark like it is offlimits to interact with.
