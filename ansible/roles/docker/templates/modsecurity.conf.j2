@@ -10,7 +10,7 @@ SecDataDir /var/cache/modsecurity
 # Reasonable limits (tuned higher for large media uploads)
 # ~5GB body limit to accommodate up to ~4GB files
 SecRequestBodyLimit 5368709120
-SecRequestBodyNoFilesLimit 131072
+SecRequestBodyNoFilesLimit 5368709120
 SecRequestBodyInMemoryLimit 1048576
 SecPcreMatchLimit 100000
 SecPcreMatchLimitRecursion 100000
