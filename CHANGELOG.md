@@ -1,6 +1,19 @@
 *** 
 releaseNotes20251008.txt
-Changes: Increased SecRequestBodyNoFilesLimit 5368709120
+Changes: Created hamburger dropdown for the library
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	modified:   docs/index.md
+	modified:   docs/tusimplementationweek1.md
+	modified:   user-prompts.md
+
 
 ToDo: create a canonical md versions for the site and convert using composer recommendation
 ToDo: document supported media types
@@ -13,6 +26,19 @@ ToDo: select 2015-09-19 as sample
 ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
 ToDo: Integrate Let's Encrypt for future
 ToDo: Cron to upload backup to Ansible controller 
+
+*** 
+releaseNotes20251008.txt
+Changes: Increased SecRequestBodyNoFilesLimit 5368709120
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/templates/modsecurity.conf.j2
 
 *** 
 releaseNotes20251001.txt

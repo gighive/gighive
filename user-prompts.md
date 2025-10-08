@@ -525,3 +525,8 @@ GigHive is dual-licensed:
 
 - 2025-10-03T10:25:35-04:00
   - can you put the supported audio and video formats in a comma separated list, along with their mime types in parentheses as you have them laid out in the bullets?
+
+## 2025-10-08
+
+- 2025-10-08T16:51:50-04:00
+  - if you look at https://gighive.app, that page is a markdown file. Does markdown have the ability to put a little hamburger in the upper right hand corner that you could click and see a list of all the other markdown files would be listed so that people could learn about the gighive software?

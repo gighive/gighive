@@ -21,7 +21,185 @@ body {
 img {
     background: transparent !important;
 }
+
+/* Hamburger Menu Styles */
+.hamburger-menu {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.hamburger-icon {
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.hamburger-line {
+    width: 100%;
+    height: 3px;
+    background-color: white;
+    transition: all 0.3s ease;
+}
+
+.hamburger-icon.active .hamburger-line:nth-child(1) {
+    transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger-icon.active .hamburger-line:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-icon.active .hamburger-line:nth-child(3) {
+    transform: rotate(-45deg) translate(8px, -8px);
+}
+
+.nav-menu {
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 280px;
+    height: 100vh;
+    background-color: #1a2347;
+    border-left: 2px solid #2196F3;
+    transition: right 0.3s ease;
+    padding: 60px 20px 20px;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+    overflow-y: auto;
+}
+
+.nav-menu.active {
+    right: 0;
+}
+
+.nav-menu h3 {
+    color: #2196F3;
+    margin-bottom: 20px;
+    font-size: 1.2em;
+    border-bottom: 1px solid #2196F3;
+    padding-bottom: 10px;
+}
+
+.nav-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-menu li {
+    margin-bottom: 12px;
+}
+
+.nav-menu a {
+    color: white;
+    text-decoration: none;
+    display: block;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+.nav-menu a:hover {
+    background-color: #2196F3;
+    color: white;
+}
+
+.nav-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.nav-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+@media (max-width: 768px) {
+    .nav-menu {
+        width: 100%;
+        right: -100%;
+    }
+}
 </style>
+
+<!-- Hamburger Menu -->
+<div class="hamburger-menu">
+    <button class="hamburger-icon" onclick="toggleMenu()">
+        <div class="hamburger-line"></div>
+        <div class="hamburger-line"></div>
+        <div class="hamburger-line"></div>
+    </button>
+</div>
+
+<!-- Navigation Overlay -->
+<div class="nav-overlay" onclick="closeMenu()"></div>
+
+<!-- Navigation Menu -->
+<nav class="nav-menu">
+    <h3>📚 Documentation</h3>
+    <ul>
+        <li><a href="README.html">🚀 Setup Guide</a></li>
+        <li><a href="PREREQS.html">📋 Prerequisites</a></li>
+        <li><a href="MAINTENANCE-GUIDE.html">🔧 Maintenance</a></li>
+        <li><a href="SECURITY.html">🔒 Security</a></li>
+    </ul>
+    
+    <h3>📄 Legal</h3>
+    <ul>
+        <li><a href="LICENSE_MIT.html">📜 MIT License</a></li>
+        <li><a href="LICENSE_COMMERCIAL.html">💼 Commercial License</a></li>
+    </ul>
+    
+    <h3>🔗 Links</h3>
+    <ul>
+        <li><a href="mailto:contactus@gighive.app">✉️ Contact Us</a></li>
+        <li><a href="https://github.com/gighive/gighive" target="_blank">🐙 GitHub</a></li>
+    </ul>
+</nav>
+
+<script>
+function toggleMenu() {
+    const hamburger = document.querySelector('.hamburger-icon');
+    const menu = document.querySelector('.nav-menu');
+    const overlay = document.querySelector('.nav-overlay');
+    
+    hamburger.classList.toggle('active');
+    menu.classList.toggle('active');
+    overlay.classList.toggle('active');
+}
+
+function closeMenu() {
+    const hamburger = document.querySelector('.hamburger-icon');
+    const menu = document.querySelector('.nav-menu');
+    const overlay = document.querySelector('.nav-overlay');
+    
+    hamburger.classList.remove('active');
+    menu.classList.remove('active');
+    overlay.classList.remove('active');
+}
+
+// Close menu when pressing Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMenu();
+    }
+});
+</script>
 
 <div class="custom-h1">Welcome to GigHive!</div>
 <div class="custom-h2">Gighive is a media database for you, your fans, or wedding guests.</div>
