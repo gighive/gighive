@@ -6,6 +6,49 @@ The GigHive app uses a **memory-efficient streaming upload system** with **real 
 
 ---
 
+## Upload Size Limits
+
+### iOS App Limit
+- **Location:** `GigHive/Sources/App/AppConstants.swift`
+- **Current Limit:** 5 GB (5,368,709,120 bytes)
+- **Purpose:** Pre-upload validation to prevent wasted time uploading files that will be rejected
+
+```swift
+enum AppConstants {
+    static let MAX_UPLOAD_SIZE_BYTES: Int64 = 5_368_709_120  // 5 GB
+    static var MAX_UPLOAD_SIZE_FORMATTED: String {
+        ByteCountFormatter.string(fromByteCount: MAX_UPLOAD_SIZE_BYTES, countStyle: .file)
+    }
+}
+```
+
+### Server-Side Limits
+
+#### PHP Configuration
+- **Location:** Server Dockerfile at `~/scripts/gighive/ansible/roles/docker/files/apache/Dockerfile`
+- **Current Limit:** 6 GB (6,144 MB)
+- **Configuration:**
+  ```dockerfile
+  RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+      sed -i 's/post_max_size = .*/post_max_size = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini
+  ```
+
+#### Application Validator
+- **Location:** `~/scripts/gighive/ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php`
+- **Current Limit:** 5 GB (5,368,709,120 bytes)
+- **Purpose:** Application-level validation before processing upload
+- **Configuration:**
+  ```php
+  // Default to 5 GB if not specified; allow override via env UPLOAD_MAX_BYTES
+  $env = getenv('UPLOAD_MAX_BYTES');
+  $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : 5_368_709_120);
+  ```
+- **Environment Override:** Set `UPLOAD_MAX_BYTES` environment variable to override the default
+
+**Note:** Keep iOS app limit ≤ application validator limit ≤ PHP limits to avoid uploading files that will be rejected.
+
+---
+
 ## Call Flow
 
 ```

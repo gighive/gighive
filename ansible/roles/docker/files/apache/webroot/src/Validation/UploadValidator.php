@@ -11,9 +11,9 @@ final class UploadValidator
         'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/flac', 'audio/mp4',
         'video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm', 'video/x-msvideo'
     ]) {
-        // Default to ~1.5 GB if not specified; allow override via env UPLOAD_MAX_BYTES
+        // Default to 6 GB if not specified; allow override via env UPLOAD_MAX_BYTES
         $env = getenv('UPLOAD_MAX_BYTES');
-        $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : 1_500_000_000);
+        $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : 6_442_450_944);
         $this->allowedMimes = $allowedMimes;
     }
 
