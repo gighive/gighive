@@ -12,8 +12,10 @@ final class UploadValidator
         'video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm', 'video/x-msvideo'
     ]) {
         // Default to 6 GB if not specified; allow override via env UPLOAD_MAX_BYTES
+        // Use 6 * 1024 * 1024 * 1024 = 6442450944 bytes
         $env = getenv('UPLOAD_MAX_BYTES');
-        $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : 6_442_450_944);
+        $defaultMax = 6 * 1024 * 1024 * 1024; // 6 GB calculated at runtime to avoid literal overflow
+        $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : $defaultMax);
         $this->allowedMimes = $allowedMimes;
     }
 
