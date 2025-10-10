@@ -38,6 +38,13 @@ RUN printf '%s\n' \
 > /etc/apache2/conf-available/php-fpm.conf \
  && a2enconf php-fpm
 
+# Configure PHP upload limits for large files (6GB)
+RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/post_max_size = .*/post_max_size = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/max_execution_time = .*/max_execution_time = 7200/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/max_input_time = .*/max_input_time = 7200/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/memory_limit = .*/memory_limit = 512M/' /etc/php/${PHP_VERSION}/fpm/php.ini
+
 # Remove default website
 # Ensure Apache log, certs, modsecurity and private for htpasswd directores exist
 # Enable Apache modules and SSL site
