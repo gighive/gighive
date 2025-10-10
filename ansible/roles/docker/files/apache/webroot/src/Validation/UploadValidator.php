@@ -3,7 +3,8 @@ namespace Production\Api\Validation;
 
 final class UploadValidator
 {
-    private int $maxBytes;
+    /** @var int */
+    private $maxBytes;
     /** @var string[] */
     private array $allowedMimes;
 
