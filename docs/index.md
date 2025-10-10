@@ -173,8 +173,7 @@ img {
     
     <h3>🎥 Streaming</h3>
     <ul>
-        <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits</a></li>
-        <li><a href="howdoesstreamingwork.html">📡 How Streaming Works</a></li>
+        <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits / Call Flow</a></li>
         <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
         <li><a href="tusimplementationweek1.html">📤 TUS Upload Implementation</a></li>
     </ul>
