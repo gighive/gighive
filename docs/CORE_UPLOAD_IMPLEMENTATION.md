@@ -33,6 +33,22 @@ enum AppConstants {
       sed -i 's/post_max_size = .*/post_max_size = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini
   ```
 
+#### ModSecurity Configuration
+- **Location:** `~/scripts/gighive/ansible/roles/docker/templates/modsecurity.conf.j2`
+- **Current Limit:** 6 GB (6,442,450,944 bytes)
+- **Purpose:** Web Application Firewall (WAF) request body size limits
+- **Configuration:**
+  ```apache
+  # Global limits
+  SecRequestBodyLimit 6442450944
+  SecRequestBodyNoFilesLimit 6442450944
+  
+  # Upload endpoint specific
+  <LocationMatch "^/api/uploads\.php$">
+      SecRequestBodyLimit 6442450944
+  </LocationMatch>
+  ```
+
 #### Application Validator
 - **Location:** `~/scripts/gighive/ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php`
 - **Current Limit:** 6 GB (6,442,450,944 bytes)
@@ -41,11 +57,35 @@ enum AppConstants {
   ```php
   // Default to 6 GB if not specified; allow override via env UPLOAD_MAX_BYTES
   $env = getenv('UPLOAD_MAX_BYTES');
-  $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : 6_442_450_944);
+  $defaultMax = 6 * 1024 * 1024 * 1024; // 6 GB calculated at runtime
+  $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : $defaultMax);
   ```
 - **Environment Override:** Set `UPLOAD_MAX_BYTES` environment variable to override the default
 
-**Note:** All limits are now aligned at 6 GB across iOS app, application validator, and PHP configuration.
+**Note:** All limits are now aligned at 6 GB across iOS app, ModSecurity, PHP configuration, and application validator.
+
+---
+
+## Environment Configuration
+
+### FILENAME_SEQ_PAD
+- **Location:** `~/scripts/gighive/ansible/roles/docker/templates/.env.j2`
+- **Used In:** `~/scripts/gighive/ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php` (line 76-77)
+- **Purpose:** Controls the zero-padding width for sequence numbers in generated filenames
+- **Default:** 5 (if not set or invalid)
+- **Valid Range:** 1-9
+- **Example:**
+  - `FILENAME_SEQ_PAD=5` → `stormpigs20251010_00001_mysong.mp4`
+  - `FILENAME_SEQ_PAD=3` → `stormpigs20251010_001_mysong.mp4`
+
+**Code:**
+```php
+$padWidthEnv = getenv('FILENAME_SEQ_PAD');
+$padWidth = is_string($padWidthEnv) && ctype_digit($padWidthEnv) ? max(1, min(9, (int)$padWidthEnv)) : 5;
+$seqPadded = str_pad((string)$seq, $padWidth, '0', STR_PAD_LEFT);
+```
+
+**Note:** This is a deployment-specific preference and can be configured per environment without code changes.
 
 ---
 
