@@ -348,4 +348,68 @@ func urlSession(..., didCompleteWithError error: Error?) {
 
 ---
 
+## TODO: Centralize Upload Limit Configuration
+
+**Current State:** Upload limit (6 GB) is defined in 4 separate locations.
+
+**Goal:** Use Ansible variable as single source of truth for server-side systems.
+
+### Step 2: Update Templates to Reference Ansible Variable
+
+After defining `upload_max_bytes` and `upload_max_mb` in Ansible variables (Step 1 - DONE), update these files:
+
+#### 2.1 Dockerfile
+**File:** `~/scripts/gighive/ansible/roles/docker/files/apache/Dockerfile`
+```dockerfile
+# Change from hardcoded values:
+RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6144M/' ...
+
+# To Ansible variable:
+RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = {{ upload_max_mb }}M/' ...
+```
+
+#### 2.2 ModSecurity Configuration
+**File:** `~/scripts/gighive/ansible/roles/docker/templates/modsecurity.conf.j2`
+```apache
+# Change from hardcoded values:
+SecRequestBodyLimit 6442450944
+
+# To Ansible variable:
+SecRequestBodyLimit {{ upload_max_bytes }}
+```
+
+#### 2.3 UploadValidator.php
+**File:** `~/scripts/gighive/ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php`
+
+**Option A:** Pass via environment variable (recommended)
+- Keep code as-is (reads from `UPLOAD_MAX_BYTES` env var)
+- Restore `UPLOAD_MAX_BYTES` in `.env.j2` using Ansible variable:
+  ```bash
+  UPLOAD_MAX_BYTES={{ upload_max_bytes }}
+  ```
+
+**Option B:** Generate PHP file from template
+- Rename to `UploadValidator.php.j2`
+- Replace hardcoded value with `{{ upload_max_bytes }}`
+
+#### 2.4 iOS App (Manual Sync Required)
+**File:** `GigHive/Sources/App/AppConstants.swift`
+
+⚠️ **This must be manually updated** when Ansible variable changes.
+
+Add comment linking to Ansible variable:
+```swift
+// IMPORTANT: Keep in sync with Ansible variable 'upload_max_bytes'
+// Location: ~/scripts/gighive/ansible/group_vars/all.yml
+static let MAX_UPLOAD_SIZE_BYTES: Int64 = 6_442_450_944  // 6 GB
+```
+
+### Benefits After Implementation
+- ✅ Single source of truth for server configuration
+- ✅ Change limit in one place, redeploy to update all systems
+- ✅ Self-documenting (variable name explains purpose)
+- ⚠️ iOS app still requires manual sync (document clearly)
+
+---
+
 **Architecture is clean, efficient, and maintainable! 🎉**

@@ -113,6 +113,7 @@ mysql_backup_log: "{{ mysql_backups_dir }}/cron.log"
 filename_seq_pad: 5
 
 # Application-level upload size cap in bytes (honored by UploadValidator)
-# Defaults to ~1.5GB if unset; set here for clarity and centralized control
-upload_max_bytes: 4294967296
+upload_max_bytes: 6442450944 
+upload_max_mb: 6144
+
 
