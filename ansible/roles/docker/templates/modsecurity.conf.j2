@@ -8,9 +8,9 @@ SecTmpDir /var/cache/modsecurity
 SecDataDir /var/cache/modsecurity
 
 # Reasonable limits (tuned higher for large media uploads)
-# ~5GB body limit to accommodate up to ~4GB files
-SecRequestBodyLimit 5368709120
-SecRequestBodyNoFilesLimit 5368709120
+# 6GB body limit to accommodate large video files
+SecRequestBodyLimit 6442450944
+SecRequestBodyNoFilesLimit 6442450944
 SecRequestBodyInMemoryLimit 1048576
 SecPcreMatchLimit 100000
 SecPcreMatchLimitRecursion 100000
@@ -31,7 +31,7 @@ SecAuditLogRelevantStatus "^(?:5|4(?!04))"
 <LocationMatch "^/api/uploads\.php$">
     SecRuleEngine On
     SecRequestBodyAccess On
-    SecRequestBodyLimit 5368709120
+    SecRequestBodyLimit 6442450944
     # Require multipart for uploads
     SecRule REQUEST_HEADERS:Content-Type "!@beginsWith multipart/form-data" \
         "id:1201,phase:2,deny,status:415,msg:'Uploads must be multipart/form-data'"
