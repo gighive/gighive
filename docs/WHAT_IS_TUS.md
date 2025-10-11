@@ -1,110 +1,73 @@
 # What is TUS?
 
-## ⚔️ tus vs HTTP Multipart Uploads
+**tus** is an open protocol for **resumable file uploads** over HTTP(S), purpose-built for large files like videos. It lets clients pause, resume, and recover uploads reliably after network interruptions or app restarts.
 
-  --------------------------------------------------------------------------------
-  Feature          **tus (Resumable Upload        **HTTP Multipart / S3-style
-                   Protocol)**                    Uploads**
-  ---------------- ------------------------------ --------------------------------
-  **Purpose**      Designed *specifically* for    General-purpose file upload
-                   resumable, reliable uploads    mechanism
+---
 
-  **Resumable?**   ✅ Yes --- resumes from the    ❌ No (unless implemented
-                   exact byte offset after        manually with multipart APIs)
-                   failure                        
+## ⚔️ tus vs HTTP Multipart Uploads (Side‑by‑Side)
 
-  **Protocol       Custom extension over HTTP/1.1 Standard HTTP POST or PUT, often
-  Base**           & HTTP/2 using `PATCH`,        multipart/form-data
-                   `HEAD`, and `OPTIONS`          
+| Feature | **tus (Resumable Upload Protocol)** | **HTTP Multipart / S3‑style Uploads** |
+|---|---|---|
+| **Primary goal** | Resumable, reliable uploads for large files | General‑purpose file uploads |
+| **Resumable by design** | ✅ Yes — resumes from exact byte offset (`Upload-Offset`) | ⚠️ Only with custom logic/SDKs (e.g., S3 Multipart) |
+| **Tolerance to network drops** | ✅ High — pause/retry built in | ⚠️ Varies — often restart or rebuild state manually |
+| **Chunking** | ✅ Native & offset‑addressed | ✅ Via multipart parts or range PUTs |
+| **Client recovery** | ✅ Automatic with `HEAD`/offset checks | 🔧 Manual bookkeeping (part numbers, ETags) |
+| **HTTP methods** | `POST` (create), `PATCH` (upload), `HEAD` (query), `OPTIONS` | `POST`/`PUT` (form/multipart or single PUT) |
+| **Server statefulness** | Works with stateless app + external metadata store | Often requires session and temporary state |
+| **Browser support** | Via `tus-js-client` (robust resume) | Forms/Fetch work; resumability requires custom code/SDK |
+| **Simplicity to start** | 🟡 Needs a tus server implementation | 🟢 Easiest for simple/small uploads |
+| **Best for** | Very large videos, mobile/spotty networks, creator apps | Small/medium files; direct cloud storage APIs |
+| **Typical storage flow** | App receives chunks, can stream to storage; resume anytime | App or SDK assembles parts and completes upload |
 
-  **Upload Resume  Built-in via `Upload-Offset`   Requires custom logic or SDK
-  Support**        header                         (e.g., AWS multipart API)
+> **Quick take:** Use **tus** when reliability and resumability matter (e.g., video ingest). Use **multipart** for simple, small, or existing cloud‑native flows when you don’t need seamless resume.
 
-  **Client         Automatic --- upload can       Manual --- must track chunks or
-  Recovery**       pause, reconnect, or continue  restart entire upload
-                   later                          
-
-  **Chunked        ✅ Native --- sends chunks     ✅ Possible but handled manually
-  Uploads**        with byte offsets              or via SDK
-
-  **Network Fault  ✅ Very high --- uploads       ⚠️ Limited --- typically
-  Tolerance**      resume even after disconnects  restarts from zero or last chunk
-
-  **Stateless      ✅ Supported --- tus server    ⚠️ Usually requires persistent
-  Servers**        can be stateless if upload     sessions or temporary storage
-                   metadata is stored elsewhere   
-
-  **HTTP Methods   `POST` (create), `PATCH`       `POST` or `PUT`
-  Used**           (upload), `HEAD` (check        
-                   progress)                      
-
-  **Ease of        🟡 Needs a tus server          🟢 Easy with web forms or REST
-  Integration**    implementation                 endpoints
-
-  **Upload from    ✅ Supported via tus-js-client ⚠️ Supported, but restarting
-  Browser**        (even with dropped             large uploads is painful
-                   connections)                   
-
-  **Use Cases**    Large videos, media ingest     Simple file forms, smaller
-                   pipelines, mobile uploads      uploads, APIs like S3 direct
-                                                  upload
-  --------------------------------------------------------------------------------
-
-------------------------------------------------------------------------
+---
 
 ## 📦 Example: tus Workflow (Simplified)
 
-``` http
-# Step 1: Create upload
+```http
+# 1) Create an upload
 POST /files
 Upload-Length: 1073741824
 → 201 Created
 → Location: /files/abc123
 
-# Step 2: Upload first chunk
+# 2) Upload first chunk
 PATCH /files/abc123
 Upload-Offset: 0
 Content-Type: application/offset+octet-stream
-(First 1MB of data...)
+(binary chunk...)
 
-# Step 3: Resume upload later
+# 3) Resume later from server-reported offset
+HEAD /files/abc123
+→ Upload-Offset: 1048576
+
 PATCH /files/abc123
 Upload-Offset: 1048576
-(Content continues...)
+(next binary chunk...)
 ```
 
-------------------------------------------------------------------------
+---
 
-## ☁️ Example: S3 Multipart Upload
+## ☁️ Example: S3 Multipart Upload (Conceptual)
 
-With AWS SDK or REST API: 1. `CreateMultipartUpload` 2. Upload each part
-(e.g. 5MB chunks) 3. `CompleteMultipartUpload` 4. Resume logic must be
-manually managed in your code or SDK.
+1. `CreateMultipartUpload`
+2. Upload parts (e.g., 5–15 MB each), track **part numbers** and returned **ETags**
+3. `CompleteMultipartUpload` with the part list
 
-It's powerful, but far more complex to implement manually than tus.
+Resumability is possible but you must persist and reconstruct multipart state in your app or rely on the cloud SDK to do it for you.
 
-------------------------------------------------------------------------
+---
 
 ## 🎯 Summary
 
-  -----------------------------------------------------------------------
-  Scenario                        Best Choice
-  ------------------------------- ---------------------------------------
-  Uploading small files quickly   **HTTP multipart (simple form upload)**
+- **Choose tus** for: large videos, flaky networks, mobile clients, or when you need bulletproof **pause/resume**.
+- **Choose multipart** for: small/simple uploads or when you already rely on cloud SDKs and do not require seamless resume.
 
-  Uploading very large videos     **tus**
-  reliably                        
-
-  Client-side resume across       **tus**
-  sessions                        
-
-  Integration with cloud storage  **Multipart (or tus → S3 bridge)**
-  (e.g., S3)                      
-  -----------------------------------------------------------------------
-
-------------------------------------------------------------------------
+---
 
 ## 📚 References
-
--   Official spec: <https://tus.io/protocols/resumable-upload.html>
--   GitHub: <https://github.com/tus/tus-resumable-upload-protocol>
+- Official spec: https://tus.io/protocols/resumable-upload.html
+- Protocol repository: https://github.com/tus/tus-resumable-upload-protocol
+- JavaScript client: https://github.com/tus/tus-js-client
