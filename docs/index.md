@@ -90,6 +90,10 @@ img {
     pointer-events: none;
 }
 
+.nav-menu h3 a.anchor {
+    display: none !important;
+}
+
 .nav-menu ul {
     list-style: none;
     padding: 0;
@@ -97,7 +101,7 @@ img {
 }
 
 .nav-menu li {
-    margin-bottom: 12px;
+    margin-bottom: 6px;
 }
 
 .nav-menu a {

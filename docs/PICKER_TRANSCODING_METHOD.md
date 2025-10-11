@@ -113,3 +113,65 @@ config.preferredAssetRepresentationMode = .current  // Preserve HEVC
 4. Chrome and other browsers handle H.264 better
 
 If users need original quality, they should use the Files app picker instead of Photos picker, or we could add a settings toggle to enable `.current` mode.
+
+---
+
+# Change Default Video Encoding on iPhone (H.264 vs HEVC)
+
+Yes --- it **is possible** to set your iPhone to record videos using
+**H.264 (Most Compatible)** instead of **HEVC (High Efficiency)**.
+Here's how to do it:
+
+------------------------------------------------------------------------
+
+## 🎥 Steps to Change the Default Encoding
+
+1.  Open **⚙️ Settings**
+2.  Scroll down and tap **Camera**
+3.  Tap **Formats**
+4.  Under **Camera Capture**, choose:
+    -   **✅ Most Compatible** → uses **H.264** for videos and JPEG for
+        photos
+    -   **High Efficiency** → uses **HEVC (H.265)** for videos and HEIF
+        for photos
+
+------------------------------------------------------------------------
+
+## ⚙️ What Happens When You Choose "Most Compatible"
+
+-   New videos you record will use **H.264 (.MOV)** encoding.
+-   File sizes will be larger, but compatibility improves with:
+    -   Older Macs and PCs
+    -   Web browsers
+    -   Video editing software that doesn't support HEVC natively
+
+------------------------------------------------------------------------
+
+## ⚠️ Notes
+
+-   **HEVC (High Efficiency)** is *on by default* on newer iPhones (like
+    iPhone 15, 15 Pro, and upcoming M4 models).
+-   **H.264** takes more storage space --- expect roughly **2× larger
+    files**.
+-   The setting affects *new captures only* --- existing HEVC videos
+    remain in that format.
+
+------------------------------------------------------------------------
+
+## 📦 Optional: Converting Existing HEVC Videos to H.264
+
+If you want to convert older HEVC videos to H.264 for compatibility:
+
+### On macOS (using QuickTime Player)
+
+1.  Open the video in QuickTime.
+2.  Choose **File → Export As → \[resolution\]**.
+3.  Pick **"Greater Compatibility (H.264)"** when prompted.
+
+### On the Command Line (using ffmpeg)
+
+``` bash
+ffmpeg -i input.mov -c:v libx264 -c:a aac output_h264.mov
+```
+
+This command re-encodes the video using H.264 and AAC for audio.
