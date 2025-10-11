@@ -175,9 +175,15 @@ img {
     <ul>
         <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits / Call Flow</a></li>
         <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
-        <li><a href="tusimplementationweek1.html">📤 TUS Upload Implementation</a></li>
+        <li><a href="PICKER_TRANSCODING_METHOD.html">🎬 Picker Transcoding</a></li>
     </ul>
     
+    <h3>🔮 Coming Soon</h3>
+    <ul>
+        <li><a href="tusimplementationweek1.html">📤 TUS Upload Implementation</a></li>
+        <li><a href="TUS_IMPLEMENTATION_RATIONALE.html">📝 TUS Rationale</a></li>
+        <li><a href="WHAT_IS_TUS.html">❓ What is TUS</a></li>
+    </ul>
     
     <h3>📄 Legal</h3>
     <ul>
