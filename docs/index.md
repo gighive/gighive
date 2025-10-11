@@ -113,7 +113,7 @@ img {
     color: white !important;
     text-decoration: none;
     display: block;
-    padding: 4px 8px;
+    padding: 2px 6px;
     border-radius: 4px;
     transition: background-color 0.3s ease;
     cursor: pointer;
