@@ -85,7 +85,7 @@ func uploadWithTUS(
 
 ### Task 4: Update UploadView.swift
 **File:** `Sources/App/UploadView.swift`
-**Changes:** Minimal - just change line 512
+**Changes:** Minimal - just change line 658
 **Priority:** Medium
 
 ```swift
