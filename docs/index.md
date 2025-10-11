@@ -70,7 +70,7 @@ img {
     background-color: #1a2347;
     border-left: 2px solid #2196F3;
     transition: right 0.3s ease;
-    padding: 60px 20px 20px;
+    padding: 15px 20px 20px;
     box-shadow: -2px 0 10px rgba(0,0,0,0.3);
     overflow-y: auto;
     z-index: 1001;
@@ -113,7 +113,7 @@ img {
     color: white !important;
     text-decoration: none;
     display: block;
-    padding: 6px 10px;
+    padding: 4px 8px;
     border-radius: 4px;
     transition: background-color 0.3s ease;
     cursor: pointer;
