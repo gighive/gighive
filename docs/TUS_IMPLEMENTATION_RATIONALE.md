@@ -14,11 +14,12 @@
 - From testing: 24-min video = 4.7GB after H.264 transcoding
 - Even shorter videos often exceed 100MB (e.g., 10-min 4K video ≈ 2GB)
 
-### 2. Current Limitation is Severe
+### 2. Current Limitation is Severe For Cloudflare Free Tier Users
 - **100MB = ~5 minutes of 4K video** at typical bitrates
 - Most gig/event videos are 15-60+ minutes
 - Without TUS, the app is essentially **broken for remote uploads** of typical content
 - Discovered during testing from outside Wi-Fi network
+- Note these limits are not in place if you bypass Cloudflare and go direct to your GigHive server
 
 ### 3. Technical Feasibility
 You already have the hard parts solved:
