@@ -90,8 +90,13 @@ img {
     pointer-events: none;
 }
 
-.nav-menu h3 a.anchor {
+.nav-menu h3 a.anchor,
+.nav-menu h3 a[href^="#"] {
     display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
 }
 
 .nav-menu ul {
@@ -104,11 +109,11 @@ img {
     margin-bottom: 6px;
 }
 
-.nav-menu a {
+.nav-menu a:not([href^="#"]) {
     color: white !important;
     text-decoration: none;
     display: block;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 4px;
     transition: background-color 0.3s ease;
     cursor: pointer;
@@ -227,6 +232,15 @@ function closeMenu() {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeMenu();
+    }
+});
+
+// Remove anchor links from nav menu headings
+document.addEventListener('DOMContentLoaded', function() {
+    const navMenu = document.querySelector('.nav-menu');
+    if (navMenu) {
+        const anchorLinks = navMenu.querySelectorAll('h3 a.anchor, h3 a[href^="#"]');
+        anchorLinks.forEach(link => link.remove());
     }
 });
 </script>
