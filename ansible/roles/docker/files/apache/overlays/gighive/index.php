@@ -43,7 +43,7 @@
              style="height:224px; vertical-align:middle; margin-left:.5rem;">
       </h1>
 
-      <h2>Gighive is a media database for you, your fans, or wedding guests.</h2>
+      <h2>Gighive is a web-accessible media database for you, your fans, or wedding guests.</h2>
       <h3>If you're a musician</h3>
       <ul>
       <li>You can use it as a library of your bands sessions, audio and video files.</li>
@@ -61,6 +61,11 @@
       <li>You can edit the default csv file to create your own historical Gighive.</li>
       </ul>
 
+      <h3>What is it?</h3>
+      <ul>
+      <li>Based on Ubuntu, it is a website that you spin up through automation and host yourself in your network or in Azure.  It includes a database for you, your fans or wedding guests to upload video and audio files into.</li>
+      </ul>
+
       <h3>Why not just use YouTube?</h3>
       <ul>
       <li>This site is for do-it-yourselfers who don’t want to be beholden to Big Tech but be the masters of their own destiny.</li>
@@ -70,7 +75,7 @@
       <li>Last but not least, Gighive is simple.  There is one page for the <a href="db/database.php">media library</a> and one <a href="db/upload_form.php">upload utility</a>..that's all.</li>
       </ul>
 
-      <h3>How do I get started?</h3>
+      <h3>What comes with Gighive?</h3>
       <ul>
       <li>Gighive includes a searchable, sortable one-page listing of media files and common attributes (date, location, people, rating, etc) stored <a href="images/databaseErd.png">in the database</a> along with an <a href="db/upload_form.php">upload utility</a>.</li> 
       </ul>
