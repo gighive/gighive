@@ -84,7 +84,7 @@ img {
 .nav-menu h3 {
     color: #2196F3 !important;
     margin-bottom: 20px;
-    font-size: 1.2em;
+    font-size: 1.0em;
     border-bottom: 1px solid #2196F3;
     padding-bottom: 10px;
     pointer-events: none;
@@ -185,6 +185,11 @@ img {
         <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits / Call Flow</a></li>
         <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
         <li><a href="PICKER_TRANSCODING_METHOD.html">🎬 Picker Transcoding</a></li>
+    </ul>
+    
+    <h3>🗄️ Database</h3>
+    <ul>
+        <li><a href="database-import-process.html">📥 Database Import Process</a></li>
     </ul>
     
     <h3>🔮 Coming Soon</h3>
