@@ -1,8 +1,18 @@
 *** 
 releaseNotes20251012.txt
-Changes: Index updates, added 20050721 
+Changes: Don't overwrite dbScripts/backups and make database name generic
 
-ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_sample.py
 
 ToDo: create a canonical md versions for the site and convert using composer recommendation
 ToDo: make csv mgmt easier
@@ -13,6 +23,12 @@ ToDo: clear db script
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251012.txt
+Changes: Index updates, added 20050721 
+
+ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup
 
 *** 
 releaseNotes20251008.txt

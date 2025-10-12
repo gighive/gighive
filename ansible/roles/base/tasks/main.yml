@@ -193,6 +193,7 @@
       - "--exclude=cloud-init/"
       - "--exclude=*.vdi"
       - "--exclude=*.vmdk"
+      - "--exclude=ansible/roles/docker/files/mysql/dbScripts/backups/"
       - "--no-group"
       - "--no-perms"
     use_ssh_args: yes
