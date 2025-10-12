@@ -30,22 +30,7 @@ The source CSV file contains the following fields:
 
 ## Process Flow
 
-```mermaid
-flowchart TD
-    A[Source CSV<br/>database.csv] --> B{database_full<br/>setting?}
-    B -->|true| C[mysqlPrep_full.py<br/>All sessions]
-    B -->|false| D[mysqlPrep_sample.py<br/>2 sessions only]
-    C --> E[Generate Normalized CSVs]
-    D --> E
-    E --> F[Copy CSVs to VM]
-    F --> G[MySQL Container Restart]
-    G --> H[Auto-import via<br/>docker-compose.yml]
-    H --> I[Database Ready]
-    
-    style A fill:#e1f5fe
-    style I fill:#c8e6c9
-    style B fill:#fff3e0
-```
+![Database Import Process](/images/databaseImportProcess.png)
 
 ## Configuration
 
@@ -140,6 +125,9 @@ Single CSV with columns for sessions, musicians, songs, and files all in one row
    cd $GIGHIVE_HOME/ansible/roles/docker/files
    ./rebuildForDb.sh
    ```
+   The MySQL startup process will automatically consume the import files.
+
+6. **Visit the db/database.php link to see the changes.**
 
 ### Automated Process
 
@@ -188,7 +176,7 @@ ORDER BY sess.date;
 
 ## Best Practices
 
-1. **Gighive has an automated nightly backup procedure that will backup the data in the database to this directory:** `$GIGHIVE_HOME/ansible/roles/docker/files/mysql/dbScripts/backups`
+1. **Gighive has an automated nightly backup procedure that will backup the data in the database to this directory on the VM host:** `$GIGHIVE_HOME/ansible/roles/docker/files/mysql/dbScripts/backups`
 2. **Test with sample dataset** (`database_full: false`) before full import
 3. **Verify file associations** after import using the validation query above
 4. **Use consistent naming** for media files (date_track format recommended)
