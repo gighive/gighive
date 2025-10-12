@@ -15,7 +15,7 @@ Outputs:
   - prepped_csvs/session_songs.csv
   - prepped_csvs/files.csv
   - prepped_csvs/song_files.csv
-  - prepped_csvs/cleaned_stormpigs_database_augmented.csv (source CSV with added columns for reference)
+  - prepped_csvs/database_augmented.csv (source CSV with added columns for reference)
 """
 
 import pandas as pd
@@ -26,7 +26,7 @@ import shlex
 import subprocess
 
 # Configuration
-INPUT_CSV  = "cleaned_stormpigs_database.csv"
+INPUT_CSV  = "database.csv"
 OUTPUT_DIR = "prepped_csvs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -222,7 +222,7 @@ def write_csv(rows, cols, fname):
 
 # Emit CSVs (headers standardized where applicable)
 # Also emit an augmented copy of the original CSV with org_name, event_type, session_id present
-df.to_csv(os.path.join(OUTPUT_DIR, "cleaned_stormpigs_database_augmented.csv"), index=False)
+df.to_csv(os.path.join(OUTPUT_DIR, "database_augmented.csv"), index=False)
 write_csv(
     sessions,
     [
