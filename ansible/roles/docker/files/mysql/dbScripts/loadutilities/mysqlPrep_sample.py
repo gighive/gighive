@@ -178,14 +178,17 @@ for idx, row in df.iterrows():
     has_loops = bool(row.get("l_loops", "").strip())
 
     for title in song_list:
-        if title not in songs:
-            songs[title] = {
+        # Create unique key combining session_id and title to prevent cross-session conflicts
+        song_key = f"{session_id}_{title}"
+        if song_key not in songs:
+            songs[song_key] = {
                 "song_id": len(songs) + 1,
-                "type":    "loop" if has_loops else "song"
+                "type":    "loop" if has_loops else "song",
+                "title":   title  # Store original title for CSV output
             }
         session_songs.append({
             "session_id": session_id,
-            "song_id":    songs[title]["song_id"],
+            "song_id":    songs[song_key]["song_id"],
         })
 
     # 4) Files + song_files (positional mapping by track number in filename)
@@ -205,7 +208,9 @@ for idx, row in df.iterrows():
             }
         fid = files[fname]["file_id"]
         if i < len(song_list):
-            sid = songs[song_list[i]]["song_id"]
+            # Use the same composite key pattern as in song creation
+            song_key = f"{session_id}_{song_list[i]}"
+            sid = songs[song_key]["song_id"]
             song_files.append({
                 "song_id": sid,
                 "file_id": fid,
@@ -252,13 +257,13 @@ write_csv(
     [
         {
             "song_id": info["song_id"],
-            "title": title,
+            "title": info["title"],  # Use stored original title instead of the composite key
             "type": info["type"],
             "duration": "",      # optional per-song raw duration (leave empty; loader handles if present)
             "genre_id": "",
             "style_id": ""
         }
-        for title, info in songs.items()
+        for song_key, info in songs.items()
     ],
     ["song_id","title","type","duration","genre_id","style_id"],
     "songs.csv"

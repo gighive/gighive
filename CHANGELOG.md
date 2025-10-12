@@ -1,6 +1,53 @@
 *** 
 releaseNotes20251012.txt
+Changes: Fixed 20060831 duplicate songs bug, documented database import process 
+
+ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/__pycache__/mysqlPrep_full.cpython-310.pyc
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/__pycache__/mysqlPrep_sample.cpython-310.pyc
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py.backup
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_sample.py
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_sample.py.backup
+	renamed:    ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample/cleaned_stormpigs_database_augmented.csv -> ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/files.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/musicians.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_musicians.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_songs.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/sessions.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/song_files.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/songs.csv
+	deleted:    ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/cleaned_stormpigs_database_augmented.csv
+	renamed:    ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/cleaned_stormpigs_database_augmented.csv -> ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/session_songs.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/song_files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/songs.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample/database_augmented.csv
+	new file:   docs/database-import-process.md
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251012.txt
 Changes: Don't overwrite dbScripts/backups and make database name generic
+
+ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -13,16 +60,6 @@ Changes to be committed:
 	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv
 	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py
 	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_sample.py
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251012.txt
