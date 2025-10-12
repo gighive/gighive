@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <div class="custom-h1">Welcome to GigHive!</div>
-<div class="custom-h2">Gighive is a media database for you, your fans, or wedding guests.</div>
+<div class="custom-h2">Gighive is a web-accessible media database for you, your fans, or wedding guests.</div>
 ### If you're a musician
 - You can use it as a library of your bands sessions, audio and video files.
 - Have your fans upload videos from your gigs and utilize the footage from every conceivable angle.
@@ -257,6 +257,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ### If you are a media librarian or have a preexisting cache of media files
 - You can edit the default csv file to create your own historical Gighive.
+
+### What is it? 
+- Based on Ubuntu, it is a website that you spin up through automation and host yourself either in your network or in Azure.  It includes a database for you, your fans or wedding guests to upload video and audio files into. 
 
 ### Why not just use YouTube?
 - This site is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
@@ -270,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
 2. Target Machine: Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
 These are shown in this <a href="images/architecture.png">architecture diagram</a>.
 
-### What do I get with Gighive?
+### What comes with Gighive?
 - Gighive includes a website with a searchable, sortable one-page listing of media files and common attributes (date, filename, etc) stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).
 - Common media formats for upload are supported (shown below).
 - [Here are instructions](README.html) on how to standup and manage your own Gighive.
