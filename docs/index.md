@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
 - You can edit the default csv file to create your own historical Gighive.
 
 ### What is it? 
-- Based on Ubuntu, it is a website that you spin up through automation and host yourself either in your network or in Azure.  It includes a database for you, your fans or wedding guests to upload video and audio files into. 
+- Gighive is an [open source website and database](https://github.com/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and Terraform.
 
 ### Why not just use YouTube?
 - This site is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
