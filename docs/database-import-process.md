@@ -30,7 +30,7 @@ The source CSV file contains the following fields:
 
 ## Process Flow
 
-![Database Import Process](/images/databaseImportProcess.png)
+<img src="/images/databaseImportProcess.png" alt="Database Import Process" style="height: 600px; width: auto;">
 
 ## Configuration
 
