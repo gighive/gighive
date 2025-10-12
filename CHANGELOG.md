@@ -1,4 +1,20 @@
 *** 
+releaseNotes20251012.txt
+Changes: Index updates, added 20050721 
+
+ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: fix timeline for sessions with 20060831 video link
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251008.txt
 Changes: Created hamburger dropdown for the library
 
@@ -13,19 +29,6 @@ Changes to be committed:
 	modified:   docs/index.md
 	modified:   docs/tusimplementationweek1.md
 	modified:   user-prompts.md
-
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: document supported media types
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: fix timeline for sessions with 20060831 video link
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Fill in documentation on github.io, make instructory videos and add them to the default database
-ToDo: Integrate Let's Encrypt for future
-ToDo: Cron to upload backup to Ansible controller 
 
 *** 
 releaseNotes20251008.txt
