@@ -63,7 +63,7 @@
 
       <h3>What is it?</h3>
       <ul>
-      <li>Gighive is an <a href="https://github.com/gighive">open source website and database</a> that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and Terraform.</li>
+      <li>Gighive is an <a href="https://github.com/gighive/gighive">open source website and database</a> that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and Terraform.</li>
       </ul>
 
       <h3>Why not just use YouTube?</h3>
