@@ -41,6 +41,11 @@ MEDIA_TYPE = {
 # Load data
 df = pd.read_csv(INPUT_CSV, dtype=str).fillna("")
 
+# ——— Filter to just two jam sessions ———
+# keep only sessions whose ISO date (YYYY-MM-DD) matches 2002-10-24 or 2005-03-03
+dates_to_keep = {"20021024", "20050303"}
+df = df[df["d_date"].str.replace("-", "").isin(dates_to_keep)].reset_index(drop=True)
+
 # Ensure new columns exist in working DataFrame
 if 'org_name' not in df.columns:
     df['org_name'] = 'StormPigs'
@@ -173,17 +178,14 @@ for idx, row in df.iterrows():
     has_loops = bool(row.get("l_loops", "").strip())
 
     for title in song_list:
-        # Create unique key combining session_id and title to prevent cross-session conflicts
-        song_key = f"{session_id}_{title}"
-        if song_key not in songs:
-            songs[song_key] = {
+        if title not in songs:
+            songs[title] = {
                 "song_id": len(songs) + 1,
-                "type":    "loop" if has_loops else "song",
-                "title":   title  # Store original title for CSV output
+                "type":    "loop" if has_loops else "song"
             }
         session_songs.append({
             "session_id": session_id,
-            "song_id":    songs[song_key]["song_id"],
+            "song_id":    songs[title]["song_id"],
         })
 
     # 4) Files + song_files (positional mapping by track number in filename)
@@ -203,9 +205,7 @@ for idx, row in df.iterrows():
             }
         fid = files[fname]["file_id"]
         if i < len(song_list):
-            # Use the same composite key pattern as in song creation
-            song_key = f"{session_id}_{song_list[i]}"
-            sid = songs[song_key]["song_id"]
+            sid = songs[song_list[i]]["song_id"]
             song_files.append({
                 "song_id": sid,
                 "file_id": fid,
@@ -252,13 +252,13 @@ write_csv(
     [
         {
             "song_id": info["song_id"],
-            "title": info["title"],  # Use stored original title instead of the composite key
+            "title": title,
             "type": info["type"],
             "duration": "",      # optional per-song raw duration (leave empty; loader handles if present)
             "genre_id": "",
             "style_id": ""
         }
-        for song_key, info in songs.items()
+        for title, info in songs.items()
     ],
     ["song_id","title","type","duration","genre_id","style_id"],
     "songs.csv"

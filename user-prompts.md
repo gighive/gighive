@@ -557,3 +557,20 @@ GigHive is dual-licensed:
 
 - 2025-10-08T17:28:31-04:00
   - ok, go ahead and remove chunkedfile*
+
+## 2025-01-12
+
+- 2025-01-12T15:20:00-05:00
+  - in my database, i am not sure why this single file https://www.stormpigs.com/audio/19971230_2.mp3 is getting associated with the jam session from 2006-08-31, because the source csv does not seem to have that relationship defined. Some background info: 1) the csv that is the source of the data for the mysqlserver database lives here: /home/sodo/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv. 2) The python script that outputs the data from the csv to individual files for mysql to import is here: /home/sodo/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py 3) A driver file for that python script to output the files into the correct directory for mysql to import is here: /home/sodo/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/doAllFull.sh 4) That directory with the individual csvs to import into the mysql tables is here: /home/sodo/scripts/gighive/ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full 5) Ansible copies that directory of files from the ansible controller machine to the vm host. 6) when mysql container is rebuilt, mysql's built in database load functions will import those files based upon the location specified in docker-compose here: /home/sodo/scripts/gighive/ansible/roles/docker/templates/docker-compose.yml.j2. 7) the docker-compose jinja template gets rendered to here on the vm host: ~/scripts/gighive/ansible/roles/docker/files
+
+- 2025-01-12T15:35:00-05:00
+  - make a backup of the script and then make the appropriate change please
+
+- 2025-01-12T15:40:00-05:00
+  - There is a second script in the same directory called mysqlPrep_sample.py. can you 1) examine that 2) make recommendation 3) backup the file and 4) assuming the same fix needs to be applied, make the change
+
+- 2025-01-12T15:43:00-05:00
+  - Because what i originally described in the problem statement is a critical part of gighive's architecture (the import of a csv file into the database), can you create a .md file that explains all the steps so that users wanting to know how to import data can learn how to do it? Also, one thing i neglected to mention is that the decision whether to use a full or sample database is controlled by the database_full variable located in group_vars file: /home/sodo/scripts/gighive/ansible/inventories/group_vars/gighive.yml Please add that to the documentation as well. If it helps, add a diagram, flowchart or whatever style visualization is appropriate to the task.
+
+- 2025-01-12T15:46:00-05:00
+  - thanks. when i ran the new script, it gave me an error: sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities$ ./doAllFull.sh going to execute mysqlPrep_full.py -rw-r--r-- 1 sodo sodo 10202 Oct 12 15:33 mysqlPrep_full.py Traceback (most recent call last): File "/mnt/scottsfiles/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py", line 206, in <module> sid = songs[song_list[i]]["song_id"] KeyError: 'True Blue' DEST is /home/sodo/scripts/gighive/ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full
