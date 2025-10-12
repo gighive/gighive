@@ -106,7 +106,7 @@ img {
 }
 
 .nav-menu li {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .nav-menu a:not([href^="#"]) {
@@ -118,6 +118,7 @@ img {
     transition: background-color 0.3s ease;
     cursor: pointer;
     pointer-events: auto;
+    font-size: 0.85em;
 }
 
 .nav-menu a:hover {
