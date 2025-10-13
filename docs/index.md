@@ -198,6 +198,8 @@ img {
         <li><a href="WHAT_IS_TUS.html">❓ What is TUS</a></li>
         <li><a href="TUS_IMPLEMENTATION_RATIONALE.html">📝 TUS Rationale</a></li>
         <li><a href="tusimplementationweek1.html">📤 TUS Implementation</a></li>
+        <li><a href="security-upgrade.html">🔒 Security Upgrade</a></li>
+    </ul>
     </ul>
     
     <h3>📄 Legal</h3>
