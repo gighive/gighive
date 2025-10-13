@@ -182,7 +182,7 @@ ORDER BY sess.date;
 4. **Verify file associations** after import using the validation query above
 5. **Use consistent naming** for media files (date_track format recommended)
 6. **Keep track of changes** in the source CSV for audit purposes
-7. **Don't forget your media!** You will need to copy it to the default directory for media, usually: `$GIGHIVE_HOME/assets`
+7. **Don't forget your media!** You will need to copy it to the default directory for media, usually: `$GIGHIVE_HOME/assets/video` and `$GIGHIVE_HOME/assets/audio`
 
 ## Security Notes
 
