@@ -101,8 +101,8 @@
 <h3>License</h3>
 GigHive is dual-licensed:
 <ul>
-<li><b><a href="https://gighive.app/LICENSE_MIT.md">MIT License</a></b>: Free for personal, single-instance, non-commercial use.</li>
-<li><b><a href="https://gighive.app/LICENSE_COMMERCIAL.md">Commercial License</b>: Required for SaaS, multi-tenant, or commercial use.</li>
+<li><b><a href="https://gighive.app/LICENSE_AGPLv3.html">AGPL v3 License</a></b>: Open source, free for personal use with strong copyleft protection for use as a SaaS.</li>
+<li><b><a href="https://gighive.app/LICENSE_COMMERCIAL.html">Commercial License</b>: Required for SaaS, multi-tenant, or commercial use.</li>
 </ul>
 👉 <a href="mailto:contactus@gighive.app">Contact Us</a> for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
     </div>

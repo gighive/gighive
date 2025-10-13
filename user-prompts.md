@@ -574,3 +574,23 @@ GigHive is dual-licensed:
 
 - 2025-01-12T15:46:00-05:00
   - thanks. when i ran the new script, it gave me an error: sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities$ ./doAllFull.sh going to execute mysqlPrep_full.py -rw-r--r-- 1 sodo sodo 10202 Oct 12 15:33 mysqlPrep_full.py Traceback (most recent call last): File "/mnt/scottsfiles/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py", line 206, in <module> sid = songs[song_list[i]]["song_id"] KeyError: 'True Blue' DEST is /home/sodo/scripts/gighive/ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full
+
+## 2025-10-13
+
+- 2025-10-13T11:57:00-04:00
+  - please create a new license.md file called LICENSE_AGPLv3.md.  Use our standard template for licensing, but replace the content with the actual license from here: Use the full AGPL v3 text from: https://www.gnu.org/licenses/agpl-3.0.txt
+
+- 2025-10-13T11:59:00-04:00
+  - just insert the following text into the file and provide a link to the actual AGPLv3 license at the bottom: Why AGPL v3 AGPL v3 is open source but protective — it forces reciprocity: If someone modifies and runs this code on a server to offer a hosted service, they must also release their source code under AGPL v3.  You cannot use it to build your own SaaS without sharing back.
+
+- 2025-10-13T12:01:00-04:00
+  - please swap out the MIT License link at the bottom of /docs/index.md with the new AGPL license file.  Update the sentence after it that starts "Free for personal.." with an appropriate high level statement.
+
+- 2025-10-13T12:04:00-04:00
+  - Update this line "Open source with strong copyleft protection - requires sharing modifications when used as a service." to read "Open source, free for personal use with strong copyleft protection for use as a SaaS."
+
+- 2025-10-13T12:05:00-04:00
+  - please update the MIT link in /home/sodo/scripts/gighive/ansible/roles/docker/files/apache/overlays/gighive/index.php to use our new AGPLv3 file.
+
+- 2025-10-13T12:06:00-04:00
+  - those two license files should actually be .html files instead of .md files, as markdown will get translated to .html by github.
