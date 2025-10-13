@@ -1,6 +1,6 @@
 # Database Import Process
 
-Using the standard upload process (<a href="/images/uploadutility.png">upload utility</a> or iPhone app), Gighive will accumulate new media and store the metadata for each file into its database.  But you can also preload video and audio files into the database via comma-quote (CSV) file format.  This would be useful if you have a preexisting library of media, say for a band that has been around for a long time.  This document explains how GigHive imports CSV data into the MySQL database, including the data transformation pipeline and configuration options.
+Using the standard upload process (<a href="/images/uploadutility.png">upload utility</a> or iPhone app), Gighive will accumulate new media and store the metadata for each file into its database.  But you can also preload video and audio files into the database via comma-quote (CSV) file format.  This would be useful if you have a preexisting library of media, say for a band that has been around for a long time.  This document explains how GigHive imports CSV data into the MySQL database, including the data transformation pipeline and configuration options, so if you have such a cache of media files, you will be able to upload them with ease.
 
 ## Overview
 
@@ -177,10 +177,12 @@ ORDER BY sess.date;
 ## Best Practices
 
 1. **Gighive has an automated nightly backup procedure that will backup the data in the database to this directory on the VM host:** `$GIGHIVE_HOME/ansible/roles/docker/files/mysql/dbScripts/backups`
-2. **Test with sample dataset** (`database_full: false`) before full import
-3. **Verify file associations** after import using the validation query above
-4. **Use consistent naming** for media files (date_track format recommended)
-5. **Keep track of changes** in the source CSV for audit purposes
+2. **Review the sample dataset** to see how it is structured.  Map each field you see in the file to the schma above so that you know how the data should appear in your version of the file.
+3. **Test with sample dataset** (`database_full: false`) before full import
+4. **Verify file associations** after import using the validation query above
+5. **Use consistent naming** for media files (date_track format recommended)
+6. **Keep track of changes** in the source CSV for audit purposes
+7. **Don't forget your media!** You will need to copy it to the default directory for media, usually: `$GIGHIVE_HOME/assets`
 
 ## Security Notes
 
