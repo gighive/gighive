@@ -1,6 +1,6 @@
 # Database Import Process
 
-This document explains how GigHive imports CSV data into the MySQL database, including the data transformation pipeline and configuration options.
+Using the standard upload process (<a href="/images/uploadutility.png">upload utility</a> or iPhone app), Gighive will accumulate new media and store the metadata for each file into its database.  But you can also preload video and audio files into the database via comma-quote (CSV) file format.  This would be useful if you have a preexisting library of media, say for a band that has been around for a long time.  This document explains how GigHive imports CSV data into the MySQL database, including the data transformation pipeline and configuration options.
 
 ## Overview
 
