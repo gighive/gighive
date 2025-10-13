@@ -6,4 +6,4 @@ If someone modifies and runs this code on a server to offer a hosted service, th
 
 ## Full License Text
 
-For the complete AGPL v3 license terms, see: https://www.gnu.org/licenses/agpl-3.0.txt
+For the complete AGPL v3 license terms, see: <a href="https://www.gnu.org/licenses/agpl-3.0.txt">https://www.gnu.org/licenses/agpl-3.0.txt</a>
