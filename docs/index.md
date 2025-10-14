@@ -176,6 +176,7 @@ img {
 <nav class="nav-menu">
     <h3>📚 Documentation</h3>
     <ul>
+        <li><a href="feature_set.html">⭐ Feature Set</a></li>
         <li><a href="README.html">🚀 Setup Guide</a></li>
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
@@ -195,6 +196,7 @@ img {
     
     <h3>🔮 Coming Soon</h3>
     <ul>
+        <li><a href="migrate-bootstrap-to-ansible.html">🔄 Migrate Bootstrap</a></li>
         <li><a href="WHAT_IS_TUS.html">❓ What is TUS</a></li>
         <li><a href="TUS_IMPLEMENTATION_RATIONALE.html">📝 TUS Rationale</a></li>
         <li><a href="tusimplementationweek1.html">📤 TUS Implementation</a></li>
