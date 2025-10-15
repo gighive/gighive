@@ -51,35 +51,9 @@ GigHive demonstrates a sophisticated, enterprise-level infrastructure that goes 
 - **Log management**: Structured logging with logrotate integration
 - **Resource limits**: Memory and CPU constraints for production stability
 
-## Security & Production Readiness
+## Security
 
-### Web Application Firewall (WAF)
-- **ModSecurity integration**: Apache module with custom rule sets
-- **OWASP Core Rule Set (CRS)**: Industry-standard attack pattern detection
-- **Custom security rules**: Application-specific security policies
-- **Real-time monitoring**: Attack detection and blocking capabilities
-- **Configuration management**: Ansible-managed security rule deployment
-
-### SSL/TLS Security
-- **Certificate automation**: Dynamic SSL certificate generation
-- **SAN support**: Subject Alternative Names for multiple domain support
-- **Strong cipher suites**: Modern TLS configuration with secure defaults
-- **HTTP/2 support**: Performance optimization with secure transport
-- **Certificate management**: Automated certificate lifecycle management
-
-### Authentication & Authorization
-- **Role-based access control**: Three-tier user system (`admin`, `uploader`, `viewer`)
-- **htpasswd integration**: Apache basic authentication with encrypted passwords
-- **Protected paths**: Selective protection of sensitive application areas
-- **Password management**: Secure password storage and rotation capabilities
-- **Session management**: Proper authentication state handling
-
-### Network Security
-- **Azure Network Security Groups**: Firewall rules at the network level
-- **Private networking**: Internal communication without public internet exposure
-- **Service endpoints**: Secure Azure service access without public IPs
-- **SSH key authentication**: Passwordless authentication for administrative access
-- **Firewall configuration**: Selective port exposure (SSH, HTTPS only)
+GigHive implements comprehensive security measures including web application firewall, SSL/TLS encryption, role-based access control, and network security. For detailed security information, see the [Security Documentation](SECURITY.html).
 
 ## Database Architecture
 
