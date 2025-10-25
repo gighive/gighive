@@ -117,18 +117,46 @@ The initial "always nuclear" approach (`state: absent`) had a critical flaw:
 ### Configuration Control
 **In `group_vars/gighive.yml`:**
 ```yaml
-rebuild_mysql: false  # Safe default - preserve database
+rebuild_mysql: false       # Rebuild MySQL container (preserve data)
+rebuild_mysql_data: false  # Rebuild MySQL container + wipe database (nuclear)
 ```
 
-**In `site.yml`:**
+**Command-line usage:**
 ```yaml
-# No variable redefinition needed - group_vars value is automatically available
-# Command-line override: ansible-playbook site.yml -e "rebuild_mysql=true"
+# Default: Apache only
+ansible-playbook site.yml
+
+# MySQL container rebuild (data preserved)
+ansible-playbook site.yml -e "rebuild_mysql=true"
+
+# MySQL nuclear rebuild (data wiped, CSV reimported)
+ansible-playbook site.yml -e "rebuild_mysql_data=true"
 ```
 
 **In docker role tasks:**
 ```yaml
-when: rebuild_mysql | default(false)  # Uses group_vars value with fallback
+when: rebuild_mysql | default(false) or rebuild_mysql_data | default(false)
+when: rebuild_mysql_data | default(false)  # Volume removal
+```
+
+### Flag Hierarchy and Logic
+
+**Important**: `rebuild_mysql_data: true` is **self-sufficient** and implies container rebuild:
+
+- **`rebuild_mysql_data: true`** → Nuclear rebuild (container + data wiped)
+- **`rebuild_mysql: true`** → Container rebuild only (data preserved)  
+- **Both `false`** → No MySQL changes
+
+**You do NOT need both flags set to `true`**. The logic works as follows:
+
+```yaml
+# Container stop condition
+rebuild_mysql: false + rebuild_mysql_data: true  
+# Result: false OR true = TRUE (container stops)
+
+# Volume removal condition  
+rebuild_mysql_data: true
+# Result: TRUE (volume removed)
 ```
 
 ### Benefits of Selective Container Approach
@@ -152,35 +180,43 @@ when: rebuild_mysql | default(false)  # Uses group_vars value with fallback
 
 #### Scenario 1: Routine Application Updates (90% of cases)
 - **Apache**: Always rebuilt with latest code
-- **MySQL**: Preserved (database intact)
+- **MySQL**: Untouched (container + data preserved)
 - **Usage**: `ansible-playbook site.yml`
 
-#### Scenario 2: Database Schema Updates
-- **Apache**: Rebuilt
-- **MySQL**: Rebuilt (data loss expected)
+#### Scenario 2: MySQL Container Updates
+- **Apache**: Rebuilt with latest code
+- **MySQL**: Container rebuilt, **data preserved**
 - **Usage**: `ansible-playbook site.yml -e "rebuild_mysql=true"`
+- **Use cases**: MySQL version upgrades, configuration changes, container corruption
 
-#### Scenario 3: Fresh VM Deployment
+#### Scenario 3: MySQL Nuclear Rebuild
+- **Apache**: Rebuilt with latest code
+- **MySQL**: Container + volume destroyed, **fresh database with CSV import**
+- **Usage**: `ansible-playbook site.yml -e "rebuild_mysql_data=true"`
+- **Use cases**: Database corruption, schema changes, fresh development environment
+
+#### Scenario 4: Fresh VM Deployment
 - **Apache**: Built fresh
-- **MySQL**: Built fresh
+- **MySQL**: Built fresh with automatic CSV import
 - **Usage**: `ansible-playbook site.yml` (works automatically)
 
-#### Scenario 4: Nuclear Option
+#### Scenario 5: Manual Nuclear Option
 - **Both**: Complete teardown including volumes
 - **Usage**: Manual `rebuildContainers.sh` script
 
 ### Trade-offs
 
 #### Pros
-- ✅ **Database safety by default**
-- ✅ **Reliable Apache rebuilds**
-- ✅ **Flexible MySQL handling**
-- ✅ **Production-appropriate**
-- ✅ **Faster than full nuclear** (MySQL stays running)
+- ✅ **Database safety by default** (three levels of protection)
+- ✅ **Reliable Apache rebuilds** (always rebuilt)
+- ✅ **Granular MySQL control** (preserve, rebuild container, or nuclear)
+- ✅ **Production-appropriate** (safe defaults)
+- ✅ **Automatic CSV reimport** (when volume destroyed)
+- ✅ **Handles all deployment states** (fresh VM + existing containers)
 
 #### Cons
-- ❌ **Slightly more complex** than full nuclear
-- ❌ **Requires explicit flag** for MySQL updates
+- ❌ **Two flags to understand** (rebuild_mysql vs rebuild_mysql_data)
+- ❌ **Requires explicit flags** for MySQL operations
 
 ## Decision Rationale
 

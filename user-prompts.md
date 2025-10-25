@@ -661,6 +661,24 @@ GigHive is dual-licensed:
 
 - 2025-10-25T12:10:00-04:00
   - please 1) update the file docs/DOCKER_COMPOSE_BEHAVIOR.md with rationale and new method, 2) make the proposed changes
+
+- 2025-10-25T12:16:00-04:00
+  - got an error, but ansible scripts continued. TASK [docker : Stop MySQL container for rebuild (when requested) name=mysqlServer, state=absent] ********************************************************** Saturday 25 October 2025  12:15:31 -0400 (0:00:11.444)       0:00:35.403 ****** fatal: [gighive_vm]: FAILED! => msg: |- The conditional check 'rebuild_mysql | default(false)' failed. The error was: An unhandled exception occurred while templating '{{ rebuild_mysql | default(false) }}'. Error was a <class 'ansible.errors.AnsibleError'>, original message: An unhandled exception occurred while templating '{{ rebuild_mysql | default(false) }}'. Error was a <class 'ansible.errors.AnsibleError'>, original message: An unhandled exception occurred while templating '{{ rebuild_mysql | default(false) }}'. Error was a <class 'ansible.errors.AnsibleError'>, original message: An unhandled exception occurred while templating '{{ rebuild_mysql | default(false) }}'. Error was a <class 'ansible.errors.AnsibleError'>, original message: An unhandled exception occurred while templating '{{ rebuild_mysql | default(false) }}'. Error was a <class 'ansible.errors.AnsibleError'>, original message: An unhandled exception occurred while templating '{{ rebuild_mysql | d
+
+- 2025-10-25T12:18:00-04:00
+  - do you need to update docs/DOCKER_COMPOSE_BEHAVIOR.md?
+
+- 2025-10-25T12:47:00-04:00
+  - the full rebuild of the mysqlserver did not work because I see that the database still had the new entry that I added to it.
+
+- 2025-10-25T12:48:00-04:00
+  - hang on..the change we had just made that was just to rebuild the mysqlserver container, but NOT remove the volume, is that correct?
+
+- 2025-10-25T12:52:00-04:00
+  - ok, so what if we put a second new flag in group_vars/gighive.yml that docker/tasks/main.yml will take advantage of to blow away the persistent volume and rebuild the mysqlserver container from scratch using the mounts in docker-compose.yml.j2 to allow for the automatic rebuild?  how does that sound?   relevant section of docker-compose.yml.j2: mysqlServer: image: mysql:8.0 container_name: mysqlServer restart: unless-stopped ports: - "3306:3306" env_file: - ./mysql/externalConfigs/.env.mysql volumes: - mysql_data:/var/lib/mysql - "{{ docker_dir }}/mysql/externalConfigs/prepped_csvs/{{ 'full' if database_full | bool else 'sample' }}:/var/lib/mysql-files/" - "{{ docker_dir }}/mysql/externalConfigs/create_music_db.sql:/docker-entrypoint-initdb.d/00-create_music_db.sql" - "{{ docker_dir }}/mysql/externalConfigs/load_and_transform.sql:/docker-entrypoint-initdb.d/01-load_and_transform.sql" - "{{ docker_dir }}/mysql/externalConfigs/z-custommysqld.cnf:/etc/mysql/mysql.conf.d/z-custommysqld.cnf"
+
+- 2025-10-25T12:54:00-04:00
+  - And would these additions to the ansible task run properly in both states: 1) creating the containers new from scratch as well as 2) rebuilding from existing containers?
   - just insert the following text into the file and provide a link to the actual AGPLv3 license at the bottom: Why AGPL v3 AGPL v3 is open source but protective — it forces reciprocity: If someone modifies and runs this code on a server to offer a hosted service, they must also release their source code under AGPL v3.  You cannot use it to build your own SaaS without sharing back.
 
 - 2025-10-13T12:01:00-04:00

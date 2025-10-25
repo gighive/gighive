@@ -1,9 +1,51 @@
 *** 
 releaseNotes20251025.txt
+Changes: fixed rebuild_mysql_data: true logic because of custom name 
+
+ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup 
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/inventories/group_vars/ubuntu.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   docs/DOCKER_COMPOSE_BEHAVIOR.md
+	modified:   user-prompts.md
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251025.txt
 Changes: added rebuild_mysql var to group_vars only and reference in docker/tasks/main.yml, and updated docs
 
 ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup 
 
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/inventories/group_vars/ubuntu.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   docs/DOCKER_COMPOSE_BEHAVIOR.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20251025.txt
@@ -31,17 +73,6 @@ Changes to be committed:
 	new file:   docs/DOCKER_IMAGE_BUILD_CHANGE.md
 	modified:   docs/index.md
 	modified:   user-prompts.md
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251012.txt
