@@ -92,7 +92,6 @@
     - community.docker
   vars:
     media_path: /var/www/media
-    tmp_path:  /mnt/blobfusetmp
     modsec_enable: true
     crs_enable: false
   roles:

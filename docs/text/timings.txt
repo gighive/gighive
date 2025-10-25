@@ -1,29 +1,29 @@
 VIRTUALBOX
-sodo@pop-os:~/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --skip-tags blobfuse2 --ask-become-pass -v
+sodo@pop-os:~/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass -v
 
-Playbook run took 0 days, 0 hours, 11 minutes, 40 seconds
-Sunday 31 August 2025  15:45:07 -0400 (0:00:00.090)       0:11:40.369 ********* 
+Playbook run took 0 days, 0 hours, 23 minutes, 7 seconds
+Saturday 25 October 2025  13:59:20 -0400 (0:00:00.015)       0:23:07.764 ****** 
 =============================================================================== 
-docker : Bring up Docker Compose V2 stack -------------------------------------------------------- 194.63s
-docker : Build the GigHive Docker image on the VM ------------------------------------------------ 177.49s
-base : Upgrade all packages to the latest available versions -------------------------------------- 85.37s
-post_build_checks : Pause for X seconds to let the stack settle ----------------------------------- 60.06s
-base : Install required build-and-runtime dependencies (incl. Docker) ----------------------------- 32.50s
-cloud_init : Wait for SSH availability ------------------------------------------------------------ 29.28s
-base : Update APT cache --------------------------------------------------------------------------- 15.36s
-base : Sync scripts to the VM (excluding cloud-init) ---------------------------------------------- 14.01s
-base : Sync reduced video directory (development subset) ------------------------------------------ 11.99s
-validate_app : Install ping and netcat in Apache container ----------------------------------------- 5.77s
-base : Sync reduced audio directory ---------------------------------------------------------------- 5.60s
-cloud_init : Start VM headless --------------------------------------------------------------------- 5.57s
-cloud_init : Convert VMDK to VDI ------------------------------------------------------------------- 4.24s
-security_basic_auth : Install passlib for htpasswd bcrypt ------------------------------------------ 3.83s
-base : Add Docker’s APT repository (multi-arch) ---------------------------------------------------- 3.46s
-base : Install Docker Engine & Compose V2 plugin (distro packages) --------------------------------- 2.46s
-Gathering Facts ------------------------------------------------------------------------------------ 2.46s
-post_build_checks : Check Docker service status ---------------------------------------------------- 2.05s
-docker : Ensure Docker SDK for Python is installed ------------------------------------------------- 1.88s
-docker : Ensure python3-pip is installed ----------------------------------------------------------- 1.87s
+base : Upgrade all packages to the latest available versions ------------------------------------------------------------------------------------- 647.73s
+docker : Start Docker Compose stack -------------------------------------------------------------------------------------------------------------- 339.12s
+base : Install required build-and-runtime dependencies (incl. Docker) ---------------------------------------------------------------------------- 189.49s
+post_build_checks : Pause for X seconds to let the stack settle ----------------------------------------------------------------------------------- 60.01s
+cloud_init : Wait for SSH availability ------------------------------------------------------------------------------------------------------------ 28.30s
+security_owasp_crs : Wait for TLS cert file (container) ------------------------------------------------------------------------------------------- 15.86s
+base : Update APT cache --------------------------------------------------------------------------------------------------------------------------- 12.09s
+validate_app : Install ping and netcat in Apache container ---------------------------------------------------------------------------------------- 10.27s
+base : Sync scripts to the VM (excluding cloud-init) ----------------------------------------------------------------------------------------------- 8.47s
+security_basic_auth : Install passlib for htpasswd bcrypt ------------------------------------------------------------------------------------------ 8.40s
+post_build_checks : Check Docker service status ---------------------------------------------------------------------------------------------------- 5.93s
+cloud_init : Convert VMDK to VDI ------------------------------------------------------------------------------------------------------------------- 4.31s
+base : Add Docker’s APT repository (multi-arch) ---------------------------------------------------------------------------------------------------- 3.44s
+cloud_init_disable : Wait for SSH after network change (controller) -------------------------------------------------------------------------------- 3.13s
+validate_app : Wait for MySQL inside container to become ready ------------------------------------------------------------------------------------- 2.35s
+Gathering Facts ------------------------------------------------------------------------------------------------------------------------------------ 1.92s
+docker : Ensure python3-pip is installed ----------------------------------------------------------------------------------------------------------- 1.72s
+cloud_init_disable : Stop and mask cloud-init units ------------------------------------------------------------------------------------------------ 1.32s
+security_basic_auth : Ensure passlib/bcrypt present (Debian/Ubuntu) -------------------------------------------------------------------------------- 1.24s
+base : Install Docker Engine & Compose V2 plugin (distro packages) --------------------------------------------------------------------------------- 1.19s
 
 
 BAREMETAL
