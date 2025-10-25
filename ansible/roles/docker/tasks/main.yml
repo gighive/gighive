@@ -174,7 +174,15 @@
   community.docker.docker_container:
     name: mysqlServer
     state: absent
-  when: rebuild_mysql | default(false)
+  when: rebuild_mysql | default(false) or rebuild_mysql_data | default(false)
+  ignore_errors: true
+  tags: docker, compose
+
+- name: Remove MySQL volume for complete rebuild (when requested)
+  community.docker.docker_volume:
+    name: "files_mysql_data"
+    state: absent
+  when: rebuild_mysql_data | default(false)
   ignore_errors: true
   tags: docker, compose
 
