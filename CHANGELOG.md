@@ -1,4 +1,21 @@
 *** 
+releaseNotes20251025.txt
+Changes: Add json output to MediaController for API, make docker-compose behavior rebuild each time, document the change in /docs
+
+ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup 
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251012.txt
 Changes: Fixed 20060831 duplicate songs bug, documented database import process 
 
@@ -33,15 +50,6 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/songs.csv
 	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample/database_augmented.csv
 	new file:   docs/database-import-process.md
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251012.txt

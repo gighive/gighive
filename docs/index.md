@@ -194,6 +194,11 @@ img {
         <li><a href="database-import-process.html">📥 Database Import Process</a></li>
     </ul>
     
+    <h3>🐳 Docker</h3>
+    <ul>
+        <li><a href="DOCKER_COMPOSE_BEHAVIOR.html">⚙️ Docker Behavior</a></li>
+    </ul>
+    
     <h3>🔮 Coming Soon</h3>
     <ul>
         <li><a href="migrate-bootstrap-to-ansible.html">🔄 Migrate Bootstrap</a></li>

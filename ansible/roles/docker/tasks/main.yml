@@ -162,26 +162,20 @@
 
   # Removed deploy-time overlay: handled at build-time now
 
-- name: Build the GigHive Docker image on the VM
-  community.docker.docker_image:
-   # repository name without tag
-   name: ubuntu22.04apache-img
-   # specify the tag separately as a string
-   tag: "1.00"
-   source: build
-   build:
-     path: "{{ docker_dir }}/apache"
-     args:
-       APP_FLAVOR: "{{ app_flavor | default('defaultcodebase') }}"
-  tags: [docker]
 
-- name: Bring up Docker Compose V2 stack
+- name: Stop Docker Compose stack completely
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    state: absent
+    remove_orphans: true
+  ignore_errors: true
+  tags: docker, compose
+
+- name: Build and start Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_dir }}"
     state: present
     build: always
-    recreate: always
-    remove_orphans: true
   become: true
   register: compose_result
   failed_when: false

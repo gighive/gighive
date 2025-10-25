@@ -16,7 +16,11 @@ try {
     $repo       = new SessionRepository($pdo);
     $controller = new MediaController($repo);
 
-    $response = $controller->list();
+    // Check if JSON format is requested via query parameter
+    $wantsJson = isset($_GET['format']) && $_GET['format'] === 'json';
+
+    // Route to appropriate method
+    $response = $wantsJson ? $controller->listJson() : $controller->list();
 } catch (\Throwable $e) {
     $body = json_encode([
         'error'   => 'Internal Server Error',

@@ -581,6 +581,47 @@ GigHive is dual-licensed:
   - please create a new license.md file called LICENSE_AGPLv3.md.  Use our standard template for licensing, but replace the content with the actual license from here: Use the full AGPL v3 text from: https://www.gnu.org/licenses/agpl-3.0.txt
 
 - 2025-10-13T11:59:00-04:00
+
+## 2025-10-25
+
+- 2025-10-25T09:24:00-04:00
+  - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
+
+- 2025-10-25T11:30:00-04:00
+  - add a new section called Docker to the hamburger in docs/index.md .  the section will be placed below the Database section.  It will have one link called Docker Behavior that links to docs/DOCKER_COMPOSE_BEHAVIOR.html.
+
+- 2025-10-25T09:26:00-04:00
+  - the src directory is located here in the repo: ansible/roles/docker/files/apache/webroot/src
+
+- 2025-10-25T09:26:00-04:00
+  - correct
+
+- 2025-10-25T09:27:00-04:00
+  - please make the change
+
+- 2025-10-25T09:28:00-04:00
+  - can you test the change please?  the username is viewer and the password is secretviewer
+
+- 2025-10-25T09:45:00-04:00
+  - I had rebuilt the web server image using the following ansible command: ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup.  I don't see the files as changed. here is the directory listings, first from the vm host and then the container itself.  you can see the date of the file on the container is older than the vm host.  I'm not sure why the docker container doesn't have the new files, if i have rebuilt the apache vm. can you investigate why this might be?  my docker ansible role is here: ansible/roles/docker.  here is the comparison of file dates from vm host and guest container: ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files/apache/webroot/src/Controllers$ ll total 32 drwxr-xr-x  2 ubuntu ubuntu 4096 Sep 22 15:50 ./ drwxr-xr-x 10 ubuntu ubuntu 4096 Sep  6 18:32 ../ -rw-r--r--  1 ubuntu ubuntu 4936 Oct 25 09:27 MediaController.php -rw-r--r--  1 ubuntu ubuntu 6820 Sep  5 10:22 MediaController.php.recent -rw-r--r--  1 ubuntu ubuntu 2463 Sep 22 20:53 RandomController.php -rw-r--r--  1 ubuntu ubuntu 3796 Sep  7 09:49 UploadController.php ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files/apache/webroot/src/Controllers$ docker exec -it apacheWebServer ls -l /var/www/html/src/Controllers total 20 -rwxr-xr-x 1 www-data www-data 2676 Sep 27 18:00 MediaController.php -rw-r--r-- 1 www-data www-data 6820 Sep  5 14:22 MediaController.php.recent -rw-r--r-- 1 www-data www-data 2463 Sep 23 00:53 RandomController.php -rw-r--r-- 1 www-data www-data 3796 Sep  7 13:49 UploadController.php
+
+- 2025-10-25T09:51:00-04:00
+  - this is the top of my docker-compose.yml for apache.  are you saying that the current configuration doesn't always force a rebuild of the image?  ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files$ cat docker-compose.yml services: apacheWebServer: ports: - "0.0.0.0:443:443" build: context: "./apache" dockerfile: Dockerfile args: APP_FLAVOR: "gighive" image: ubuntu22.04apache-img:1.00 env_file: - ./apache/externalConfigs/.env container_name: apacheWebServer restart: unless-stopped dns: - 127.0.0.11 - 8.8.8.8 - 1.1.1.1
+
+- 2025-10-25T09:53:00-04:00
+  - i'd like to keep the image name as is..can i use the following line to rebuild the image every time?     force_source: true
+
+- 2025-10-25T09:56:00-04:00
+  - what does pull_policy do?
+
+- 2025-10-25T09:57:00-04:00
+  - is there a problem with the mixed use of community.docker.docker_image and community.docker.docker_compose_v2 in my ansible tasks?
+
+- 2025-10-25T10:01:00-04:00
+  - what are the exact files and changes you need to make for Option A to allow docker_compose_v2 only?  don't make any changes, just inform me.
+
+- 2025-10-25T10:03:00-04:00
+  - 1) document the rationale for the change in DOCKER_IMAGE_BUILD_CHANGE.md and then 2) make the necessary changes
   - just insert the following text into the file and provide a link to the actual AGPLv3 license at the bottom: Why AGPL v3 AGPL v3 is open source but protective — it forces reciprocity: If someone modifies and runs this code on a server to offer a hosted service, they must also release their source code under AGPL v3.  You cannot use it to build your own SaaS without sharing back.
 
 - 2025-10-13T12:01:00-04:00
