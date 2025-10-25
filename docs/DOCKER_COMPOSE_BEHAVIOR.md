@@ -91,22 +91,30 @@ The initial "always nuclear" approach (`state: absent`) had a critical flaw:
     state: absent
   ignore_errors: true
 
-# Step 2: Conditionally stop MySQL (only when explicitly requested)
+# Step 2: Conditionally stop MySQL (when either flag is true)
 - name: Stop MySQL container for rebuild (when requested)
   community.docker.docker_container:
     name: mysqlServer
     state: absent
-  when: rebuild_mysql | default(false)
+  when: rebuild_mysql | default(false) or rebuild_mysql_data | default(false)
   ignore_errors: true
 
-# Step 3: Remove Apache image to force rebuild
+# Step 3: Remove MySQL volume for nuclear rebuild (when requested)
+- name: Remove MySQL volume for complete rebuild (when requested)
+  community.docker.docker_volume:
+    name: "files_mysql_data"
+    state: absent
+  when: rebuild_mysql_data | default(false)
+  ignore_errors: true
+
+# Step 4: Remove Apache image to force rebuild
 - name: Remove Apache image to force rebuild
   community.docker.docker_image:
     name: ubuntu22.04apache-img:1.00
     state: absent
   ignore_errors: true
 
-# Step 4: Start full stack (MySQL preserved, Apache rebuilt)
+# Step 5: Start full stack
 - name: Start Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_dir }}"
@@ -122,7 +130,7 @@ rebuild_mysql_data: false  # Rebuild MySQL container + wipe database (nuclear)
 ```
 
 **Command-line usage:**
-```yaml
+```bash
 # Default: Apache only
 ansible-playbook site.yml
 
@@ -133,10 +141,13 @@ ansible-playbook site.yml -e "rebuild_mysql=true"
 ansible-playbook site.yml -e "rebuild_mysql_data=true"
 ```
 
-**In docker role tasks:**
+**Task conditions:**
 ```yaml
+# MySQL container stop
 when: rebuild_mysql | default(false) or rebuild_mysql_data | default(false)
-when: rebuild_mysql_data | default(false)  # Volume removal
+
+# MySQL volume removal  
+when: rebuild_mysql_data | default(false)
 ```
 
 ### Flag Hierarchy and Logic
@@ -244,13 +255,13 @@ rebuild_mysql_data: true
 ## Implementation Impact
 
 ### Files Modified
-- `ansible/inventories/group_vars/gighive.yml` - Add `rebuild_mysql: false` flag
+- `ansible/inventories/group_vars/gighive.yml` - Add both rebuild flags
 - `ansible/roles/docker/tasks/main.yml` - Replace compose tasks with selective container approach
 
 ### Variable Resolution
-- **Default value**: Defined in `group_vars/gighive.yml`
-- **Command-line override**: `ansible-playbook site.yml -e "rebuild_mysql=true"`
-- **Task condition**: Uses `rebuild_mysql | default(false)` for safety
+- **Default values**: Both flags `false` in `group_vars/gighive.yml`
+- **Command-line override**: `ansible-playbook site.yml -e "rebuild_mysql_data=true"`
+- **Task conditions**: Use `| default(false)` for safety
 
 ### Deployment Changes
 - **Database preserved by default** (critical for production safety)
@@ -261,7 +272,7 @@ rebuild_mysql_data: true
 ### Operational Benefits
 - **Reduced debugging time** for failed deployments
 - **Increased developer confidence** in deployment process
-- **Simplified troubleshooting** - always starts from clean state
+- **Clear rebuild strategy** - three distinct levels of rebuild
 
 ## Validation Criteria
 

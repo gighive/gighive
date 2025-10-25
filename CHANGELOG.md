@@ -1,6 +1,6 @@
 *** 
 releaseNotes20251025.txt
-Changes: fixed rebuild_mysql_data: true logic because of custom name 
+Changes: fixed rebuild_mysql_data: true logic because it uses directory name where docker-compose lives as volume name files_mysql_data 
 
 ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup 
 
@@ -12,7 +12,6 @@ Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
 	modified:   ansible/inventories/group_vars/gighive.yml
-	modified:   ansible/inventories/group_vars/ubuntu.yml
 	modified:   ansible/roles/docker/tasks/main.yml
 	modified:   docs/DOCKER_COMPOSE_BEHAVIOR.md
 	modified:   user-prompts.md
