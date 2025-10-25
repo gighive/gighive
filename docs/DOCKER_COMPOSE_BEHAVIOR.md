@@ -74,82 +74,153 @@ community.docker.docker_compose_v2:
 - **Gentle approach**: ✅ Works fine
 - **Nuclear approach**: ✅ Works fine (slightly slower)
 
-## Solution: Always Nuclear Approach
+## Solution: Selective Container Rebuild Approach
 
-### Implementation Strategy
+### Problem with Full Nuclear Approach
+The initial "always nuclear" approach (`state: absent`) had a critical flaw:
+- **Destroys ALL volumes** including the MySQL database (`mysql_data`)
+- **Catastrophic for production updates** - would delete customer databases
+- **Too aggressive** for routine application updates
+
+### Refined Strategy: Container-Specific Rebuild
 ```yaml
-# Step 1: Always tear down completely
-- name: Stop Docker Compose stack completely
-  community.docker.docker_compose_v2:
-    project_src: "{{ docker_dir }}"
+# Step 1: Stop only Apache container (preserve MySQL)
+- name: Stop Apache container for rebuild
+  community.docker.docker_container:
+    name: apacheWebServer
     state: absent
-    remove_orphans: true
-  ignore_errors: true  # Handle initial deployment case
+  ignore_errors: true
 
-# Step 2: Clean build and startup
-- name: Build and start Docker Compose stack
+# Step 2: Conditionally stop MySQL (only when explicitly requested)
+- name: Stop MySQL container for rebuild (when requested)
+  community.docker.docker_container:
+    name: mysqlServer
+    state: absent
+  when: rebuild_mysql | default(false)
+  ignore_errors: true
+
+# Step 3: Remove Apache image to force rebuild
+- name: Remove Apache image to force rebuild
+  community.docker.docker_image:
+    name: ubuntu22.04apache-img:1.00
+    state: absent
+  ignore_errors: true
+
+# Step 4: Start full stack (MySQL preserved, Apache rebuilt)
+- name: Start Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_dir }}"
     state: present
     build: always
 ```
 
-### Benefits of Nuclear Approach
+### Configuration Control
+**In `group_vars/gighive.yml`:**
+```yaml
+rebuild_mysql: false  # Safe default - preserve database
+```
+
+**In `site.yml`:**
+```yaml
+# No variable redefinition needed - group_vars value is automatically available
+# Command-line override: ansible-playbook site.yml -e "rebuild_mysql=true"
+```
+
+**In docker role tasks:**
+```yaml
+when: rebuild_mysql | default(false)  # Uses group_vars value with fallback
+```
+
+### Benefits of Selective Container Approach
+
+#### Safety
+- **Database preservation by default** - no accidental data loss
+- **Targeted rebuilds** - only rebuild what needs updating
+- **Production-safe** - appropriate for live customer systems
+
+#### Flexibility
+- **Granular control** - rebuild Apache, MySQL, or both
+- **Command-line override** - `rebuild_mysql=true` when needed
+- **Environment-specific** - different defaults per environment
 
 #### Reliability
-- **Consistent behavior** across all deployment scenarios
+- **Consistent behavior** across deployment scenarios
 - **Eliminates state-dependent failures**
-- **Matches proven manual workflow**
+- **Handles fresh deployments** automatically
 
-#### Predictability
-- **Same process every time** regardless of current state
-- **Easier to debug** when issues occur
-- **Clear separation** of teardown and rebuild phases
+### Deployment Scenarios Handled
 
-#### Maintainability
-- **Simpler logic** - no conditional deployment paths
-- **Handles edge cases** automatically
-- **Future-proof** against Docker Compose behavior changes
+#### Scenario 1: Routine Application Updates (90% of cases)
+- **Apache**: Always rebuilt with latest code
+- **MySQL**: Preserved (database intact)
+- **Usage**: `ansible-playbook site.yml`
+
+#### Scenario 2: Database Schema Updates
+- **Apache**: Rebuilt
+- **MySQL**: Rebuilt (data loss expected)
+- **Usage**: `ansible-playbook site.yml -e "rebuild_mysql=true"`
+
+#### Scenario 3: Fresh VM Deployment
+- **Apache**: Built fresh
+- **MySQL**: Built fresh
+- **Usage**: `ansible-playbook site.yml` (works automatically)
+
+#### Scenario 4: Nuclear Option
+- **Both**: Complete teardown including volumes
+- **Usage**: Manual `rebuildContainers.sh` script
 
 ### Trade-offs
 
 #### Pros
-- ✅ **100% reliable rebuilds**
-- ✅ **Handles all deployment scenarios**
-- ✅ **Simple, predictable logic**
-- ✅ **Matches working manual process**
-- ✅ **No debugging of subtle state issues**
+- ✅ **Database safety by default**
+- ✅ **Reliable Apache rebuilds**
+- ✅ **Flexible MySQL handling**
+- ✅ **Production-appropriate**
+- ✅ **Faster than full nuclear** (MySQL stays running)
 
 #### Cons
-- ❌ **30-60 seconds additional deployment time**
-- ❌ **Brief service interruption** (but already doing `recreate: always`)
-- ❌ **More aggressive** than strictly necessary for some scenarios
+- ❌ **Slightly more complex** than full nuclear
+- ❌ **Requires explicit flag** for MySQL updates
 
 ## Decision Rationale
 
-### Why Nuclear Over Gentle
+### Why Selective Container Over Full Nuclear
 
-1. **Reliability over Speed**: Extra 30-60 seconds is acceptable for guaranteed deployments
-2. **Consistency**: Same behavior whether initial deployment or update
-3. **Maintenance**: Eliminates entire class of deployment failures
-4. **Confidence**: Developers know their changes will actually deploy
+1. **Database Safety**: Preserving customer data is paramount
+2. **Production Readiness**: Appropriate for live systems with valuable data
+3. **Flexibility**: Can handle both routine updates and major changes
+4. **Performance**: MySQL doesn't restart unnecessarily
 
-### Why Not Conditional Logic
+### Why Selective Container Over Gentle
 
-Considered hybrid approach with `force_rebuild` flags, but:
-- **Complexity**: Adds conditional logic and potential failure modes
-- **Human Error**: Developers might forget to set rebuild flags
-- **Debugging**: More variables to consider when deployments fail
+1. **Reliability**: Apache always rebuilds with latest code changes
+2. **Predictability**: Consistent behavior across deployment scenarios
+3. **Debugging**: Clear understanding of what gets rebuilt
+4. **Proven Pattern**: Matches successful manual rebuild workflow
+
+### Configuration Design
+
+- **Safe Default**: `rebuild_mysql: false` prevents accidental data loss
+- **Explicit Override**: Requires intentional action to rebuild database
+- **Centralized Control**: Configuration in `group_vars` with command-line override
+- **Environment Flexibility**: Different defaults per environment possible
 
 ## Implementation Impact
 
 ### Files Modified
-- `ansible/roles/docker/tasks/main.yml` - Replace single compose task with two-step nuclear approach
+- `ansible/inventories/group_vars/gighive.yml` - Add `rebuild_mysql: false` flag
+- `ansible/roles/docker/tasks/main.yml` - Replace compose tasks with selective container approach
+
+### Variable Resolution
+- **Default value**: Defined in `group_vars/gighive.yml`
+- **Command-line override**: `ansible-playbook site.yml -e "rebuild_mysql=true"`
+- **Task condition**: Uses `rebuild_mysql | default(false)` for safety
 
 ### Deployment Changes
-- **Slightly longer deployment time** (acceptable trade-off)
-- **More reliable rebuilds** when code changes
-- **Consistent behavior** across all scenarios
+- **Database preserved by default** (critical for production safety)
+- **Reliable Apache rebuilds** when code changes
+- **Flexible MySQL handling** via command-line override
+- **Consistent behavior** across fresh and update deployments
 
 ### Operational Benefits
 - **Reduced debugging time** for failed deployments

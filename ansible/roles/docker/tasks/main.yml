@@ -163,15 +163,29 @@
   # Removed deploy-time overlay: handled at build-time now
 
 
-- name: Stop Docker Compose stack completely
-  community.docker.docker_compose_v2:
-    project_src: "{{ docker_dir }}"
+- name: Stop Apache container for rebuild
+  community.docker.docker_container:
+    name: apacheWebServer
     state: absent
-    remove_orphans: true
   ignore_errors: true
   tags: docker, compose
 
-- name: Build and start Docker Compose stack
+- name: Stop MySQL container for rebuild (when requested)
+  community.docker.docker_container:
+    name: mysqlServer
+    state: absent
+  when: rebuild_mysql | default(false)
+  ignore_errors: true
+  tags: docker, compose
+
+- name: Remove Apache image to force rebuild
+  community.docker.docker_image:
+    name: ubuntu22.04apache-img:1.00
+    state: absent
+  ignore_errors: true
+  tags: docker, compose
+
+- name: Start Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_dir }}"
     state: present

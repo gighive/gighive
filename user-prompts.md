@@ -622,6 +622,45 @@ GigHive is dual-licensed:
 
 - 2025-10-25T10:03:00-04:00
   - 1) document the rationale for the change in DOCKER_IMAGE_BUILD_CHANGE.md and then 2) make the necessary changes
+
+- 2025-10-25T10:10:00-04:00
+  - change did not work, i still see the new file on the vm host (gighive) and old file on the container: ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files$ ll apache/webroot/src/Controllers/ total 32 drwxr-xr-x  2 ubuntu ubuntu 4096 Sep 22 15:50 ./ drwxr-xr-x 10 ubuntu ubuntu 4096 Sep  6 18:32 ../ -rw-r--r--  1 ubuntu ubuntu 4936 Oct 25 09:27 MediaController.php -rw-r--r--  1 ubuntu ubuntu 6820 Sep  5 10:22 MediaController.php.recent -rw-r--r--  1 ubuntu ubuntu 2463 Sep 22 20:53 RandomController.php -rw-r--r--  1 ubuntu ubuntu 3796 Sep  7 09:49 UploadController.php ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files$ docker exec apacheWebServer ls -la /var/www/html/src/Controllers total 36 drwxr-xr-x 1 www-data www-data 4096 Sep 27 18:00 . drwxr-xr-x 1 www-data www-data 4096 Sep 27 18:00 .. -rwxr-xr-x 1 www-data www-data 2676 Sep 27 18:00 MediaController.php -rw-r--r-- 1 www-data www-data 6820 Sep  5 14:22 MediaController.php.recent -rw-r--r-- 1 www-data www-data 2463 Sep 23 00:53 RandomController.php -rw-r--r-- 1 www-data www-data 3796 Sep  7 13:49 UploadController.php
+
+- 2025-10-25T10:20:00-04:00
+  - is  APP_FLAVOR: gighive interfering with the copying of files from ansible/roles/docker/files/apache/webroot?  here is output sodo@pop-os:~/scripts/gighive$ ssh ubuntu@gighive "cat ~/scripts/gighive/ansible/roles/docker/files/docker-compose.yml | head -45" services: apacheWebServer: ports: - "0.0.0.0:443:443" build: context: "./apache" dockerfile: Dockerfile args: APP_FLAVOR: "gighive" image: ubuntu22.04apache-img:1.00 pull_policy: build env_file: - ./apache/externalConfigs/.env container_name: apacheWebServer restart: unless-stopped dns: - 127.0.0.11 - 8.8.8.8 - 1.1.1.1 volumes: - "/home/ubuntu/audio:/var/www/html/audio" - "/home/ubuntu/video:/var/www/html/video" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/gighive.htpasswd:/var/www/private/gighive.htpasswd:rw" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/apache2.conf:/etc/apache2/apache2.conf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/ports.conf:/etc/apache2/ports.conf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/default-ssl.conf:/etc/apache2/sites-available/default-ssl.conf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/logging.conf:/etc/apache2/conf-available/logging.conf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/php-fpm.conf:/etc/apache2/conf-available/php-fpm.conf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/www.conf:/etc/php/8.1/fpm/pool.d/www.conf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/apache2-logrotate.conf:/etc/logrotate.d/apache2:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/entrypoint.sh:/entrypointapache.sh:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/openssl_san.cnf:/etc/ssl/openssl_san.cnf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/modsecurity.conf:/etc/modsecurity/modsecurity.conf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/crs/crs-setup.conf:/etc/modsecurity/crs-setup.conf:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/crs/rules:/etc/modsecurity/crs/rules:ro" - "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/security2.conf:/etc/apache2/mods-available/security2.conf:ro" entrypoint: ["/entrypointapache.sh"]
+
+- 2025-10-25T10:29:00-04:00
+  - ok.  now, i noticed that the rebuild of the apachewebserver did not take place because i insptected the files on the vm host and they had the old date (see below) ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files$ docker exec apacheWebServer ls -la /var/www/html/src/Controllers total 36 drwxr-xr-x 1 www-data www-data 4096 Sep 27 18:00 . drwxr-xr-x 1 www-data www-data 4096 Sep 27 18:00 .. -rwxr-xr-x 1 www-data www-data 2676 Sep 27 18:00 MediaController.php -rw-r--r-- 1 www-data www-data 6820 Sep  5 14:22 MediaController.php.recent -rw-r--r-- 1 www-data www-data 2463 Sep 23 00:53 RandomController.php -rw-r--r-- 1 www-data www-data 3796 Sep  7 13:49 UploadController.php.  I had to manually run my rebuild script in order for the apachewebserver to truly be rebuilt.  this script looks like this: ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files$ cat rebuildContainers.sh ls -l docker-compose down -v docker-compose build docker-compose up -d echo "Sleep for two minutes" sleep 120 docker logs mysqlServer echo "Done!"  Can you speculate on why the ansible task using the docker-compose.yml.j2 did not rebuild the apachewebserver properly?  don't make any changes, just inform me.
+
+- 2025-10-25T10:32:00-04:00
+  - should i use the gentle approach or should I always go nuclear?  remember that the ansible script has to run initially when there is no container at all so I have to think about these multiple states.
+
+- 2025-10-25T11:17:00-04:00
+  - 1) document this in DOCKER_COMPOSE_BEHAVIOR.md and 2) make the option B change.
+
+- 2025-10-25T11:48:00-04:00
+  - one thing i did not consider in our update to the docker compose behavior was to account for upgrades to my scripts WITHOUT destroying the mysql volume.  the reason for this would be if i needed to issue a patch to my gighive clients that they would apply via ansible as normal, but the patch should not delete their database.  i think we should 1) add a flag in the site.yml file (something like "keep_db = Y" and 2) the ansible task that builds the compose stack would take advantage of.  do you think that is a good idea or do you have a better option?
+
+- 2025-10-25T11:53:00-04:00
+  - i like option A.  I can always use my rebuildContainers.sh if i need to go full nuclear and delete the database.  please list the changes necessary for option A but don't make changes until i review/approve
+
+- 2025-10-25T11:58:00-04:00
+  - remember that the ansible scripts have to account for two states: 1) new vm host is built and both containers need to be stood up fresh.  2) we need to patch gighive for some reason (maybe security update to apachewebserver or a database schema change to mysqlserver), but apachewebserver and mysqlserver already exist.  Do your updates account for these two states?
+
+- 2025-10-25T12:01:00-04:00
+  - Yes.  However, since we've consolidated flags in ansible/playbooks/site.yml, does it make sense to put the rebuild_mysql flag there?
+
+- 2025-10-25T12:06:00-04:00
+  - let me correct the approach slightly.  The value of the flag ("rebuild_mysql=true") should be in ansible/group_vars/gighive.yml as well.  does that make sense?
+
+- 2025-10-25T12:08:00-04:00
+  - in playbooks/site.yml , do we need the rebuild_mysql var in both places or just under hosts: all?
+
+- 2025-10-25T12:09:00-04:00
+  - ok, good!  Now show me the list of changes we are going to make.
+
+- 2025-10-25T12:10:00-04:00
+  - please 1) update the file docs/DOCKER_COMPOSE_BEHAVIOR.md with rationale and new method, 2) make the proposed changes
   - just insert the following text into the file and provide a link to the actual AGPLv3 license at the bottom: Why AGPL v3 AGPL v3 is open source but protective — it forces reciprocity: If someone modifies and runs this code on a server to offer a hosted service, they must also release their source code under AGPL v3.  You cannot use it to build your own SaaS without sharing back.
 
 - 2025-10-13T12:01:00-04:00
