@@ -70,4 +70,50 @@ final class MediaController
             'rows' => $viewRows,
         ]);
     }
+
+    /**
+     * Return media list as JSON instead of HTML
+     */
+    public function listJson(): Response
+    {
+        $rows = $this->repo->fetchMediaList();
+
+        $counter = 1;
+        $entries = [];
+        foreach ($rows as $row) {
+            $id        = isset($row['id']) ? (int)$row['id'] : 0;
+            $date      = (string)($row['date'] ?? '');
+            $orgName   = (string)($row['org_name'] ?? '');
+            $duration  = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
+            $durationSec = isset($row['duration_seconds']) && $row['duration_seconds'] !== null
+                ? (int)$row['duration_seconds']
+                : 0;
+            $songTitle = (string)($row['song_title'] ?? '');
+            $typeRaw   = (string)($row['file_type'] ?? '');
+            $file      = (string)($row['file_name'] ?? '');
+
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            $dir = ($ext === 'mp3') ? '/audio' : (($ext === 'mp4') ? '/video' : '');
+            if ($dir === '' && ($typeRaw === 'audio' || $typeRaw === 'video')) {
+                $dir = '/' . $typeRaw;
+            }
+            $url = ($dir && $file) ? $dir . '/' . rawurlencode($file) : '';
+
+            $entries[] = [
+                'id'               => $id,
+                'index'            => $counter++,
+                'date'             => $date,
+                'org_name'         => $orgName,
+                'duration'         => $duration,
+                'duration_seconds' => $durationSec,
+                'song_title'       => $songTitle,
+                'file_type'        => $typeRaw,
+                'file_name'        => $file,
+                'url'              => $url,
+            ];
+        }
+
+        $body = json_encode(['entries' => $entries], JSON_PRETTY_PRINT);
+        return new Response(200, ['Content-Type' => 'application/json'], $body);
+    }
 }
