@@ -679,6 +679,30 @@ GigHive is dual-licensed:
 
 - 2025-10-25T12:54:00-04:00
   - And would these additions to the ansible task run properly in both states: 1) creating the containers new from scratch as well as 2) rebuilding from existing containers?
+
+- 2025-10-25T12:55:00-04:00
+  - good!  please 1) update DOCKER_COMPOSE_BEHAVIOR.md with this information 2) make the necessary changes
+
+- 2025-10-25T12:59:00-04:00
+  - if i have rebuild_mysql: false    and rebuild_mysql_data: true , will the container be rebuilt and the database refreshed?  or do i have to set both to true?
+
+- 2025-10-25T13:00:00-04:00
+  - can you add that distinction to DOCKER_COMPOSE_BEHAVIOR.md as a clarification?
+
+- 2025-10-25T13:04:00-04:00
+  - i have and executed this ansible task, but the database did not get cleared.  why is that? ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup sodo@pop-os:~/scripts/gighive$ grep rebuild ansible/inventories/group_vars/gighive.yml # Docker container rebuild control rebuild_mysql: false       # Rebuild MySQL container (preserve data) rebuild_mysql_data: true  # Rebuild MySQL container + wipe database (nuclear)
+
+- 2025-10-25T13:06:00-04:00
+  - 1) what should the default name be?  2) where are we setting this name in the code?
+
+- 2025-10-25T13:07:00-04:00
+  - 1) let's first fix the complete rebuild with the existing name and 2) tackle renaming after
+
+- 2025-10-25T13:08:00-04:00
+  - ok , what changes were made?
+
+- 2025-10-25T13:23:00-04:00
+  - please review DOCKER_COMPOSE_BEHAVIOR.md for any inconsistencies and simplify where possible
   - just insert the following text into the file and provide a link to the actual AGPLv3 license at the bottom: Why AGPL v3 AGPL v3 is open source but protective — it forces reciprocity: If someone modifies and runs this code on a server to offer a hosted service, they must also release their source code under AGPL v3.  You cannot use it to build your own SaaS without sharing back.
 
 - 2025-10-13T12:01:00-04:00
