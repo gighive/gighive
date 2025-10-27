@@ -182,13 +182,6 @@ img {
         <li><a href="SECURITY.html">🔒 Security</a></li>
     </ul>
     
-    <h3>🎥 Streaming</h3>
-    <ul>
-        <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits / Call Flow</a></li>
-        <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
-        <li><a href="PICKER_TRANSCODING_METHOD.html">🎬 Picker Transcoding</a></li>
-    </ul>
-    
     <h3>🗄️ Database</h3>
     <ul>
         <li><a href="database-import-process.html">📥 Database Import Process</a></li>
@@ -197,6 +190,18 @@ img {
     <h3>🐳 Docker</h3>
     <ul>
         <li><a href="DOCKER_COMPOSE_BEHAVIOR.html">⚙️ Docker Behavior</a></li>
+    </ul>
+    
+    <h3>🎥 Streaming</h3>
+    <ul>
+        <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits / Call Flow</a></li>
+        <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
+        <li><a href="PICKER_TRANSCODING_METHOD.html">🎬 Picker Transcoding</a></li>
+    </ul>
+    
+    <h3>📱 iPhone App</h3>
+    <ul>
+        <li><a href="FOUR_PAGE_REARCHITECTURE.html">🏗️ 4-Page Rearchitecture</a></li>
     </ul>
     
     <h3>🔮 Coming Soon</h3>
