@@ -587,6 +587,9 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+- 2025-10-27T16:27:00-04:00
+  - please update docs/index.md to 1) move the streaming section in the hamburger below the Docker section. 2) below the streaming section, create a new section called iPhone App.  3) include one entry in the Iphone App section called "4-Page Rearchitecture" and link /docs/FOUR_PAGE_REARCHITECTURE.hml to that text.
+
 - 2025-10-25T11:30:00-04:00
   - add a new section called Docker to the hamburger in docs/index.md .  the section will be placed below the Database section.  It will have one link called Docker Behavior that links to docs/DOCKER_COMPOSE_BEHAVIOR.html.
 

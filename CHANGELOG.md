@@ -1,8 +1,6 @@
 *** 
-releaseNotes20251025.txt
-Changes: fixed rebuild_mysql_data: true logic because it uses directory name where docker-compose lives as volume name files_mysql_data 
-
-ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup 
+releaseNotes20251027.txt
+Changes: FOUR_PAGE_REARCHITECTURE.md and index.md update
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -11,9 +9,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive.yml
-	modified:   ansible/roles/docker/tasks/main.yml
-	modified:   docs/DOCKER_COMPOSE_BEHAVIOR.md
+	new file:   docs/FOUR_PAGE_REARCHITECTURE.md
+	modified:   docs/index.md
 	modified:   user-prompts.md
 
 ToDo: create a canonical md versions for the site and convert using composer recommendation
@@ -26,6 +23,24 @@ ToDo: clear db script
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251025.txt
+Changes: fixed rebuild_mysql_data: true logic because it uses directory name where docker-compose lives as volume name files_mysql_data 
+
+ansible-playbook   -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup -e "rebuild_mysql_data=true"
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   docs/DOCKER_COMPOSE_BEHAVIOR.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20251025.txt
