@@ -58,43 +58,48 @@ So you will have ~54GB of space for media files.
 ---
 
 ## Option A: Create and install to new Virtualbox VM
+1. Decide on an IP in your home network that you'd like to use. 
+
+2. Edit the "ansible_host" field in $GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml 
+
+3. Run Ansible 
 ```bash
-# 1. Decide on an IP in your home network that you'd like to use. 
-
-# 2. Edit the "ansible_host" field in $GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml 
-
-# 3. Run Ansible 
 cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass
 ```
 
 ---
 
 ## Option B: Install to Azure VM (requires an Azure subscription)
+1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 ```bash
-# 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 export ARM_SUBSCRIPTION_ID=[put your subscription id here]
 export ARM_TENANT_ID=[put your tenant id/mgmt group id here]
+```
 
-# 2. Provision infrastructure
-./2bootstrap.sh
-
+2. Provision infrastructure
 Watch and respond to these prompts:
 .. apply Terraform plan 
-.. update the ansible inventory file and finally,
+.. update the ansible inventory file
 .. run the ansible_playbook
+```bash
+./2bootstrap.sh
+```
 
-# 3. If you're finished with the VM, delete all resources in Azure
+3. If you're finished with the VM, delete all resources in Azure
+```bash
 cd $GIGHIVE_HOME;./3deleteAll.sh 
 ```
 
 ---
 
 ## Option C: Install to existing baremetal server in your environment
+1. Edit the inventory file and put the IP of your bare metal server that is prepped for Gighive 
 ```bash
-# 1. Edit the inventory file and put the IP of your bare metal server that is prepped for Gighive 
-$GIGHIVE_HOME/ansible/inventories/inventory_baremetal.yml
+vi $GIGHIVE_HOME/ansible/inventories/inventory_baremetal.yml
+```
 
-# 2. Run Ansible
+2. Run Ansible
+```bash
 cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml 
 ```
 
