@@ -587,6 +587,11 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+## 2025-10-29
+
+- 2025-10-29T13:44:00-04:00
+  - i am about reading to start on my bootstrap bash script to ansible migration.  can you review the plan and reaffirm the stepwise, phased approach we decided upon?  here is what we documented from the other day: https://gighive.app/migrate-bootstrap-to-ansible.html
+
 - 2025-10-27T16:27:00-04:00
   - please update docs/index.md to 1) move the streaming section in the hamburger below the Docker section. 2) below the streaming section, create a new section called iPhone App.  3) include one entry in the Iphone App section called "4-Page Rearchitecture" and link /docs/FOUR_PAGE_REARCHITECTURE.hml to that text.
 
