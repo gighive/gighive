@@ -28,20 +28,25 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 ## ⚙️ Preparation
 ### Do these steps before moving ahead with one of the options below.
+- 1. Make sure you have id_rsa.pub or id_ed25519.pub in ./ssh for passwordless authentication:
 ```bash
-# 1. Make sure you have id_rsa.pub or id_ed25519.pub in ./ssh for passwordless authentication:
-eg: ssh-keygen -t ed25519 -C "your_email@example.com" -f ./ssh/id_ed25519
+ssh-keygen -t rsa
+```
 
-# 2. Clone the repo
+- 2. Clone the repo
+```bash
 git clone https://github.com/gighive/gighive
+```
 
-# 3. Set GIGHIVE_HOME variable
-export GIGHIVE_HOME=<location of where you cloned gighive>
-eg: export GIGHIVE_HOME=/home/$USER/gighive
+- 3. Set GIGHIVE_HOME variable, something like - export GIGHIVE_HOME=<location of where you cloned gighive> eg;
+```bash
+export GIGHIVE_HOME=/home/$USER/gighive
+```
 
-# 4. Install Azure, Terraform and Ansible prerequisites 
+- 4. Install Azure, Terraform and Ansible prerequisites 
+Note that you will need to reboot after the VirtualBox installation.
+```bash
 cd $GIGHIVE_HOME;./1prereqsInstall.sh
-Note VirtualBox install will require a reboot.
 ```
 
 ---

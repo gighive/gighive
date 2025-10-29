@@ -281,11 +281,12 @@ document.addEventListener('DOMContentLoaded', function() {
 - Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and Terraform.
 
 ### Why not just use YouTube?
-- This site is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
+- This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
 - With build targets such as Azure, virtualbox or bare metal, you have your choice on how to deploy Gighive.
 - Gighive frees you from content limitations on the major providers..but you'll need to size your vm properly.
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
-- Gighive is simple. There is one page for the media library and one upload page or easy-to-use iphone app..that's all.
+- Gighive is simple. There is one page for the media library and an upload page. That's it.
+- Coming soon: an easy-to-use iphone app.
 
 ### Requirements
 1. Control Machine: Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS, installed on bare metal.**
