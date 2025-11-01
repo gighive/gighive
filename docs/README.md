@@ -26,9 +26,8 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 ---
 
-## ⚙️ Preparation
-### Do these steps before moving ahead with one of the options below.
-1. Decide on where you will install Ansible as the controller and what target (virtualbox or Azure) that you willinstall Gighive on. 
+## ⚙️  Option A: Install to Local Machine
+1. Decide on where you will install Ansible as the controller and what target (virtualbox or Azure) that you will install Gighive on. 
 
 2. Log onto that server and install Ansible:
 ```bash
@@ -95,25 +94,10 @@ alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inven
 
 ---
 
-## ⚙️ Decide on VM hard size that you will need
+## Option B: Install to Azure VM (requires an Azure subscription)
 ### Default is 64GB, ~10GB of which will be used by the OS.  
 So you will have ~54GB of space for media files.
 
----
-
-## Option A: Create and install to new Virtualbox VM
-1. Decide on an IP in your home network that you'd like to use. 
-
-2. Edit the "ansible_host" field in $GIGHIVE_HOME/ansible/inventories/inventory_virtualbox.yml 
-
-3. Run Ansible 
-```bash
-cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass
-```
-
----
-
-## Option B: Install to Azure VM (requires an Azure subscription)
 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 ```bash
 export ARM_SUBSCRIPTION_ID=[put your subscription id here]
@@ -136,18 +120,6 @@ cd $GIGHIVE_HOME;./3deleteAll.sh
 
 ---
 
-## Option C: Install to existing baremetal server in your environment
-1. Edit the inventory file and put the IP of your bare metal server that is prepped for Gighive 
-```bash
-vi $GIGHIVE_HOME/ansible/inventories/inventory_baremetal.yml
-```
-
-2. Run Ansible
-```bash
-cd $GIGHIVE_HOME;ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml 
-```
-
----
 
 ## ⚙️ Setup & Installation
 - Once installed, there will be a splash page, a link to the database and a link to the uploads page. Simple! 
