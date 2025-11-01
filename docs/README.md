@@ -70,7 +70,7 @@ ssh-keygen -t rsa
 
 8. Execute the Ansible playbook that will install Gighive (this is where we should fix target)
 ```bash
-ansible-playbook -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2 -v
+ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass -v
 ```
 
 
