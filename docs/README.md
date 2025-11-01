@@ -13,7 +13,7 @@ The automation spins up a fully reproducible environment using **Docker, Ansible
 This project is designed to be portable, easy to deploy, and suitable for local development or cloud environments (Azure supported out of the box).
 
 ## Requirements
-- **Control Machine**: Tested on Ubuntu 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS**, installed on bare metal for the Virtualbox implementation or you can install to a VM if you are deploying to an external Azure or bare metal server.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
+- **Control Machine**: Tested on Ubuntu 24.10 or 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS**, installed on bare metal for the Virtualbox implementation or you can install to a VM if you are deploying to an external Azure or bare metal server.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
 - **Target Server**: Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
 
 ## Architecture
@@ -70,9 +70,13 @@ ssh-keygen -t rsa
 
 8. Execute the Ansible playbook that will install Gighive (this is where we should fix target)
 ```bash
-ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass -v
+ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass 
 ```
 
+9. It is helpful to set an alias in your .bashrc to access the vm you've created.  
+```bash
+alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inventory_virtualbox.yml>"
+```
 
 ---
 

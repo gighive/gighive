@@ -115,7 +115,6 @@
       alias py='/usr/bin/python'
       export GIGHIVE_HOME="$HOME/gighive"
       alias hive='cd $GIGHIVE_HOME'
-      alias gig='cd $GIGHIVE_HOME'
       alias files='cd {{ docker_dir }}'
 
 - name: Install and refresh CA certificates
