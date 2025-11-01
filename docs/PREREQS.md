@@ -12,7 +12,7 @@ This document outlines the **minimum requirements** for running the GigHive fram
 
 | Component      | Requirement / Notes |
 |----------------|---------------------|
-| **CPU/OS**     | Linux **x86-64** host (Ubuntu 22.04/24.04 LTS or Pop-OS recommended) |
+| **CPU/OS**     | Linux **x86-64** host (Ubuntu 24.10/22.04 LTS or Pop-OS recommended) |
 | **Ansible**    | ≥ **2.16** on control node; targets need **Python ≥ 3.10** |
 | **Terraform**  | ≥ **v1.12.1** on control node (if using Azure as build target) |
 | **xorriso**    | ≥ **1.5** (if using virtualbox as build target for ISO/cloud-init image creation) |
