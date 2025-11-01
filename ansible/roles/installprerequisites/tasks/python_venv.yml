@@ -1,0 +1,26 @@
+---
+- name: Ensure venv directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_venv_path }}"
+    state: directory
+    mode: "0755"
+
+- name: Create venv
+  ansible.builtin.command: "python3 -m venv {{ ansible_venv_path }}"
+  args:
+    creates: "{{ ansible_venv_path }}/bin/activate"
+  changed_when: false
+
+- name: Upgrade pip in venv
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ ansible_venv_path }}"
+    virtualenv_python: python3
+
+- name: Install Python packages in venv
+  ansible.builtin.pip:
+    name: "{{ python_packages }}"
+    state: present
+    virtualenv: "{{ ansible_venv_path }}"
+    virtualenv_python: python3

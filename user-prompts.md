@@ -724,3 +724,71 @@ GigHive is dual-licensed:
 
 - 2025-10-13T12:06:00-04:00
   - those two license files should actually be .html files instead of .md files, as markdown will get translated to .html by github.
+
+- 2025-10-29T14:21:00-04:00
+  - in our tests, please add confirmation of ansible version and presence of community.docker.  minimum versions are below: sodo@pop-os:~/scripts$ ansible --version
+ansible [core 2.17.12]
+  config file = /etc/ansible/ansible.cfg
+  configured module search path = ['/home/sodo/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /home/sodo/.local/lib/python3.10/site-packages/ansible
+  ansible collection location = /home/sodo/.ansible/collections:/usr/share/ansible/collections
+  executable location = /home/sodo/.local/bin/ansible
+  python version = 3.10.12 (main, Feb  4 2025, 14:57:36) [GCC 11.4.0] (/usr/bin/python3)
+  jinja version = 3.1.6
+  libyaml = True
+sodo@pop-os:~/scripts$ ansible-galaxy collection list | grep community.docker 
+community.docker                          3.13.3
+
+- 2025-10-29T14:29:00-04:00
+  - don't forget that the prerequisite install is only targeted for the ansible controller machine.  the controller could be the local machine or it could be a remote machine.  docker will not need to be installed on the controller.  the controller will build a target machine on virtualbox or in azure or another baremetal box as indicated in the diagram on this page.  read through that document to see how the deployment architecture for gighive is working.  https://gighive.app/README.html
+
+- 2025-10-29T14:33:00-04:00
+  - 1) what is molecule? 2) the first host that we will test on is the server baremetalgmktecg9.  so your "hosts" value in the script should be set to that hostname
+
+- 2025-10-29T14:38:00-04:00
+  - we should put the new yml files that you have created under a new role called installprerequisites
+
+- 2025-10-29T14:47:00-04:00
+  - for now, let's keep things simple: the ansible controller machine that we are configuring will build either one of targets: a virtualbox vm or an azure vm.  does that help clarify?
+
+- 2025-10-29T15:00:00-04:00
+  - we are installing these prerequisite files to a server that will be designated as our ansible control machine.  on that server, a user will have two build targets: virtualbox or azure vm.  the only real difference is that terraform and the azure cli and azure support programs would be installed.  do you think we should just go ahead an install all the prerequisites or install the ones based on user choice.   think it might be easier just to install the whole shebang all at once so the user who will be new to the software doesn't have to decide.
+
+- 2025-10-29T15:04:00-04:00
+  - the ansible controller is a baremetal server I just stood up.  it is currently running ubuntu 24.01 oracular.  that said, let's redefine the build targets from the two you identified, 20.04/22.04 to include 24.10.
+
+- 2025-10-29T15:10:00-04:00
+  - what does ansible/playbooks/verify_controller.yml do?
+
+- 2025-10-29T15:13:00-04:00
+  - great.  please put together an  explanation just like this for each of the phase 1 yml files that you created into a single md file, /docs/BOOTSTRAP_PHASE1.md
+
+- 2025-10-29T15:15:00-04:00
+  - yes
+
+- 2025-10-29T15:26:00-04:00
+  - 1) prep a command for me yes.  2) as a final check, i want to confirm with you that no commands to install software are going to run on my local machine and will only do so on baremetalgmktecg9 host, is that correct?
+
+- 2025-10-29T15:38:00-04:00
+  - ok thanks.  i think we are ready to test out the installprequisites role against my baremetal host called baremetalgmktecg9. i'd like to target the virtualbox installpreqs to be installed first.
+
+- 2025-10-29T15:43:00-04:00
+  - good catch..here is the updated version: all:
+    children:
+      controller:
+        hosts:
+          baremetalgmktecg9:
+            ansible_host: 192.168.1.231    # or DNS name if resolvable
+            ansible_user: gmk           # adjust if different on the controller
+            ansible_python_interpreter: /usr/bin/python3
+            ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      target_vms:
+        children:
+          gighive: {}
+      gighive:
+        hosts:
+          gighive_vm:
+            ansible_host: 192.168.1.248
+            ansible_user: ubuntu
+            ansible_python_interpreter: /usr/bin/python3
+            ansible_ssh_common_args: "-o StrictHostKeyChecking=no"

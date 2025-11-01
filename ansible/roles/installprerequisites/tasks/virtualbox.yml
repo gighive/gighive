@@ -1,0 +1,37 @@
+- name: Gather installed package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Gather minimal facts for kernel (if missing)
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - 'min'
+  changed_when: false
+  when: ansible_kernel is not defined
+
+- name: Warn if kernel headers missing (VirtualBox DKMS may fail)
+  ansible.builtin.debug:
+    msg: "Kernel headers for {{ ansible_kernel }} are missing. Consider installing linux-headers-{{ ansible_kernel }} before using VirtualBox."
+  when: ansible_kernel is defined and (ansible_facts.packages | default({})) is mapping and ('linux-headers-' ~ ansible_kernel) not in ansible_facts.packages
+
+- name: Install VirtualBox
+  become: true
+  ansible.builtin.apt:
+    name: virtualbox
+    state: present
+    update_cache: yes
+  register: vbox_install
+
+- name: Reboot after VirtualBox install (if changed)
+  ansible.builtin.reboot:
+    msg: "Rebooting after VirtualBox installation to load kernel modules"
+    reboot_timeout: 600
+  when:
+    - vbox_install is defined
+    - vbox_install.changed
+    - not ansible_check_mode
+
+- name: Verify VBoxManage CLI
+  ansible.builtin.command: VBoxManage --version
+  changed_when: false

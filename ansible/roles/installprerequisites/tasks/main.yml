@@ -1,0 +1,32 @@
+- name: Install controller base packages
+  become: true
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+    update_cache: yes
+
+- name: Ensure ansible-core CLI is present
+  become: true
+  ansible.builtin.apt:
+    name: ansible-core
+    state: present
+    update_cache: yes
+
+- name: Create controller Python venv and install packages
+  ansible.builtin.include_tasks: python_venv.yml
+
+- name: Ensure required Ansible collections are installed
+  when: ensure_required_collections | bool
+  ansible.builtin.include_tasks: ensure_collections.yml
+
+- name: Install Terraform CLI
+  when: install_terraform | bool
+  ansible.builtin.include_tasks: terraform.yml
+
+- name: Install Azure CLI (when enabled)
+  when: install_azure_cli | bool
+  ansible.builtin.include_tasks: azure.yml
+
+- name: Install VirtualBox CLI (when enabled)
+  when: install_virtualbox | bool
+  ansible.builtin.include_tasks: virtualbox.yml

@@ -1,0 +1,19 @@
+---
+- name: Check if Azure CLI is installed
+  ansible.builtin.command: az version
+  register: az_version
+  changed_when: false
+  failed_when: false
+
+- name: Install Azure CLI via Microsoft script (only if missing)
+  become: true
+  ansible.builtin.shell: |
+    set -e
+    curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+  args:
+    executable: /bin/bash
+  when: az_version.rc != 0
+
+- name: Verify az CLI
+  ansible.builtin.command: az version
+  changed_when: false

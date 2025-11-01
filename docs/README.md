@@ -28,26 +28,48 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 ## ⚙️ Preparation
 ### Do these steps before moving ahead with one of the options below.
-1. Make sure you have id_rsa.pub or id_ed25519.pub in ./ssh for passwordless authentication:
+1. Decide on where you will install Ansible as the controller and what target (virtualbox or Azure) that you willinstall Gighive on. 
+
+2. Log onto that server and install Ansible:
 ```bash
-ssh-keygen -t rsa
+sudo apt update && sudo apt install -y ansible-core git
 ```
 
-2. Clone the repo
+3. Clone the repo from your desired location (usually /home/$USER)
 ```bash
 git clone https://github.com/gighive/gighive
 ```
 
-3. Set GIGHIVE_HOME variable:
+4. Set GIGHIVE_HOME variable and test to see if it's correct:
 ```bash
 export GIGHIVE_HOME=/home/$USER/gighive
+echo $GIGHIVE_HOME
+cd $GIGHIVE_HOME
 ```
 
-4. Install Azure, Terraform and Ansible prerequisites 
-Note that you will need to reboot after the VirtualBox installation.
+5. Update your Ansible control target, the machine from which you will run ansible.
+In the inventory file below, set the ansible_host IP address 
 ```bash
-cd $GIGHIVE_HOME;./1prereqsInstall.sh
+vi ansible/inventories/inventory_vbox_new_bootstrap.yml 
 ```
+
+6. Install prerequisites using Ansible. 
+If your target is virtualbox, set install_virtualbox=true in the below Ansible command.
+If your target is Azure, set install_virtualbox=false, but set the terraform and azure_cli options to true.
+```bash
+ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
+```
+
+7. Make sure you have id_rsa.pub or id_ed25519.pub in ./ssh for passwordless authentication:
+```bash
+ssh-keygen -t rsa
+```
+
+8. Execute the Ansible playbook that will install Gighive (this is where we should fix target)
+```bash
+ansible-playbook -i ansible/inventories/inventory_virtualbox.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2 -v"
+```
+
 
 ---
 
