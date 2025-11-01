@@ -44,25 +44,19 @@ pipx install --include-deps ansible
 ansible --version # Should be 2.17.2 or higher
 ```
 
-3. Clone the repo from your desired location (usually /home/$USER).  The repo has some sample media files, so it's about 690MB in size.  Takes a few minutes to download on an average connection.
+5. Clone the repo from your desired location (usually /home/$USER).  The repo has some sample media files, so it's about 690MB in size.  Takes a few minutes to download on an average connection.
 ```bash
 git clone https://github.com/gighive/gighive
 ```
 
-4. Wherever you have installed gighive to, set the GIGHIVE_HOME variable and test to see if it's correct.  Example is GIGHIVE_HOME is located in user's home directory.
+6. Wherever you have installed gighive to, set the GIGHIVE_HOME variable and test to see if it's correct.  Example is GIGHIVE_HOME is located in user's home directory.  Optionally, add GIGHIVE_HOME to your .bashrc or .bash_profile
 ```bash
 export GIGHIVE_HOME=/home/$USER/gighive
 echo $GIGHIVE_HOME
 cd $GIGHIVE_HOME
 ```
 
-5. Update your Ansible control target, the machine from which you will run ansible.
-In the inventory file below, set the ansible_host IP address 
-```bash
-vi ansible/inventories/inventory_vbox_new_bootstrap.yml 
-```
-
-6. Install prerequisites using Ansible. 
+7. Install prerequisites using Ansible. 
 If your target is virtualbox, set install_virtualbox=true in the below Ansible command.
 If your target is Azure, set install_virtualbox=false, but set the terraform and azure_cli options to true.
 The script will ask for your sudo password, so enter it in when prompted.
@@ -70,17 +64,31 @@ The script will ask for your sudo password, so enter it in when prompted.
 ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
 ```
 
-7. Make sure you have id_rsa.pub or id_ed25519.pub in ./ssh for passwordless authentication:
+8. Reboot
+```bash
+cd $GIGHIVE_HOME
+ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
+```
+
+9. Verify the installation
+
+10. Make sure you have id_rsa.pub in ./ssh for passwordless authentication:
 ```bash
 ssh-keygen -t rsa
 ```
 
-8. Execute the Ansible playbook that will install Gighive (this is where we should fix target)
+11. Update your Ansible control target, the machine from which you will run ansible.
+In the inventory file below, set the ansible_host IP address 
 ```bash
-ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass 
+vi ansible/inventories/inventory_vbox_new_bootstrap.yml 
 ```
 
-9. It is helpful to set an alias in your .bashrc to access the vm you've created.  
+12. Execute the Ansible playbook that will install Gighive (this is where we should fix target)
+```bash
+ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
+```
+
+13. It is helpful to set an alias in your .bashrc to access the vm you've created.  
 ```bash
 alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inventory_virtualbox.yml>"
 ```
