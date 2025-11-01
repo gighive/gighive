@@ -89,7 +89,7 @@ apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
 
 # htpasswd seed vars
 gighive_htpasswd_seed_once: true
-gighive_htpasswd_marker_path: "{{ _ht_path }}.seeded"
+gighive_htpasswd_marker_path: "{{ gighive_htpasswd_host_path }}.seeded"
 
 # --- MySQL backup role vars ---
 mysql_backup_user: "{{ ansible_user }}"
