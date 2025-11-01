@@ -31,6 +31,25 @@
     - vbox_install is defined
     - vbox_install.changed
     - not ansible_check_mode
+    - ansible_connection != 'local'
+
+- name: Prompt to reboot manually (local connection)
+  ansible.builtin.pause:
+    prompt: |
+      VirtualBox has been installed and a reboot is required to load kernel modules on this controller machine.
+      Please reboot this machine manually now, then re-run this playbook to complete verification.
+      Press Enter to end the play.
+  when:
+    - vbox_install is defined
+    - vbox_install.changed
+    - ansible_connection == 'local'
+
+- name: End play after manual reboot prompt (local connection)
+  meta: end_play
+  when:
+    - vbox_install is defined
+    - vbox_install.changed
+    - ansible_connection == 'local'
 
 - name: Verify VBoxManage CLI
   ansible.builtin.command: VBoxManage --version
