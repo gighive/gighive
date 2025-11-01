@@ -1,0 +1,32 @@
+---
+- name: Gather distribution facts
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - 'distribution'
+  when: ansible_distribution_release is not defined
+
+- name: Determine repo codename (fallback for oracular)
+  ansible.builtin.set_fact:
+    repo_codename: "{{ 'noble' if ansible_distribution_release == 'oracular' else ansible_distribution_release }}"
+
+- name: Add HashiCorp GPG key
+  become: true
+  ansible.builtin.apt_key:
+    url: https://apt.releases.hashicorp.com/gpg
+    keyring: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+    state: present
+
+- name: Add HashiCorp repo
+  become: true
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ repo_codename }} main"
+    filename: hashicorp
+    state: present
+
+- name: Install Terraform
+  become: true
+  ansible.builtin.apt:
+    name: terraform
+    state: present
+    update_cache: yes

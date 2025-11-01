@@ -1,16 +1,30 @@
 *** 
 releaseNotes20251027.txt
-Changes: FOUR_PAGE_REARCHITECTURE.md and index.md update
+Changes: First bootstrap migration phase done
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
-Your branch is up to date with 'origin/master'.
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   docs/FOUR_PAGE_REARCHITECTURE.md
-	modified:   docs/index.md
+	new file:   ansible/inventories/inventory_vbox_new_bootstrap.yml
+	new file:   ansible/inventories/inventory_vbox_new_bootstrap.yml.localhost
+	new file:   ansible/playbooks/install_controller.yml
+	new file:   ansible/playbooks/verify_controller.yml
+	new file:   ansible/roles/installprerequisites/defaults/main.yml
+	new file:   ansible/roles/installprerequisites/tasks/azure.yml
+	new file:   ansible/roles/installprerequisites/tasks/ensure_collections.yml
+	new file:   ansible/roles/installprerequisites/tasks/main.yml
+	new file:   ansible/roles/installprerequisites/tasks/python_venv.yml
+	new file:   ansible/roles/installprerequisites/tasks/terraform.yml
+	new file:   ansible/roles/installprerequisites/tasks/verify.yml
+	new file:   ansible/roles/installprerequisites/tasks/virtualbox.yml
+	new file:   ansible/roles/installprerequisites/vars/main.yml
+	new file:   docs/BOOTSTRAP_PHASE1.md
+	modified:   docs/README.md
 	modified:   user-prompts.md
 
 ToDo: create a canonical md versions for the site and convert using composer recommendation
@@ -23,6 +37,28 @@ ToDo: clear db script
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251028.txt
+Changes: tagged pre-bootstrap
+
+sodo@pop-os:~/scripts/gighive$ grep 'git tag' ~/.bash_history 
+git tag pre-bootstrap-rearchitecture
+
+*** 
+releaseNotes20251027.txt
+Changes: FOUR_PAGE_REARCHITECTURE.md and index.md update
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/FOUR_PAGE_REARCHITECTURE.md
+	modified:   docs/index.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20251025.txt

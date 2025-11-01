@@ -1,0 +1,243 @@
+---
+- name: Assert Ansible core >= minimum
+  ansible.builtin.assert:
+    that:
+      - ansible_version.full is version(min_ansible, '>=')
+    fail_msg: "Ansible core must be >= {{ min_ansible }}, found {{ ansible_version.full }}"
+    success_msg: "Ansible {{ ansible_version.full }} OK"
+
+- name: Compute venv ansible-galaxy path
+  ansible.builtin.set_fact:
+    _venv_galaxy_path: "{{ (ansible_venv_path | default('') | length > 0) | ternary((ansible_venv_path | expanduser) ~ '/bin/ansible-galaxy','') }}"
+
+- name: Detect ansible-galaxy executable
+  ansible.builtin.stat:
+    path: "{{ _venv_galaxy_path }}"
+  register: _venv_galaxy_stat
+  changed_when: false
+
+- name: Set ansible-galaxy command (prefer venv if present)
+  ansible.builtin.set_fact:
+    ansible_galaxy_cmd: "{{ (_venv_galaxy_stat.stat.exists | default(false)) | ternary(_venv_galaxy_path, 'ansible-galaxy') }}"
+
+- name: Init community.docker version fact
+  ansible.builtin.set_fact:
+    comm_docker_ver: ""
+
+- name: Get controller user home directory for verify
+  ansible.builtin.command: "echo $HOME"
+  register: controller_home_verify
+  changed_when: false
+  check_mode: no
+
+- name: Debug - Show all collection paths
+  ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list --format json --collections-path {{ controller_home_verify.stdout }}/.ansible/collections"
+  register: all_collections_debug
+  changed_when: false
+  failed_when: false
+  check_mode: no
+
+- name: Debug - Display all collection locations
+  ansible.builtin.debug:
+    msg:
+      - "All collection paths found:"
+      - "{{ all_collections_debug.stdout | from_json | dict2items | map(attribute='key') | list }}"
+
+- name: Debug - Show community.docker in each path
+  ansible.builtin.debug:
+    msg: "{{ item.key }}: {{ item.value.get('community.docker', {}).get('version', 'NOT FOUND') }}"
+  loop: "{{ all_collections_debug.stdout | from_json | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Query collection list to get actual version
+  ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list community.docker --format json --collections-path {{ controller_home_verify.stdout }}/.ansible/collections"
+  register: docker_version_query
+  changed_when: false
+  failed_when: false
+  check_mode: no
+
+- name: Extract version from query result (try JSON)
+  ansible.builtin.set_fact:
+    comm_docker_ver: >-
+      {{
+        (docker_version_query.stdout | default('{}') | from_json).values()
+          | map('dict2items') | flatten
+          | selectattr('key', 'equalto', 'community.docker')
+          | map(attribute='value.version') | first | default('')
+      }}
+  when: 
+    - docker_version_query.rc == 0
+    - (docker_version_query.stdout | default('') | trim) | length > 0
+    - (docker_version_query.stdout | default('') | trim) | regex_search('^\{')
+
+- name: Fallback to text parsing if JSON failed
+  ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list community.docker"
+  register: docker_version_text
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  when: (comm_docker_ver | default('')) | length == 0
+
+- name: Debug text output if still empty
+  ansible.builtin.debug:
+    msg: 
+      - "JSON output: {{ docker_version_query.stdout | default('NONE') }}"
+      - "Text output lines: {{ docker_version_text.stdout_lines | default([]) }}"
+  when: (comm_docker_ver | default('')) | length == 0
+
+- name: Extract version from text output
+  ansible.builtin.set_fact:
+    comm_docker_ver: >-
+      {{
+        (docker_version_text.stdout_lines | default([]) | map('trim')
+          | select('match', '^community\\.docker\\s+')
+          | map('regex_replace', '^community\\.docker\\s+(\\S+).*', '\\1')
+          | first | default(''))
+      }}
+  when: (comm_docker_ver | default('')) | length == 0
+
+- name: Assert community.docker is present
+  ansible.builtin.assert:
+    that:
+      - (comm_docker_ver | default('')) | length > 0
+    fail_msg: "community.docker collection not found on controller. Install with: ansible-galaxy collection install 'community.docker:>= {{ min_comm_docker }}'"
+    success_msg: "community.docker found (version {{ comm_docker_ver }})"
+
+- name: Assert community.docker >= minimum
+  ansible.builtin.assert:
+    that:
+      - comm_docker_ver is version(min_comm_docker, '>=')
+    fail_msg: "community.docker must be >= {{ min_comm_docker }}, found {{ comm_docker_ver }}"
+    success_msg: "community.docker {{ comm_docker_ver }} OK (>= {{ min_comm_docker }})"
+  when: (comm_docker_ver | default('')) | length > 0
+
+- name: Terraform present (if enabled)
+  when: install_terraform | bool
+  ansible.builtin.command: terraform version
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  register: terraform_check
+
+- name: Azure CLI present (if enabled)
+  when: install_azure_cli | bool
+  ansible.builtin.command: az version
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  register: azure_check
+
+- name: VirtualBox CLI present (if enabled)
+  when: install_virtualbox | bool
+  ansible.builtin.command: VBoxManage --version
+  changed_when: false
+  check_mode: no
+  register: vbox_version_output
+
+- name: Get Terraform version (if enabled)
+  when: install_terraform | bool
+  ansible.builtin.command: terraform version -json
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  register: terraform_version_output
+
+- name: Debug Terraform version output
+  when: install_terraform | bool
+  ansible.builtin.debug:
+    var: terraform_version_output
+
+- name: Parse Terraform version
+  when: install_terraform | bool and terraform_version_output is defined and terraform_version_output.rc == 0
+  ansible.builtin.set_fact:
+    terraform_ver: "{{ (terraform_version_output.stdout | from_json).terraform_version }}"
+
+- name: Set Terraform not installed message
+  when: install_terraform | bool and (terraform_check is defined and terraform_check.rc != 0)
+  ansible.builtin.set_fact:
+    terraform_ver: "not installed"
+
+- name: Get Azure CLI version (if enabled)
+  when: install_azure_cli | bool
+  ansible.builtin.shell: az version --output json
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  register: azure_version_output
+
+- name: Parse Azure CLI version
+  when: install_azure_cli | bool and azure_version_output is defined and azure_version_output.rc == 0
+  ansible.builtin.set_fact:
+    azure_ver: "{{ (azure_version_output.stdout | from_json)['azure-cli'] }}"
+
+- name: Set Azure CLI not installed message
+  when: install_azure_cli | bool and (azure_check is defined and azure_check.rc != 0)
+  ansible.builtin.set_fact:
+    azure_ver: "not installed"
+
+- name: Debug VirtualBox version output
+  when: install_virtualbox | bool
+  ansible.builtin.debug:
+    var: vbox_version_output
+
+- name: Parse VirtualBox version
+  when: 
+    - install_virtualbox | bool
+    - vbox_version_output is defined
+    - vbox_version_output.stdout is defined
+    - (vbox_version_output.stdout | length) > 0
+  ansible.builtin.set_fact:
+    vbox_ver: "{{ vbox_version_output.stdout | trim }}"
+
+- name: Query community.general presence
+  ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list community.general --format json --collections-path {{ controller_home_verify.stdout }}/.ansible/collections"
+  register: comm_general_query
+  changed_when: false
+  failed_when: false
+  check_mode: no
+
+- name: Parse community.general version
+  ansible.builtin.set_fact:
+    comm_general_ver: >-
+      {{
+        (comm_general_query.stdout | default('{}') | from_json).values()
+          | map('dict2items') | flatten
+          | selectattr('key', 'equalto', 'community.general')
+          | map(attribute='value.version') | first | default('')
+      }}
+  when: comm_general_query.rc == 0
+
+- name: Build version summary message
+  ansible.builtin.set_fact:
+    version_summary:
+      - "=== Controller Prerequisites Verification Summary ==="
+      - ""
+      - "Ansible Core: {{ ansible_version.full }}"
+      - "Collections:"
+      - "  - community.general: {{ comm_general_ver | default('not found') }}"
+      - "  - community.docker: {{ comm_docker_ver | default('not found') }}"
+      - "  - Collection path: {{ controller_home_verify.stdout }}/.ansible/collections"
+
+- name: Add Terraform version to summary
+  ansible.builtin.set_fact:
+    version_summary: "{{ version_summary + ['Terraform: ' + terraform_ver] }}"
+  when: terraform_ver is defined
+
+- name: Add Azure CLI version to summary
+  ansible.builtin.set_fact:
+    version_summary: "{{ version_summary + ['Azure CLI: ' + azure_ver] }}"
+  when: azure_ver is defined
+
+- name: Add VirtualBox version to summary
+  ansible.builtin.set_fact:
+    version_summary: "{{ version_summary + ['VirtualBox: ' + vbox_ver] }}"
+  when: vbox_ver is defined
+
+- name: Add footer to summary
+  ansible.builtin.set_fact:
+    version_summary: "{{ version_summary + ['', '✅ All prerequisites verified successfully!'] }}"
+
+- name: Display installed versions summary
+  ansible.builtin.debug:
+    msg: "{{ version_summary }}"

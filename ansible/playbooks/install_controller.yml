@@ -1,0 +1,11 @@
+---
+- name: Install controller prerequisites for Phase 1
+  hosts: baremetalgmktecg9
+  gather_facts: false
+  become: true
+  vars:
+    install_terraform: true
+    install_azure_cli: true
+    install_virtualbox: true
+  roles:
+    - role: installprerequisites

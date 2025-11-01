@@ -1,0 +1,15 @@
+ansible_venv_path: "~/.ansible-azure"
+# Provider used only for verify emphasis; installs default to all enabled
+target_provider: "vbox"  # options: vbox | azure
+
+# Version thresholds
+min_ansible: "2.17.12"
+min_comm_docker: "3.13.3"
+
+# Install-all defaults (advanced users can opt out)
+install_terraform: true
+install_azure_cli: true
+install_virtualbox: true
+
+# Ensure required Ansible collections on controller
+ensure_required_collections: true

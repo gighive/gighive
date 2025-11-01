@@ -1,0 +1,59 @@
+---
+- name: Determine ansible-galaxy executable (prefer venv)
+  ansible.builtin.set_fact:
+    venv_galaxy_path: "{{ (ansible_venv_path | expanduser) ~ '/bin/ansible-galaxy' }}"
+
+- name: Stat venv ansible-galaxy
+  ansible.builtin.stat:
+    path: "{{ venv_galaxy_path }}"
+  register: venv_galaxy_bin
+
+- name: Set ansible-galaxy command
+  ansible.builtin.set_fact:
+    ansible_galaxy_cmd: "{{ venv_galaxy_path if (venv_galaxy_bin.stat.exists | default(false)) else 'ansible-galaxy' }}"
+
+- name: Query installed collections (text)
+  ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list"
+  register: galaxy_list_text
+  changed_when: false
+  failed_when: false
+
+- name: Determine if community.general is present
+  ansible.builtin.set_fact:
+    community_general_present_initial: >-
+      {{
+        (galaxy_list_text.stdout_lines | default([])
+          | select('match', '^community\\.general\\s+')
+          | list | length) > 0
+      }}
+
+- name: Install community.general collection (if missing)
+  ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection install community.general"
+  changed_when: false
+  when: not (community_general_present_initial | default(false) | bool)
+
+- name: Get controller user home directory
+  become: no
+  ansible.builtin.command: "echo $HOME"
+  register: controller_home
+  changed_when: false
+
+- name: Debug - Show where collections will be installed
+  ansible.builtin.debug:
+    msg:
+      - "Controller user HOME: {{ controller_home.stdout }}"
+      - "Collections will install to: {{ controller_home.stdout }}/.ansible/collections"
+
+- name: Ensure community.docker collection (install or upgrade to minimum version)
+  become: no
+  ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection install 'community.docker:>={{ min_comm_docker }}' --upgrade --force --collections-path {{ controller_home.stdout }}/.ansible/collections"
+  register: docker_install_result
+  changed_when: "'was installed successfully' in docker_install_result.stdout or 'Upgrading' in docker_install_result.stdout"
+
+- name: Debug - Show install output
+  ansible.builtin.debug:
+    msg:
+      - "Install command output:"
+      - "{{ docker_install_result.stdout_lines | default([]) }}"
+      - "Install command stderr:"
+      - "{{ docker_install_result.stderr_lines | default([]) }}"

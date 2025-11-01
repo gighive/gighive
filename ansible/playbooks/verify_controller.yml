@@ -1,0 +1,17 @@
+---
+- name: Verify controller prerequisites for Phase 1
+  hosts: baremetalgmktecg9
+  gather_facts: false
+  vars:
+    # Provider hint for messaging; installs are controlled by flags in role defaults
+    target_provider: "vbox"   # or "azure"
+    min_ansible: "2.17.12"
+    min_comm_docker: "3.13.3"
+    install_terraform: true
+    install_azure_cli: true
+    install_virtualbox: true
+  tasks:
+    - name: Run controller verification on controller host
+      ansible.builtin.import_role:
+        name: installprerequisites
+        tasks_from: verify.yml
