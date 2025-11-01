@@ -35,9 +35,9 @@ sudo apt update && sudo apt install -y pipx python3-venv git
 pipx ensurepath
 ```
 
-3. Log out
+3. Log out.
 
-4. Log back in
+4. Log back in.
 ```bash
 pipx install --include-deps ansible
 ansible --version # Should be 2.17.2 or higher
@@ -51,19 +51,19 @@ git clone https://github.com/gighive/gighive
 ```
 
 6. Wherever you have installed gighive to, set the GIGHIVE_HOME variable and test to see if it's correct.  
-- Example is GIGHIVE_HOME is located in user's home directory.  
+- Example: GIGHIVE_HOME is located in user's home directory.  
 ```bash
 export GIGHIVE_HOME=/home/$USER/gighive
 echo $GIGHIVE_HOME
 cd $GIGHIVE_HOME
 ```
 
-7. Add GIGHIVE_HOME export to your .bashrc
+7. Add GIGHIVE_HOME export to your .bashrc.
 ```bash
 echo "export GIGHIVE_HOME=/home/$USER/gighive" >> ~/.bashrc
 ```
 
-8. Make sure you have id_rsa.pub in ./ssh for passwordless authentication:
+8. Make sure you have id_rsa.pub in ./ssh for passwordless authentication.
 ```bash
 ssh-keygen -t rsa
 ```
@@ -77,9 +77,9 @@ ssh-keygen -t rsa
 ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
 ```
 
-10. Reboot
+10. Reboot.
 
-11. Verify the installation
+11. Verify the installation.
 ```bash
 cd $GIGHIVE_HOME
 ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
@@ -118,8 +118,7 @@ export ARM_SUBSCRIPTION_ID=[put your subscription id here]
 export ARM_TENANT_ID=[put your tenant id/mgmt group id here]
 ```
 
-2. Provision infrastructure
-Watch and respond to these prompts:
+2. Provision infrastructure.  Run ./2bootstrap.sh. Watch for and respond to these prompts:
 .. apply Terraform plan 
 .. update the ansible inventory file
 .. run the ansible_playbook
