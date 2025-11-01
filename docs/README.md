@@ -32,7 +32,10 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 2. Log onto that server and install Ansible:
 ```bash
-sudo apt update && sudo apt install -y ansible-core git
+sudo apt update && sudo apt install -y pipx python3-venv
+pipx ensurepath
+pipx install --include-deps ansible
+source ~/.bashrc # Or open a new terminal to see the new ~/.local/bin added to your PATH
 ```
 
 3. Clone the repo from your desired location (usually /home/$USER)

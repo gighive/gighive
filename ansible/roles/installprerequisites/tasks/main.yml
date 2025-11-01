@@ -5,13 +5,6 @@
     state: present
     update_cache: yes
 
-- name: Ensure ansible-core CLI is present
-  become: true
-  ansible.builtin.apt:
-    name: ansible-core
-    state: present
-    update_cache: yes
-
 - name: Create controller Python venv and install packages
   ansible.builtin.include_tasks: python_venv.yml
 

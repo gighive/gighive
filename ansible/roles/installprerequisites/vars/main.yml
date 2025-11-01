@@ -1,6 +1,5 @@
 ---
 python_packages:
-  - ansible
   - azure-cli
 
 base_packages:
