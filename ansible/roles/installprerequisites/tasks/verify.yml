@@ -69,7 +69,7 @@
   when: 
     - docker_version_query.rc == 0
     - (docker_version_query.stdout | default('') | trim) | length > 0
-    - (docker_version_query.stdout | default('') | trim) | regex_search('^\{')
+    - (docker_version_query.stdout | default('') | trim) | regex_search('^\{') is not none
 
 - name: Fallback to text parsing if JSON failed
   ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list community.docker"
