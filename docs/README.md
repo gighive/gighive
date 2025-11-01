@@ -16,7 +16,7 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 - **Control Machine**: Tested on Ubuntu 24.10 or 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS**, installed on bare metal for the Virtualbox implementation or you can install to a VM if you are deploying to an external Azure or bare metal server.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
 - **Target Server**: Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
 
-## Architecture
+## Architecture (logical)
 
 <a href="images/architecture.png" target="_blank">
   <img src="images/architecture.png" alt="GigHive Architecture Diagram" height="400" style="cursor: pointer;">
@@ -33,13 +33,18 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 2. Log onto that server and install Ansible:
 ```bash
 sudo apt update && sudo apt install -y pipx python3-venv git
+```
+
+3. Log out
+
+4. Log back in
+```bash
 pipx ensurepath
 pipx install --include-deps ansible
-source ~/.bashrc # Or open a new terminal to see the new ~/.local/bin added to your PATH
 ansible --version # Should be 2.17.2 or higher
 ```
 
-3. Clone the repo from your desired location (usually /home/$USER).  The repo has some sample media files, so it's about 600MB in size.  Takes a few minutes to download on an average connection.
+3. Clone the repo from your desired location (usually /home/$USER).  The repo has some sample media files, so it's about 690MB in size.  Takes a few minutes to download on an average connection.
 ```bash
 git clone https://github.com/gighive/gighive
 ```
@@ -60,6 +65,7 @@ vi ansible/inventories/inventory_vbox_new_bootstrap.yml
 6. Install prerequisites using Ansible. 
 If your target is virtualbox, set install_virtualbox=true in the below Ansible command.
 If your target is Azure, set install_virtualbox=false, but set the terraform and azure_cli options to true.
+The script will ask for your sudo password, so enter it in when prompted.
 ```bash
 ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
 ```
