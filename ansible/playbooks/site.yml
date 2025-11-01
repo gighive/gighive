@@ -18,6 +18,19 @@
         msg: "GIGHIVE_HOME = {{ lookup('env','GIGHIVE_HOME') }}"
       when: (lookup('env','GIGHIVE_HOME') | default('')) | length > 0
 
+    - name: Check if SSH public key exists
+      ansible.builtin.stat:
+        path: "{{ lookup('env','HOME') }}/.ssh/id_rsa.pub"
+      register: ssh_pubkey
+      delegate_to: localhost
+
+    - name: Fail fast if SSH public key is missing
+      ansible.builtin.fail:
+        msg: >
+          SSH public key not found at ~/.ssh/id_rsa.pub.
+          Generate one first:  ssh-keygen -t rsa -b 4096
+      when: not ssh_pubkey.stat.exists
+
 - name: Provision VM in VirtualBox
   hosts: gighive
   connection: local

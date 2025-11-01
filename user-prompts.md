@@ -600,6 +600,15 @@ pipx install --include-deps ansible. Then I execute the below playbook: ansible-
 - 2025-11-01T15:43:00-04:00
   - ok, i did that manually, but get this: pipx install says ansible already installed, ansible --version shows 2.19.3 in /home/gmk/.local/bin/ansible. Also, rerunning the ansible playbook gives me same error about ansible-galaxy not found. let me make a clarification: the remote baremetalgmkg9 server IS the ansible controller
 
+- 2025-11-01T15:47:00-04:00
+  - yes that fixed the issue
+
+- 2025-11-01T16:11:00-04:00
+  - please find where there is a check for the GIGHIVE_HOME variable in the ansible scripts
+
+- 2025-11-01T16:12:00-04:00
+  - OK, right after that check, also put in a check for ~/.ssh/id_rsa.pub.
+
 ## 2025-10-29
 
 - 2025-10-29T13:44:00-04:00
