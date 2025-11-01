@@ -609,6 +609,12 @@ pipx install --include-deps ansible. Then I execute the below playbook: ansible-
 - 2025-11-01T16:12:00-04:00
   - OK, right after that check, also put in a check for ~/.ssh/id_rsa.pub.
 
+- 2025-11-01T16:17:00-04:00
+  - do you have a plan for this error? [DEPRECATION WARNING about play_hosts magic variable in varscope role]
+
+- 2025-11-01T16:18:00-04:00
+  - leave alone for now
+
 ## 2025-10-29
 
 - 2025-10-29T13:44:00-04:00
