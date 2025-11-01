@@ -32,18 +32,19 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 2. Log onto that server and install Ansible:
 ```bash
-sudo apt update && sudo apt install -y pipx python3-venv
+sudo apt update && sudo apt install -y pipx python3-venv git
 pipx ensurepath
 pipx install --include-deps ansible
 source ~/.bashrc # Or open a new terminal to see the new ~/.local/bin added to your PATH
+ansible --version # Should be 2.17.2 or higher
 ```
 
-3. Clone the repo from your desired location (usually /home/$USER)
+3. Clone the repo from your desired location (usually /home/$USER).  The repo has some sample media files, so it's about 600MB in size.  Takes a few minutes to download on an average connection.
 ```bash
 git clone https://github.com/gighive/gighive
 ```
 
-4. Set GIGHIVE_HOME variable and test to see if it's correct:
+4. Wherever you have installed gighive to, set the GIGHIVE_HOME variable and test to see if it's correct.  Example is GIGHIVE_HOME is located in user's home directory.
 ```bash
 export GIGHIVE_HOME=/home/$USER/gighive
 echo $GIGHIVE_HOME
