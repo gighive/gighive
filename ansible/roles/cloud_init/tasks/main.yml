@@ -1,5 +1,27 @@
 # roles/cloud_init/tasks/main.yml
 
+# ========== PREFLIGHT IP CONFLICT CHECK ==========
+- name: Check if target IP is already in use
+  delegate_to: localhost
+  run_once: true
+  ansible.builtin.command: ping -c 1 -W 2 {{ ansible_host }}
+  register: ip_ping_check
+  failed_when: false
+  changed_when: false
+
+- name: Fail if target IP is already reachable (conflict detected)
+  delegate_to: localhost
+  run_once: true
+  ansible.builtin.fail:
+    msg: |
+      IP conflict detected: {{ ansible_host }} is already reachable on the network.
+      This IP is assigned to the VM in your inventory but appears to be in use by another host.
+      Please either:
+        1. Choose a different IP in your inventory file ({{ inventory_file }})
+        2. Investigate and resolve the IP conflict on your network
+      Current inventory: ansible_host={{ ansible_host }}, ansible_user={{ ansible_user }}
+  when: ip_ping_check.rc == 0
+
 # ========== PREREQS ==========
 - name: Ensure ISO tools present on control
   become: yes
