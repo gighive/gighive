@@ -13,6 +13,7 @@
     ansible_galaxy_cmd: "{{ venv_galaxy_path if (venv_galaxy_bin.stat.exists | default(false)) else 'ansible-galaxy' }}"
 
 - name: Query installed collections (text)
+  become: no
   ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list"
   register: galaxy_list_text
   changed_when: false
@@ -28,6 +29,7 @@
       }}
 
 - name: Install community.general collection (if missing)
+  become: no
   ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection install community.general"
   changed_when: false
   when: not (community_general_present_initial | default(false) | bool)

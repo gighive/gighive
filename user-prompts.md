@@ -587,6 +587,19 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+## 2025-11-01
+
+- 2025-11-01T15:33:00-04:00
+  - for my gighive installer, i first manually install ansible using these commands.  sudo apt update && sudo apt install -y pipx python3-venv git
+pipx ensurepath
+pipx install --include-deps ansible. Then I execute the below playbook: ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass. The playbook fails here..why?
+
+- 2025-11-01T15:37:00-04:00
+  - 1) i only want to install ansible via that set of manual command.  less confusion that way. 2) here is the output of what i have installed manually: [apt info output for ansible 9.2.0 and ansible-core 2.16.3]
+
+- 2025-11-01T15:43:00-04:00
+  - ok, i did that manually, but get this: pipx install says ansible already installed, ansible --version shows 2.19.3 in /home/gmk/.local/bin/ansible. Also, rerunning the ansible playbook gives me same error about ansible-galaxy not found. let me make a clarification: the remote baremetalgmkg9 server IS the ansible controller
+
 ## 2025-10-29
 
 - 2025-10-29T13:44:00-04:00
