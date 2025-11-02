@@ -6,6 +6,7 @@
     update_cache: yes
 
 - name: Create controller Python venv and install packages
+  become: false
   ansible.builtin.include_tasks: python_venv.yml
 
 - name: Ensure required Ansible collections are installed
