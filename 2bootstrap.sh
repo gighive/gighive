@@ -122,7 +122,7 @@ if terraform -chdir=terraform output -raw vm_public_ip &>/dev/null; then
   read -p "❓ Do you want to update the Ansible inventory with this IP? $VM_IP [y/N]: " UPDATE_INV
   if [[ "$UPDATE_INV" =~ ^[Yy]$ ]]; then
     echo "==> Generating Ansible inventory from template..."
-    jinja2 ansible/inventories/inventory_azure.yml.j2 \
+    ~/.ansible-azure/bin/jinja2 ansible/inventories/inventory_azure.yml.j2 \
       -D vm_public_ip="$VM_IP" \
       > ansible/inventories/inventory_azure.yml
     echo "✅ Inventory updated: ansible/inventories/inventory_azure.yml"
