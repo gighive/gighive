@@ -124,6 +124,7 @@ if terraform -chdir=terraform output -raw vm_public_ip &>/dev/null; then
     echo "==> Generating Ansible inventory from template..."
     ~/.ansible-azure/bin/jinja2 ansible/inventories/inventory_azure.yml.j2 \
       -D vm_public_ip="$VM_IP" \
+      -D user_home="$HOME" \
       > ansible/inventories/inventory_azure.yml
     echo "✅ Inventory updated: ansible/inventories/inventory_azure.yml"
     cat ansible/inventories/inventory_azure.yml
