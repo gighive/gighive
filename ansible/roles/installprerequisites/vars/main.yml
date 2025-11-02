@@ -1,6 +1,7 @@
 ---
 python_packages:
   - azure-cli
+  - jinja2-cli
 
 base_packages:
   - python3

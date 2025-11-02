@@ -820,3 +820,41 @@ community.docker                          3.13.3
             ansible_user: ubuntu
             ansible_python_interpreter: /usr/bin/python3
             ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+## 2025-11-02
+
+- 2025-11-02T08:26:00-05:00
+  - Now that I've gotten the virtual box installation to work properly, I want to make sure that the terraform and azure implementations work. i will run the following playbook. can you do some pre-checks before i run it to make sure we are set to go? make no changes to the code yet, but present me with a plan to implement any potential changes needed: ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=false-e install_terraform=true -e install_azure_cli=true --ask-become-pass
+
+- 2025-11-02T08:29:00-05:00
+  - where else is baremetalgmktecg9 defined across the ansible roles/inventories/group_vars?
+
+- 2025-11-02T08:31:00-05:00
+  - ok i've cleaned up those yml's so they all match the inventory's hosts: value of baremetal. please check
+
+- 2025-11-02T08:34:00-05:00
+  - i've changed the file to inventory_bootstrap.yml
+
+- 2025-11-02T08:43:00-05:00
+  - i note that when the terraform/azure install playbook is run, it does not include that nice summary of all the installed versions of the necessary software that the -e install_virtualbox includes. can you please use the existing task that does this, but use the output of the install_virtualbox to include terraform, az and azure-cli versions? so i would expect to see ALL softwares, regardless of -e target and just have an N/A in the value for the versions where those installations don't apply.
+
+- 2025-11-02T08:50:00-05:00
+  - looks good, what is the command to remove terraform and az and azure-cli so i can test the output when those softwares are not installed?
+
+- 2025-11-02T08:51:00-05:00
+  - yes, works!
+
+- 2025-11-02T08:52:00-05:00
+  - looks good
+
+- 2025-11-02T08:57:00-05:00
+  - since converting from my bash ./2bootstrap.sh script, i don't know the ansible-playbook command to run in order to install the vm in azure using terraform.
+
+- 2025-11-02T09:00:00-05:00
+  - step 2 should be the export of the SUBSCRIPTION_ID and TENANT_ID variables
+
+- 2025-11-02T09:12:00-05:00
+  - because all of the above commands are in ./2bootstrap.sh, i've decided to continue to use that script to install the azure vm. however, it looks like the jinja2 prerequisite installation was not found. can we add that to our installer script?
+
+- 2025-11-02T09:12:00-05:00
+  - please put that into the verify_controller.yml output as well.
