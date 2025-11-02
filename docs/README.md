@@ -74,7 +74,7 @@ ssh-keygen -t rsa
 - The script will ask for your sudo password, so enter it in when prompted.
 - Default below is for the virtualbox install.
 ```bash
-ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
 ```
 
 10. Reboot.
@@ -82,18 +82,18 @@ ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible
 11. Verify the installation.
 ```bash
 cd $GIGHIVE_HOME
-ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
 ```
 
 12. Update your Ansible control target, the IP of the VM that will run the Gighive Apache web server and MySQL database.
 - In the inventory file below, set the ansible_host IP address 
 ```bash
-vi ansible/inventories/inventory_vbox_new_bootstrap.yml 
+vi ansible/inventories/inventory_bootstrap.yml 
 ```
 
 13. Execute the Ansible playbook that will install Gighive.
 ```bash
-ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
 ```
 
 14. If Step 13 ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
