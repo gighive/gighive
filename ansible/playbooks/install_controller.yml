@@ -1,6 +1,6 @@
 ---
 - name: Install controller prerequisites for Phase 1
-  hosts: baremetalgmktecg9
+  hosts: baremetal
   gather_facts: false
   become: true
   vars:
