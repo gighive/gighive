@@ -26,7 +26,7 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 ---
 
-## ⚙️  Option A: Install to Local Machine
+## ⚙️  Prerequisites: Install Ansible and Python to your controller machine.
 1. Decide on where you will install Ansible as the controller and what target (virtualbox or Azure) that you will install Gighive on. 
 
 2. Log onto that server and install Ansible:
@@ -68,35 +68,37 @@ echo "export GIGHIVE_HOME=/home/$USER/gighive" >> ~/.bashrc
 ssh-keygen -t rsa
 ```
 
-9. Install prerequisites using Ansible. 
-- If your target is virtualbox, set install_virtualbox=true in the below Ansible command.
-- If your target is Azure, set install_virtualbox=false, but set the terraform and azure_cli options to true.
+---
+
+## ⚙️  Option A: Install Virtualbox and Gighive as a vm on your Ansible controller machine.
+1. Install Virtualbox using Ansible. 
+- Default shown below is the virtualbox install.
+- install_virtualbox=true will be set in the below Ansible command.
 - The script will ask for your sudo password, so enter it in when prompted.
-- Default below is for the virtualbox install.
 ```bash
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
 ```
 
-10. Reboot.
+2. Reboot.
 
-11. Verify the installation.
+3. Verify the installation.
 ```bash
 cd $GIGHIVE_HOME
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
 ```
 
-12. Update your Ansible control target, the IP of the VM that will run the Gighive Apache web server and MySQL database.
+4. Update your Ansible control target, the IP of the VM that will run the Gighive Apache web server and MySQL database.
 - In the inventory file below, set the ansible_host IP address 
 ```bash
 vi ansible/inventories/inventory_bootstrap.yml 
 ```
 
-13. Execute the Ansible playbook that will install Gighive.
+5. Execute the Ansible playbook that will install Gighive.
 ```bash
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
 ```
 
-14. If Step 13 ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
+6. If Step 13 ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
 ```bash
 https://<ansible_host IP from step 11>
 ```
@@ -108,9 +110,10 @@ alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inven
 
 ---
 
-## Option B: Install to Azure VM (requires an Azure subscription)
+## Option B: Install Gighive to an Azure VM (requires an Azure subscription)
 ### Default is 64GB, ~10GB of which will be used by the OS.  
 So you will have ~54GB of space for media files.
+Make sure prerequisites from above
 
 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 ```bash
@@ -132,7 +135,7 @@ source ./azure.env
 
 3. If Step 2 ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
 ```bash
-https://<ansible_host IP from the install>
+https://<ansible_host IP cpatured from the install>
 ```
 
 OPTIONAL: If you're finished with the VM, delete all resources in Azure
