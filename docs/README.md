@@ -91,12 +91,12 @@ ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible
 vi ansible/inventories/inventory_vbox_new_bootstrap.yml 
 ```
 
-13. Execute the Ansible playbook that will install Gighive (this is where we should fix target)
+13. Execute the Ansible playbook that will install Gighive.
 ```bash
 ansible-playbook -i ansible/inventories/inventory_vbox_new_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
 ```
 
-14. If you've made it this far, CONGRATULATIONS!!  You've installed all the prerequsities and actually installed Gighive! Awesome!! Now access it in a browser:
+14. If Step 13 ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
 ```bash
 https://<ansible_host IP from step 11>
 ```

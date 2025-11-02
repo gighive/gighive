@@ -1,6 +1,6 @@
 ---
 - name: Verify controller prerequisites for Phase 1
-  hosts: baremetalgmktecg9
+  hosts: baremetal
   gather_facts: false
   vars:
     # Provider hint for messaging; installs are controlled by flags in role defaults
