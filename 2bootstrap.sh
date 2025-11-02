@@ -135,15 +135,15 @@ else
   echo "⚠️  Could not extract VM IP — Terraform may not have applied yet."
 fi
 echo "✅ To execute ansible build, run:"
-echo "  ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2 -v" 
+echo "  ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2" 
 
 # ─── Optionally run ansible build ────────────────────────────────────────
 read -p "❓ Do you want to run the Ansible build now? [y/N]: " RUN_BUILD
 if [[ "$RUN_BUILD" =~ ^[Yy]$ ]]; then
   echo "==> Run Ansible Build..."
-  ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2 -v
+  ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2
   
 else
   echo "⏭️ Skipping build. You can run it later with:"
-  echo " ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2 -v"
+  echo " ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2"
 fi
