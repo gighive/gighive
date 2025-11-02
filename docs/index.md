@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ### Why not just use YouTube?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
-- With build targets such as Azure, virtualbox or bare metal, you have your choice on how to deploy Gighive.
+- With build targets such as Azure or virtualbox, you have your choice on how to deploy Gighive.
 - Gighive frees you from content limitations on the major providers..but you'll need to size your vm properly.
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
 - Gighive is simple. There is one page for the media library and an upload page. That's it.
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ### Requirements
 1. Control Machine: Tested on Ubuntu 24.10 and 22.04, so the requirements are **any flavor of that version or Pop-OS, installed on bare metal.**
-2. Target Machine: Your choice of virtualbox, Azure or bare metal deployment targets for the vm and containerized environment.
+2. Target Machine: Your choice of virtualbox or Azure deployment targets for the vm and containerized environment.
 These are shown in this <a href="images/architecture.png">architecture diagram</a>.
 
 ### What comes with Gighive?
