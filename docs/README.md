@@ -117,6 +117,10 @@ So you will have ~54GB of space for media files.
 export ARM_SUBSCRIPTION_ID=[put your subscription id here]
 export ARM_TENANT_ID=[put your tenant id/mgmt group id here]
 ```
+or, if you have azure.env configured with these exports, just:
+```bash
+source ./azure.env
+```
 
 2. Provision infrastructure.  Run ./2bootstrap.sh. Watch for and respond to these prompts:
 .. apply Terraform plan 
@@ -126,7 +130,12 @@ export ARM_TENANT_ID=[put your tenant id/mgmt group id here]
 ./2bootstrap.sh
 ```
 
-3. If you're finished with the VM, delete all resources in Azure
+3. If Step 2 ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
+```bash
+https://<ansible_host IP from the install>
+```
+
+OPTIONAL: If you're finished with the VM, delete all resources in Azure
 ```bash
 cd $GIGHIVE_HOME;./3deleteAll.sh 
 ```

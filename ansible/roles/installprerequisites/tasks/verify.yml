@@ -145,6 +145,17 @@
   ansible.builtin.set_fact:
     vbox_ver: "{{ vbox_version_output.stdout | trim if vbox_version_output.rc == 0 else 'N/A' }}"
 
+- name: Check jinja2-cli presence
+  ansible.builtin.shell: "{{ ansible_venv_path }}/bin/jinja2 --version 2>&1 || echo 'N/A'"
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  register: jinja2_version_output
+
+- name: Parse jinja2-cli version
+  ansible.builtin.set_fact:
+    jinja2_ver: "{{ jinja2_version_output.stdout | regex_replace('^jinja2-cli\\s+', '') | regex_replace(',.*$', '') | trim if jinja2_version_output.rc == 0 and 'N/A' not in jinja2_version_output.stdout else 'N/A' }}"
+
 - name: Query community.general presence
   ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list community.general --format json --collections-path {{ controller_home_verify.stdout }}/.ansible/collections"
   register: comm_general_query
@@ -176,6 +187,7 @@
       - "Terraform: {{ terraform_ver | default('N/A') }}"
       - "Azure CLI: {{ azure_ver | default('N/A') }}"
       - "VirtualBox: {{ vbox_ver | default('N/A') }}"
+      - "jinja2-cli: {{ jinja2_ver | default('N/A') }}"
 
 - name: Add footer to summary
   ansible.builtin.set_fact:
