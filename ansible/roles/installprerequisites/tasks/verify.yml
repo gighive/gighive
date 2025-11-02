@@ -112,54 +112,18 @@
     success_msg: "community.docker {{ comm_docker_ver }} OK (>= {{ min_comm_docker }})"
   when: (comm_docker_ver | default('')) | length > 0
 
-- name: Terraform present (if enabled)
-  when: install_terraform | bool
-  ansible.builtin.command: terraform version
-  changed_when: false
-  failed_when: false
-  check_mode: no
-  register: terraform_check
-
-- name: Azure CLI present (if enabled)
-  when: install_azure_cli | bool
-  ansible.builtin.command: az version
-  changed_when: false
-  failed_when: false
-  check_mode: no
-  register: azure_check
-
-- name: VirtualBox CLI present (if enabled)
-  when: install_virtualbox | bool
-  ansible.builtin.command: VBoxManage --version
-  changed_when: false
-  check_mode: no
-  register: vbox_version_output
-
-- name: Get Terraform version (if enabled)
-  when: install_terraform | bool
+- name: Check Terraform presence
   ansible.builtin.command: terraform version -json
   changed_when: false
   failed_when: false
   check_mode: no
   register: terraform_version_output
 
-- name: Debug Terraform version output
-  when: install_terraform | bool
-  ansible.builtin.debug:
-    var: terraform_version_output
-
 - name: Parse Terraform version
-  when: install_terraform | bool and terraform_version_output is defined and terraform_version_output.rc == 0
   ansible.builtin.set_fact:
-    terraform_ver: "{{ (terraform_version_output.stdout | from_json).terraform_version }}"
+    terraform_ver: "{{ (terraform_version_output.stdout | from_json).terraform_version if terraform_version_output.rc == 0 else 'N/A' }}"
 
-- name: Set Terraform not installed message
-  when: install_terraform | bool and (terraform_check is defined and terraform_check.rc != 0)
-  ansible.builtin.set_fact:
-    terraform_ver: "not installed"
-
-- name: Get Azure CLI version (if enabled)
-  when: install_azure_cli | bool
+- name: Check Azure CLI presence
   ansible.builtin.shell: az version --output json
   changed_when: false
   failed_when: false
@@ -167,28 +131,19 @@
   register: azure_version_output
 
 - name: Parse Azure CLI version
-  when: install_azure_cli | bool and azure_version_output is defined and azure_version_output.rc == 0
   ansible.builtin.set_fact:
-    azure_ver: "{{ (azure_version_output.stdout | from_json)['azure-cli'] }}"
+    azure_ver: "{{ (azure_version_output.stdout | from_json)['azure-cli'] if azure_version_output.rc == 0 else 'N/A' }}"
 
-- name: Set Azure CLI not installed message
-  when: install_azure_cli | bool and (azure_check is defined and azure_check.rc != 0)
-  ansible.builtin.set_fact:
-    azure_ver: "not installed"
-
-- name: Debug VirtualBox version output
-  when: install_virtualbox | bool
-  ansible.builtin.debug:
-    var: vbox_version_output
+- name: Check VirtualBox presence
+  ansible.builtin.command: VBoxManage --version
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  register: vbox_version_output
 
 - name: Parse VirtualBox version
-  when: 
-    - install_virtualbox | bool
-    - vbox_version_output is defined
-    - vbox_version_output.stdout is defined
-    - (vbox_version_output.stdout | length) > 0
   ansible.builtin.set_fact:
-    vbox_ver: "{{ vbox_version_output.stdout | trim }}"
+    vbox_ver: "{{ vbox_version_output.stdout | trim if vbox_version_output.rc == 0 else 'N/A' }}"
 
 - name: Query community.general presence
   ansible.builtin.command: "{{ ansible_galaxy_cmd }} collection list community.general --format json --collections-path {{ controller_home_verify.stdout }}/.ansible/collections"
@@ -218,21 +173,9 @@
       - "  - community.general: {{ comm_general_ver | default('not found') }}"
       - "  - community.docker: {{ comm_docker_ver | default('not found') }}"
       - "  - Collection path: {{ controller_home_verify.stdout }}/.ansible/collections"
-
-- name: Add Terraform version to summary
-  ansible.builtin.set_fact:
-    version_summary: "{{ version_summary + ['Terraform: ' + terraform_ver] }}"
-  when: terraform_ver is defined
-
-- name: Add Azure CLI version to summary
-  ansible.builtin.set_fact:
-    version_summary: "{{ version_summary + ['Azure CLI: ' + azure_ver] }}"
-  when: azure_ver is defined
-
-- name: Add VirtualBox version to summary
-  ansible.builtin.set_fact:
-    version_summary: "{{ version_summary + ['VirtualBox: ' + vbox_ver] }}"
-  when: vbox_ver is defined
+      - "Terraform: {{ terraform_ver | default('N/A') }}"
+      - "Azure CLI: {{ azure_ver | default('N/A') }}"
+      - "VirtualBox: {{ vbox_ver | default('N/A') }}"
 
 - name: Add footer to summary
   ansible.builtin.set_fact:
