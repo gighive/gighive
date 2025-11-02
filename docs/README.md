@@ -5,8 +5,8 @@ layout: default
 # GigHive Music and Video Library 
 
 GigHive is an **open-source deployment framework** for hosting your own media library, a band’s library or fan videos, or even videos uploaded by guests from events like a wedding.  There are two pieces to Gighive:
-- A pre-built web-accessible media library waiting to be populated.  This is the server piece. Gighive uses Ansible and Terraform to build a vm (or optionally, configure a bare metal server) and on top, a fast Apache server and MySQL database. It includes a few audio and video clips donated from one of our other users as a sample.
-- Companion iPhone app for fans and wedding guests to upload content (web-based version also built-in).
+- A pre-built web-accessible media library waiting to be populated.  This is the server piece. Gighive uses Ansible and Terraform to build a vm and on top, a fast Apache server and MySQL database. It includes a few audio and video clips donated from one of our other users as a sample.
+- Companion iPhone app for fans and wedding guests to upload content (web-based upload also built-in).
 
 The automation spins up a fully reproducible environment using **Docker, Ansible, and Terraform**.  It has a very simple interface: a splash page, a single database of stored videos and an upload utility.
 
@@ -15,6 +15,12 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 ## Requirements
 - **Ansible Control Machine**: Tested on Ubuntu 24.10 or 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS**, installed on bare metal.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
 - **Target Server**: Your choice of Virtualbox or Azure deployment targets for the vm and containerized environment.
+- Ansible, Python and git installs.
+- If you select Virtualbox as your deployment target, Virtualbox install.
+- If you select Azure as your deployment target, az and azure-cli installs.
+- An id_rsa.pub file for passwordless authentication into the Gighive server.
+- Default vm size is 64GB, ~10GB of which will be used by the OS (configurable in ansible/group_vars).
+- So you will have ~54GB of space for media files.
 
 ## Architecture (logical)
 
@@ -111,9 +117,7 @@ alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inven
 ---
 
 ## Option B: Install Gighive to an Azure VM (requires an Azure subscription)
-### Default is 64GB, ~10GB of which will be used by the OS.  
-So you will have ~54GB of space for media files.
-Make sure prerequisites from above
+Make sure prerequisites from above are installed.
 
 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 ```bash
