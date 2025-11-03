@@ -6,7 +6,7 @@
     "php": ">=7.4",
     "guzzlehttp/psr7": "^2.0",
     "psr/http-message": "^1.0",
-    "zircote/swagger-php": "^4.0",
+    "zircote/swagger-php": "^5.5",
     "james-heinrich/getid3": "^1.9"
   },
   "autoload": {
