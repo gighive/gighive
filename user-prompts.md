@@ -858,3 +858,14 @@ community.docker                          3.13.3
 
 - 2025-11-02T09:12:00-05:00
   - please put that into the verify_controller.yml output as well.
+
+## 2025-11-03
+
+- 2025-11-03T11:54:00-05:00
+  - how do i setup a dependency graph that i can see in github?
+
+- 2025-11-03T11:58:00-05:00
+  - sorry..as the GigHive repo is more dependent upon Ansible to install files, I would look to what is configured in Ansible to tell me the softwares that it uses
+
+- 2025-11-03T12:03:00-05:00
+  - should DEPENDENCIES.md and README-DEPENDENCIES.md live in /docs?
