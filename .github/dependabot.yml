@@ -1,0 +1,44 @@
+# GitHub Dependabot configuration for GigHive
+# Monitors dependencies across multiple package ecosystems
+
+version: 2
+updates:
+  # Monitor Python dependencies (controller prerequisites)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "python"
+    open-pull-requests-limit: 5
+
+  # Monitor PHP/Composer dependencies (Apache container)
+  - package-ecosystem: "composer"
+    directory: "/ansible/roles/docker/files/apache/webroot"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "php"
+    open-pull-requests-limit: 5
+
+  # Monitor Docker base images
+  - package-ecosystem: "docker"
+    directory: "/ansible/roles/docker/files/apache"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+    open-pull-requests-limit: 5
+
+  # Monitor GitHub Actions (if you add any workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    open-pull-requests-limit: 5
