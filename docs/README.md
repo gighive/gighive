@@ -12,15 +12,21 @@ The automation spins up a fully reproducible environment using **Docker, Ansible
 
 This project is designed to be portable, easy to deploy, and suitable for local development or cloud environments (Azure supported out of the box).
 
-## Requirements
+## Components
 - **Ansible Control Machine**: Tested on Ubuntu 24.10 or 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS**, installed on bare metal.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
 - **Target Server**: Your choice of Virtualbox or Azure deployment targets for the vm and containerized environment.
-- Ansible, Python and git installs.
-- If you select Virtualbox as your deployment target, Virtualbox install.
-- If you select Azure as your deployment target, az and azure-cli installs.
-- An id_rsa.pub file for passwordless authentication into the Gighive server.
-- Default vm size is 64GB, ~10GB of which will be used by the OS (configurable in ansible/group_vars).
-- So you will have ~54GB of space for media files.
+ * Default vm size is 64GB, ~10GB of which will be used by the OS (configurable in ansible/group_vars).  
+ * You will have ~54GB for media files.  
+ * Docker will be installed to that VM. Bind mounts used for config files and media files. Check Dockerfile for exact specs.
+
+## Software
+- Prerequisites for all installs
+ * Ansible, Python and git will be installed.
+ * An id_rsa.pub file is needed for passwordless authentication into the Gighive server.
+- Virtualbox install
+ * If you select Virtualbox as your deployment target, Virtualbox install.
+- Azure install
+ * If you select Azure as your deployment target, az and azure-cli installs.
 
 ## Architecture (logical)
 
