@@ -36,10 +36,9 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 *Click the diagram above to view full size*
 
----
-
-## ⚙️  Suggested Platforms
+## Suggested Platforms
 Gighive runs very efficiently on an [Orange Pi 5](https://a.co/d/90UDcvi) or [GMKtech mini PC](https://www.amazon.com/dp/B0F8NL4ST4?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1).  Stuff a few NVMe's in either and you'll have plenty of storage for your videos.  We've tested on both of them.
+
 ---
 
 ## ⚙️  Prerequisites: Install Ansible and Python to your controller machine.
