@@ -288,7 +288,6 @@ document.addEventListener('DOMContentLoaded', function() {
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
 - Gighive is simple. There is one page for the media library and an upload page. That's it.
 - Coming soon: an easy-to-use iphone app.
-- Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
 
 ### Requirements
 1. Control Machine: Tested on Ubuntu 24.10 and 22.04, so the requirements are **any flavor of that version or Pop-OS, installed on bare metal.**
@@ -299,6 +298,7 @@ These are shown in this <a href="images/architecture.png">architecture diagram</
 - Gighive includes a website with a searchable, sortable one-page listing of media files and common attributes (date, filename, etc) stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).
 - Common media formats for upload are supported (shown below).
 - [Here are instructions](README.html) on how to standup and manage your own Gighive.
+- Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
 
 ### Media formats supported
 - Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4)

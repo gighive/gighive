@@ -73,12 +73,13 @@
       <li>Gighive frees you from content limitations on the major providers..but you’ll need to size your vm properly.</li>
       <li>It is <a href="https://gighive.app/SECURITY.html">secure by default</a> and was built from the ground up to live behind the <a href="https://www.cloudflare.com">Cloudflare shield</a>.</li>
       <li>Last but not least, Gighive is simple.  There is one page for the <a href="db/database.php">media library</a> and one <a href="db/upload_form.php">upload utility</a>..that's all.</li>
-      <li>Please read and be informed about your responsibilities via <a href="https://gighive.app/gighive_content_policy.html">our content policy</a>.</li>
       </ul>
 
       <h3>What comes with Gighive?</h3>
       <ul>
       <li>Gighive includes a searchable, sortable one-page listing of media files and common attributes (date, location, people, rating, etc) stored <a href="images/databaseErd.png">in the database</a> along with an <a href="db/upload_form.php">upload utility</a>.</li> 
+      <li>Common media formats for upload are supported (shown below).</li>
+      <li>Please read and be informed about your responsibilities via <a href="https://gighive.app/gighive_content_policy.html">our content policy</a>.</li>
       </ul>
 
       <h3>Media formats supported</h3>
