@@ -213,10 +213,11 @@ img {
         <li><a href="security-upgrade.html">🔒 Security Upgrade</a></li>
     </ul>
     
-    <h3>📄 Legal</h3>
+    <h3>📄 Legal & Policies</h3>
     <ul>
         <li><a href="LICENSE_AGPLv3.html">📜 AGPL v3 License</a></li>
         <li><a href="LICENSE_COMMERCIAL.html">💼 Commercial License</a></li>
+        <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
     </ul>
     
     <h3>🔗 Links</h3>
@@ -287,6 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
 - Gighive is simple. There is one page for the media library and an upload page. That's it.
 - Coming soon: an easy-to-use iphone app.
+- Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
 
 ### Requirements
 1. Control Machine: Tested on Ubuntu 24.10 and 22.04, so the requirements are **any flavor of that version or Pop-OS, installed on bare metal.**
