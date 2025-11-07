@@ -128,13 +128,13 @@
     state: directory
     mode: "0755"
 
-- name: Copy OpenAPI spec into Apache webroot
-  copy:
-    src: "api/openapi.yaml"          # resolved under roles/docker/files/
-    dest: "{{ web_root }}/api/openapi.yaml"
-    owner: www-data
-    group: www-data
-    mode: "0644"
+#- name: Copy OpenAPI spec into Apache webroot
+#  copy:
+#    src: "api/openapi.yaml"          # resolved under roles/docker/files/
+#    dest: "{{ web_root }}/api/openapi.yaml"
+#    owner: www-data
+#    group: www-data
+#    mode: "0644"
 
 # Ensure the host path exists where docker-compose will mount from
 - name: Ensure externalConfigs directory exists

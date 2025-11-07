@@ -1,4 +1,62 @@
 *** 
+releaseNotes20251107.txt
+Changes: Eliminated duplicate openapi.yml and created swagger documentation at docs/api-docs.html
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+Last run: ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   VERSION
+	modified:   ansible/inventories/group_vars/gighive.yml
+	new file:   ansible/roles/docker/files/apache/webroot/docs/api-docs.html
+	modified:   ansible/roles/docker/files/apache/webroot/docs/openapi.yaml
+	deleted:    ansible/roles/docker/files/api/openapi.yaml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   docs/index.md
+	modified:   user-prompts.md
+
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251107.txt
+Changes: Migration of /api/uploads.php to clean MVC architecture 
+
+Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+Last run: ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
+
+	modified:   ansible/inventories/group_vars/gighive.yml
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/uploads.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   docs/index.md
+	modified:   user-prompts.md
+	ansible/roles/docker/files/apache/webroot/src/index.php
+	ansible/roles/docker/files/apache/webroot/src/test.php
+	docs/API_CLEANUP.md
+	docs/POTENTIAL_API_CLEANUP_IF_DESIRED.md
+	docs/favicon.ico
+	docs/images/requestFlowBasic.png
+	docs/images/requestFlowFull.png
+
+*** 
 releaseNotes20251027.txt
 Changes: First bootstrap migration phase done
 
@@ -26,17 +84,6 @@ Changes to be committed:
 	new file:   docs/BOOTSTRAP_PHASE1.md
 	modified:   docs/README.md
 	modified:   user-prompts.md
-
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251028.txt
