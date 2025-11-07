@@ -1,5 +1,9 @@
 *** 
 releaseNotes20251107.txt
+Changes: New version of content policy
+
+*** 
+releaseNotes20251107.txt
 Changes: Eliminated duplicate openapi.yml and created swagger documentation at docs/api-docs.html
 
 Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
@@ -21,6 +25,7 @@ Changes to be committed:
 	modified:   docs/index.md
 	modified:   user-prompts.md
 
+ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
 ToDo: create a canonical md versions for the site and convert using composer recommendation
 ToDo: cleaning the database won't clear out what has been uploaded to video and audio
 ToDo: remove vodcast.xml from webroot for gighive

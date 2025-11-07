@@ -4,82 +4,71 @@ _Last updated: November 2025_
 
 ## Overview
 
-GigHive is a creative platform for musicians and bands to **upload, manage, and share original audio, video, and loop content** hosted on a personal web server.  
-We are committed to supporting artists’ creative expression while maintaining respect for copyright law and community standards.
+GigHive is an **open-source platform** that enables musicians and developers to deploy their own self-hosted environments for managing and sharing original audio, video, and loop content.  
+Each GigHive instance operates independently on the owner’s infrastructure and is not centrally managed or controlled by the GigHive project maintainers.
 
-This page outlines GigHive’s policy on content ownership, moderation, and reporting.
+This document provides general guidance to help instance operators and users maintain compliance with copyright law and responsible content management practices.
 
 ---
 
 ## 1. Copyright and Intellectual Property
 
-All material uploaded to GigHive **must be original** or used with the **explicit permission** of the copyright holder (e.g., the band, composer, or producer).  
+All material uploaded to any GigHive instance **must be original** or used with the **explicit permission** of the copyright holder (e.g., the band, composer, or producer).  
 By uploading content, users confirm that they:
 
-- Own or are authorized to distribute the material.
-- Are not infringing upon the copyrights, trademarks, or publicity rights of others.
+- Own or are authorized to distribute the material.  
+- Are not infringing upon the copyrights, trademarks, or publicity rights of others.  
 - Will not upload unauthorized recordings, samples, or remixes without permission.
 
-GigHive **does not permit the upload, hosting, or distribution of copyrighted or illegal material** without appropriate authorization.
+Each GigHive instance operator is responsible for ensuring that the content hosted on their server complies with applicable copyright laws.  
 
-If copyrighted material is discovered without permission, GigHive reserves the right to **remove it immediately** and **restrict access** to the uploader’s account.
+The GigHive open-source project itself does **not host or control** any user content and has **no ability to remove or moderate** material from independently deployed instances.
 
 ---
 
 ## 2. Prohibited Content
 
-Users may not upload, distribute, or store any content that:
+Operators and users of GigHive instances may not upload, distribute, or store any content that:
 
-- Infringes on another party’s intellectual property rights.
-- Contains illegal, defamatory, or explicit material.
-- Encourages violence, discrimination, or harassment.
+- Infringes on another party’s intellectual property rights.  
+- Contains illegal, defamatory, or explicit material.  
+- Encourages violence, discrimination, or harassment.  
 - Includes private or personally identifiable information without consent.
 
-GigHive reserves the right to determine, in its sole discretion, whether content violates these guidelines.
+Instance operators are encouraged to implement moderation and review mechanisms to ensure their hosted content aligns with these guidelines.
 
 ---
 
 ## 3. Reporting Infringing or Inappropriate Content
 
-If you believe that content hosted on GigHive infringes your copyright or violates this policy, please contact us at:
+If you believe that content hosted on a GigHive instance infringes your copyright or violates applicable laws, please contact the **operator of that specific instance** directly.  
+Because GigHive is open-source and self-hosted, the GigHive project maintainers do not have access to or control over independently operated servers.
+
+For questions about this policy or to report misuse of the GigHive software (not content hosted on specific servers), you may contact the project maintainers at:
 
 📧 **copyright@gighive.app**
 
-Your report should include:
-
-1. Your name and contact information.  
-2. A link or description of the allegedly infringing content.  
-3. A statement of ownership or authorization to act on behalf of the rights holder.  
-4. A brief explanation of the issue.
-
-Upon receiving a valid report, GigHive will:
-
-- Review the report within **5 business days**.
-- Remove or restrict access to the reported material if found to be in violation.
-- Notify the uploader and allow them to respond with supporting evidence if appropriate.
-
 ---
 
-## 4. Moderation and Developer Responsibility
+## 4. Moderation and Instance Operator Responsibility
 
-GigHive’s moderation system is designed to ensure the platform remains a safe and lawful environment for musicians.  
-The GigHive development team:
+Each GigHive instance operator bears full responsibility for moderating content hosted within their environment.  
+The GigHive open-source project provides these guidelines as a framework, but does not:
 
-- Reviews new uploads for compliance with this policy.
-- Responds to all valid copyright or content violation reports.
-- May temporarily disable uploads or accounts pending investigation.
-- Regularly audits content to maintain compliance with App Store and copyright requirements.
+- Review or approve content uploaded to third-party instances.  
+- Respond to content removal requests for independently hosted deployments.  
+- Intervene in disputes between users or operators.
 
-All moderation actions are logged for accountability.
+Instance operators should implement their own moderation workflows, reporting tools, and content policies to remain compliant with applicable laws and platform rules (e.g., App Store or Play Store policies).
 
 ---
 
 ## 5. Disclaimer
 
-GigHive is a **self-hosted platform** operated by independent musicians and developers.  
-While we provide moderation tools and enforce policy compliance, **ultimate responsibility for uploaded content rests with the individual uploader**.  
+GigHive is a **self-hosted, open-source software project** maintained by independent developers.  
+While the project provides moderation tools and recommended practices, **each instance operator is solely responsible for their server, content, and compliance**.  
 
-GigHive is not liable for user-submitted content but will act promptly to address any violations reported through the proper channels.
+The GigHive project maintainers do not monitor, manage, or host user content and cannot remove or alter material from independently deployed systems.
 
 ---
 
