@@ -587,6 +587,75 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+## 2025-11-07
+
+- 2025-11-07T10:04:00-05:00
+  - can you graph out / visualize how the pathing of the MVC api is working for gighive and stormpigs?
+
+- 2025-11-07T10:07:00-05:00
+  - can you regenerate that graphic, but replace StormPigs label with Alternate?
+
+- 2025-11-07T10:10:00-05:00
+  - are there any security risks if I post how this flow and api structure is working in the hamburger on the homepage of gighive.app?
+
+- 2025-11-07T10:15:00-05:00
+  - in docs/index.md, please add "Request Flow" under Security link in the Documentation section and link it to docs/images/requestFlowBasic.png
+
+## 2025-11-07
+
+- 2025-11-07T09:46:00-05:00
+  - one other change.  there should be an indicator on db/database.php and db/upload_form.php at the top of each page about who is logged in.  The text should match the iphone's messaging: "User is logged in as <user>" in small font.  That way, it's clear who is logged in.
+
+- 2025-11-07T09:49:00-05:00
+  - ok, the gighive overlay also needs it's list.php modified here, but it shares the same database.php file, so that doesn't need to be modified: ansible/roles/docker/files/apache/overlays/gighive/src/Views/media/list.php
+
+## 2025-11-07
+
+- 2025-11-07T08:18:00-05:00
+  - where are the working apis defined for my apache docker container?  I see two directories: ansible/roles/docker/files/apache/webroot/api and ansible/roles/docker/files/apache/webroot/src.  it looks like the main directory should be the src directory, but then we have an api directory.
+
+- 2025-11-07T08:19:00-05:00
+  - is it necessary to have the /api/ directory at all, given the configuration in /src/?
+
+- 2025-11-07T08:24:00-05:00
+  - there is an index.php one level up in ansible/roles/docker/files/apache/webroot, but it doesn't look like it has any api configuration.  please review it and see if this changes the plan you laid out.
+
+- 2025-11-07T08:26:00-05:00
+  - ok let's fix this, but lay out the plan first.  what's the detail of the plan?
+
+- 2025-11-07T08:29:00-05:00
+  - 1) keep /api/uploads.php until we verify clean MVC path works.  2) Don't implement aditional routes..keep it simple to just change only.  3) again, no new error handling.  just migration only.
+
+- 2025-11-07T08:30:00-05:00
+  - document the plan in /docs/API_CLEANUP.md
+
+- 2025-11-07T08:32:00-05:00
+  - go ahead
+
+- 2025-11-07T08:49:00-05:00
+  - Since the codebase is the same for gighive except for minor changes, I got this error when trying to upload using the url https://gighive/db/upload_form.php: the browser redirects to https://gighive/src/uploads and the browser says Not Found The requested URL was not found on this server.  Andi see this error the /var/log/apache2/error.log: [Fri Nov 07 13:47:53.235715 2025] [proxy_fcgi:error] [pid 424:tid 139754581501504] [remote 192.168.1.235:55058] AH01071: Got error 'Primary script unknown'
+
+- 2025-11-07T08:53:00-05:00
+  - how can i tell if the apachewebserver has been rebuilt?
+
+- 2025-11-07T08:54:00-05:00
+  - had to run the command from the gighive vm: ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files$ docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.CreatedAt}}" | grep -i apache apacheWebServer   ubuntu22.04apache-img:1.00   Up About a minute   2025-11-07 08:52:34 -0500 EST
+
+- 2025-11-07T09:01:00-05:00
+  - i get the same "requested url not found" error in browser, but have this in apache error log: 192.168.1.235 - uploader [07/Nov/2025:13:57:17 +0000] "POST /src/uploads HTTP/2.0" 404 270 "https://gighive/db/upload_form.php" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36" 192.168.1.235 - - [07/Nov/2025:13:57:18 +0000] "GET /favicon.ico HTTP/2.0" 200 766 "https://gighive/src/uploads" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
+
+- 2025-11-07T09:03:00-05:00
+  - is there any debugging we can put in that will help us?
+
+- 2025-11-07T09:09:00-05:00
+  - result of #1 test: SUCCESS: /src/test.php is working! REQUEST_URI: /src/test.php SCRIPT_NAME: /src/test.php PATH_INFO: null Time: 2025-11-07 14:08:20.  result of #2: [Fri Nov 07 14:08:20.362526 2025] [rewrite:trace2] [pid 421:tid 140008915519040] mod_rewrite.c(491): [remote 192.168.1.235:51026] 192.168.1.235 - - [gighive/sid#7f5669f430b8][rid#7f566a52a0a0/initial] init rewrite engine with requested uri /src/test.php [Fri Nov 07 14:08:20.362550 2025] [rewrite:trace3] [pid 421:tid 140008915519040] mod_rewrite.c(491): [remote 192.168.1.235:51026] 192.168.1.235 - - [gighive/sid#7f5669f430b8][rid#7f566a52a0a0/initial] applying pattern '^src/uploads/?(.*)$' to uri '/src/test.php' [Fri Nov 07 14:08:20.362560 2025] [rewrite:trace1] [pid 421:tid 140008915519040] mod_rewrite.c(491): [remote 192.168.1.235:51026] 192.168.1.235 - - [gighive/sid#7f5669f430b8][rid#7f566a52a0a0/initial] pass through /src/test.php [Fri Nov 07 14:08:20.548146 2025] [rewrite:trace2] [pid 421:tid 140009153164864] mod_rewrite.c(491): [remote 192.168.1.235:51026] 192.168.1.235 - - [gighive/sid#7f5669f430b8][rid#7f566a5280a0/initial] init rewrite engine with requested uri /favicon.ico, referer: https://gighive/src/test.php [Fri Nov 07 14:08:20.548167 2025] [rewrite:trace3] [pid 421:tid 140009153164864] mod_rewrite.c(491): [remote 192.168.1.235:51026] 192.168.1.235 - - [gighive/sid#7f5669f430b8][rid#7f566a5280a0/initial] applying pattern '^src/uploads/?(.*)$' to uri '/favicon.ico', referer: https://gighive/src/test.php [Fri Nov 07 14:08:20.548171 2025] [rewrite:trace1] [pid 421:tid 140009153164864] mod_rewrite.c(491): [remote 192.168.1.235:51026] 192.168.1.235 - - [gighive/sid#7f5669f430b8][rid#7f566a5280a0/initial] pass through /favicon.ico, referer: https://gighive/src/test.php
+
+- 2025-11-07T09:11:00-05:00
+  - sodo@pop-os:~/scripts/gighive$ curl -Xk POST https://gighive/src/uploads -u uploader:password -v * Could not resolve host: POST * Closing connection 0 curl: (6) Could not resolve host: POST *   Trying 192.168.1.248:443... * Connected to gighive (192.168.1.248) port 443 (#1) * ALPN, offering h2 * ALPN, offering http/1.1 *  CAfile: /etc/ssl/certs/ca-certificates.crt *  CApath: /etc/ssl/certs * TLSv1.0 (OUT), TLS header, Certificate Status (22): * TLSv1.3 (OUT), TLS handshake, Client hello (1): * TLSv1.2 (IN), TLS header, Certificate Status (22): * TLSv1.3 (IN), TLS handshake, Server hello (2): * TLSv1.2 (IN), TLS header, Finished (20): * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8): * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.3 (IN), TLS handshake, Certificate (11): * TLSv1.2 (OUT), TLS header, Unknown (21): * TLSv1.3 (OUT), TLS alert, unknown CA (560): * SSL certificate problem: self-signed certificate * Closing connection 1 curl: (60) SSL certificate problem: self-signed certificate More details here: https://curl.se/docs/sslcerts.html curl failed to verify the legitimacy of the server and therefore could not establish a secure connection to it. To learn more about this situation and how to fix it, please visit the web page mentioned above.
+
+- 2025-11-07T09:12:00-05:00
+  - sodo@pop-os:~/scripts/gighive$ curl -X POST https://gighive/src/uploads -u uploader:password -v -k *   Trying 192.168.1.248:443... * Connected to gighive (192.168.1.248) port 443 (#0) * ALPN, offering h2 * ALPN, offering http/1.1 * TLSv1.0 (OUT), TLS header, Certificate Status (22): * TLSv1.3 (OUT), TLS handshake, Client hello (1): * TLSv1.2 (IN), TLS header, Certificate Status (22): * TLSv1.3 (IN), TLS handshake, Server hello (2): * TLSv1.2 (IN), TLS header, Finished (20): * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8): * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.3 (IN), TLS handshake, Certificate (11): * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.3 (IN), TLS handshake, CERT verify (15): * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.3 (IN), TLS handshake, Finished (20): * TLSv1.2 (OUT), TLS header, Finished (20): * TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1): * TLSv1.2 (OUT), TLS header, Supplemental data (23): * TLSv1.3 (OUT), TLS handshake, Finished (20): * SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 * ALPN, server accepted to use h2 * Server certificate: *  subject: CN=gighive *  start date: Nov  7 14:06:16 2025 GMT *  expire date: Nov  7 14:06:16 2026 GMT *  issuer: CN=gighive *  SSL certificate verify result: self-signed certificate (18), continuing anyway. * Using HTTP2, server supports multiplexing * Connection state changed (HTTP/2 confirmed) * Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0 * TLSv1.2 (OUT), TLS header, Supplemental data (23): * TLSv1.2 (OUT), TLS header, Supplemental data (23): * TLSv1.2 (OUT), TLS header, Supplemental data (23): * Server auth using Basic with user 'uploader' * Using Stream ID: 1 (easy handle 0x60b9397cdeb0) * TLSv1.2 (OUT), TLS header, Supplemental data (23): > POST /src/uploads HTTP/2 > Host: gighive > authorization: Basic dXBsb2FkZXI6cGFzc3dvcmQ= > user-agent: curl/7.81.0 > accept: */* >  * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.3 (IN), TLS handshake, Newsession Ticket (4): * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.3 (IN), TLS handshake, Newsession Ticket (4): * old SSL session ID is stale, removing * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.2 (OUT), TLS header, Supplemental data (23): * TLSv1.2 (IN), TLS header, Supplemental data (23): * TLSv1.2 (IN), TLS header, Supplemental data (23): < HTTP/2 401  < x-content-type-options: nosniff < x-frame-options: SAMEORIGIN < referrer-policy: no-referrer-when-downgrade < permissions-policy: geolocation=(), microphone=(), camera=() < server: Apache/2.4.52 (Ubuntu) * Authentication problem. Ignoring this. < www-authenticate: Basic realm="GigHive" < content-length: 455 < content-type: text/html; charset=iso-8859-1 < date: Fri, 07 Nov 2025 14:12:19 GMT <  <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"> <html><head> <title>401 Unauthorized</title> </head><body> <h1>Unauthorized</h1> <p>This server could not verify that you are authorized to access the document requested.  Either you supplied the wrong credentials (e.g., bad password), or your browser doesn't understand how to supply the credentials required.</p> <hr> <address>Apache/2.4.52 (Ubuntu) Server at gighive Port 443</address> </body></html> * Connection #0 to host gighive left intact
+
 ## 2025-11-01
 
 - 2025-11-01T15:33:00-04:00

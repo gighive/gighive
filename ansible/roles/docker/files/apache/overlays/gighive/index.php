@@ -86,7 +86,7 @@
       <ul>
       <li>Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4)</li>
       <li>Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo)</li>
-      <li>Note that .MOV and .AVI don't autoplay in the browser</li>
+      <li>Note that HEVC, .MOV and .AVI don't autoplay in the browser</li>
       </ul>
 
       <h3>So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!</h3>

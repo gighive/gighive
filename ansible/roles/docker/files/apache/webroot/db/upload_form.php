@@ -19,6 +19,7 @@
     .row { display: flex; align-items: center; gap: 8px; }
     .row label.inline { display: inline; font-weight: 400; margin-top: 0; }
     .admin-link { margin-top: 16px; display: inline-block; font-size: 14px; text-decoration: underline; }
+    .user-indicator { font-size: 12px; color: #666; margin-bottom: 8px; }
     /* simple in-flight indicator (no XHR, no percent) */
     #status { margin-top: 12px; font-size: 14px; color: #333; }
     .spinner { display:inline-block; width:14px; height:14px; border:2px solid #999; border-top-color: transparent; border-radius:50%; animation: spin 0.8s linear infinite; margin-left:8px; }
@@ -27,6 +28,13 @@
   <!-- This page is under /db/, protected by Basic Auth via Apache LocationMatch -->
 </head>
 <body>
+  <?php
+  $user = $_SERVER['PHP_AUTH_USER']
+      ?? $_SERVER['REMOTE_USER']
+      ?? $_SERVER['REDIRECT_REMOTE_USER']
+      ?? 'Unknown';
+  ?>
+  <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?></div>
   <h1>Upload Media</h1>
   <form id="uploadForm" action="/api/uploads.php" method="POST" enctype="multipart/form-data">
     <label for="file">Media file (audio/video) *</label>
