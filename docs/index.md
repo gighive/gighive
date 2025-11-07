@@ -181,6 +181,7 @@ img {
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="images/requestFlowBasic.png">🔄 Request Flow</a></li>
+        <li><a href="https://dev.gighive.app/docs/api-docs.html" target="_blank">📋 API Documentation</a></li>
     </ul>
     
     <h3>🗄️ Database</h3>

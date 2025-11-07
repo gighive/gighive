@@ -32,7 +32,7 @@ database_full: false
 
 # Docker container rebuild control
 rebuild_mysql: false       # Rebuild MySQL container (preserve data)
-rebuild_mysql_data: true   # Rebuild MySQL container + wipe database (nuclear)
+rebuild_mysql_data: false   # Rebuild MySQL container + wipe database (nuclear)
 
 # these vars control full/reduced set of media
 sync_video: true

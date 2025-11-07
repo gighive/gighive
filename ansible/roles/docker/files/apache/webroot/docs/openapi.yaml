@@ -1,11 +1,15 @@
 openapi: 3.0.3
 info:
-  title: Gighive Upload API
-  version: 0.1.0
+  title: GigHive API
+  version: 1.0.0
   description: |
-    Minimal spec for media uploads aligned with the DB model used by the timeline and database views.
+    GigHive media management API for uploading and retrieving audio/video files with session metadata.
+    Supports both StormPigs and GigHive deployments with configurable organization settings.
 servers:
   - url: /api
+    description: Upload API endpoints
+  - url: /db
+    description: Database and media listing endpoints
 paths:
   /uploads:
     post:
@@ -25,10 +29,7 @@ paths:
                   type: string
                   format: binary
                   description: The media file to upload (audio/video)
-                media_type:
-                  type: string
-                  enum: [audio, video]
-                  description: Optional explicit type (server will also infer from mime/extension)
+                # Note: media_type is inferred from file extension and MIME type
                 event_date:
                   type: string
                   format: date
@@ -46,10 +47,9 @@ paths:
                 participants:
                   type: string
                   description: Comma-separated participant names (musicians or guests)
-                session_id:
-                  type: integer
-                  format: int64
-                  description: Optional session to attach the uploaded file to
+                keywords:
+                  type: string
+                  description: Keywords for searching and categorization
                 location:
                   type: string
                 rating:
@@ -118,6 +118,38 @@ paths:
           description: Not found
         '500':
           description: Server error
+  /database.php:
+    get:
+      summary: Get media list
+      description: |
+        Returns a list of all media files with metadata. Can return HTML view or JSON based on format parameter.
+      parameters:
+        - in: query
+          name: format
+          required: false
+          schema:
+            type: string
+            enum: [json]
+          description: Response format. If 'json', returns JSON array; otherwise returns HTML view
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/MediaEntry'
+            text/html:
+              schema:
+                type: string
+                description: HTML page with media list
+        '500':
+          description: Server error
 components:
   schemas:
     File:
@@ -148,6 +180,40 @@ components:
         created_at:
           type: string
           format: date-time
+    MediaEntry:
+      type: object
+      description: Media entry with session and song metadata
+      properties:
+        id:
+          type: integer
+          format: int64
+        index:
+          type: integer
+          description: Sequential index in the list
+        date:
+          type: string
+          format: date
+          description: Event/session date
+        org_name:
+          type: string
+          description: Organization or band name
+        duration:
+          type: string
+          description: Human-readable duration (HH:MM:SS)
+        duration_seconds:
+          type: integer
+          description: Duration in seconds
+        song_title:
+          type: string
+          description: Song or event label
+        file_type:
+          type: string
+          enum: [audio, video]
+        file_name:
+          type: string
+        url:
+          type: string
+          description: Relative URL to the media file
     Error:
       type: object
       properties:

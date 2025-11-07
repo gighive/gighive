@@ -589,6 +589,35 @@ GigHive is dual-licensed:
 
 ## 2025-11-07
 
+- 2025-11-07T12:11:00-05:00
+  - i'm not too familiar with openapi 3.0 spec, but i like the visualizations of the api structure that the documentation gives you. 1) is our mvc api implementation openapi .0 compatible?  2) how can we get the nice visualization?
+
+- 2025-11-07T12:14:00-05:00
+  - the best place to check our api implementation are these two files: ansible/roles/docker/files/apache/webroot/db/database.php and ansible/roles/docker/files/apache/webroot/db/upload_form.php 1) please check these files for our true implementation.  2) let's remove one of those openapi.yaml files..and update the remaining one to our current architecture..we don't want multiple versions running around.
+
+- 2025-11-07T12:26:00-05:00
+  - is docs/openapi.yaml read by any of the programs running on apache?
+
+- 2025-11-07T12:27:00-05:00
+  - did you check in this directory? ansible/roles/docker/files/apache/externalConfigs
+
+- 2025-11-07T12:28:00-05:00
+  - would it be beneficial if Apache read  it or use it for any server operations, routing, or request handling?  (just advise me, make no changes)
+
+- 2025-11-07T12:29:00-05:00
+  - yep, let's not change
+
+- 2025-11-07T12:32:00-05:00
+  - cool!
+
+- 2025-11-07T12:32:00-05:00
+  - is this something I can share with people who download my open source gighive repo?
+
+- 2025-11-07T12:38:00-05:00
+  - Add that documentation link to the hamburger as "API Documentation" under "Request Flow" on docs/index.md, but point the link to https://dev.gighive.app/docs/api-docs.html
+
+## 2025-11-07
+
 - 2025-11-07T10:04:00-05:00
   - can you graph out / visualize how the pathing of the MVC api is working for gighive and stormpigs?
 
