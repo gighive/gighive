@@ -37,12 +37,8 @@
     CustomLog ${APACHE_LOG_DIR}/access.log combined
 
     # -------------------------------
-    # No /api directory — keep rewrites minimal
+    # API routing - Using MVC architecture in /src/
     # -------------------------------
-    RewriteEngine On
-    # If you later want front-controller routing under /src, uncomment:
-    # RewriteCond %{REQUEST_FILENAME} !-f
-    # RewriteRule ^src(/.*)?$ /src/index.php [L,QSA]
 
     # -------------------------------
     # Root is public, but no indexes
@@ -96,6 +92,7 @@
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin uploader
     </Location>
+    
     
     # --- ADMIN-ONLY: change-password page ---
     <Files "changethepasswords.php">

@@ -8,6 +8,7 @@
   <style>
     body{font-family:system-ui,Arial,sans-serif;margin:0;padding:1rem;}
     h1{margin:0 auto 1rem auto;max-width:900px;}
+    .user-indicator{font-size:12px;color:#666;margin:0 auto 0.5rem auto;max-width:900px;}
     table{width:900px;table-layout:fixed;border-collapse:collapse;margin:0 auto;}
     th,td{border:1px solid #ddd;padding:8px;vertical-align:top;word-wrap:break-word;}
     th{background:#f6f6f6;text-align:left;cursor:pointer;}
@@ -15,6 +16,13 @@
   </style>
 </head>
 <body>
+  <?php
+  $user = $_SERVER['PHP_AUTH_USER']
+      ?? $_SERVER['REMOTE_USER']
+      ?? $_SERVER['REDIRECT_REMOTE_USER']
+      ?? 'Unknown';
+  ?>
+  <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?></div>
   <h1>Sessions</h1>
   <table id="searchableTable" data-sort-order="asc">
     <thead>
