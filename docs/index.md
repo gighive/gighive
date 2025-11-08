@@ -280,6 +280,9 @@ document.addEventListener('DOMContentLoaded', function() {
 ### If you are a media librarian or have a preexisting cache of media files
 - You can edit the default csv file to create your own historical Gighive.
 
+### Or you just need a web server with basic authentication and security to host files in your own network
+- You can plop php files or static content in the default web root and off you go. 
+
 ### What is it? 
 - Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and Terraform.
 
