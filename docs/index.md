@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
 - With build targets such as Azure or virtualbox, you have your choice on how to deploy Gighive.
 - Gighive frees you from content limitations on the major providers..but you'll need to size your vm properly.
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
-- Gighive is simple. There is one page for the media library and an upload page. That's it.
+- Gighive is simple. There is a home page, a page for the media library and an upload page. That's it.
 - Coming soon: an easy-to-use iphone app.
 
 ### Requirements
