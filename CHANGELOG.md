@@ -1,4 +1,50 @@
 *** 
+releaseNotes20251109.txt
+Changes: Plan for JWT migration
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/ubuntu.yml
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/editDatabaseThenRunShell-Python.txt
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/files.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/musicians.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_musicians.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_songs.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/sessions.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/song_files.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/songs.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/sessions.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/songs.csv
+	new file:   docs/codingChanges/JWT_AUTH_MIGRATION_MAPPING.md
+	modified:   user-prompts.md
+
+ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251108.txt
+Changes: Updated SP db 
+
+Last run: ansible-playbook   -i ansible/inventories/inventory_baremetal.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup
+
+*** 
 releaseNotes20251108.txt
 Changes: Update Server header and description of pages in app
 
@@ -15,18 +61,6 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/apache/externalConfigs/apache2.conf
 	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
 	modified:   docs/index.md
-
-ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251107.txt
@@ -58,6 +92,7 @@ Changes to be committed:
 *** 
 releaseNotes20251107.txt
 Changes: Migration of /api/uploads.php to clean MVC architecture 
+Version Update to 1.0.1
 
 Last run: ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
 Last run: ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml  --tags set_targets,base,docker,security_owasp_crs,security_basic_auth,post_build_checks
