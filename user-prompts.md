@@ -587,6 +587,33 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+- 2025-11-09T11:51:00-05:00
+  - for option 1 below, what is the benefit and how does it help with my cloudflare caching issue? Option 1: Move Authentication to Application Layer
+Instead of HTTP Basic Auth, use:
+Session-based authentication in your PHP application
+Signed URLs with expiration times
+Token-based access that can be validated without hitting origin
+
+## 2025-11-09
+
+- 2025-11-09T11:17:00-05:00
+  - in the apache configuration defined here, is the /video directory protected by basic authentication? ansible/roles/docker/files/apache/externalConfigs
+
+- 2025-11-09T11:21:00-05:00
+  - if i was logged into the site in chrome on mac, i notice if i restart my browser, i notice i can still get to the video.  can i reset the authentication back to unauthenticated in the browser for just the website "stormpigs.com"?
+
+- 2025-11-09T11:24:00-05:00
+  - under settings i see this:
+
+- 2025-11-09T11:26:00-05:00
+  - here is what i see under privacy and security
+
+- 2025-11-09T11:36:00-05:00
+  - i deleted the data for stormpigs.com, shut the browser down and restarted it and went to https://www.stormpigs.com/video/StormPigs20101228_4_fBooked.mp4 but the file still loaded without an authentication prompt.  i then looked at chrome developer tool and i see the file was served from cloudflare.  is that the reason why the server did not prompt me for authentication?
+
+- 2025-11-09T11:38:00-05:00
+  - hmmm..is it possible to keep the caching at cloudflare layer with authentication on?
+
 ## 2025-11-07
 
 - 2025-11-07T12:11:00-05:00
