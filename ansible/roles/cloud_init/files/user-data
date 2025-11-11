@@ -13,8 +13,8 @@ growpart:
   ignore_growroot_disabled: false
 resize_rootfs: true
 
-hostname: gighive
-fqdn: gighive.mysettings.com
+hostname: gighive2
+fqdn: gighive2.mysettings.com
 
 users:
   - name: ubuntu
@@ -37,12 +37,12 @@ write_files:
     permissions: "0644"
     content: |
       127.0.0.1 localhost
-      192.168.1.248 gighive.mysettings.com gighive
+      192.168.1.254 gighive2.mysettings.com gighive2
     append: true
 
 runcmd:
   - [ "usermod", "--shell", "/bin/bash", "ubuntu" ]
-  - [ "hostnamectl", "set-hostname", "gighive" ]
+  - [ "hostnamectl", "set-hostname", "gighive2" ]
   - [ "growpart", "/dev/sda", "1" ]
   - [ "resize2fs", "/dev/sda1" ]
   - [ "systemctl", "enable", "--now", "ssh" ]

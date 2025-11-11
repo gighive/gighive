@@ -1,6 +1,6 @@
 # Basic VM configuration
-hostname: "gighive"
-vm_name: "gighive"
+hostname: "gighive2"
+vm_name: "gighive2"
 
 static_ip: "{{ ansible_host }}"
 gateway: "192.168.1.1"

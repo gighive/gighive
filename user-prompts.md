@@ -587,6 +587,43 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+## 2025-11-10
+
+- 2025-11-10T16:12:00-05:00
+  - why did i get this error?  sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass --skip-tags blobfuse2
+
+- 2025-11-10T16:14:00-05:00
+  - hmmm..i haven't built the vm yet.  pop-os is the ansible controller machine at 192.168.1.235 that is also home to virtualbox.  should the vbox_provision role have started up that vm?
+
+- 2025-11-10T16:16:00-05:00
+  - my intent was to setup a mirror configuration called gighive2 so that I could create a new vm called gighive2.  so the interaction between the four files: ansible.cfg, playbooks/site.yml, inventories/inventory_gighive2.yml and inventories/group_vars/gighive2.yml is often confounding.
+
+- 2025-11-10T16:18:00-05:00
+  - can i just add gighive2 as a second host on the two lines in playbooks/site.yml?
+
+- 2025-11-10T16:19:00-05:00
+  - OK, let me give that a shot.  by the way, please document the file interaction summary from above into a file called /docs/ANSIBLE_FILE_INTERACTION.md.  Also include ansible.cfg in the summary.
+
+- 2025-11-10T16:23:00-05:00
+  - hmmm..it looks like we can't create the vm just yet because we do not have a unique name for the vdi file.  what are potential solutions?  make no changes please
+
+- 2025-11-10T16:25:00-05:00
+  - i think Option 1 is the best as it accounts for a different vm name in a simple fashion.
+
+## 2025-11-10
+
+- 2025-11-10T15:58:00-05:00
+  - hmmm, why am i getting this error? sodo@pop-os:~/scripts/gighive/ansible$ ansible-playbook -i inventories/inventory_gighive2.yml playbooks/site.yml -vv --ask-become-pass --skip-tags blobfuse2 --syntax-check
+
+- 2025-11-10T15:59:00-05:00
+  - why would it use /mnt/scottsfiles?
+
+- 2025-11-10T16:05:00-05:00
+  - so..i'm distributing this repo to other users with the following directions here: https://gighive.app/README.html. (Look under the prerequisites section for the cloning and variable setting instructions).  Given those instructions, what should the roles_path line be in ansible.cfg  that i will distribute to my users?
+
+- 2025-11-10T16:07:00-05:00
+  - OK Good, I like the simplicity of the relative path.  please update roles_path in ansible.cfg
+
 - 2025-11-09T11:51:00-05:00
   - for option 1 below, what is the benefit and how does it help with my cloudflare caching issue? Option 1: Move Authentication to Application Layer
 Instead of HTTP Basic Auth, use:

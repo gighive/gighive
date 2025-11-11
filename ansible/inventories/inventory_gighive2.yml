@@ -1,0 +1,16 @@
+all:
+  children:
+
+    target_vms:
+      children:
+        gighive2: {}
+
+    gighive2:
+      hosts:
+        gighive_vm:
+          ansible_host: 192.168.1.254
+          ansible_user: ubuntu
+          ansible_python_interpreter: /usr/bin/python3
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+# Ansible inventory hostname (gighive_vm) is just the label Ansible uses to target the machine

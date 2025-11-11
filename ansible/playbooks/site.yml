@@ -32,7 +32,7 @@
       when: not ssh_pubkey.stat.exists
 
 - name: Provision VM in VirtualBox
-  hosts: gighive
+  hosts: gighive:gighive2
   connection: local
   tags: [ vbox_provision,cloud_init ]
   collections:
@@ -41,7 +41,7 @@
     - cloud_init
 
 - name: Disable Cloud-Init inside VM
-  hosts: gighive
+  hosts: gighive:gighive2
   become: yes
   tags: [ vbox_provision,cloud_init_disable ]
 
