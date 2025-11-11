@@ -1,6 +1,43 @@
 *** 
 releaseNotes20251109.txt
-Changes: Plan for JWT migration
+Changes: Created and tested second gighive config for testing (site.yml/3 others), Fixed relative path in ansible.cfg, doc'd ansible core files
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass --skip-tags blobfuse2
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible.cfg
+	modified:   ansible/inventories/group_vars/gighive.yml
+	new file:   ansible/inventories/group_vars/gighive2.yml
+	new file:   ansible/inventories/group_vars/prod.yml
+	new file:   ansible/inventories/inventory_gighive2.yml
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/cloud_init/files/meta-data
+	modified:   ansible/roles/cloud_init/files/network-config
+	modified:   ansible/roles/cloud_init/files/user-data
+	new file:   docs/ANSIBLE_FILE_INTERACTION.md
+	modified:   user-prompts.md
+
+ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251109.txt
+Changes: Plan for JWT migration, updated SP db
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -25,18 +62,6 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/songs.csv
 	new file:   docs/codingChanges/JWT_AUTH_MIGRATION_MAPPING.md
 	modified:   user-prompts.md
-
-ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251108.txt
