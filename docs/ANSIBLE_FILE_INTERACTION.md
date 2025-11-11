@@ -14,7 +14,7 @@ GigHive supports multiple VM configurations (e.g., `gighive`, `gighive2`) throug
 ## File Interaction Flow
 
 ```
-ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml
+ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
 │ 1. ansible.cfg (Global Settings)                                    │
@@ -25,10 +25,10 @@ ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│ 2. inventory_gighive2.yml (Host Definitions)                        │
-│    - Defines group: gighive2                                        │
-│    - Defines host: gighive_vm (192.168.1.254)                       │
-│    - Makes gighive2 a child of target_vms                           │
+│ 2. inventory_virtualbox.yml (Host Definitions)                      │
+│    - Defines group: gighive                                         │
+│    - Defines host: gighive_vm (192.168.1.248)                       │
+│    - Makes gighive a child of target_vms                            │
 │    - Sets ansible_user, ansible_host, SSH options                   │
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
@@ -44,9 +44,9 @@ ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
 │ 4. playbooks/site.yml (Task Execution)                              │
-│    Play 1: hosts: gighive:gighive2 → VM Provisioning (VirtualBox)  │
-│    Play 2: hosts: gighive:gighive2 → Cloud-init Disable            │
-│    Play 3: hosts: target_vms → Main Configuration (Docker, etc.)   │
+│    Play 1: hosts: gighive:gighive2 → VM Provisioning (VirtualBox)   │
+│    Play 2: hosts: gighive:gighive2 → Cloud-init Disable             │
+│    Play 3: hosts: target_vms → Main Configuration (Docker, etc.)    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -127,18 +127,18 @@ ssh_args = -o ControlMaster=auto -o ControlPersist=60s
 
 **Purpose:** Define hosts, groups, and their relationships.
 
-**Example: inventory_gighive2.yml**
+**Example: inventory_virtualbox.yml**
 ```yaml
 all:
   children:
     target_vms:                        # Parent group
       children:
-        gighive2: {}                   # Child group
+        gighive: {}                   # Child group
 
-    gighive2:                          # Group definition
+    gighive:                          # Group definition
       hosts:
         gighive_vm:                    # Host label (arbitrary)
-          ansible_host: 192.168.1.254  # Actual IP address
+          ansible_host: 192.168.1.248  # Actual IP address
           ansible_user: ubuntu         # SSH user
           ansible_python_interpreter: /usr/bin/python3
           ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
@@ -146,9 +146,9 @@ all:
 
 **Key Concepts:**
 - **Host label** (`gighive_vm`): Arbitrary name Ansible uses internally
-- **Group name** (`gighive2`): Must match playbook `hosts:` patterns
+- **Group name** (`gighive`): Must match playbook `hosts:` patterns
 - **ansible_host**: The actual IP address to connect to
-- **Hierarchy**: `gighive2` is a child of `target_vms`, so plays targeting `target_vms` will also run on `gighive2` hosts
+- **Hierarchy**: `gighive` is a child of `target_vms`
 
 **Available Inventories:**
 - `inventory_virtualbox.yml` - For `gighive` group (192.168.1.248)
@@ -163,15 +163,15 @@ all:
 **Purpose:** Define variables that automatically apply to specific groups.
 
 **Auto-loading Rules:**
-- When targeting group `gighive2`, Ansible automatically loads `group_vars/gighive2.yml`
 - When targeting group `gighive`, Ansible automatically loads `group_vars/gighive.yml`
+- When targeting group `gighive2`, Ansible automatically loads `group_vars/gighive2.yml`
 - `group_vars/all.yml` is loaded for ALL hosts
 
-**Example: group_vars/gighive2.yml**
+**Example: group_vars/gighive.yml**
 ```yaml
 # VM Identity
-hostname: "gighive2"
-vm_name: "gighive2"
+hostname: "gighive"
+vm_name: "gighive"
 static_ip: "{{ ansible_host }}"        # References inventory value
 
 # VirtualBox Configuration
@@ -197,9 +197,9 @@ rebuild_mysql_data: false              # Don't wipe database
 admin_user: admin
 viewer_user: viewer
 uploader_user: uploader
-gighive_admin_password: "secretadmin"
-gighive_viewer_password: "secretviewer"
-gighive_uploader_password: "secretuploader"
+gighive_admin_password: 
+gighive_viewer_password
+gighive_uploader_password:
 
 # Paths (derived from site.yml pre_tasks)
 gighive_htpasswd_host_path: "{{ docker_dir }}/apache/externalConfigs/gighive.htpasswd"
@@ -215,7 +215,7 @@ upload_max_mb: 6144
 
 ### Command
 ```bash
-ansible-playbook -i ansible/inventories/inventory_gighive2.yml \
+ansible-playbook -i ansible/inventories/inventory_virtualbox.yml \
                  ansible/playbooks/site.yml \
                  --ask-become-pass \
                  --skip-tags blobfuse2
@@ -228,32 +228,32 @@ ansible-playbook -i ansible/inventories/inventory_gighive2.yml \
    - Knows to look in `ansible/roles` for roles
    - Knows to look in `ansible/inventories` for inventory files
 
-2. **Ansible loads `inventory_gighive2.yml`**
-   - Discovers group: `gighive2`
-   - Discovers host: `gighive_vm` at `192.168.1.254`
+2. **Ansible loads `inventory_virtualbox.yml`**
+   - Discovers group: `gighive`
+   - Discovers host: `gighive_vm` at `192.168.1.248`
    - Notes that `gighive2` is a child of `target_vms`
 
-3. **Ansible auto-loads `group_vars/gighive2.yml`**
-   - All variables become available to plays targeting `gighive2`
+3. **Ansible auto-loads `group_vars/gighive.yml`**
+   - All variables become available to plays targeting `gighive`
    - Variables like `vm_name`, `hostname`, `app_flavor` are now set
 
 4. **Ansible executes `site.yml` plays in order:**
 
    **Play 1: Provision VM in VirtualBox**
-   - `hosts: gighive:gighive2` matches the `gighive2` group ✅
+   - `hosts: gighive:gighive2` matches both the `gighive` and `gighive2` groups ✅
    - `connection: local` means run on controller (not VM)
    - Executes `cloud_init` role to create VM in VirtualBox
-   - Uses variables from `group_vars/gighive2.yml`
+   - Uses variables from `group_vars/gighive.yml`
 
    **Play 2: Disable Cloud-Init inside VM**
-   - `hosts: gighive:gighive2` matches the `gighive2` group ✅
+   - `hosts: gighive:gighive2` matches both the `gighive` and `gighive2` groups ✅
    - Connects to newly created VM at `192.168.1.254`
    - Executes `cloud_init_disable` role
 
    **Play 3: Configure target VM**
-   - `hosts: target_vms` matches because `gighive2` is a child ✅
+   - `hosts: target_vms` matches because `gighive` is a child ✅
    - Runs all configuration roles: base, docker, security, etc.
-   - Uses variables from `group_vars/gighive2.yml`
+   - Uses variables from `group_vars/gighive.yml`
 
 ## Supporting Multiple Configurations
 
@@ -332,8 +332,8 @@ hosts: gighive*
 **Cause:** Group vars file doesn't match the group name in inventory.
 
 **Solution:**
-- Inventory group: `gighive2` → Must have `group_vars/gighive2.yml`
 - Inventory group: `gighive` → Must have `group_vars/gighive.yml`
+- Inventory group: `gighive2` → Must have `group_vars/gighive2.yml`
 
 ### Problem: Wrong IP address
 
