@@ -33,9 +33,9 @@ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playboo
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│ 3. group_vars/gighive2.yml (Auto-loaded Variables)                  │
-│    - vm_name: "gighive2"                                            │
-│    - hostname: "gighive2"                                           │
+│ 3. group_vars/gighive.yml (Auto-loaded Variables)                   │
+│    - vm_name: "gighive"                                             │
+│    - hostname: "gighive"                                            │
 │    - static_ip: "{{ ansible_host }}"                                │
 │    - app_flavor: gighive                                            │
 │    - database_full: false                                           │
