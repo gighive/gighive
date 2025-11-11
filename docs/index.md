@@ -177,8 +177,9 @@ img {
     <h3>📚 Documentation</h3>
     <ul>
         <li><a href="feature_set.html">⭐ Feature Set</a></li>
-        <li><a href="README.html">🚀 Setup Guide</a></li>
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
+        <li><a href="README.html">🚀 Setup Guide</a></li>
+        <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="images/requestFlowBasic.png">🔄 Request Flow</a></li>
         <li><a href="https://dev.gighive.app/docs/api-docs.html" target="_blank">📋 API Documentation</a></li>
