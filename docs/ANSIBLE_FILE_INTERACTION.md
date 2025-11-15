@@ -7,9 +7,10 @@ This document explains how the four key Ansible configuration files work togethe
 GigHive supports multiple VM configurations (e.g., `gighive`, `gighive2`) through a coordinated interaction between:
 
 1. **`ansible.cfg`** - Global Ansible configuration
-2. **`playbooks/site.yml`** - Main playbook with task orchestration
-3. **`inventories/inventory_*.yml`** - Host and group definitions
+2. **`inventories/inventory_*.yml`** - Host and group definitions
+3. **`inventories/group_vars/all.yml`** - Global group variables
 4. **`inventories/group_vars/*.yml`** - Group-specific variables
+5. **`playbooks/site.yml`** - Main playbook with task orchestration
 
 ## File Interaction Flow
 
@@ -35,8 +36,8 @@ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playboo
 ┌─────────────────────────────────────────────────────────────────────┐
 │ 3. group_vars/all.yml (Global Group Variables)                      │
 │    - repo_root: base path of the repo                               │
-│    - roles_dir: "{{ repo_root }}/ansible/roles"                    │
-│    - cloud_init_files_dir: "{{ roles_dir }}/cloud_init/files"      │
+│    - roles_dir: "{{ repo_root }}/ansible/roles"                     │
+│    - cloud_init_files_dir: "{{ roles_dir }}/cloud_init/files"       │
 │    - Other shared convenience paths                                 │
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
