@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function() {
 - Coming soon: an easy-to-use iphone app.
 
 ### Requirements
-1. Control Machine: Tested on Ubuntu 24.10 and 22.04, so the requirements are **any flavor of that version or Pop-OS, installed on bare metal.**
+1. Control Machine: Tested on Ubuntu 24.04 and 22.04, so the requirements are **any flavor of those versions or Pop-OS, installed on bare metal.**
 2. Target Machine: Your choice of virtualbox or Azure deployment targets for the vm and containerized environment.
 These are shown in this <a href="images/architecture.png">architecture diagram</a>.
 

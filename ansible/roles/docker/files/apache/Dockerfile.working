@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 
 # Set environment variables
-ARG PHP_VERSION=8.3
+ARG PHP_VERSION=8.1
 ENV WEB_ROOT="/var/www/html"
 ENV SSL_CERT_DIR="/etc/ssl/certs"
 ENV SSL_PRIVATE_DIR="/etc/ssl/private"
@@ -28,6 +28,15 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
     chmod +x /usr/local/bin/composer
+
+# PHP-FPM config
+RUN printf '%s\n' \
+'<FilesMatch "\.php$">' \
+'    SetHandler "proxy:unix:/run/php/php${PHP_VERSION}-fpm.sock|fcgi://localhost/"' \
+'</FilesMatch>' \
+'DirectoryIndex index.php index.html' \
+> /etc/apache2/conf-available/php-fpm.conf \
+ && a2enconf php-fpm
 
 # Configure PHP upload limits for large files (6GB)
 RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \

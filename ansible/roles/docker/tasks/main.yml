@@ -113,6 +113,22 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
+- name: Render php-fpm.conf
+  template:
+    src: php-fpm.conf.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/php-fpm.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render www.conf
+  template:
+    src: www.conf.j2
+    dest: "{{ docker_dir }}/apache/externalConfigs/www.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
 # Render the vhost to a real file on the host (that the container will bind-mount)
 - name: Render Apache SSL vhost (default-ssl.conf)
   template:
@@ -243,20 +259,6 @@
       - python3-pip
     state: present
     update_cache: yes
-  tags: docker, compose, prerequisites
-
-- name: Ensure Docker SDK for Python is installed
-  ansible.builtin.pip:
-    name: docker
-    state: present
-    executable: pip3
-  tags: docker, compose, prerequisites
-
-- name: Ensure docker-compose Python library is installed
-  ansible.builtin.pip:
-    name: docker-compose
-    executable: pip3
-    state: present
   tags: docker, compose, prerequisites
 
 - name: Debug Compose output

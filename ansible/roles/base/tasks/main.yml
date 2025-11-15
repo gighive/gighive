@@ -11,6 +11,55 @@
     state: absent
   become: yes
 
+- name: Install systemd-timesyncd for time synchronization
+  ansible.builtin.apt:
+    name: systemd-timesyncd
+    state: present
+    update_cache: no
+  become: yes
+  ignore_errors: yes
+
+- name: Enable and start systemd-timesyncd
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Force immediate time synchronization
+  ansible.builtin.command: timedatectl set-ntp true
+  become: yes
+  changed_when: false
+
+- name: Restart systemd-timesyncd to force immediate sync with large offset
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    state: restarted
+  become: yes
+
+- name: Wait for time synchronization to complete
+  ansible.builtin.pause:
+    seconds: 10
+
+- name: Wait for time synchronization (up to 30 seconds)
+  ansible.builtin.command: timedatectl timesync-status
+  register: timesync_status
+  until: timesync_status.rc == 0
+  retries: 6
+  delay: 5
+  become: yes
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display current system time
+  ansible.builtin.command: date
+  register: system_time
+  changed_when: false
+
+- name: Show system time
+  ansible.builtin.debug:
+    msg: "Current system time: {{ system_time.stdout }}"
+
 - name: Update APT cache
   ansible.builtin.apt:
     update_cache: yes
@@ -57,7 +106,6 @@
       - docker-ce
       - docker-ce-cli
       - containerd.io
-      - docker-compose
       - docker-compose-plugin
       - wget
       - curl
@@ -67,12 +115,6 @@
       - inotify-tools
       - python3-docker
       - python3-pip
-
-- name: Install Python-based docker-compose via pip3
-  ansible.builtin.pip:
-    name: docker-compose
-    executable: pip3
-  become: yes
 
 - name: Install Docker Engine & Compose V2 plugin (distro packages)
   ansible.builtin.apt:

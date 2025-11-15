@@ -1,5 +1,12 @@
 *** 
-releaseNotes20251109.txt
+releaseNotes20251115.txt
+Changes: Upgrade to Ubuntu 24.04: Had to removed docker-compose v1 for 22.04 compat, removed php-fpm.conf from dockerfile in favor of bind mount, changed Dockerfile ubuntu version to 24.04, variablized PHP version to 8.3 in group vars, www.conf.j2/php-fpm.conf.j2 are new jinja2 templates, edited group_vars for ubuntu version (Dockerfile manual)
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass --skip-tags blobfuse2
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass --skip-tags blobfuse2
+
+*** 
+releaseNotes20251110.txt
 Changes: Created and tested second gighive config for testing (site.yml/3 others), Fixed relative path in ansible.cfg, doc'd ansible core files
 
 Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass --skip-tags blobfuse2

@@ -2,6 +2,10 @@
 hostname: "gighive2"
 vm_name: "gighive2"
 
+# OS version configuration
+ubuntu_version: "24.04"
+ubuntu_codename: "noble"
+
 static_ip: "{{ ansible_host }}"
 gateway: "192.168.1.1"
 nameservers:
@@ -18,10 +22,12 @@ video_reduced: "{{ repo_root }}/assets/video"
 audio_reduced: "{{ repo_root }}/assets/audio"
 
 # vmdk/vdi specs for local vm
-cloud_image_url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.vmdk"
+# Cloud image URL format (verified 2024-11 for Noble 24.04)
+# Format may change; check https://cloud-images.ubuntu.com/ if download fails
+cloud_image_url: "https://cloud-images.ubuntu.com/{{ ubuntu_codename }}/current/{{ ubuntu_codename }}-server-cloudimg-amd64.vmdk"
 cloud_image_dir: "{{ cloud_init_files_dir }}"
-cloud_image_vmdk: "{{ cloud_init_files_dir }}/jammy-server-cloudimg-amd64-{{ vm_name }}.vmdk"
-cloud_image_vdi: "{{ cloud_init_files_dir }}/jammy-server-cloudimg-amd64-{{ vm_name }}.vdi"
+cloud_image_vmdk: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-amd64-{{ vm_name }}.vmdk"
+cloud_image_vdi: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-amd64-{{ vm_name }}.vdi"
 nocloud_iso: "{{ cloud_init_files_dir }}/seed-{{ vm_name }}.iso"
 
 ansible_remote_tmp: "/tmp/.ansible/tmp"
@@ -83,7 +89,8 @@ gighive_server_alias: "gighive" # alias in cert
 gighive_ssl_cert_file: "/etc/ssl/certs/origin_cert.pem"
 gighive_ssl_key_file:  "/etc/ssl/private/origin_key.pem"
 gighive_ssl_san_config: "/etc/ssl/openssl_san.cnf"
-gighive_php_fpm_bin: "php-fpm8.1"
+gighive_php_version: "8.3"
+gighive_php_fpm_bin: "php-fpm{{ gighive_php_version }}"
 
 # If you use custom-compiled httpd in the container:
 apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
