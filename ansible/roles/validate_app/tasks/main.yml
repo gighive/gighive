@@ -3,7 +3,7 @@
 
 - name: Install ping and netcat in Apache container
   ansible.builtin.command:
-    cmd: docker exec apacheWebServer bash -c "apt update && apt install -y iputils-ping netcat"
+    cmd: docker exec apacheWebServer bash -c "apt update && apt install -y iputils-ping netcat-openbsd"
   register: install_tools
   changed_when: false
 

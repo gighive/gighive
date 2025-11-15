@@ -33,7 +33,15 @@ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playboo
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│ 3. group_vars/gighive.yml (Auto-loaded Variables)                   │
+│ 3. group_vars/all.yml (Global Group Variables)                      │
+│    - repo_root: base path of the repo                               │
+│    - roles_dir: "{{ repo_root }}/ansible/roles"                    │
+│    - cloud_init_files_dir: "{{ roles_dir }}/cloud_init/files"      │
+│    - Other shared convenience paths                                 │
+└─────────────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│ 4. group_vars/gighive.yml (Auto-loaded Variables)                   │
 │    - vm_name: "gighive"                                             │
 │    - hostname: "gighive"                                            │
 │    - static_ip: "{{ ansible_host }}"                                │
@@ -43,9 +51,9 @@ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playboo
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│ 4. playbooks/site.yml (Task Execution)                              │
-│    Play 1: hosts: gighive:gighive2 → VM Provisioning (VirtualBox)   │
-│    Play 2: hosts: gighive:gighive2 → Cloud-init Disable             │
+│ 5. playbooks/site.yml (Task Execution)                              │
+│    Play 1: hosts: gighive(:gighive2) → VM Provisioning (VirtualBox) │
+│    Play 2: hosts: gighive(:gighive2) → Cloud-init Disable           │
 │    Play 3: hosts: target_vms → Main Configuration (Docker, etc.)    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -90,7 +98,7 @@ ssh_args = -o ControlMaster=auto -o ControlPersist=60s
 ```yaml
 # Play 1: VM Provisioning (runs on Ansible controller)
 - name: Provision VM in VirtualBox
-  hosts: gighive:gighive2              # Matches either group
+  hosts: gighive(:gighive2)              # Matches either group
   connection: local                     # Runs on controller, not VM
   tags: [ vbox_provision,cloud_init ]
   roles:
@@ -98,7 +106,7 @@ ssh_args = -o ControlMaster=auto -o ControlPersist=60s
 
 # Play 2: Cloud-init Disable (runs inside VM after creation)
 - name: Disable Cloud-Init inside VM
-  hosts: gighive:gighive2              # Matches either group
+  hosts: gighive(:gighive2)              # Matches either group
   become: yes
   tags: [ vbox_provision,cloud_init_disable ]
   roles:
@@ -151,8 +159,8 @@ all:
 - **Hierarchy**: `gighive` is a child of `target_vms`
 
 **Available Inventories:**
-- `inventory_virtualbox.yml` - For `gighive` group (192.168.1.248)
-- `inventory_gighive2.yml` - For `gighive2` group (192.168.1.254)
+- `inventory_virtualbox.yml` - Primary `gighive` VM (e.g. 192.168.1.248)
+- `inventory_gighive2.yml` - Optional secondary/test VM (`gighive2`)
 - `inventory_baremetal.yml` - For bare metal Ubuntu hosts
 - `inventory_azure.yml` - For Azure cloud deployments
 
@@ -163,9 +171,38 @@ all:
 **Purpose:** Define variables that automatically apply to specific groups.
 
 **Auto-loading Rules:**
+- `group_vars/all.yml` is loaded for **all hosts in all inventories**
 - When targeting group `gighive`, Ansible automatically loads `group_vars/gighive.yml`
 - When targeting group `gighive2`, Ansible automatically loads `group_vars/gighive2.yml`
-- `group_vars/all.yml` is loaded for ALL hosts
+
+#### 4.1 group_vars/all.yml
+
+**Location:** `/home/sodo/scripts/gighive/ansible/inventories/group_vars/all.yml`
+
+**Purpose:** Provide global convenience variables and path roots shared by all environments.
+
+**Key Settings:**
+```yaml
+# One true repo root
+repo_root: "{{ lookup('env','GIGHIVE_HOME') | default((playbook_dir | dirname | dirname), true) }}"
+
+# Convenience paths
+roles_dir: "{{ repo_root }}/ansible/roles"
+cloud_init_files_dir: "{{ roles_dir }}/cloud_init/files"
+```
+
+These values are referenced by other group vars (for example, `cloud_image_dir`, `cloud_image_vmdk`, and `nocloud_iso` in `group_vars/gighive.yml`) and by roles such as `cloud_init`.
+
+**Example usage in `group_vars/gighive.yml`:**
+```yaml
+# vmdk/vdi specs for local vm
+cloud_image_dir: "{{ cloud_init_files_dir }}"
+cloud_image_vmdk: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-amd64-{{ vm_name }}.vmdk"
+cloud_image_vdi: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-amd64-{{ vm_name }}.vdi"
+nocloud_iso: "{{ cloud_init_files_dir }}/seed-{{ vm_name }}.iso"
+```
+
+#### 4.2 group_vars/gighive.yml
 
 **Example: group_vars/gighive.yml**
 ```yaml
@@ -233,33 +270,36 @@ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml \
    - Discovers host: `gighive_vm` at `192.168.1.248`
    - Notes that `gighive2` is a child of `target_vms`
 
-3. **Ansible auto-loads `group_vars/gighive.yml`**
+3. **Ansible auto-loads `group_vars/all.yml`**
+   - Global variables like `repo_root`, `roles_dir`, and `cloud_init_files_dir` are set
+
+4. **Ansible auto-loads `group_vars/gighive.yml`**
    - All variables become available to plays targeting `gighive`
    - Variables like `vm_name`, `hostname`, `app_flavor` are now set
 
-4. **Ansible executes `site.yml` plays in order:**
+5. **Ansible executes `site.yml` plays in order:**
 
    **Play 1: Provision VM in VirtualBox**
-   - `hosts: gighive:gighive2` matches both the `gighive` and `gighive2` groups ✅
+   - `hosts: gighive(:gighive2)` matches both the `gighive` and `gighive2` groups 
    - `connection: local` means run on controller (not VM)
    - Executes `cloud_init` role to create VM in VirtualBox
    - Uses variables from `group_vars/gighive.yml`
 
    **Play 2: Disable Cloud-Init inside VM**
-   - `hosts: gighive:gighive2` matches both the `gighive` and `gighive2` groups ✅
-   - Connects to newly created VM at `192.168.1.254`
+   - `hosts: gighive(:gighive2)` matches both the `gighive` and `gighive2` groups 
+   - Connects to newly created VM at `192.168.1.248`
    - Executes `cloud_init_disable` role
 
    **Play 3: Configure target VM**
-   - `hosts: target_vms` matches because `gighive` is a child ✅
+   - `hosts: target_vms` matches because `gighive` is a child 
    - Runs all configuration roles: base, docker, security, etc.
    - Uses variables from `group_vars/gighive.yml`
 
 ## Supporting Multiple Configurations
 
-The playbook supports multiple VM configurations simultaneously:
+The playbook primarily targets the `gighive` VM, but can optionally support a second `gighive2` VM:
 
-### For gighive VM:
+### Typical run: gighive VM
 ```bash
 ansible-playbook -i ansible/inventories/inventory_virtualbox.yml \
                  ansible/playbooks/site.yml \
@@ -268,7 +308,7 @@ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml \
 - Loads `group_vars/gighive.yml`
 - Creates VM named "gighive" at 192.168.1.248
 
-### For gighive2 VM:
+### Optional: gighive2 VM (secondary/test)
 ```bash
 ansible-playbook -i ansible/inventories/inventory_gighive2.yml \
                  ansible/playbooks/site.yml \

@@ -1,0 +1,7 @@
+<Proxy "unix:/run/php/php{{ gighive_php_version | default('8.3') }}-fpm.sock|fcgi://php-fpm">
+    ProxySet timeout=300
+</Proxy>
+
+<FilesMatch "\.php$">
+    SetHandler "proxy:unix:/run/php/php{{ gighive_php_version | default('8.3') }}-fpm.sock|fcgi://localhost/"
+</FilesMatch>

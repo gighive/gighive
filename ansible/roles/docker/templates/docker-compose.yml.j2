@@ -26,7 +26,7 @@ services:
       - "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf:/etc/apache2/sites-available/default-ssl.conf:ro"
       - "{{ docker_dir }}/apache/externalConfigs/logging.conf:/etc/apache2/conf-available/logging.conf:ro"
       - "{{ docker_dir }}/apache/externalConfigs/php-fpm.conf:/etc/apache2/conf-available/php-fpm.conf:ro"
-      - "{{ docker_dir }}/apache/externalConfigs/www.conf:/etc/php/8.1/fpm/pool.d/www.conf:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/www.conf:/etc/php/{{ gighive_php_version | default('8.3') }}/fpm/pool.d/www.conf:ro"
       - "{{ docker_dir }}/apache/externalConfigs/apache2-logrotate.conf:/etc/logrotate.d/apache2:ro"
       - "{{ docker_dir }}/apache/externalConfigs/entrypoint.sh:/entrypointapache.sh:ro"
       - "{{ docker_dir }}/apache/externalConfigs/openssl_san.cnf:/etc/ssl/openssl_san.cnf:ro"

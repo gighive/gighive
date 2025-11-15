@@ -8,7 +8,7 @@ set -Eeuo pipefail
 CERT_FILE="{{ gighive_ssl_cert_file | default('/etc/ssl/certs/origin_cert.pem') }}"
 KEY_FILE="{{ gighive_ssl_key_file  | default('/etc/ssl/private/origin_key.pem') }}"
 SAN_CFG="{{ gighive_ssl_san_config | default('/etc/ssl/openssl_san.cnf') }}"
-PHP_FPM_BIN="{{ gighive_php_fpm_bin | default('php-fpm8.1') }}"
+PHP_FPM_BIN="{{ gighive_php_fpm_bin | default('php-fpm' ~ (gighive_php_version | default('8.3'))) }}"
 
 # -------------------------------
 # Apache env & directories

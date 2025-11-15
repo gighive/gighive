@@ -33,7 +33,7 @@ IncludeOptional sites-enabled/*.conf
         Header set Cache-Control "public, max-age=86400"
     </FilesMatch>
     <FilesMatch ".*">
-        Header always set Server "Buck T. Frump"
+        Header always set Server "Gighive"
     </FilesMatch>
 </IfModule>
 
@@ -65,7 +65,7 @@ IncludeOptional sites-enabled/*.conf
 
 # Configure PHP-FPM proxy handling
 <FilesMatch "\.php$">
-    SetHandler "proxy:unix:/run/php/php8.1-fpm.sock|fcgi://localhost"
+    SetHandler "proxy:unix:/run/php/php{{ gighive_php_version | default('8.3') }}-fpm.sock|fcgi://localhost"
 </FilesMatch>
 
 # Replace client IP with the value from X-Forwarded-For
