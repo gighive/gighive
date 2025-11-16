@@ -7,4 +7,4 @@
 $_SERVER['REQUEST_URI'] = '/api/uploads' . ($_SERVER['PATH_INFO'] ?? '');
 
 // Include the MVC router
-require __DIR__ . '/../src/index.php';
+require_once __DIR__ . '/../src/index.php';
