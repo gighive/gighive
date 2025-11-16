@@ -1,10 +1,12 @@
 # Ansible File Interaction Guide
 
-This document explains how the four key Ansible configuration files work together to provision and configure GigHive VMs.
+This document explains how the key Ansible configuration files work together to provision and configure GigHive VMs.
 
 ## Overview
 
-GigHive supports multiple VM configurations (e.g., `gighive`, `gighive2`) through a coordinated interaction between:
+GigHive supports multiple VM configurations (e.g., `gighive`, `gighive2`):
+- `gighive` is the primary group name, `gighive2` group can be used for testing a second vm if needed.
+- The files below are the main config files for Ansible.
 
 1. **`ansible.cfg`** - Global Ansible configuration
 2. **`inventories/inventory_*.yml`** - Host and group definitions
@@ -15,7 +17,7 @@ GigHive supports multiple VM configurations (e.g., `gighive`, `gighive2`) throug
 ## File Interaction Flow
 
 ```
-ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
 │ 1. ansible.cfg (Global Settings)                                    │
@@ -26,7 +28,7 @@ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playboo
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│ 2. inventory_virtualbox.yml (Host Definitions)                      │
+│ 2. inventory_bootstrap.yml (Host Definitions)                      │
 │    - Defines group: gighive                                         │
 │    - Defines host: gighive_vm (192.168.1.248)                       │
 │    - Makes gighive a child of target_vms                            │
@@ -136,7 +138,7 @@ ssh_args = -o ControlMaster=auto -o ControlPersist=60s
 
 **Purpose:** Define hosts, groups, and their relationships.
 
-**Example: inventory_virtualbox.yml**
+**Example: inventory_bootstrap.yml**
 ```yaml
 all:
   children:
@@ -160,7 +162,7 @@ all:
 - **Hierarchy**: `gighive` is a child of `target_vms`
 
 **Available Inventories:**
-- `inventory_virtualbox.yml` - Primary `gighive` VM (e.g. 192.168.1.248)
+- `inventory_bootstrap.yml` - Primary `gighive` VM (e.g. 192.168.1.248)
 - `inventory_gighive2.yml` - Optional secondary/test VM (`gighive2`)
 - `inventory_baremetal.yml` - For bare metal Ubuntu hosts
 - `inventory_azure.yml` - For Azure cloud deployments
@@ -253,7 +255,7 @@ upload_max_mb: 6144
 
 ### Command
 ```bash
-ansible-playbook -i ansible/inventories/inventory_virtualbox.yml \
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
                  ansible/playbooks/site.yml \
                  --ask-become-pass \
                  --skip-tags blobfuse2
@@ -266,7 +268,7 @@ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml \
    - Knows to look in `ansible/roles` for roles
    - Knows to look in `ansible/inventories` for inventory files
 
-2. **Ansible loads `inventory_virtualbox.yml`**
+2. **Ansible loads `inventory_bootstrap.yml`**
    - Discovers group: `gighive`
    - Discovers host: `gighive_vm` at `192.168.1.248`
    - Notes that `gighive2` is a child of `target_vms`
@@ -302,7 +304,7 @@ The playbook primarily targets the `gighive` VM, but can optionally support a se
 
 ### Typical run: gighive VM
 ```bash
-ansible-playbook -i ansible/inventories/inventory_virtualbox.yml \
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
                  ansible/playbooks/site.yml \
                  --ask-become-pass
 ```
@@ -411,7 +413,7 @@ $GIGHIVE_HOME/
 ├── ansible.cfg                                    # Global Ansible config
 ├── ansible/
 │   ├── inventories/
-│   │   ├── inventory_virtualbox.yml              # gighive group (192.168.1.248)
+│   │   ├── inventory_bootstrap.yml              # gighive group (192.168.1.248)
 │   │   ├── inventory_gighive2.yml                # gighive2 group (192.168.1.254)
 │   │   ├── inventory_baremetal.yml               # Bare metal hosts
 │   │   ├── inventory_azure.yml                   # Azure cloud hosts
