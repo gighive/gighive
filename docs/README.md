@@ -43,6 +43,10 @@ Gighive runs very efficiently on an [Orange Pi 5](https://a.co/d/90UDcvi) or [GM
 
 ## ⚙️  Prerequisites: Install Ansible and Python to your controller machine.
 1. Decide on where you will install Ansible as the controller and what target (virtualbox or Azure) that you will install Gighive on. 
+- If you are going to install on a virtualbox VM, find an open IP address to use in your network.
+- If you are going to install to Azure, Azure will provision an IP for you.
+- In either case, the install will ask you to add the IP to the appropriate Ansible configuration inventory file. 
+- See [Ansible core files](ANSIBLE_FILE_INTERACTION.md) discussion for more info on how Ansible's configuration works .
 
 2. Log onto that server and install Ansible:
 ```bash
@@ -103,7 +107,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 ```
 
 4. Update your Ansible control target, the IP of the VM that will run the Gighive Apache web server and MySQL database.
-- In the inventory file below, set the ansible_host IP address 
+- In the inventory file below, set the "ansible_host" variable to the IP address to the IP address you decided upon in the Prerequisites. 
 ```bash
 vi ansible/inventories/inventory_bootstrap.yml 
 ```
