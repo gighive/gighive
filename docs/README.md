@@ -89,7 +89,7 @@ ssh-keygen -t rsa
 
 ---
 
-## ⚙️  Option A: Install Virtualbox and Gighive as a vm on your Ansible controller machine.
+## ⚙️  Option A: Gighive as a virtualbox VM.  Install Gighive as a vm on your Ansible controller machine.
 1. Install Virtualbox using Ansible. 
 - Default shown below is the virtualbox install.
 - install_virtualbox=true will be set in the below Ansible command.
@@ -129,7 +129,7 @@ alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inven
 
 ---
 
-## Option B: Install Gighive to an Azure VM (requires an Azure subscription)
+## Option B: Gighive as an Azure VM.  Install Gighive on Azure (requires an Azure subscription).
 Make sure prerequisites from above are installed.
 
 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
