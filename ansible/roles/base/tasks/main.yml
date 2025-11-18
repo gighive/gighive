@@ -155,9 +155,10 @@
       alias ns='netstat -na | grep "LISTEN "'
       alias dus='du -m --max-depth=1'
       alias py='/usr/bin/python'
-      export GIGHIVE_HOME="$HOME/gighive"
+      export GIGHIVE_HOME="$HOME/scripts/gighive"
       alias hive='cd $GIGHIVE_HOME'
       alias files='cd {{ docker_dir }}'
+      alias vars='cd $GIGHIVE_HOME/ansible/inventories/group_vars'
 
 - name: Install and refresh CA certificates
   block:
