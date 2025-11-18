@@ -11,7 +11,7 @@ GigHive supports multiple VM configurations (e.g., `gighive`, `gighive2`):
 1. **`ansible.cfg`** - Global Ansible configuration
 2. **`inventories/inventory_*.yml`** - Host and group definitions
 3. **`inventories/group_vars/all.yml`** - Global group variables
-4. **`inventories/group_vars/*.yml`** - Group-specific variables
+4. **`inventories/group_vars/*`** - Group-specific variables (including optional per-group subdirectories)
 5. **`playbooks/site.yml`** - Main playbook with task orchestration
 
 ## File Interaction Flow
@@ -44,13 +44,12 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│ 4. group_vars/gighive.yml (Auto-loaded Variables)                   │
-│    - vm_name: "gighive"                                             │
-│    - hostname: "gighive"                                            │
-│    - static_ip: "{{ ansible_host }}"                                │
-│    - app_flavor: gighive                                            │
-│    - database_full: false                                           │
-│    - All passwords, paths, and configuration variables              │
+│ 4. group_vars/gighive/ (Auto-loaded Variables)                      │
+│    - group_vars/gighive/gighive.yml: main config for gighive group  │
+│    - group_vars/gighive/secrets.yml: optional secrets vars file     │
+│      (plain or Vault-encrypted)                                     │
+│    - Ansible automatically loads all files in this directory for    │
+│      the gighive group                                              │
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -59,7 +58,45 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 │    Play 2: hosts: gighive(:gighive2) → Cloud-init Disable           │
 │    Play 3: hosts: target_vms → Main Configuration (Docker, etc.)    │
 └─────────────────────────────────────────────────────────────────────┘
+
+### Visual: Ansible File Interaction (Mermaid)
+
+```mermaid
+flowchart LR
+    subgraph Repo["Ansible Repo (Git)"]
+        G["group_vars/gighive/gighive.yml<br/>(public config, no real secrets)"]
+        S["group_vars/gighive/secrets.yml<br/>(MySQL secrets, plain or vaulted)"]
+        T["roles/docker/templates/.env.j2"]
+        P["playbooks/site.yml"]
+    end
+
+
+    subgraph Control["Control Machine"]
+        A["ansible-playbook<br/>(uses Vault if secrets.yml is encrypted)"]
+    end
+
+
+    subgraph VM["GigHive VM"]
+        E["{{ docker_dir }}/apache/externalConfigs/.env"]
+        C1["Docker / docker-compose<br/>for mysqlServer"]
+        C2["dbCommands.sh<br/>(and other scripts)"]
+    end
+
+
+    G --> A
+    S --> A
+    T --> A
+    P --> A
+
+
+    A -->|template task<br/>Render Docker env file| E
+
+
+    E --> C1
+    E -->|source .env| C2
 ```
+
+![Ansible file interaction diagram](ANSIBLE_FILE_INTERACTION.jpg)
 
 ## Detailed File Descriptions
 
@@ -175,8 +212,12 @@ all:
 
 **Auto-loading Rules:**
 - `group_vars/all.yml` is loaded for **all hosts in all inventories**
-- When targeting group `gighive`, Ansible automatically loads `group_vars/gighive.yml`
-- When targeting group `gighive2`, Ansible automatically loads `group_vars/gighive2.yml`
+- When targeting group `gighive`, Ansible automatically loads:
+  - `group_vars/gighive/gighive.yml` if it exists, and
+  - every file in the `group_vars/gighive/` directory (for example:
+    `group_vars/gighive/gighive.yml`, `group_vars/gighive/secrets.yml`)
+- When targeting group `gighive2`, Ansible automatically loads
+  `group_vars/gighive2.yml` and any files in `group_vars/gighive2/` if present
 
 #### 4.1 group_vars/all.yml
 
@@ -194,9 +235,9 @@ roles_dir: "{{ repo_root }}/ansible/roles"
 cloud_init_files_dir: "{{ roles_dir }}/cloud_init/files"
 ```
 
-These values are referenced by other group vars (for example, `cloud_image_dir`, `cloud_image_vmdk`, and `nocloud_iso` in `group_vars/gighive.yml`) and by roles such as `cloud_init`.
+These values are referenced by other group vars (for example, `cloud_image_dir`, `cloud_image_vmdk`, and `nocloud_iso` in `group_vars/gighive/gighive.yml`) and by roles such as `cloud_init`.
 
-**Example usage in `group_vars/gighive.yml`:**
+**Example usage in `group_vars/gighive/gighive.yml`:**
 ```yaml
 # vmdk/vdi specs for local vm
 cloud_image_dir: "{{ cloud_init_files_dir }}"
@@ -205,9 +246,9 @@ cloud_image_vdi: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudi
 nocloud_iso: "{{ cloud_init_files_dir }}/seed-{{ vm_name }}.iso"
 ```
 
-#### 4.2 group_vars/gighive.yml
+#### 4.2 group_vars/gighive/gighive.yml
 
-**Example: group_vars/gighive.yml**
+**Example: group_vars/gighive/gighive.yml**
 ```yaml
 # VM Identity
 hostname: "gighive"
@@ -276,9 +317,13 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
 3. **Ansible auto-loads `group_vars/all.yml`**
    - Global variables like `repo_root`, `roles_dir`, and `cloud_init_files_dir` are set
 
-4. **Ansible auto-loads `group_vars/gighive.yml`**
-   - All variables become available to plays targeting `gighive`
-   - Variables like `vm_name`, `hostname`, `app_flavor` are now set
+4. **Ansible auto-loads gighive group vars**
+   - All variables from `group_vars/gighive/gighive.yml` (if present) and
+     any files in `group_vars/gighive/` (for example
+     `group_vars/gighive/gighive.yml`, `group_vars/gighive/secrets.yml`)
+     become available to plays targeting `gighive`
+   - Variables like `vm_name`, `hostname`, `app_flavor`, plus any
+     MySQL credentials defined in a secrets file, are now set
 
 5. **Ansible executes `site.yml` plays in order:**
 
@@ -286,7 +331,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
    - `hosts: gighive(:gighive2)` matches both the `gighive` and `gighive2` groups 
    - `connection: local` means run on controller (not VM)
    - Executes `cloud_init` role to create VM in VirtualBox
-   - Uses variables from `group_vars/gighive.yml`
+   - Uses variables from `group_vars/gighive/gighive.yml`
 
    **Play 2: Disable Cloud-Init inside VM**
    - `hosts: gighive(:gighive2)` matches both the `gighive` and `gighive2` groups 
@@ -296,7 +341,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
    **Play 3: Configure target VM**
    - `hosts: target_vms` matches because `gighive` is a child 
    - Runs all configuration roles: base, docker, security, etc.
-   - Uses variables from `group_vars/gighive.yml`
+   - Uses variables from `group_vars/gighive/gighive.yml`
 
 ## Supporting Multiple Configurations
 
@@ -308,7 +353,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
                  ansible/playbooks/site.yml \
                  --ask-become-pass
 ```
-- Loads `group_vars/gighive.yml`
+- Loads `group_vars/gighive/gighive.yml`
 - Creates VM named "gighive" at 192.168.1.248
 
 ### Optional: gighive2 VM (secondary/test)
@@ -375,7 +420,7 @@ hosts: gighive*
 **Cause:** Group vars file doesn't match the group name in inventory.
 
 **Solution:**
-- Inventory group: `gighive` → Must have `group_vars/gighive.yml`
+- Inventory group: `gighive` → Must have `group_vars/gighive/gighive.yml`
 - Inventory group: `gighive2` → Must have `group_vars/gighive2.yml`
 
 ### Problem: Wrong IP address
@@ -419,7 +464,9 @@ $GIGHIVE_HOME/
 │   │   ├── inventory_azure.yml                   # Azure cloud hosts
 │   │   └── group_vars/
 │   │       ├── all.yml                           # Variables for all hosts
-│   │       ├── gighive.yml                       # Variables for gighive group
+│   │       ├── gighive/                          # Vars for gighive group
+│   │       │   ├── gighive.yml                   # Main vars for gighive
+│   │       │   └── secrets.yml                   # Optional secrets vars (plain or vaulted)
 │   │       ├── gighive2.yml                      # Variables for gighive2 group
 │   │       ├── prod.yml                          # Variables for prod group
 │   │       └── ubuntu.yml                        # Variables for ubuntu group

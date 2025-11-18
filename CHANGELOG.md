@@ -1,4 +1,42 @@
 *** 
+releaseNotes20251118.txt
+Changes: Moved MySQL passwords out of scripts and templates, Introduced group_vars/gighive/secrets.yml, routed secrets through a rendered .env file on the VM, standardized Ansible group_vars into group_vars/gighive/
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass --skip-tags blobfuse2
+
+# What was done
+Moved MySQL passwords out of scripts and templates
+Introduced group_vars/gighive/secrets.yml to hold mysql_root_password and mysql_appuser_password (plain now, Vault-ready later).
+Routed secrets through a rendered .env file on the VM
+Standardized Ansible group_vars into group_vars/gighive/, gighive.yml (main config) and secrets.yml (MySQL secrets).
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	renamed:    ansible/inventories/group_vars/gighive.yml -> ansible/inventories/group_vars/gighive/gighive.yml
+	new file:   ansible/inventories/group_vars/gighive/secrets.yml
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/docker/files/mysql/dbScripts/dbCommands.sh
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   docs/ANSIBLE_FILE_INTERACTION.md
+
+ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251115.txt
 Changes: Upgrade to Ubuntu 24.04: Had to removed docker-compose v1 for 22.04 compat, removed php-fpm.conf from dockerfile in favor of bind mount, changed Dockerfile ubuntu version to 24.04, variablized PHP version to 8.3 in group vars, www.conf.j2/php-fpm.conf.j2 are new jinja2 templates, edited group_vars for ubuntu version (Dockerfile manual)
 
@@ -29,18 +67,6 @@ Changes to be committed:
 	modified:   ansible/roles/cloud_init/files/user-data
 	new file:   docs/ANSIBLE_FILE_INTERACTION.md
 	modified:   user-prompts.md
-
-ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251109.txt
