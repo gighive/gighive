@@ -24,7 +24,7 @@ Prerequisites for all installs
  - Ansible, Python and git will be installed.
  - An id_rsa.pub file is needed for passwordless authentication into the Gighive server.
  - Virtualbox will be installed if you want that option.
- - az and azure-cli will be installed if you choose that path.
+ - az and azure-cli will be installed if you choose an Azure install.
 
 ## Architecture (logical)
 
