@@ -2,13 +2,13 @@
 
 This document explains each YAML introduced in Phase 1 for preparing and verifying the Ansible controller. Phase 1 installs controller-side tooling only, supporting VirtualBox or Azure as build targets. Docker engine/compose is not installed on the controller in Phase 1.
 
-Supported controller OS: Ubuntu 20.04, 22.04, and 24.10 (with repo codename fallbacks as needed).
+Supported controller OS: Ubuntu 20.04, 22.04, and 24.04 (with repo codename fallbacks as needed).
 
 ---
 
 ## Summary of Phase 1 Completion
 
-**Phase 1 Bootstrap to Ansible Migration - Prerequisites Role** is now complete and tested on Ubuntu 24.10 (baremetalgmktecg9).
+**Phase 1 Bootstrap to Ansible Migration - Prerequisites Role** is now complete and tested on Ubuntu 24.04 (baremetalgmktecg9).
 
 ### What was accomplished
 
@@ -40,7 +40,7 @@ Supported controller OS: Ubuntu 20.04, 22.04, and 24.10 (with repo codename fall
 
 ### Verified configuration
 
-**Tested on**: Ubuntu 24.10 (baremetalgmktecg9)
+**Tested on**: Ubuntu 24.04 (baremetalgmktecg9)
 
 - ✅ **Ansible Core**: 2.17.12 (>= 2.17.12 required)
 - ✅ **Collections**:
@@ -104,7 +104,7 @@ Supported controller OS: Ubuntu 20.04, 22.04, and 24.10 (with repo codename fall
 - Output/behavior
   - `terraform version` will be available on PATH.
 - Notes
-  - On Ubuntu 24.10, repository codenames may fall back to the latest LTS (e.g., `noble`) if upstream doesn’t publish non‑LTS metadata.
+  - On Ubuntu 24.04, repository codenames may fall back to the latest LTS (e.g., `noble`) if upstream doesn’t publish non‑LTS metadata.
 
 ## ansible/roles/installprerequisites/tasks/azure.yml
 - Purpose
