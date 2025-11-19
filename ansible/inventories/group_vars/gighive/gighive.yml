@@ -51,11 +51,6 @@ admin_user: admin
 viewer_user: viewer
 uploader_user: uploader
 
-# Use vault/encrypted vars in real life:
-gighive_admin_password: "secretadmin"
-gighive_viewer_password: "secretviewer"
-gighive_uploader_password: "secretuploader"
-
 # htpasswd locations, one on the host, other on the container
 gighive_apache_container: apacheWebServer
 gighive_htpasswd_host_path: "{{ docker_dir }}/apache/externalConfigs/gighive.htpasswd"  # on the host

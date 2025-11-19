@@ -19,12 +19,12 @@ This project is designed to be portable, easy to deploy, and suitable for local 
  - You will have ~54GB for media files.  
  - Docker will be installed to that VM. Bind mounts used for config files and media files. Check Dockerfile for exact specs.
 
-## Software
-Prerequisites for all installs
- - Ansible, Python and git will be installed.
+## Software Prerequisites
+Software needed for either option, Virtualbox or Azure:
+ - Ansible, Python and git will be installed.  More detailed listing [here](PREREQS.html)
  - An id_rsa.pub file is needed for passwordless authentication into the Gighive server.
- - Virtualbox will be installed if you want that option.
- - az and azure-cli will be installed if you choose an Azure install.
+For Virtualbox installations, Virtualbox will be the additional component installed.
+For Azure deployments, az and azure-cli will be installed.
 
 ## Architecture (logical)
 
