@@ -23,10 +23,8 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 Prerequisites for all installs
  - Ansible, Python and git will be installed.
  - An id_rsa.pub file is needed for passwordless authentication into the Gighive server.
-Virtualbox install
- - If you select Virtualbox as your deployment target, Virtualbox install.
-Azure install
- - If you select Azure as your deployment target, az and azure-cli installs.
+ - Virtualbox will be installed if you want that option.
+ - az and azure-cli will be installed if you choose that path.
 
 ## Architecture (logical)
 
