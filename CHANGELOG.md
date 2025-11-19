@@ -1,4 +1,34 @@
 *** 
+releaseNotes20251119.txt
+Changes: Moved user passwords out of group_vars/gighive/gighive.yml into secrets.yml 
+
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass --skip-tags blobfuse2
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive/secrets.yml
+	deleted:    ansible/inventories/group_vars/ubuntu.yml
+	modified:   docs/README.md
+
+ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251118.txt
 Changes: Moved MySQL passwords out of scripts and templates, Introduced group_vars/gighive/secrets.yml, routed secrets through a rendered .env file on the VM, standardized Ansible group_vars into group_vars/gighive/
 
@@ -23,18 +53,6 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/mysql/dbScripts/dbCommands.sh
 	modified:   ansible/roles/docker/templates/.env.j2
 	modified:   docs/ANSIBLE_FILE_INTERACTION.md
-
-ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251115.txt
