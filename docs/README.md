@@ -21,7 +21,7 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 
 ## Software Prerequisites
 Software needed for either option, Virtualbox or Azure:
- - Ansible, Python and git will be installed.  More detailed listing [here](PREREQS.html)
+ - Ansible, Python and git will be installed.  More detailed listing [here](PREREQS.html).
  - An id_rsa.pub file is needed for passwordless authentication into the Gighive server.
 
 For Virtualbox installations, Virtualbox will be the additional component installed.
@@ -79,6 +79,7 @@ cd $GIGHIVE_HOME
 7. Add GIGHIVE_HOME export to your .bashrc.
 ```bash
 echo "export GIGHIVE_HOME=/home/$USER/gighive" >> ~/.bashrc
+cat ~/.bashrc
 ```
 
 8. Make sure you have id_rsa.pub in ./ssh for passwordless authentication.
@@ -89,23 +90,23 @@ ssh-keygen -t rsa
 ---
 
 ## ⚙️  Option A: Gighive as a virtualbox VM.  Install Gighive as a vm on your Ansible controller machine.
-1. Install Virtualbox using Ansible. 
+1. From $GIGHIVE_HOME, Install Virtualbox using Ansible. 
 - Default shown below is the virtualbox install.
 - install_virtualbox=true will be set in the below Ansible command.
 - The script will ask for your sudo password, so enter it in when prompted.
 ```bash
+cd $GIGHIVE_HOME
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
 ```
 
-2. Reboot.
+2. When the script finishes, it will prompt you to reboot.  Hit "enter" to stop the script and then reboot.
 
 3. Verify the installation.
 ```bash
 cd $GIGHIVE_HOME
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
 ```
-
-4. Update your Ansible control target, the IP of the VM that will run the Gighive Apache web server and MySQL database.
+- After finishing, you should see a green checkmark and the words "All prerequisites verified successfully!" in the text above.  Otherwise, redo the steps above.
 - In the inventory file below, set the "ansible_host" variable to the IP address to the IP address you decided upon in the Prerequisites. 
 ```bash
 vi ansible/inventories/inventory_bootstrap.yml 
@@ -116,7 +117,7 @@ vi ansible/inventories/inventory_bootstrap.yml
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
 ```
 
-6. If Step 13 ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
+6. If the previous step ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
 ```bash
 https://<ansible_host IP from step 11>
 ```
