@@ -8,12 +8,12 @@
       - '!all'
       - 'min'
   changed_when: false
-  when: ansible_kernel is not defined
+  when: ansible_facts['kernel'] is not defined
 
 - name: Warn if kernel headers missing (VirtualBox DKMS may fail)
   ansible.builtin.debug:
-    msg: "Kernel headers for {{ ansible_kernel }} are missing. Consider installing linux-headers-{{ ansible_kernel }} before using VirtualBox."
-  when: ansible_kernel is defined and (ansible_facts.packages | default({})) is mapping and ('linux-headers-' ~ ansible_kernel) not in ansible_facts.packages
+    msg: "Kernel headers for {{ ansible_facts['kernel'] }} are missing. Consider installing linux-headers-{{ ansible_facts['kernel'] }} before using VirtualBox."
+  when: ansible_facts['kernel'] is defined and (ansible_facts.packages | default({})) is mapping and ('linux-headers-' ~ ansible_facts['kernel']) not in ansible_facts.packages
 
 - name: Install VirtualBox
   become: true

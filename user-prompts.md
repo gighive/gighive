@@ -1119,3 +1119,4 @@ community.docker                          3.13.3
   - go ahead
 
 [2025-11-15T09:16:33-05:00] where is the ansible variable cloud_init_files_dir set?
+2025-11-25T18:23:00Z OK, make those two changes please.

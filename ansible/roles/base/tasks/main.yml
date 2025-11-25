@@ -83,7 +83,7 @@
     repo: >-
       deb [arch=amd64,arm64 signed-by=/etc/apt/keyrings/docker.asc]
       https://download.docker.com/linux/ubuntu
-      {{ ansible_lsb.codename }} stable
+      {{ ansible_facts['lsb']['codename'] }} stable
     filename: docker
     state: present
 
@@ -473,8 +473,8 @@
   become: yes
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    regexp: "^127\\.0\\.1\\.1\\s+{{ ansible_hostname }}$"
-    line: "127.0.1.1 {{ ansible_hostname }}"
+    regexp: "^127\\.0\\.1\\.1\\s+{{ ansible_facts['hostname'] }}$"
+    line: "127.0.1.1 {{ ansible_facts['hostname'] }}"
     state: present
 
 - name: Stop and disable systemd-resolved

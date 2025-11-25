@@ -15,7 +15,7 @@ docker_apt_key_url: https://download.docker.com/linux/ubuntu/gpg
 # this will auto-adapt to focal, jammy, bionic, etc.
 docker_apt_repo: >
   deb [arch=amd64] https://download.docker.com/linux/ubuntu
-  {{ ansible_lsb.codename }} stable
+  {{ ansible_facts['lsb']['codename'] }} stable
 
 docker_packages:
   - docker-ce
@@ -23,3 +23,4 @@ docker_packages:
   - containerd.io
   - docker-compose-plugin
 
+apache_docker_image: "ubuntu-apache-img:1.00"

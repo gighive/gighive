@@ -1,4 +1,22 @@
 *** 
+releaseNotes20251125.txt
+Changes: Updated Ansible config and roles to stop using deprecated ansible_* magic facts and the old YAML callback, switched to ansible_facts[...] and modern callback settings so playbooks run cleanly
+
+Last run: gmk@lab:/home$ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass 
+
+ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251119.txt
 Changes: Moved user passwords out of group_vars/gighive/gighive.yml into secrets.yml 
 
@@ -15,18 +33,6 @@ Changes to be committed:
 	modified:   ansible/inventories/group_vars/gighive/secrets.yml
 	deleted:    ansible/inventories/group_vars/ubuntu.yml
 	modified:   docs/README.md
-
-ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251118.txt
