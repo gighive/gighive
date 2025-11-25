@@ -69,7 +69,7 @@
             | default('Container Not Found') }}
       Free_Memory_MB: "{{ mem_free.stdout }}"
       Free_Disk_Space_Root: "{{ disk_free.stdout }}"
-      Docker_Service_Running: "{{ services['docker'].state == 'running' if 'docker' in services else 'Docker Not Found' }}"
+      Docker_Service_Running: "{{ ansible_facts['services']['docker'].state == 'running' if 'docker' in ansible_facts['services'] else 'Docker Not Found' }}"
       Load_Average: "{{ load_avg.stdout }}"
 
 - name: Display Full Health Summary
