@@ -1,8 +1,21 @@
 *** 
 releaseNotes20251125.txt
-Changes: Updated Ansible config and roles to stop using deprecated ansible_* magic facts and the old YAML callback, switched to ansible_facts[...] and modern callback settings so playbooks run cleanly
+Changes: More stop using deprecated ansible_* magic facts and readme
 
 Last run: gmk@lab:/home$ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass 
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/cloud_init_disable/tasks/main.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/varscope/tasks/main.yml
+	modified:   docs/README.md
+	modified:   user-prompts.md
 
 ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
 ToDo: create a canonical md versions for the site and convert using composer recommendation
@@ -15,6 +28,12 @@ ToDo: clear db script
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251125.txt
+Changes: Updated Ansible config and roles to stop using deprecated ansible_* magic facts and the old YAML callback, switched to ansible_facts[...] and modern callback settings so playbooks run cleanly
+
+Last run: gmk@lab:/home$ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass 
 
 *** 
 releaseNotes20251119.txt

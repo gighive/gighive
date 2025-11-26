@@ -81,12 +81,12 @@
 # Prefer provided nic_name; else the default IPv4 interface; else eth0
 - name: Derive NIC name
   ansible.builtin.set_fact:
-    _nic_name: "{{ nic_name | default(ansible_default_ipv4.interface | default('eth0')) }}"
+    _nic_name: "{{ nic_name | default(ansible_facts.default_ipv4.interface | default('eth0')) }}"
 
 # Prefer provided primary_mac; else MAC from gathered facts for _nic_name; else empty
 - name: Derive NIC MAC
   ansible.builtin.set_fact:
-    _primary_mac: "{{ primary_mac | default( (hostvars[inventory_hostname]['ansible_' + _nic_name].macaddress | default('')) ) }}"
+    _primary_mac: "{{ primary_mac | default( (ansible_facts[_nic_name].macaddress | default('')) ) }}"
 
 - name: Derive nameservers with safe defaults
   ansible.builtin.set_fact:

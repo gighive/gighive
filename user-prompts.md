@@ -975,6 +975,11 @@ sodo@pop-os:~/scripts$ ansible-galaxy collection list | grep community.docker
 community.docker                          3.13.3
 
 - 2025-10-29T14:29:00-04:00
+  - [prompt content not captured]
+
+---
+**2025-11-25 19:46:00-05:00**
+there is a lot of output from this particular ansible task in roles/docker/tasks/main.yml, can we remark it out or what's the best idea to suppress this one?  TASK [docker : Debug Compose output
   - don't forget that the prerequisite install is only targeted for the ansible controller machine.  the controller could be the local machine or it could be a remote machine.  docker will not need to be installed on the controller.  the controller will build a target machine on virtualbox or in azure or another baremetal box as indicated in the diagram on this page.  read through that document to see how the deployment architecture for gighive is working.  https://gighive.app/README.html
 
 - 2025-10-29T14:33:00-04:00
