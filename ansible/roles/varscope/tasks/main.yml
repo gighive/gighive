@@ -5,7 +5,7 @@
       groups: "{{ group_names }}"
       vars_filtered: >-
         {{
-          lookup('vars', *varnames)
+          hostvars[inventory_hostname]
           | dict2items
           | selectattr('key','match', varscope_prefix_regex)
           | rejectattr('key','in', varscope_redact_keys)
@@ -13,7 +13,7 @@
         }}
       redacted_present: >-
         {{
-          lookup('vars', *varnames)
+          hostvars[inventory_hostname]
           | dict2items
           | selectattr('key','in', varscope_redact_keys)
           | map(attribute='key')
