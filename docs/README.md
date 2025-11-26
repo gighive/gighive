@@ -99,7 +99,8 @@ cd $GIGHIVE_HOME
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
 ```
 
-2. When the script finishes, it will prompt you to reboot.  Hit "enter" to stop the script and then reboot.
+2. When the script finishes, it will prompt you to reboot.  
+- Hit "enter" to stop the script and then reboot.
 
 3. Verify the installation.
 ```bash
@@ -107,7 +108,8 @@ cd $GIGHIVE_HOME
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
 ```
 - After finishing, you should see a green checkmark and the words "All prerequisites verified successfully!" in the text above.  Otherwise, redo the steps above.
-- In the inventory file below, set the "ansible_host" variable to the IP address to the IP address you decided upon in the Prerequisites. 
+
+4. In the inventory file below, set the "ansible_host" variable to the IP address to the IP address you decided upon in the Prerequisites. 
 ```bash
 vi ansible/inventories/inventory_bootstrap.yml 
 ```

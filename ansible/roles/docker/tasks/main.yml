@@ -264,6 +264,7 @@
 - name: Debug Compose output
   ansible.builtin.debug:
     var: compose_result
+    verbosity: 1
   tags: docker, compose
 
 - name: Gather info on running Apache container
