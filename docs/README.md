@@ -15,9 +15,9 @@ This project is designed to be portable, easy to deploy, and suitable for local 
 ## Components
 - **Ansible Control Machine**: Tested on Ubuntu 24.04 or 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS**, installed on bare metal.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
 - **Target Server**: Your choice of Virtualbox or Azure deployment targets for the vm and containerized environment.
- - Default vm size is 64GB, ~10GB of which will be used by the OS (configurable in ansible/group_vars).  
- - You will have ~54GB for media files.  
- - Docker will be installed to that VM. Bind mounts used for config files and media files. Check Dockerfile for exact specs.
+  - Default vm size is 64GB, ~10GB of which will be used by the OS (configurable in ansible/group_vars).  
+  - You will have ~54GB for media files.  
+  - Docker will be installed to that VM. Bind mounts used for config files and media files. Check Dockerfile for exact specs.
 
 ## Software Prerequisites
 Software needed for either option, Virtualbox or Azure:
