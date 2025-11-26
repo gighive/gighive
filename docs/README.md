@@ -126,7 +126,7 @@ https://<ansible_host IP from step 11>
 
 OPTIONAL: It is helpful to set an alias in your .bashrc to access the vm you've created so you can check it out.
 ```bash
-alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inventory_virtualbox.yml>"
+alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inventory_bootstrap.yml>"
 ```
 
 ---
