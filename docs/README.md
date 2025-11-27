@@ -13,7 +13,7 @@ The automation spins up a fully reproducible environment using **Docker, Ansible
 This project is designed to be portable, easy to deploy, and suitable for local development or cloud environments (Azure supported out of the box).
 
 ## Components
-- **Ansible Control Machine**: Tested on Ubuntu 24.04 or 22.04, so the requirements are **any flavor of Ubuntu 22.04 or Pop-OS**, installed on bare metal.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
+- **Ansible Control Machine**: Tested on Ubuntu 24.04 or 22.04, so the requirements are **any flavor of Ubuntu or Pop-OS 24.04 or 22.04**, installed on bare metal.  Virtualbox implementation assumes Control Machine would also be home to your Virtualbox VMs.
 - **Target Server**: Your choice of Virtualbox or Azure deployment targets for the vm and containerized environment.
   - Default vm size is 64GB, ~10GB of which will be used by the OS (configurable in ansible/group_vars).  
   - You will have ~54GB for media files.  
