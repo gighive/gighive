@@ -1,6 +1,10 @@
 # Basic VM configuration
-hostname: "prod"
-vm_name: "ubuntu"
+hostname: "gighive"
+vm_name: "gighive"
+
+# OS version configuration
+ubuntu_version: "24.04"
+ubuntu_codename: "noble"
 
 static_ip: "{{ ansible_host }}"
 gateway: "192.168.1.1"
@@ -8,7 +12,8 @@ nameservers:
   - "8.8.8.8"
   - "8.8.4.4"
 bridge_iface: "enp8s0"
-disk_size_mb: 256000
+#disk_size_mb: 222000
+disk_size_mb: 64000
 
 # Ansible host specific paths (user = sodo) THESE ARE SOURCES FOR VIDEOS and AUDIO FILES, LEAVING ABSOLUTE
 video_full: "/home/sodo/videos/stormpigs/finals/singles/"
@@ -17,11 +22,13 @@ video_reduced: "{{ repo_root }}/assets/video"
 audio_reduced: "{{ repo_root }}/assets/audio"
 
 # vmdk/vdi specs for local vm
-cloud_image_url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.vmdk"
+# Cloud image URL format (verified 2024-11 for Noble 24.04)
+# Format may change; check https://cloud-images.ubuntu.com/ if download fails
+cloud_image_url: "https://cloud-images.ubuntu.com/{{ ubuntu_codename }}/current/{{ ubuntu_codename }}-server-cloudimg-amd64.vmdk"
 cloud_image_dir: "{{ cloud_init_files_dir }}"
-cloud_image_vmdk: "{{ cloud_init_files_dir }}/jammy-server-cloudimg-amd64-gighive.vmdk"
-cloud_image_vdi: "{{ cloud_init_files_dir }}/jammy-server-cloudimg-amd64-gighive.vdi"
-nocloud_iso: "{{ cloud_init_files_dir }}/seed.iso"
+cloud_image_vmdk: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-amd64-{{ vm_name }}.vmdk"
+cloud_image_vdi: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-amd64-{{ vm_name }}.vdi"
+nocloud_iso: "{{ cloud_init_files_dir }}/seed-{{ vm_name }}.iso"
 
 ansible_remote_tmp: "/tmp/.ansible/tmp"
 
@@ -31,7 +38,7 @@ database_full: true
 
 # Docker container rebuild control
 rebuild_mysql: false       # Rebuild MySQL container (preserve data)
-rebuild_mysql_data: false # Rebuild MySQL container + wipe database (nuclear)
+rebuild_mysql_data: false   # Rebuild MySQL container + wipe database (nuclear)
 
 # these vars control full/reduced set of media
 sync_video: true
@@ -43,11 +50,6 @@ reduced_audio: false
 admin_user: admin
 viewer_user: viewer
 uploader_user: uploader
-
-# Use vault/encrypted vars in real life:
-gighive_admin_password: "supersecretadmin"
-gighive_viewer_password: "supersecretviewer"
-gighive_uploader_password: "supersecretuploader"
 
 # htpasswd locations, one on the host, other on the container
 gighive_apache_container: apacheWebServer
@@ -82,7 +84,8 @@ gighive_server_alias: "gighive" # alias in cert
 gighive_ssl_cert_file: "/etc/ssl/certs/origin_cert.pem"
 gighive_ssl_key_file:  "/etc/ssl/private/origin_key.pem"
 gighive_ssl_san_config: "/etc/ssl/openssl_san.cnf"
-gighive_php_fpm_bin: "php-fpm8.1"
+gighive_php_version: "8.3"
+gighive_php_fpm_bin: "php-fpm{{ gighive_php_version }}"
 
 # If you use custom-compiled httpd in the container:
 apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
@@ -90,6 +93,10 @@ apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
 # htpasswd seed vars
 gighive_htpasswd_seed_once: true
 gighive_htpasswd_marker_path: "{{ gighive_htpasswd_host_path }}.seeded"
+
+# --- MySQL db/user ---
+mysql_database: music_db
+mysql_user: appuser
 
 # --- MySQL backup role vars ---
 mysql_backup_user: "{{ ansible_user }}"
@@ -116,5 +123,7 @@ mysql_backup_log: "{{ mysql_backups_dir }}/cron.log"
 filename_seq_pad: 5
 
 # Application-level upload size cap in bytes (honored by UploadValidator)
-upload_max_bytes: 6442450944
+upload_max_bytes: 6442450944 
 upload_max_mb: 6144
+
+
