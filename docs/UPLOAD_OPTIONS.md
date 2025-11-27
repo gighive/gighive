@@ -21,7 +21,7 @@
 
 **Recommendation:** Use Option 2 (Cloudflare) to enable the full GigHive experience, including the native iOS app for your users.
 
-## Justification for "Disable Certificate Checking" Feature
+## Justification for "Disable Certificate Checking" Feature in Iphone App
 
 GigHive is an open-source, self-hosted video management application. Users deploy their own GigHive servers on their own infrastructure (e.g., Azure VMs, private servers).
 
