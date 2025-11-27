@@ -194,7 +194,7 @@ img {
     <h3>🐳 Docker</h3>
     <ul>
         <li><a href="DOCKER_COMPOSE_BEHAVIOR.html">⚙️ Docker Behavior</a></li>
-        <li><a href="MIXING_HOSTVM_DOCKER_VERSIONS.html">🔄 Host/Container Versions</a></li>
+        <li><a href="MIXING_HOSTVM_DOCKER_VERSIONS.html">🔄 Mixing Host/Container Versions</a></li>
     </ul>
     
     <h3>🎥 Streaming</h3>
