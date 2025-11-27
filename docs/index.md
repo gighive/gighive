@@ -178,6 +178,7 @@ img {
     <ul>
         <li><a href="feature_set.html">⭐ Feature Set</a></li>
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
+        <li><a href="UPLOAD_OPTIONS.html">⭐ Upload Options</a></li>
         <li><a href="README.html">🚀 Setup Guide</a></li>
         <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
