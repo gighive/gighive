@@ -20,3 +20,18 @@
   5. Users can access via `https://gighive.yourdomain.com` in browser or iOS app
 
 **Recommendation:** Use Option 2 (Cloudflare) to enable the full GigHive experience, including the native iOS app for your users.
+
+## Justification for "Disable Certificate Checking" Feature
+
+GigHive is an open-source, self-hosted video management application. Users deploy their own GigHive servers on their own infrastructure (e.g., Azure VMs, private servers).
+
+The "Disable Certificate Checking" toggle is provided for users who are connecting to their own self-hosted servers during initial setup or testing phases. This feature:
+
+- **Is user-controlled and opt-in** - disabled by default
+- **Only affects connections to user-specified servers** - not our production infrastructure
+- **Is documented as temporary** - our setup guide (UPLOAD_OPTIONS.md) recommends users configure Cloudflare's free TLS certificates for production use
+- **Follows security best practices** - users are explicitly warned about the security implications
+
+For production deployments, we recommend users place their servers behind Cloudflare (free tier), which provides valid TLS certificates that work without this toggle.
+
+This feature is essential for the open-source, self-hosted nature of GigHive, allowing users flexibility during setup while encouraging secure configurations for production use.
