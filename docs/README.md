@@ -41,10 +41,10 @@ Gighive runs very efficiently on an [Orange Pi 5](https://a.co/d/90UDcvi) or [GM
 ---
 
 ## ⚙️  Prerequisites: Install Ansible and Python to your controller machine.
-1. Decide on where you will install Ansible as the controller and what target (virtualbox or Azure) that you will install Gighive on. 
+1. Decide where you will install Ansible as the controller and what target vm (virtualbox or Azure) will be the Gighive server. 
 - If you are going to install on a virtualbox VM, find an open IP address to use in your network.
 - If you are going to install to Azure, Azure will provision an IP for you.
-- In either case, the install will ask you to add the IP to the appropriate Ansible configuration inventory file. 
+- In either case, you will add that IP to the appropriate variable in the Ansible inventory file. 
 - See [Ansible core files](ANSIBLE_FILE_INTERACTION.md) discussion for more info on how Ansible's configuration works .
 
 2. Log onto that server and install Ansible:
@@ -68,7 +68,7 @@ ansible --version # Should be 2.17.2 or higher
 git clone https://github.com/gighive/gighive
 ```
 
-6. Wherever you have installed gighive to, set the GIGHIVE_HOME variable and test to see if it's correct.  
+6. In whatever directory you have installed gighive, set the GIGHIVE_HOME variable and test to see if it's correct.  
 - Example: GIGHIVE_HOME is located in user's home directory.  
 ```bash
 export GIGHIVE_HOME=/home/$USER/gighive
@@ -107,7 +107,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 cd $GIGHIVE_HOME
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
 ```
-- After finishing, you should see a green checkmark and the words "All prerequisites verified successfully!" in the text above.  Otherwise, redo the steps above.
+- After finishing, you should see a green checkmark and the words "All prerequisites verified successfully!" at the bottom of the Ansible output.  Otherwise, redo the steps above.
 
 4. In the inventory file below, set the "ansible_host" variable to the IP address to the IP address you decided upon in the Prerequisites. 
 ```bash
@@ -121,7 +121,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 
 6. If the previous step ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
 ```bash
-https://<ansible_host IP from step 11>
+https://<ansible_host IP from earlier step>
 ```
 
 OPTIONAL: It is helpful to set an alias in your .bashrc to access the vm you've created so you can check it out.
