@@ -1,4 +1,36 @@
 *** 
+releaseNotes20251127.txt
+Changes: Update azure terraform/main.tf for noble build, fix timesyncd cache update
+
+Last run: ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/inventory_azure.yml
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   docs/README.md
+	modified:   terraform/main.tf
+	new file:   terraform/main.tf.beforeNobleUpdate
+	modified:   terraform/tfplan
+
+ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: migrate changes to gighive
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: clear db script
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251125.txt
 Changes: More stop using deprecated ansible_* magic facts and readme
 
@@ -16,18 +48,6 @@ Changes to be committed:
 	modified:   ansible/roles/varscope/tasks/main.yml
 	modified:   docs/README.md
 	modified:   user-prompts.md
-
-ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: migrate changes to gighive
-ToDo: vault index[IM]* php files username/password vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251125.txt

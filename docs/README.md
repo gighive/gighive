@@ -44,7 +44,7 @@ Gighive runs very efficiently on an [Orange Pi 5](https://a.co/d/90UDcvi) or [GM
 1. Decide where you will install Ansible as the controller and what target vm (virtualbox or Azure) will be the Gighive server. 
 - If you are going to install on a virtualbox VM, find an open IP address to use in your network.
 - If you are going to install to Azure, Azure will provision an IP for you.
-- In either case, you will add that IP to the appropriate variable in the Ansible inventory file. 
+- In a later step, you will add that IP to the appropriate variable in the Ansible inventory file. 
 - See [Ansible core files](ANSIBLE_FILE_INTERACTION.md) discussion for more info on how Ansible's configuration works .
 
 2. Log onto that server and install Ansible:
@@ -133,6 +133,9 @@ alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inven
 
 ## Option B: Gighive as an Azure VM.  Install Gighive on Azure (requires an Azure subscription).
 Make sure prerequisites from above are installed.
+  - **You will need an Azure Standard tier subscription to run this**
+  - **This will not work with a free subscription**
+  - **The default vm size is Standard_B2ms, a basic cost effective vm**
 
 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 ```bash
@@ -145,9 +148,9 @@ source ./azure.env
 ```
 
 2. Provision infrastructure.  Run ./2bootstrap.sh. Watch for and respond to these prompts:
-.. apply Terraform plan 
-.. update the ansible inventory file
-.. run the ansible_playbook
+  - apply Terraform plan 
+  - update the ansible inventory file
+  - run the ansible build
 ```bash
 ./2bootstrap.sh
 ```

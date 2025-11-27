@@ -15,7 +15,7 @@
   ansible.builtin.apt:
     name: systemd-timesyncd
     state: present
-    update_cache: no
+    update_cache: yes
   become: yes
   ignore_errors: yes
 
