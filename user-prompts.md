@@ -589,6 +589,64 @@ GigHive is dual-licensed:
 
 ## 2025-11-27
 
+- 2025-11-27T13:49:00-05:00
+  - my production gighive server is still on jammy.  but the dockerfile is now set to spin up an ubuntu 24.04 apache instance running php fpm 8.3.  (currently the prod server runs 22.04 apache and 8.1).  but when i rerun the ansible playbook using the command below, the docker container should be rebuilt to that latest spec and it should run OK, yes?  sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache$ grep -i php Dockerfile
+ARG PHP_VERSION=8.3
+    php-curl php-fpm php-mbstring php-mysql php-xml \
+    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
+# Configure PHP upload limits for large files (6GB)
+RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/post_max_size = .*/post_max_size = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/max_execution_time = .*/max_execution_time = 7200/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/max_input_time = .*/max_input_time = 7200/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/memory_limit = .*/memory_limit = 512M/' /etc/php/${PHP_VERSION}/fpm/php.ini
+ && apt-get purge -y 'libapache2-mod-php*' || true
+# Ensure PHP-FPM socket directory exists
+    mkdir -p /run/php && \
+    chown -R www-data:www-data /run/php
+sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache$ ubuntu
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.10.0-1012-rockchip aarch64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Thu Nov 27 13:38:07 EST 2025
+
+  System load:                0.0
+  Usage of /:                 28.7% of 916.78GB
+  Memory usage:               5%
+  Swap usage:                 0%
+  Temperature:                46.2 C
+  Processes:                  225
+  Users logged in:            1
+  IPv4 address for enP3p49s0: 192.168.1.227
+  IPv6 address for enP3p49s0: 2600:4040:aff0:d00:c274:2bff:fefc:638c
+
+Expanded Security Maintenance for Applications is not enabled.
+
+9 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+1 additional security update can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+
+Last login: Thu Nov 27 13:30:23 2025 from 192.168.1.235
+ubuntu@ubuntu:~$ cat /etc/lsb-release 
+DISTRIB_ID=Ubuntu
+DISTRIB_RELEASE=22.04
+DISTRIB_CODENAME=jammy
+DISTRIB_DESCRIPTION="Ubuntu 22.04.5 LTS" sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache$ grep php ../../../../inventories/group_vars/prod/prod.yml 
+gighive_auth_probe_url: "{{ gighive_scheme }}://{{ gighive_host }}/db/database.php"
+gighive_php_version: "8.3"
+gighive_php_fpm_bin: "php-fpm{{ gighive_php_version }}". this will be my ansible playbook run, if you want to verify information: ansible-playbook   -i ansible/inventories/inventory_baremetal.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup
+
+- 2025-11-27T13:51:00-05:00
+  - i think this mixing of host vm and docker vm ubuntu versions is something important to document.  can you document the above into HOSTVM_DOCKER_VERSIONS.md
+
+## 2025-11-27
+
 - 2025-11-27T11:00:00-05:00
   - please update docs/UPLOAD_OPTIONS.md to add this information at the bottom: Justification for "Disable Certificate Checking" Feature: GigHive is an open-source, self-hosted video management application. Users deploy their own GigHive servers on their own infrastructure (e.g., Azure VMs, private servers). The "Disable Certificate Checking" toggle is provided for users who are connecting to their own self-hosted servers during initial setup or testing phases. This feature: Is user-controlled and opt-in - disabled by default Only affects connections to user-specified servers - not our production infrastructure Is documented as temporary - our setup guide (UPLOAD_OPTIONS.md) recommends users configure Cloudflare's free TLS certificates for production use Follows security best practices - users are explicitly warned about the security implications For production deployments, we recommend users place their servers behind Cloudflare (free tier), which provides valid TLS certificates that work without this toggle. This feature is essential for the open-source, self-hosted nature of GigHive, allowing users flexibility during setup while encouraging secure configurations for production use.
 
