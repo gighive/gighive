@@ -43,7 +43,7 @@ Docker containers are **isolated environments** that run their own operating sys
 When you run the Ansible playbook, it ensures a clean rebuild:
 
 ```bash
-ansible-playbook -i ansible/inventories/inventory_baremetal.yml \
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
   ansible/playbooks/site.yml \
   --skip-tags vbox_provision,blobfuse2,mysql_backup
 ```
@@ -61,7 +61,7 @@ ansible-playbook -i ansible/inventories/inventory_baremetal.yml \
 
 The PHP version is controlled via Ansible variables:
 
-**File**: `ansible/inventories/group_vars/prod/prod.yml`
+**File**: `ansible/inventories/group_vars/gighive/gighive.yml`
 ```yaml
 gighive_php_version: "8.3"
 gighive_php_fpm_bin: "php-fpm{{ gighive_php_version }}"
@@ -92,7 +92,7 @@ To upgrade the container to a newer Ubuntu or PHP version:
 
 1. Update `Dockerfile` base image: `FROM ubuntu:24.04`
 2. Update `ARG PHP_VERSION=8.3`
-3. Update `prod.yml`: `gighive_php_version: "8.3"`
+3. Update `gighive.yml`: `gighive_php_version: "8.3"`
 4. Run Ansible playbook - automatic rebuild
 
 **No host OS upgrade required.**
@@ -149,7 +149,7 @@ docker exec apacheWebServer php -v
 
 ## Best Practices
 
-1. **Keep versions in sync across configs**: Dockerfile `ARG PHP_VERSION` should match `prod.yml` `gighive_php_version`
+1. **Keep versions in sync across configs**: Dockerfile `ARG PHP_VERSION` should match `gighive.yml` `gighive_php_version`
 2. **Test in dev first**: Always test container upgrades in development/staging before production
 3. **Document changes**: Update this file when changing OS or PHP versions
 4. **Monitor logs**: Check Apache and PHP-FPM logs after rebuilds for compatibility issues
@@ -158,5 +158,5 @@ docker exec apacheWebServer php -v
 
 - Dockerfile: `ansible/roles/docker/files/apache/Dockerfile`
 - Docker Compose template: `ansible/roles/docker/templates/docker-compose.yml.j2`
-- Production variables: `ansible/inventories/group_vars/prod/prod.yml`
+- Production variables: `ansible/inventories/group_vars/gighive/gighive.yml`
 - Rebuild tasks: `ansible/roles/docker/tasks/main.yml`

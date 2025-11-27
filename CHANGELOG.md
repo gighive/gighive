@@ -1,6 +1,6 @@
 *** 
 releaseNotes20251127.txt
-Changes: Jibed dev secrets removal with prod and new inventory structure, new doc on mixing versions 
+Changes: Jibed dev secrets removal with prod and new inventory structure, new doc on mixing hostvm and docker versions
 
 Last run: ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,mysql_backup
 
