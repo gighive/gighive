@@ -133,9 +133,9 @@ alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inven
 
 ## Option B: Gighive as an Azure VM.  Install Gighive on Azure (requires an Azure subscription).
 Make sure prerequisites from above are installed.
-  - **You will need an Azure Standard tier subscription to run this**
-  - **This will not work with a free subscription**
-  - **The default vm size is Standard_B2ms, a basic cost effective vm**
+  - **You will need at minimum an Azure Standard tier subscription to run this**.
+  - **This will not work with a free subscription**.
+  - **The default vm size is Standard_B2ms, a basic, cost-effective vm**.
 
 1. Export Azure Vars (as noted at top of 2bootstrap.sh)
 ```bash
@@ -157,7 +157,7 @@ source ./azure.env
 
 3. If Step 2 ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
 ```bash
-https://<ansible_host IP cpatured from the install>
+https://<ansible_host IP captured from the output of the install or the inventory file>
 ```
 
 OPTIONAL: If you're finished with the VM, delete all resources in Azure
