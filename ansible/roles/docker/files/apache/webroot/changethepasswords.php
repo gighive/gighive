@@ -195,6 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <p class="muted">
         Signed in as <code><?= htmlspecialchars($user) ?></code>. 
         Updating file: <code class="path"><?= htmlspecialchars($HTPASSWD_FILE) ?></code>
+        Best practice requires you to change the passwords as soon as you install Gighive.  Please do so.
       </p>
 
       <?php foreach ($messages as $m): ?>
