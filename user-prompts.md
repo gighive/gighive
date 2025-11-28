@@ -590,6 +590,76 @@ GigHive is dual-licensed:
 ## 2025-11-27
 
 - 2025-11-27T13:49:00-05:00
+  - my production gighive server is still on jammy.  but the dockerfile is now set to spin up an ubuntu 24.04 apache instance running php fpm 8.3.  (currently the prod server runs 22.04 apache and 8.1).  but when i rerun the ansible playbook using the command below, the docker container should be rebuilt to that latest spec and it should run OK, yes?
+
+## 2025-11-28
+
+- 2025-11-28T08:37:00-05:00
+  - running , i get this error: Open for write failed (bind-mount or perms?): /var/www/private/gighive.htpasswd.  i see that that file is a jinja2 template that looks like this sodo@pop-os:~/scripts/gighive/ansible/roles/docker/templates$ cat gighive.htpasswd.j2 {{ gighive_basic_auth_user | default(gighive_admin_user) }}:{{ (gighive_basic_auth_password | default(gighive_admin_password)) | password_hash('bcrypt') }} and then is rendered via the tasks in this file: ansible/roles/docker/tasks/main.yml then is referenced in docker-compose:       - "{{ gighive_htpasswd_host_path }}:{{ gighive_htpasswd_path }}:rw"
+
+- 2025-11-28T08:41:00-05:00
+  - don't make any changes yet.  the error i received was when i tried to change my passwords from this page: https://192.168.1.249/changethepasswords.php which is found in ansible/roles/docker/files/apache/webroot
+
+- 2025-11-28T08:45:00-05:00
+  - good catch.  After performing a submit on the changethepasswords.php page, the file ownership and permissions for gighive.htpasswd need to be set to the following:  root@4f4ad2081a2c:/var/www/private# ll total 16 drwxrwxr-x 1 www-data www-data 4096 Nov 28 13:21 ./ drwxr-xr-x 1 root     root     4096 Nov 15 14:10 ../ -rw-r----- 1 www-data www-data  205 Nov 28 13:21 gighive.htpasswd
+
+- 2025-11-28T08:51:00-05:00
+  - can you double-check the best practice in the canonical documentation for apache's htpasswd file for the file ownership and permissions of an htpasswd file for a running production server?
+
+- 2025-11-28T08:53:00-05:00
+  - We'll be migrating to database management of passwords in the near future, so please give me the plan for option b.
+
+- 2025-11-28T08:56:00-05:00
+  - please document these changes in /docs/HTPASSWD_CHANGES.md in case we need to revert
+
+- 2025-11-28T09:13:00-05:00
+  - interesting, i was able to change the password file once via the changethepasswords.php script.  however, i tried changing the file again five minutes later and got the same Open for write failed (bind-mount or perms?): /var/www/private/gighive.htpasswd.    here is the file listing from the container.  you can see the backups being made.  but now the gighive.htpasswd is owned by root again, so maybe the bind mount is interfering or something else is going on.
+
+- 2025-11-28T09:15:00-05:00
+  - interesting..here is the file on the vm host that gets bind mounted: ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs$ ll total 88 -rw-r--r-- 1 root   root     205 Nov 28 09:03 gighive.htpasswd
+
+- 2025-11-28T09:17:00-05:00
+  - 1) please never make any changes without me reviewing them.  2) why do you want to change to 33?  wouldn't 33 be specific to a server and thus break for different implementations?
+
+- 2025-11-28T09:18:00-05:00
+  - ubuntu@gighive:~/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs$ id www-data uid=33(www-data) gid=33(www-data) groups=33(www-data)
+
+- 2025-11-28T09:19:00-05:00
+  - what was the change we made?
+
+- 2025-11-28T09:22:00-05:00
+  - ok, is /docs/HTPASSWD_CHANGES.md up to date?
+
+- 2025-11-28T09:28:00-05:00
+  - there is still an issue.  when I re-ran my ansible playbook, I see correct ownership initially, but then after i execute changethepasswords.php, gighive.htpasswd gets reset to root ownership.  why is this happening?
+
+- 2025-11-28T09:30:00-05:00
+  - yes, i see the issue.  but how do we make a concrete fix? ls -la ~/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/gighive.htpasswd shows -rw-r--r-- 1 root root 205 Nov 28 09:22
+
+- 2025-11-28T09:31:00-05:00
+  - yes (approved the fix to split the task into two: one to create file, one to enforce ownership)
+
+- 2025-11-28T09:42:00-05:00
+  - huh..bind mount ownership is root/root.  i believe what's happening is that later on in the security_basic_auth role is resetting the perms. location is ansible/roles/security_basic_auth
+
+- 2025-11-28T09:44:00-05:00
+  - should we have not done our changes in docker/tasks/main.yml, but applied them only here?  (again make no changes, just advise)
+
+- 2025-11-28T09:46:00-05:00
+  - show me the changes you'll make (to add become: true to security_basic_auth htpasswd tasks)
+
+- 2025-11-28T09:46:00-05:00
+  - make the change please (approved adding become: true to all three htpasswd tasks)
+
+- 2025-11-28T09:55:00-05:00
+  - during security_basic_auth, I saw the file's ownership and permissions turn correctly to www-data, but then the file's ownership and perms got set to root. given ansible/playbooks/site.yml, where in the ansible config could this reset be happening during or after security_basic_auth?
+
+- 2025-11-28T09:56:00-05:00
+  - post_build_checks should not be setting any values. it should only perform checks. please remove this task (the task that was resetting htpasswd to root:root 0644)
+
+## 2025-11-27
+
+- 2025-11-27T13:49:00-05:00
   - my production gighive server is still on jammy.  but the dockerfile is now set to spin up an ubuntu 24.04 apache instance running php fpm 8.3.  (currently the prod server runs 22.04 apache and 8.1).  but when i rerun the ansible playbook using the command below, the docker container should be rebuilt to that latest spec and it should run OK, yes?  sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/apache$ grep -i php Dockerfile
 ARG PHP_VERSION=8.3
     php-curl php-fpm php-mbstring php-mysql php-xml \

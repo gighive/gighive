@@ -76,7 +76,7 @@ function write_htpasswd_atomic(string $path, array $map): void {
             fwrite($fh, $u . ':' . $hash . "\n");
         }
         fclose($fh);
-        @chmod($path, 0664);
+        @chmod($path, 0640);
         return;
     }
 
@@ -101,7 +101,7 @@ function write_htpasswd_atomic(string $path, array $map): void {
         throw new RuntimeException("Atomic replace failed.");
     }
 
-    @chmod($path, 0664);
+    @chmod($path, 0640);
 }
 
 function validate_password(string $label, string $pw, string $confirm): array {

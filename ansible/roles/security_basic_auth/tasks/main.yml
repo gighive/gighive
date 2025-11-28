@@ -56,9 +56,10 @@
     name: "{{ admin_user | default('admin') }}"
     password: "{{ gighive_admin_password }}"
     crypt_scheme: bcrypt
-    owner: "{{ gighive_htpasswd_owner | default('root') }}"
+    owner: "{{ gighive_htpasswd_owner | default('www-data') }}"
     group: "{{ gighive_htpasswd_group | default('www-data') }}"
     mode: "{{ gighive_htpasswd_mode  | default('0640') }}"
+  become: true
 
 - name: Optionally create/update viewer user in host htpasswd (bcrypt)
   community.general.htpasswd:
@@ -66,13 +67,14 @@
     name: "{{ viewer_user }}"
     password: "{{ gighive_viewer_password }}"
     crypt_scheme: bcrypt
-    owner: "{{ gighive_htpasswd_owner | default('root') }}"
+    owner: "{{ gighive_htpasswd_owner | default('www-data') }}"
     group: "{{ gighive_htpasswd_group | default('www-data') }}"
     mode: "{{ gighive_htpasswd_mode  | default('0640') }}"
   when:
     - viewer_user is defined
     - gighive_viewer_password is defined
     - (gighive_viewer_password | length) > 0
+  become: true
 
 - name: Optionally create/update uploader user in host htpasswd (bcrypt)
   community.general.htpasswd:
@@ -80,13 +82,14 @@
     name: "{{ uploader_user }}"
     password: "{{ gighive_uploader_password }}"
     crypt_scheme: bcrypt
-    owner: "{{ gighive_htpasswd_owner | default('root') }}"
+    owner: "{{ gighive_htpasswd_owner | default('www-data') }}"
     group: "{{ gighive_htpasswd_group | default('www-data') }}"
     mode: "{{ gighive_htpasswd_mode  | default('0640') }}"
   when:
     - uploader_user is defined
     - gighive_uploader_password is defined
     - (gighive_uploader_password | length) > 0
+  become: true
 
 - name: Validate host htpasswd is a regular file (safety net)
   ansible.builtin.stat:
