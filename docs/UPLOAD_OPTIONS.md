@@ -1,4 +1,4 @@
-# GigHive Upload Options
+# SSL Cert Requirements re:GigHive Upload Options
 
 **Users of GigHive have two deployment options, each with different upload capabilities:**
 
