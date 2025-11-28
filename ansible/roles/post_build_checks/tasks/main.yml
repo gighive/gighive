@@ -91,19 +91,6 @@
     msg: "Expected htpasswd at {{ gighive_htpasswd_host_path }} (bind-mount to {{ gighive_htpasswd_path }}) but the file is missing on the host."
   when: not ht_host.stat.exists
 
-# keep host perms predictable
-- name: Ensure htpasswd ownership/perms on host
-  ansible.builtin.file:
-    path: "{{ gighive_htpasswd_host_path }}"
-    owner: root
-    group: root
-    mode: "0644"
-    state: file
-  when: ht_host.stat.exists
-  changed_when: false
-  failed_when: false
-  become: true
-
 # use shell builtin 'test' via sh -lc
 - name: Check htpasswd readable inside container (root)
   ansible.builtin.command: docker exec -i apacheWebServer sh -lc 'test -r "{{ gighive_htpasswd_path }}"'

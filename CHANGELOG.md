@@ -1,8 +1,6 @@
 *** 
 releaseNotes20251128.txt
-Changes: Moved location of admin file 
-
-Last run: gmk@lab:~/gighive$ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+Changes: htpasswd change until db handles
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -11,7 +9,13 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	renamed:    ansible/roles/docker/files/apache/overlays/gighive/changethepasswords.php -> ansible/roles/docker/files/apache/webroot/changethepasswords.php
+	modified:   ansible/inventories/inventory_virtualbox.yml
+	modified:   ansible/roles/docker/files/apache/webroot/changethepasswords.php
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/security_basic_auth/tasks/main.yml
+	new file:   docs/HTPASSWD_CHANGES.md
+	modified:   user-prompts.md
 
 ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
 ToDo: create a canonical md versions for the site and convert using composer recommendation
@@ -24,6 +28,21 @@ ToDo: clear db script
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251128.txt
+Changes: Moved location of admin file 
+
+Last run: gmk@lab:~/gighive$ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	renamed:    ansible/roles/docker/files/apache/overlays/gighive/changethepasswords.php -> ansible/roles/docker/files/apache/webroot/changethepasswords.php
 
 *** 
 releaseNotes20251127.txt

@@ -21,11 +21,20 @@
         state: directory
         mode: "0750"
 
-    - name: Ensure host htpasswd file exists (correct type)
+    - name: Create host htpasswd file if missing
       ansible.builtin.file:
         path: "{{ gighive_htpasswd_host_path }}"
         state: touch
-        mode: "0644"   # 0644 avoids group-existence issues across distros
+        mode: "0640"
+      when: not ghp.stat.exists
+
+    - name: Ensure host htpasswd file has correct ownership and permissions
+      ansible.builtin.file:
+        path: "{{ gighive_htpasswd_host_path }}"
+        state: file
+        owner: www-data
+        group: www-data
+        mode: "0640"
   tags:
     - docker
     - htpasswd
