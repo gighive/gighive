@@ -280,11 +280,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        status.innerHTML = '<div class="alert-ok">' + (data.message || 'Media tables cleared successfully!') + '</div>';
+        status.innerHTML = '<div class="alert-ok">' + (data.message || 'Media tables cleared successfully!') + 
+          ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Cleared Database</a></div>';
         btn.textContent = 'Cleared Successfully';
-        setTimeout(() => {
-          window.location.href = '/db/database.php';
-        }, 2000);
+        btn.style.background = '#28a745';
       } else {
         status.innerHTML = '<div class="alert-err">Error: ' + (data.message || 'Unknown error occurred') + '</div>';
         btn.disabled = false;
