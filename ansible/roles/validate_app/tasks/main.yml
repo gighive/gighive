@@ -111,3 +111,40 @@
   debug:
     var: curl_test.stdout_lines
 
+- name: Test database connectivity via health endpoint (no auth required)
+  ansible.builtin.shell: |
+    docker exec apacheWebServer curl -sk https://localhost/db/health.php
+  register: db_health_test
+  changed_when: false
+  failed_when: false
+
+- name: Show raw health check output for debugging
+  ansible.builtin.debug:
+    msg:
+      - "Return code: {{ db_health_test.rc }}"
+      - "Raw output: {{ db_health_test.stdout }}"
+  when: db_health_test.stdout is defined
+
+- name: Parse database health check response
+  ansible.builtin.set_fact:
+    db_health_json: "{{ db_health_test.stdout | from_json }}"
+  when:
+    - db_health_test.rc == 0
+    - db_health_test.stdout | length > 0
+  ignore_errors: true
+
+- name: Display database health check result
+  ansible.builtin.debug:
+    msg:
+      - "Database health status: {{ db_health_json.status | default('unknown') }}"
+      - "Message: {{ db_health_json.message | default('No response') }}"
+      - "Error: {{ db_health_json.error | default('none') }}"
+  when: db_health_json is defined
+
+- name: Fail if database health check failed
+  ansible.builtin.fail:
+    msg: "Database health check failed: {{ db_health_json.message | default('Unknown error') }}"
+  when:
+    - db_health_json is defined
+    - db_health_json.status != 'ok'
+
