@@ -57,7 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 /** ---- Execute truncation ---- */
 $pdo = null;
 try {
+    error_log("clear_media.php: Starting truncation process");
     $pdo = Database::createFromEnv();
+    error_log("clear_media.php: Database connection established");
     
     // Begin transaction for atomicity
     $pdo->beginTransaction();
@@ -85,6 +87,7 @@ try {
     
     // Commit transaction
     $pdo->commit();
+    error_log("clear_media.php: Transaction committed successfully");
     
     $response = [
         'status' => 200,
@@ -101,12 +104,14 @@ try {
     ];
     
 } catch (\PDOException $e) {
+    error_log("clear_media.php: PDOException caught: " . $e->getMessage());
     // Rollback on database error (only if transaction is active)
     if ($pdo !== null && $pdo->inTransaction()) {
         try {
             $pdo->rollBack();
+            error_log("clear_media.php: Transaction rolled back");
         } catch (\PDOException $rollbackError) {
-            // Ignore rollback errors if transaction already ended
+            error_log("clear_media.php: Rollback failed: " . $rollbackError->getMessage());
         }
     }
     
@@ -121,12 +126,14 @@ try {
     ];
     
 } catch (\Throwable $e) {
+    error_log("clear_media.php: Throwable caught: " . $e->getMessage());
     // Rollback on any other error (only if transaction is active)
     if ($pdo !== null && $pdo->inTransaction()) {
         try {
             $pdo->rollBack();
+            error_log("clear_media.php: Transaction rolled back");
         } catch (\PDOException $rollbackError) {
-            // Ignore rollback errors if transaction already ended
+            error_log("clear_media.php: Rollback failed: " . $rollbackError->getMessage());
         }
     }
     
