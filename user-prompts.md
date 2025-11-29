@@ -604,6 +604,51 @@ GigHive is dual-licensed:
 - 2025-11-29T09:44:00-05:00
   - a2
 
+- 2025-11-29T09:49:00-05:00
+  - i get this error: Network error: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+
+- 2025-11-29T09:54:00-05:00
+  - sorry here is the apache2 error.log entry [Sat Nov 29 14:52:44.599301 2025] [proxy_fcgi:error] [pid 438:tid 135691427829440] [remote 192.168.1.224:60091] AH01071: Got error 'PHP message: PHP Warning:  require_once(/var/www/html/../../webroot/vendor/autoload.php): Failed to open stream: No such file or directory in /var/www/html/clear_media.php on line 8
+
+- 2025-11-29T10:19:00-05:00
+  - hmmm, did your changes get implemented?  I may have cancelled them inadvertantly..
+
+- 2025-11-29T10:22:00-05:00
+  - still getting this error when i click Clear All Media data: Network error: Failed to execute 'json' on 'Response': Unexpected end of JSON input. Here is apache2 error log entry showing the file structure on the apache container
+
+- 2025-11-29T10:56:00-05:00
+  - got past that error, now see this in browser: Error: Failed to clear media tables: There is no active transaction.  However, database has been cleared out. i think we rework this error into a number of notifications: one showing that the sql has been executed properly and then the next ones would be any follow on notifications.
+
+- 2025-11-29T11:09:00-05:00
+  - hmmm..i still see the same message failed to clear media tables.  before trying solutions, can i look in any db logs for indications on why we are still seeing the error?
+
+- 2025-11-29T11:10:00-05:00
+  - nothing in the logs (mysql logs show server running normally)
+
+- 2025-11-29T11:12:00-05:00
+  - no, no related error logs but i do see the post to changethepasswords.php: 192.168.1.224 - - [29/Nov/2025:16:11:37 +0000] "POST /clear_media.php HTTP/2.0" 500 115
+
+- 2025-11-29T11:13:00-05:00
+  - hmmm..nothing returned from that command (curl test returned empty)
+
+- 2025-11-29T11:14:00-05:00
+  - docker exec apacheWebServer head -20 /var/www/html/clear_media.php (showing old version without latest fixes)
+
+- 2025-11-29T11:16:00-05:00
+  - show me where you made those changes so that when i reupload the code, I will be able to identify them to make sure the latest is up there
+
+- 2025-11-29T11:19:00-05:00
+  - ok, i confirmed the changed file is on the server
+
+- 2025-11-29T11:21:00-05:00
+  - here you go: [Sat Nov 29 16:20:17.947297 2025] [proxy_fcgi:error] [pid 71:tid 139654351611584] [remote 192.168.1.224:62665] AH01071: Got error 'PHP message: clear_media.php: Starting truncation process; PHP message: clear_media.php: Database connection established; PHP message: clear_media.php: PDOException caught: There is no active transaction'
+
+- 2025-11-29T11:28:00-05:00
+  - Great!  It worked.  Just one thing..don't auto redirect to db/database.php.  if the user steps away, they won't know what happened.  upon a successful database clear, we should put a button next to the "Cleared Successfully" button in green that says "See Cleared Database"
+
+- 2025-11-29T11:38:00-05:00
+  - great!  looking good!
+
 ## 2025-11-27
 
 - 2025-11-27T13:49:00-05:00

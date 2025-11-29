@@ -2,7 +2,7 @@
 
 ## Overview
 
-The GigHive admin page (`changethepasswords.php`) now includes two sections for first-time setup:
+The GigHive admin page (`admin.php`) now includes two sections for first-time setup:
 
 1. **Section 1: Change Default Passwords** (Required)
 2. **Section 2: Clear Sample Media Data** (Optional)
@@ -18,7 +18,7 @@ ansible/roles/docker/files/
 ├── mysql/dbScripts/
 │   └── truncate_media_tables.sql          # SQL reference script
 ├── apache/overlays/gighive/
-│   ├── changethepasswords.php             # Modified: Added Section 2
+│   ├── admin.php                          # Modified: Renamed from changethepasswords.php, Added Section 2
 │   └── clear_media.php                    # New: Backend endpoint
 ```
 
@@ -91,7 +91,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 }
 ```
 
-### 3. Admin Page UI (`changethepasswords.php`)
+### 3. Admin Page UI (`admin.php`)
 
 **Section 2 Features:**
 - Visual separation from Section 1
@@ -130,7 +130,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 1. **Access the admin page:**
    ```
-   https://your-gighive-domain/admin/changethepasswords.php
+   https://your-gighive-domain/admin.php
    ```
    (Must be logged in as `admin`)
 
