@@ -6,8 +6,8 @@
 
 // Load autoloader for Database class
 // In production, overlays/gighive files are copied to /var/www/html/
-// So we need to go up one level to reach vendor/
-require_once __DIR__ . '/../vendor/autoload.php';
+// vendor/ is also in /var/www/html/, so same directory
+require_once __DIR__ . '/vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
 
