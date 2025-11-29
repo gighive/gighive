@@ -1,5 +1,10 @@
 <?php
 // index.php — public home page for GigHive (or your project name)
+$user = $_SERVER['PHP_AUTH_USER']
+    ?? $_SERVER['REMOTE_USER']
+    ?? $_SERVER['REDIRECT_REMOTE_USER']
+    ?? null;
+$passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_changed'] === '1';
 ?>
 <!doctype html>
 <html lang="en">
@@ -31,9 +36,18 @@
     /* hyperlink colors */
     a:link    { color: cyan; }   /* unvisited */
     a:visited { color: #00BFFF; }   /* visited */
+    
+    /* User indicator styling */
+    .user-indicator { font-size: 12px; color: #666; margin: 0.5rem 0; padding-left: 2rem; }
   </style>
 </head>
 <body>
+  <?php if ($user): ?>
+  <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?></div>
+  <?php endif; ?>
+  <?php if ($passwordsChanged): ?>
+  <div class="user-indicator">Passwords changed</div>
+  <?php endif; ?>
   <div class="wrap">
     <div class="card">
       <h1 class="site-title">

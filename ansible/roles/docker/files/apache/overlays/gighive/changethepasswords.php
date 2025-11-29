@@ -156,8 +156,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             write_htpasswd_atomic($HTPASSWD_FILE, $map);
 
-            // ✅ Add redirect here
-            header("Location: /db/database.php", true, 302);
+            // ✅ Redirect to home page with success notification
+            header("Location: /?passwords_changed=1", true, 302);
             exit;
 
         } catch (Throwable $e) {
@@ -171,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Change Passwords</title>
+  <title>GigHive Admin - First Time Setup</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     body { margin:0; background:#0b1020; color:#e9eef7; }
@@ -182,6 +182,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     input[type=password] { width:100%; padding:.7rem; border-radius:10px; border:1px solid #33427a; background:#0e1530; color:#e9eef7; }
     button { padding:.8rem 1.1rem; border-radius:10px; border:1px solid #3b82f6; background:transparent; color:#e9eef7; cursor:pointer; }
     button:hover { background:#1e40af; color:#fff; }
+    button.danger { border-color:#dc2626; }
+    button.danger:hover { background:#991b1b; }
+    button:disabled { opacity:0.5; cursor:not-allowed; }
+    .section-divider { border-top:2px solid #1d2a55; margin:2rem 0; padding-top:2rem; }
+    .warning-box { background:#3b1f0d; border:1px solid #b45309; padding:1rem; border-radius:10px; margin-bottom:1rem; }
     .alert-ok { background:#11331a; border:1px solid #1f7a3b; padding:.8rem 1rem; border-radius:10px; margin-bottom:1rem;}
     .alert-err{ background:#3b0d14; border:1px solid #b4232a; padding:.8rem 1rem; border-radius:10px; margin-bottom:1rem;}
     .muted { color:#a8b3cf; font-size:.95rem; }
@@ -191,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>Change Passwords</h1>
+      <h1>GigHive Admin - First Time Setup</h1>
       <p class="muted">
         Signed in as <code><?= htmlspecialchars($user) ?></code>. 
         Updating file: <code class="path"><?= htmlspecialchars($HTPASSWD_FILE) ?></code>
@@ -235,8 +240,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p class="muted">A timestamped backup of the current file will be created before updating.</p>
         <button type="submit">Update Passwords</button>
       </form>
+
+      <!-- Section 2: Clear Media Data -->
+      <div class="section-divider">
+        <h2>Section 2: Clear Sample Media Data (Optional)</h2>
+        <p class="muted">
+          Remove all demo content (sessions, songs, files, musicians) to make room for your own media.
+          This action is <strong>irreversible</strong> and will clear all media tables.
+        </p>
+        <div class="warning-box">
+          <strong>⚠️ Warning:</strong> This will permanently delete all media data from the database.
+          The users table will be preserved. Make sure you have changed your passwords first!
+        </div>
+        <div id="clearMediaStatus"></div>
+        <button type="button" id="clearMediaBtn" class="danger" onclick="confirmClearMedia()">Clear All Media Data</button>
+      </div>
     </div>
   </div>
+
+  <script>
+  function confirmClearMedia() {
+    if (!confirm('Are you sure you want to clear ALL media data?\n\nThis will permanently delete:\n- All sessions\n- All songs\n- All files\n- All musicians\n- All genres and styles\n\nThis action CANNOT be undone!')) {
+      return;
+    }
+    
+    const btn = document.getElementById('clearMediaBtn');
+    const status = document.getElementById('clearMediaStatus');
+    
+    btn.disabled = true;
+    btn.textContent = 'Clearing...';
+    status.innerHTML = '<div class="muted">Processing request...</div>';
+    
+    fetch('clear_media.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        status.innerHTML = '<div class="alert-ok">' + (data.message || 'Media tables cleared successfully!') + '</div>';
+        btn.textContent = 'Cleared Successfully';
+        setTimeout(() => {
+          window.location.href = '/db/database.php';
+        }, 2000);
+      } else {
+        status.innerHTML = '<div class="alert-err">Error: ' + (data.message || 'Unknown error occurred') + '</div>';
+        btn.disabled = false;
+        btn.textContent = 'Clear All Media Data';
+      }
+    })
+    .catch(error => {
+      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      btn.disabled = false;
+      btn.textContent = 'Clear All Media Data';
+    });
+  }
+  </script>
 </body>
 </html>
 

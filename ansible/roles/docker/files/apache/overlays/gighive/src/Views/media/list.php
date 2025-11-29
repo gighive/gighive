@@ -21,8 +21,12 @@
       ?? $_SERVER['REMOTE_USER']
       ?? $_SERVER['REDIRECT_REMOTE_USER']
       ?? 'Unknown';
+  $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_changed'] === '1';
   ?>
   <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?></div>
+  <?php if ($passwordsChanged): ?>
+  <div class="user-indicator">Passwords changed</div>
+  <?php endif; ?>
   <h1>Sessions</h1>
   <table id="searchableTable" data-sort-order="asc">
     <thead>
