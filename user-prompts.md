@@ -1320,3 +1320,7 @@ there is a lot of output from this particular ansible task in roles/docker/tasks
 
 [2025-11-15T09:16:33-05:00] where is the ansible variable cloud_init_files_dir set?
 2025-11-25T18:23:00Z OK, make those two changes please.
+
+- 2025-11-29T17:19:00-05:00
+  - it would be good if i could test db/database.php during my validate_app ansible role; however, that page is password protected using any one of the user secrets in ansible/inventories/group_vars/gighive/secrets.yml, but i do not want hardcode any secrets in my ansible task.  can you think of any way to avoid exposing secrets, but yet be able to test that db/database.php loads and does not show any errors?
+  - RESOLVED: Created /db/health.php unauthenticated endpoint that tests database connectivity. Modified Apache LocationMatch regex to exclude /db/health.php from auth requirement using negative lookahead: db/(?!health\.php$).* Successfully validates database connection in validate_app role without exposing secrets. Documented Apache directive merging behavior in docs/APACHE_DIRECTIVE_MATCHING_ORDER.md
