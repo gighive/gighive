@@ -1,6 +1,8 @@
 <?php
 /**
- * changethepasswords.php — updates 'admin', 'viewer', and 'uploader' in an Apache .htpasswd.
+ * admin.php — Admin page for GigHive
+ * Section 1: Update passwords for 'admin', 'viewer', and 'uploader' in Apache .htpasswd
+ * Section 2: Clear all media data from the database
  * Point to the target file with env var GIGHIVE_HTPASSWD_PATH (recommended).
  * Default matches your vhost variable path for Option 1:
  *   /var/www/private/gighive.htpasswd

@@ -1,9 +1,21 @@
 *** 
-releaseNotes20251128.txt
-Changes: Added notification for when passwords changed
+releaseNotes20251129.txt
+Changes: Vendor autoload location fix to clear_media.php, working, add cleared db button.  Also changed name of page to admin.php"
 
-Tested on gighive
-Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2
+Tested on lab machine 
+Last run: gmk@lab:~/gighive$ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	renamed:    ansible/roles/docker/files/apache/overlays/gighive/changethepasswords.php -> ansible/roles/docker/files/apache/overlays/gighive/admin.php
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   docs/ADMIN_CLEAR_MEDIA.md
+	modified:   user-prompts.md
 
 ToDo: If dev.gighive.app is used as target, pop a message saying, restricted to 100MB
 ToDo: create a canonical md versions for the site and convert using composer recommendation
@@ -12,10 +24,16 @@ ToDo: remove vodcast.xml from webroot for gighive
 ToDo: make csv mgmt easier
 ToDo: migrate changes to gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: clear db script
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251128.txt
+Changes: Added notification for when passwords changed
+
+Tested on gighive
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2
 
 *** 
 releaseNotes20251128.txt
