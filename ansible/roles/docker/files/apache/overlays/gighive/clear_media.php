@@ -61,33 +61,32 @@ try {
     $pdo = Database::createFromEnv();
     error_log("clear_media.php: Database connection established");
     
-    // Begin transaction for atomicity
-    $pdo->beginTransaction();
-    
+    // Note: TRUNCATE is a DDL statement that auto-commits, so we can't use transactions
     // Disable foreign key checks temporarily
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+    error_log("clear_media.php: Foreign key checks disabled");
     
     // Truncate junction tables first
     $pdo->exec('TRUNCATE TABLE session_musicians');
     $pdo->exec('TRUNCATE TABLE session_songs');
     $pdo->exec('TRUNCATE TABLE song_files');
+    error_log("clear_media.php: Junction tables truncated");
     
     // Truncate core media tables
     $pdo->exec('TRUNCATE TABLE files');
     $pdo->exec('TRUNCATE TABLE songs');
     $pdo->exec('TRUNCATE TABLE sessions');
+    error_log("clear_media.php: Core media tables truncated");
     
     // Truncate reference tables
     $pdo->exec('TRUNCATE TABLE musicians');
     $pdo->exec('TRUNCATE TABLE genres');
     $pdo->exec('TRUNCATE TABLE styles');
+    error_log("clear_media.php: Reference tables truncated");
     
     // Re-enable foreign key checks
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
-    
-    // Commit transaction
-    $pdo->commit();
-    error_log("clear_media.php: Transaction committed successfully");
+    error_log("clear_media.php: Foreign key checks re-enabled - all tables cleared successfully");
     
     $response = [
         'status' => 200,
@@ -105,15 +104,6 @@ try {
     
 } catch (\PDOException $e) {
     error_log("clear_media.php: PDOException caught: " . $e->getMessage());
-    // Rollback on database error (only if transaction is active)
-    if ($pdo !== null && $pdo->inTransaction()) {
-        try {
-            $pdo->rollBack();
-            error_log("clear_media.php: Transaction rolled back");
-        } catch (\PDOException $rollbackError) {
-            error_log("clear_media.php: Rollback failed: " . $rollbackError->getMessage());
-        }
-    }
     
     $response = [
         'status' => 500,
@@ -127,15 +117,6 @@ try {
     
 } catch (\Throwable $e) {
     error_log("clear_media.php: Throwable caught: " . $e->getMessage());
-    // Rollback on any other error (only if transaction is active)
-    if ($pdo !== null && $pdo->inTransaction()) {
-        try {
-            $pdo->rollBack();
-            error_log("clear_media.php: Transaction rolled back");
-        } catch (\PDOException $rollbackError) {
-            error_log("clear_media.php: Rollback failed: " . $rollbackError->getMessage());
-        }
-    }
     
     $response = [
         'status' => 500,
