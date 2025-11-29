@@ -587,6 +587,23 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+## 2025-11-28
+
+- 2025-11-28T10:31:00-05:00
+  - the other thing i wanted to do today was create a sql script to truncate all the media tables (ie, not the user table) and have a link on the changethepasswords.php admin page to clear out the tables to make room for users own content.  given what you know about gighive and it's reliance on mysql, what's the best way to do this?  i was thinking a button on the admin page that triggers sql, but should i do it through ansible?  my goal was to make it easy for the users and also, call their attention to that passwords page because they should change the default passwords after they spinup the gighive vm.
+
+- 2025-11-28T10:32:00-05:00
+  - again, never implement anything until i've had a chance to review the solution
+
+- 2025-11-28T10:35:00-05:00
+  - what we can do is have one page for admin activities with two sections.  Change the Passwords at top, a hard rule, and the Clear Out Sample Data From Database section.  sound good?
+
+- 2025-11-28T10:38:00-05:00
+  - 1) Keep changethepasswords.php (we'll rename it to admin.php later).  2) I like your sections 1 and 2.  3) does the backend endpoint follow the same api structure as the upload api we previously developed?
+
+- 2025-11-29T09:44:00-05:00
+  - a2
+
 ## 2025-11-27
 
 - 2025-11-27T13:49:00-05:00
