@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 /** ---- Execute truncation ---- */
+$pdo = null;
 try {
     $pdo = Database::createFromEnv();
     
@@ -100,9 +101,13 @@ try {
     ];
     
 } catch (\PDOException $e) {
-    // Rollback on database error
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
+    // Rollback on database error (only if transaction is active)
+    if ($pdo !== null && $pdo->inTransaction()) {
+        try {
+            $pdo->rollBack();
+        } catch (\PDOException $rollbackError) {
+            // Ignore rollback errors if transaction already ended
+        }
     }
     
     $response = [
@@ -116,9 +121,13 @@ try {
     ];
     
 } catch (\Throwable $e) {
-    // Rollback on any other error
-    if (isset($pdo) && $pdo->inTransaction()) {
-        $pdo->rollBack();
+    // Rollback on any other error (only if transaction is active)
+    if ($pdo !== null && $pdo->inTransaction()) {
+        try {
+            $pdo->rollBack();
+        } catch (\PDOException $rollbackError) {
+            // Ignore rollback errors if transaction already ended
+        }
     }
     
     $response = [
