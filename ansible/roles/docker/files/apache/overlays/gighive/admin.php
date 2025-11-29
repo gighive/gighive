@@ -252,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </p>
         <div class="warning-box">
           <strong>⚠️ Warning:</strong> This will permanently delete all media data from the database.
-          The users table will be preserved. Make sure you have changed your passwords first!
+          The users table will be preserved. 
         </div>
         <div id="clearMediaStatus"></div>
         <button type="button" id="clearMediaBtn" class="danger" onclick="confirmClearMedia()">Clear All Media Data</button>
