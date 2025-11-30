@@ -58,10 +58,13 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 │    Play 2: hosts: gighive(:gighive2) → Cloud-init Disable           │
 │    Play 3: hosts: target_vms → Main Configuration (Docker, etc.)    │
 └─────────────────────────────────────────────────────────────────────┘
+```
 
-### Visual: Ansible File Interaction (Mermaid)
+## Visual Diagram
 
-![Ansible file interaction diagram](ansibleFileInteration.png)
+### Ansible File Interaction (Mermaid)
+
+![Ansible file interaction diagram](images/ansibleFileInteraction.png)
 
 ## Detailed File Descriptions
 

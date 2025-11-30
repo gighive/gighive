@@ -589,8 +589,22 @@ GigHive is dual-licensed:
 
 ## 2025-11-30
 
+- 2025-11-30T10:58:00-05:00
+  - i need to fix the section in docs/ANSIBLE_FILE_INTERACTION.md that starts with ### Visual and ends with the key Settings section.  i think those sections should be separated out from what starts under File Interaction Flow.  Do you see what I mean?
+
+- 2025-11-30T10:59:00-05:00
+  - shouldn't there be a ``` that separates #5 playbooks/site.yml section from ## Visual diagram section in order to stop the code window from being displayed?
+
+- 2025-11-30T11:01:00-05:00
+  - with our changes in place, will the picture at /docs/images/ansibleFileInteraction.png be properly displayed?
+
+## 2025-11-30
+
 - 2025-11-30T09:19:00-05:00
   - how come this file was not cached by cloudflare? [followed by HTTP response headers showing cf-cache-status: MISS and malformed Content-Range header]
+
+- 2025-11-30T10:54:00-05:00
+  - are there any .md files in the /docs directory that focus on the cloudflare limits or content-range settings?  if not, let's create a file called CONTENT_RANGE_CLOUDFLARE.md that includes the summary of what we learned, an example and options going forward and link it as the second link under the Streaming section of the hamburger menu in /docs/index.md
 
 ## 2025-11-28
 
