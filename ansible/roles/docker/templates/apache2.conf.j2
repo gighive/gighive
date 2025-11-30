@@ -45,11 +45,6 @@ IncludeOptional sites-enabled/*.conf
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Headers "Range"
     Header set Access-Control-Expose-Headers "Content-Length, Content-Range"
-    Header set Accept-Ranges "bytes"
-    RewriteEngine On
-    RewriteCond %{HTTP:Range} !(^bytes=.*)
-    RewriteRule .* - [E=norange:1]
-    Header set Content-Range "bytes 0-%{CONTENT_LENGTH}e/%{CONTENT_LENGTH}e" env=norange
 </FilesMatch>
 
 <IfModule mod_cache.c>

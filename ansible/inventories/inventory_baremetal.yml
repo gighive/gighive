@@ -3,9 +3,9 @@ all:
 
     target_vms:
       children:
-        ubuntu:
+        prod:
           hosts:
-            ubuntu:
+            prod:
               ansible_host: 192.168.1.227
               ansible_user: ubuntu
               ansible_python_interpreter: /usr/bin/python3

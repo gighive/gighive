@@ -61,42 +61,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 
 ### Visual: Ansible File Interaction (Mermaid)
 
-```mermaid
-flowchart LR
-    subgraph Repo["Ansible Repo (Git)"]
-        G["group_vars/gighive/gighive.yml<br/>(public config, no real secrets)"]
-        S["group_vars/gighive/secrets.yml<br/>(MySQL secrets, plain or vaulted)"]
-        T["roles/docker/templates/.env.j2"]
-        P["playbooks/site.yml"]
-    end
-
-
-    subgraph Control["Control Machine"]
-        A["ansible-playbook<br/>(uses Vault if secrets.yml is encrypted)"]
-    end
-
-
-    subgraph VM["GigHive VM"]
-        E["{{ docker_dir }}/apache/externalConfigs/.env"]
-        C1["Docker / docker-compose<br/>for mysqlServer"]
-        C2["dbCommands.sh<br/>(and other scripts)"]
-    end
-
-
-    G --> A
-    S --> A
-    T --> A
-    P --> A
-
-
-    A -->|template task<br/>Render Docker env file| E
-
-
-    E --> C1
-    E -->|source .env| C2
-```
-
-![Ansible file interaction diagram](ANSIBLE_FILE_INTERACTION.jpg)
+![Ansible file interaction diagram](ansibleFileInteration.png)
 
 ## Detailed File Descriptions
 
@@ -397,6 +362,94 @@ hosts: gighive*
 7. **Group vars (`group_vars/`)** ← Most common for GigHive
 8. Inventory vars
 9. Role defaults
+
+## Understanding Group Hierarchy and Playbook Execution
+
+**This is a critical concept for understanding how Ansible executes playbooks in this environment.**
+
+### The Key Principle: `target_vms` Controls Everything
+
+The `target_vms` group is the **overarching parent group** that controls configuration and execution of the main playbooks. Individual child groups (like `gighive`, `gighive2`, `ubuntu`, `prod`) are just organizational labels.
+
+### Group Hierarchy Structure
+
+```yaml
+all:
+  children:
+    target_vms:           ← This is what site.yml targets
+      children:
+        ubuntu:           ← Just a child member of target_vms
+        gighive:          ← Also a child member of target_vms
+        gighive2:         ← Also a child member of target_vms
+        prod:             ← Would also be a child member of target_vms
+```
+
+### How Playbook Targeting Works
+
+Looking at `site.yml`:
+
+```yaml
+- name: Configure target VM
+  hosts: target_vms      ← Matches ALL children groups
+  become: true
+  roles:
+    - base
+    - docker
+    - security_basic_auth
+    # ... etc
+```
+
+**The playbook doesn't care what the child groups are named.** It just says "run on everything under `target_vms`".
+
+### Why This Matters
+
+When you have a host in any child group of `target_vms`:
+- The playbook automatically targets it via `hosts: target_vms`
+- All the same roles execute on it
+- The only difference is **which `group_vars/` directory gets loaded**
+
+For example:
+- Host in `gighive` group → loads `group_vars/gighive/`
+- Host in `gighive2` group → loads `group_vars/gighive2.yml`
+- Host in `ubuntu` group → loads `group_vars/ubuntu/`
+- Host in `prod` group → loads `group_vars/prod/`
+
+### Practical Implications
+
+1. **Renaming child groups is safe** - As long as the group remains a child of `target_vms`, the playbook will still target it
+2. **Child group names are organizational** - They primarily determine which variables to load, not which tasks to run
+3. **Consistency matters** - The child group name must match the `group_vars/` directory name for variables to load correctly
+
+### Example: Adding a New Environment
+
+To add a new "prod" environment:
+
+1. Create inventory with `prod` as a child of `target_vms`:
+   ```yaml
+   all:
+     children:
+       target_vms:
+         children:
+           prod: {}
+       prod:
+         hosts:
+           prod_server:
+             ansible_host: 192.168.1.100
+   ```
+
+2. Create matching variables: `group_vars/prod/prod.yml`
+
+3. Run the playbook - `hosts: target_vms` automatically includes it
+
+No changes to `site.yml` are needed because it targets the parent group `target_vms`, not individual child groups.
+
+### The Bottom Line
+
+**The child group name is really just a label for:**
+- Organizing hosts
+- Determining which variables to load from `group_vars/`
+
+**The actual execution is controlled by `target_vms`**, which is why all child groups get the same roles applied to them.
 
 ## Troubleshooting
 
