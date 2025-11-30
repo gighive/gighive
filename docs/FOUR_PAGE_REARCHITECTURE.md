@@ -231,7 +231,7 @@ struct LoginView: View {
         VStack(spacing: 16) {
             TitleHeaderView()
 
-            TextField("Base URL (e.g., https://dev.gighive.app)", text: $base)
+            TextField("Base URL (e.g., https://staging.gighive.app)", text: $base)
                 .textContentType(.URL)
                 .keyboardType(.URL)
                 .autocapitalization(.none)

@@ -183,7 +183,7 @@ img {
         <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="images/requestFlowBasic.png">🔄 Request Flow</a></li>
-        <li><a href="https://dev.gighive.app/docs/api-docs.html" target="_blank">📋 API Documentation</a></li>
+        <li><a href="https://staging.gighive.app/docs/api-docs.html" target="_blank">📋 API Documentation</a></li>
     </ul>
     
     <h3>🗄️ Database</h3>
