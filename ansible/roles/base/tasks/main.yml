@@ -159,6 +159,9 @@
       alias hive='cd $GIGHIVE_HOME'
       alias files='cd {{ docker_dir }}'
       alias vars='cd $GIGHIVE_HOME/ansible/inventories/group_vars'
+      alias singles='cd ~/video'
+      alias video='cd ~/video'
+      alias audio='cd ~/audio'
 
 - name: Install and refresh CA certificates
   block:

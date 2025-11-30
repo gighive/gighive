@@ -587,6 +587,11 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+## 2025-11-30
+
+- 2025-11-30T09:19:00-05:00
+  - how come this file was not cached by cloudflare? [followed by HTTP response headers showing cf-cache-status: MISS and malformed Content-Range header]
+
 ## 2025-11-28
 
 - 2025-11-28T10:31:00-05:00
