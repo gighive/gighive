@@ -6,7 +6,7 @@ Cloudflare has a **100MB upload limit** on Free and Pro plans. Files larger than
 
 ## Symptoms
 
-- Small files (<100MB) upload successfully through `https://dev.gighive.app`
+- Small files (<100MB) upload successfully through `https://staging.gighive.app`
 - Large files (>100MB) fail after uploading ~1-2MB
 - Upload stops with no clear error message
 - curl shows: `HTTP/2 413` and `abort upload after having sent 917230 bytes`
@@ -80,7 +80,7 @@ Create a separate subdomain that bypasses Cloudflare proxy:
 
 2. **Update iOS app** to use `https://upload.gighive.app` for uploads
 
-3. **Keep main site protected**: Continue using `https://dev.gighive.app` for browsing/database
+3. **Keep main site protected**: Continue using `https://staging.gighive.app` for browsing/database
 
 **Pros**: 
 - No file size limits
@@ -140,7 +140,7 @@ Upload directly to Cloudflare R2 storage:
 3. Users can choose between:
    - `https://gighive` (local network, no limits)
    - `https://upload.gighive.app` (internet, no limits, no Cloudflare)
-   - `https://dev.gighive.app` (internet, 100MB limit, Cloudflare protected)
+   - `https://staging.gighive.app` (internet, 100MB limit, Cloudflare protected)
 
 ## Implementation Status
 

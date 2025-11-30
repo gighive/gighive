@@ -937,7 +937,7 @@ Token-based access that can be validated without hitting origin
   - is this something I can share with people who download my open source gighive repo?
 
 - 2025-11-07T12:38:00-05:00
-  - Add that documentation link to the hamburger as "API Documentation" under "Request Flow" on docs/index.md, but point the link to https://dev.gighive.app/docs/api-docs.html
+  - Add that documentation link to the hamburger as "API Documentation" under "Request Flow" on docs/index.md, but point the link to https://staging.gighive.app/docs/api-docs.html
 
 ## 2025-11-07
 

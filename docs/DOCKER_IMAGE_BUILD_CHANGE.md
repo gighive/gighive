@@ -83,8 +83,8 @@ Add `pull_policy: build` to docker-compose.yml to ensure image rebuilds every de
 ## Validation
 
 ### Test Cases
-1. Verify HTML endpoint continues working: `https://dev.gighive.app/db/database.php`
-2. Verify JSON endpoint works: `https://dev.gighive.app/db/database.php?format=json`
+1. Verify HTML endpoint continues working: `https://staging.gighive.app/db/database.php`
+2. Verify JSON endpoint works: `https://staging.gighive.app/db/database.php?format=json`
 3. Confirm file timestamps match between VM host and container
 4. Validate authentication works for both endpoints
 
