@@ -1,4 +1,33 @@
 *** 
+releaseNotes20251201.txt
+Changes: CORS headers for Content-Range, Content-Length fix
+
+From staging
+Last run: ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/templates/apache2.conf.j2
+	new file:   docs/RANGE_REQUEST_FIX.md
+	modified:   docs/README.md
+	modified:   user-prompts.md
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251130.txt
 Changes: Renamed lab to staging, deprecated old gighive on popos, stood up on new staging (old lab box) and tested, changed references from dev. to staging.
 
@@ -16,16 +45,6 @@ Changes to be committed:
 	modified:   docs/index.md
 	modified:   docs/protected/CLOUDFLARE_UPLOAD_LIMIT.md
 	modified:   user-prompts.md
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251130.txt

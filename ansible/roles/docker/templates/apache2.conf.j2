@@ -42,6 +42,10 @@ IncludeOptional sites-enabled/*.conf
 </IfModule>
 
 <FilesMatch "\.(mp4|mov|au|mp3|wav|aac)$">
+    # Enable range requests for video/audio streaming
+    Header set Accept-Ranges "bytes"
+    
+    # CORS headers for cross-origin playback
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Headers "Range"
     Header set Access-Control-Expose-Headers "Content-Length, Content-Range"
