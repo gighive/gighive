@@ -1343,3 +1343,10 @@ there is a lot of output from this particular ansible task in roles/docker/tasks
 - 2025-11-29T17:19:00-05:00
   - it would be good if i could test db/database.php during my validate_app ansible role; however, that page is password protected using any one of the user secrets in ansible/inventories/group_vars/gighive/secrets.yml, but i do not want hardcode any secrets in my ansible task.  can you think of any way to avoid exposing secrets, but yet be able to test that db/database.php loads and does not show any errors?
   - RESOLVED: Created /db/health.php unauthenticated endpoint that tests database connectivity. Modified Apache LocationMatch regex to exclude /db/health.php from auth requirement using negative lookahead: db/(?!health\.php$).* Successfully validates database connection in validate_app role without exposing secrets. Documented Apache directive merging behavior in docs/APACHE_DIRECTIVE_MATCHING_ORDER.md
+
+- 2025-12-01T12:50:00-05:00
+  - i'm seeing some performance differences between accessing videos using the local ip address (192.168.1.248) vs using the cloudflare address (staging.gighive.app). note that these access methods point to the same server. i would like to debug using simple curl scripts. I have the following test program we built a while back. would that help?
+
+- 2025-12-01T12:51:00-05:00
+  - what about the fact that accept-ranges is none in both cases?
+  - RESOLVED: Critical issue found - Accept-Ranges: none breaks video streaming (no seeking, no progressive loading, bandwidth waste). Added explicit "Header set Accept-Ranges bytes" to apache2.conf.j2 for media files. Created comprehensive debugging tools (debugVideoPerformance.sh, compareVideoPerformance.sh, diagnoseRangeSupport.sh). Documented fix in docs/RANGE_REQUEST_FIX.md. The 227ms Cloudflare overhead is minor compared to missing range support which makes streaming nearly unusable.

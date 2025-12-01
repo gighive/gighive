@@ -56,7 +56,7 @@ pipx ensurepath
 
 3. Log out.
 
-4. Log back in.
+4. Log back in and install Ansible.
 ```bash
 pipx install --include-deps ansible
 ansible --version # Should be 2.17.2 or higher
