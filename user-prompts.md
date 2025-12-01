@@ -1350,3 +1350,28 @@ there is a lot of output from this particular ansible task in roles/docker/tasks
 - 2025-12-01T12:51:00-05:00
   - what about the fact that accept-ranges is none in both cases?
   - RESOLVED: Critical issue found - Accept-Ranges: none breaks video streaming (no seeking, no progressive loading, bandwidth waste). Added explicit "Header set Accept-Ranges bytes" to apache2.conf.j2 for media files. Created comprehensive debugging tools (debugVideoPerformance.sh, compareVideoPerformance.sh, diagnoseRangeSupport.sh). Documented fix in docs/RANGE_REQUEST_FIX.md. The 227ms Cloudflare overhead is minor compared to missing range support which makes streaming nearly unusable.
+
+- 2025-12-01T13:45:00-05:00
+  - which of the three scripts you wrote should i use to diagnose video download performance: diagnoseRangeSupport.sh, debugVideoPerformance.sh or compareVideoPerformance.sh?
+
+- 2025-12-01T13:52:00-05:00
+  - here is output: [compareVideoPerformance.sh output showing HTTP 401 errors]
+  - RESOLVED: All three scripts were returning HTTP 401 because /video/ path requires Basic Auth. Updated all scripts to support authentication with default credentials (viewer/secretviewer). Scripts now accept optional username/password parameters.
+
+- 2025-12-01T13:54:00-05:00
+  - do you need to add tls bypass as well? curl -k?
+  - RESOLVED: Confirmed -k flag already present in all curl commands for SSL certificate bypass.
+
+- 2025-12-01T14:00:00-05:00
+  - [compareVideoPerformance.sh hangs on Cloudflare test, works on local IP]
+  
+- 2025-12-01T14:02:00-05:00
+  - [Manual curl tests show Cloudflare working perfectly with accept-ranges: bytes and cf-cache-status: HIT]
+  - RESOLVED: Script was downloading full 46MB file which takes time. Not hanging, just slow. Manual HEAD requests (-I) work instantly. Added --max-time 60 timeouts to all download tests and --max-time 30 to range tests. Confirmed fix is working: accept-ranges: bytes present on both local IP and Cloudflare. Cloudflare successfully caching with HIT status.
+
+- 2025-12-01T14:11:00-05:00
+  - [compareVideoPerformance.sh shows local IP fast (0.6s) but Cloudflare very slow (60s timeout, only 3.7MB downloaded)]
+  
+- 2025-12-01T14:32:00-05:00
+  - [After updating Cloudflare Tunnel config to match stormpigs.com settings and rebooting router, performance is normal]
+  - RESOLVED: Cloudflare Tunnel for staging.gighive.app was missing http2Origin, connectTimeout, and keepAliveConnections settings that stormpigs.com had. Updated tunnel config to match. After router reboot, both endpoints working properly: Local IP 0.63s (72.9 MB/s), Cloudflare 1.60s (28.7 MB/s). Accept-Ranges: bytes confirmed working on both. Range requests fast (100ms for 1MB). Video streaming ready.

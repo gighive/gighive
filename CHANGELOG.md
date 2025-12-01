@@ -1,9 +1,37 @@
 *** 
 releaseNotes20251201.txt
-Changes: CORS headers for Content-Range, Content-Length fix
+Changes: CORS headers for Content-Range, Content-Length fix and rename vm_name/hostname vars in prod.yml
+
+From prod
+Last run: sodo@pop-os:~/scripts/gighive$ ansible-playbook -i ansible/inventories/inventory_baremetal.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   user-prompts.md
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251201.txt
+
+Changes: CORS headers for Content-Range, Content-Length fix and rename vm_name/hostname vars in prod.yml
 
 From staging
-Last run: ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
+Last run: gmk@staging:~/gighive$ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml  --skip-tags vbox_provision,mysql_backup
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -16,16 +44,6 @@ Changes to be committed:
 	new file:   docs/RANGE_REQUEST_FIX.md
 	modified:   docs/README.md
 	modified:   user-prompts.md
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251130.txt

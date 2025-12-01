@@ -1,6 +1,8 @@
 # Basic VM configuration
-hostname: "gighive"
-vm_name: "gighive"
+#hostname: "gighive"
+#vm_name: "gighive"
+hostname: "gighive-prod"
+vm_name: "gighive-prod"
 
 # OS version configuration
 ubuntu_version: "24.04"
