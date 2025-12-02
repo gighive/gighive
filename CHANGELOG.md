@@ -1,4 +1,32 @@
 *** 
+releaseNotes20251202.txt
+Changes: Moved inventory_baremetal.yml to inventory_prod.yml and copied performance doc to docs
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	deleted:    ansible/inventories/inventory_baremetal.yml
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	ansible/inventories/inventory_prod.yml
+	docs/VIDEO_PERFORMANCE_DEBUG.md
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251201.txt
 Changes: CORS headers for Content-Range, Content-Length fix and rename vm_name/hostname vars in prod.yml
 
@@ -14,16 +42,6 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/inventories/group_vars/prod/prod.yml
 	modified:   user-prompts.md
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251201.txt
