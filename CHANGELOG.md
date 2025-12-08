@@ -1,6 +1,12 @@
 *** 
+releaseNotes20251208.txt
+Changes: App terms of service
+ 
+*** 
 releaseNotes20251202.txt
 Changes: Moved inventory_baremetal.yml to inventory_prod.yml and copied performance doc to docs
+
+Last run: ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
