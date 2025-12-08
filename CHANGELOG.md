@@ -1,7 +1,19 @@
 *** 
 releaseNotes20251208.txt
-Changes: Remove secrets.yml from git, add explanation about creating own in setup doc
- 
+Changes: Removed hardcoded pw from dbscripts shell scripts
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/mysql/dbScripts/dbCommands.sh
+	modified:   ansible/roles/docker/files/mysql/dbScripts/execute.sh
+	modified:   ansible/roles/docker/files/mysql/dbScripts/reloadMyDatabase.sh
+	modified:   ansible/roles/docker/files/mysql/dbScripts/verifyTables.sh
+
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
 ToDo: create a canonical md versions for the site and convert using composer recommendation
 ToDo: cleaning the database won't clear out what has been uploaded to video and audio
@@ -12,6 +24,21 @@ ToDo: select 2015-09-19 as sample
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
 
+*** 
+releaseNotes20251208.txt
+Changes: Remove secrets.yml from git, add explanation about creating own in setup doc
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	new file:   ansible/inventories/group_vars/gighive/secrets.example.yml
+	modified:   docs/README.md
+ 
 *** 
 releaseNotes20251208.txt
 Changes: App terms of service, remove MIT license
