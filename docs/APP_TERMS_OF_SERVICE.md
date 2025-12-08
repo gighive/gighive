@@ -45,13 +45,12 @@ We may update these Terms of Service at any time. Continued use of the app after
 
 ## 9. Software License
 The GigHive software is open source. For software licensing terms, see:
-- [MIT License](LICENSE_MIT.html)
 - [AGPL v3 License](LICENSE_AGPLv3.html)
 - [Commercial License](LICENSE_COMMERCIAL.html)
 
 ## 10. Contact
 For questions about these Terms of Service:
-- Email: [Contact us](mailto:contactus@gighive.app)
+- Email: [contactus@gighive.app](mailto:contactus@gighive.app)
 - Copyright issues: [copyright@gighive.app](mailto:copyright@gighive.app)
 
 ## 11. Governing Law

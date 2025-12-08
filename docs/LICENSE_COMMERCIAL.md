@@ -2,10 +2,10 @@
 
 ## Overview
 
-This software is **free to use, copy, and modify** under the [MIT License](LICENSE_MIT.md) for:
+The GigHive software is made available as open source under the [AGPL v3 License](LICENSE_AGPLv3.md) for:
 - ✅ **Personal use**
-- ✅ **Single-instance deployments**  
-- ✅ **Non-commercial purposes**
+- ✅ **Self-hosted single-instance deployments**  
+- ✅ **Non-commercial or community use**
 
 ## Commercial Use Restrictions
 
@@ -27,8 +27,6 @@ To obtain a commercial license, please contact:
 
 ## Legal Notice
 
-⚠️ **Without a commercial license agreement, you may not use GigHive in a multi-tenant, SaaS, or other commercial context.**
+⚠️ **Without a commercial license agreement, you may not use GigHive in a multi-tenant, SaaS, or other commercial context that would otherwise trigger AGPL obligations you do not wish to accept.**
 
 ---
-
-*For non-commercial use, see the standard [MIT License](LICENSE_MIT.md).*

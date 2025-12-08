@@ -232,8 +232,8 @@ cd $GIGHIVE_HOME;./3deleteAll.sh
 ### License
 GigHive is dual-licensed:
 
-- **[MIT License](LICENSE_MIT.md)**: Free for personal, single-instance, non-commercial use.
-- **[Commercial License](LICENSE_COMMERCIAL.md)**: Required for SaaS, multi-tenant, or commercial use.
+- **[AGPL v3 License](LICENSE_AGPLv3.md)**: Open source, free for personal use with strong copyleft protection for use as a SaaS.
+- **[Commercial License](LICENSE_COMMERCIAL.md)**: Required for SaaS, multi-tenant, or commercial use without AGPL obligations.
 
 ---
 
