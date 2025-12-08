@@ -1,6 +1,6 @@
 *** 
 releaseNotes20251208.txt
-Changes: App terms of service
+Changes: App terms of service, remove MIT license
  
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
