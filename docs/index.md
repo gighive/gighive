@@ -180,7 +180,6 @@ img {
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
         <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
         <li><a href="README.html">🚀 Setup Guide</a></li>
-        <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="images/requestFlowBasic.png">🔄 Request Flow</a></li>
         <li><a href="https://staging.gighive.app/docs/api-docs.html" target="_blank">📋 API Documentation</a></li>
@@ -194,15 +193,12 @@ img {
     <h3>🐳 Docker</h3>
     <ul>
         <li><a href="DOCKER_COMPOSE_BEHAVIOR.html">⚙️ Docker Behavior</a></li>
-        <li><a href="MIXING_HOSTVM_DOCKER_VERSIONS.html">🔄 Mixing Host/Container Versions</a></li>
     </ul>
     
     <h3>🎥 Streaming</h3>
     <ul>
         <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits / Call Flow</a></li>
         <li><a href="CONTENT_RANGE_CLOUDFLARE.html">☁️ Cloudflare Caching Limits</a></li>
-        <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
-        <li><a href="PICKER_TRANSCODING_METHOD.html">🎬 Picker Transcoding</a></li>
     </ul>
     
     <h3>📱 iPhone App</h3>
@@ -224,6 +220,15 @@ img {
         <li><a href="https://github.com/gighive/gighive" target="_blank">🐙 GitHub</a></li>
     </ul>
 
+    <h3>🔮 Advanced / Internals</h3>
+    <ul>
+        <li><a href="DEPENDENCIES.html">📦 Dependencies</a></li>
+        <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
+        <li><a href="MIXING_HOSTVM_DOCKER_VERSIONS.html">🔄 Mixing Host/Container Versions</a></li>
+        <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
+        <li><a href="PICKER_TRANSCODING_METHOD.html">🎬 Picker Transcoding</a></li>
+    </ul>
+    
     <h3>🔮 Coming Soon</h3>
     <ul>
         <li><a href="migrate-bootstrap-to-ansible.html">🔄 Migrate Bootstrap</a></li>
