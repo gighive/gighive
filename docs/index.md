@@ -221,6 +221,7 @@ img {
     
     <h3>📄 Legal & Policies</h3>
     <ul>
+        <li><a href="APP_TERMS_OF_SERVICE.html">📜 App Terms of Service</a></li>
         <li><a href="LICENSE_AGPLv3.html">📜 AGPL v3 License</a></li>
         <li><a href="LICENSE_COMMERCIAL.html">💼 Commercial License</a></li>
         <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
