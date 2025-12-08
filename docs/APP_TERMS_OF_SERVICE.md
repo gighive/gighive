@@ -22,8 +22,7 @@ When using the GigHive iOS app, you agree to:
 - The GigHive project does not control or manage user accounts
 
 ## 5. Content Policy
-All uploaded content must comply with our Content Policy:
-https://gighive.app/gighive_content_policy.html
+All uploaded content must comply with our [Content Policy](gighive_content_policy.html).
 
 Prohibited content includes:
 - Copyright-infringing material
@@ -46,14 +45,14 @@ We may update these Terms of Service at any time. Continued use of the app after
 
 ## 9. Software License
 The GigHive software is open source. For software licensing terms, see:
-- MIT License: https://gighive.app/LICENSE_MIT.html
-- AGPL v3 License: https://gighive.app/LICENSE_AGPLv3.html
-- Commercial License: https://gighive.app/LICENSE_COMMERCIAL.html
+- [MIT License](LICENSE_MIT.html)
+- [AGPL v3 License](LICENSE_AGPLv3.html)
+- [Commercial License](LICENSE_COMMERCIAL.html)
 
 ## 10. Contact
 For questions about these Terms of Service:
-- Email: contactus@gighive.app
-- Copyright issues: copyright@gighive.app
+- Email: [Contact us](mailto:contactus@gighive.app)
+- Copyright issues: [copyright@gighive.app](mailto:copyright@gighive.app)
 
 ## 11. Governing Law
 These terms are governed by applicable laws in your jurisdiction.
