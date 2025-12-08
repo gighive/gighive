@@ -39,6 +39,12 @@ For Azure deployments, az and azure-cli will be installed.
 - Gighive runs very efficiently on an [Orange Pi 5](https://a.co/d/90UDcvi) or [GMKtech mini PC](https://www.amazon.com/dp/B0F8NL4ST4?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1).  Stuff a few NVMe's in either and you'll have plenty of storage for your videos.  We've tested on both of them.
 - Note that both cpu architectures are supported: amd64, arm64
 
+## Secrets and Default Passwords
+
+GigHive ships with example credentials to make first-time setup fast and simple.
+These **defaults are for local/demo use only** and must be changed before any
+Internet-exposed or production deployment.  You will see a step for this below.
+
 ---
 
 ## ⚙️  Prerequisites: Install Ansible and Python to your controller machine.
@@ -86,6 +92,12 @@ cat ~/.bashrc
 8. Make sure you have id_rsa.pub in ./ssh for passwordless authentication.
 ```bash
 ssh-keygen -t rsa
+```
+
+9. Update the secrets to your desired credentials.  Copy the example file and then edit the destination to your liking:
+```bash
+cd $GIGHIVE_HOME
+cp ansible/inventories/group_vars/gighive/secrets.example.yml ansible/inventories/group_vars/gighive/secrets.yml
 ```
 
 ---
