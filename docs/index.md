@@ -210,6 +210,20 @@ img {
         <li><a href="FOUR_PAGE_REARCHITECTURE.html">🏗️ 4-Page Rearchitecture</a></li>
     </ul>
     
+    <h3>📄 Legal & Policies</h3>
+    <ul>
+        <li><a href="APP_TERMS_OF_SERVICE.html">📜 App Terms of Service</a></li>
+        <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
+        <li><a href="LICENSE_AGPLv3.html">📜 AGPL v3 License</a></li>
+        <li><a href="LICENSE_COMMERCIAL.html">💼 Commercial License</a></li>
+    </ul>
+    
+    <h3>🔗 Links</h3>
+    <ul>
+        <li><a href="mailto:contactus@gighive.app">✉️ Contact Us</a></li>
+        <li><a href="https://github.com/gighive/gighive" target="_blank">🐙 GitHub</a></li>
+    </ul>
+
     <h3>🔮 Coming Soon</h3>
     <ul>
         <li><a href="migrate-bootstrap-to-ansible.html">🔄 Migrate Bootstrap</a></li>
@@ -219,19 +233,6 @@ img {
         <li><a href="security-upgrade.html">🔒 Security Upgrade</a></li>
     </ul>
     
-    <h3>📄 Legal & Policies</h3>
-    <ul>
-        <li><a href="APP_TERMS_OF_SERVICE.html">📜 App Terms of Service</a></li>
-        <li><a href="LICENSE_AGPLv3.html">📜 AGPL v3 License</a></li>
-        <li><a href="LICENSE_COMMERCIAL.html">💼 Commercial License</a></li>
-        <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
-    </ul>
-    
-    <h3>🔗 Links</h3>
-    <ul>
-        <li><a href="mailto:contactus@gighive.app">✉️ Contact Us</a></li>
-        <li><a href="https://github.com/gighive/gighive" target="_blank">🐙 GitHub</a></li>
-    </ul>
 </nav>
 
 <script>
