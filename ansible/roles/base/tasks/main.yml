@@ -5,6 +5,22 @@
   ansible.builtin.hostname:
     name: "{{ vm_name }}"
 
+- name: Check for required per-VM secrets file on controller
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ inventory_dir }}/group_vars/{{ vm_name }}/secrets.yml"
+  register: gighive_secrets_file
+
+- name: Fail if per-VM secrets.yml is missing
+  ansible.builtin.fail:
+    msg: >-
+      Required secrets file not found at
+      '{{ inventory_dir }}/group_vars/{{ vm_name }}/secrets.yml'.
+      Copy secrets.example.yml to secrets.yml and update passwords
+      before running this playbook.
+  when: not gighive_secrets_file.stat.exists
+
 - name: Remove any legacy Docker apt source file
   ansible.builtin.file:
     path: /etc/apt/sources.list.d/docker.list
