@@ -30,6 +30,14 @@ final class MediaController
     {
         $rows = $this->repo->fetchMediaList();
 
+        $targetDate = isset($_GET['date']) ? trim((string)$_GET['date']) : '';
+        $targetOrg  = isset($_GET['org'])  ? trim((string)$_GET['org'])  : '';
+
+        // Basic validation: expect YYYY-MM-DD for date; empty strings are treated as nulls
+        if ($targetDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) {
+            $targetDate = '';
+        }
+
         $counter = 1;
         $viewRows = [];
         foreach ($rows as $row) {
@@ -75,7 +83,9 @@ final class MediaController
         }
 
         return $this->view->render('media/list.php', [
-            'rows' => $viewRows,
+            'rows'       => $viewRows,
+            'targetDate' => $targetDate !== '' ? $targetDate : null,
+            'targetOrg'  => $targetOrg  !== '' ? $targetOrg  : null,
         ]);
     }
 

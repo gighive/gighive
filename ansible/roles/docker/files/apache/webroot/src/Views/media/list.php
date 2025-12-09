@@ -14,6 +14,7 @@
     th,td{border:1px solid #ddd;padding:8px;vertical-align:top;word-wrap:break-word;}
     th{background:#f6f6f6;text-align:left;cursor:pointer;}
     thead input{width:100%;box-sizing:border-box;margin-top:4px;}
+    .highlighted-jam{background-color:#fff8c2;}
   </style>
 </head>
 <body>
@@ -44,7 +45,12 @@
     </thead>
     <tbody>
       <?php foreach ($rows as $r): ?>
-        <tr id="media-<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>">
+        <tr
+          id="media-<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>"
+          class="media-row"
+          data-date="<?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?>"
+          data-org="<?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?>"
+        >
           <td><?= htmlspecialchars((string)$r['idx'], ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?></td>
           <td><?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?></td>
@@ -69,6 +75,9 @@
   </table>
 
   <script>
+    const targetDate = <?= isset($targetDate) && $targetDate !== null ? json_encode($targetDate) : 'null' ?>;
+    const targetOrg  = <?= isset($targetOrg)  && $targetOrg  !== null ? json_encode($targetOrg)  : 'null' ?>;
+
     function filterTable(){
       const inputs=document.querySelectorAll('thead input');
       const table=document.getElementById('searchableTable');
@@ -111,6 +120,15 @@
       table.dataset.sortOrder=asc? 'asc' : 'desc';
       rows.forEach(r=>tbody.appendChild(r));
     }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      if(!targetDate || !targetOrg){return;}
+      const selector=`.media-row[data-date="${targetDate}"][data-org="${targetOrg}"]`;
+      const row=document.querySelector(selector);
+      if(!row){return;}
+      row.scrollIntoView({behavior:'smooth',block:'center'});
+      row.classList.add('highlighted-jam');
+    });
   </script>
 </body>
 </html>
