@@ -1,8 +1,6 @@
 # Basic VM configuration
-#hostname: "gighive"
-#vm_name: "gighive"
-hostname: "gighive-prod"
-vm_name: "gighive-prod"
+hostname: "prod"
+vm_name: "prod"
 
 # OS version configuration
 ubuntu_version: "24.04"
@@ -40,7 +38,7 @@ database_full: true
 
 # Docker container rebuild control
 rebuild_mysql: false       # Rebuild MySQL container (preserve data)
-rebuild_mysql_data: false   # Rebuild MySQL container + wipe database (nuclear)
+rebuild_mysql_data: false # Rebuild MySQL container + wipe database (nuclear)
 
 # these vars control full/reduced set of media
 sync_video: true

@@ -1,5 +1,50 @@
 *** 
 releaseNotes20251208.txt
+Changes: Updated SP db and minor group_vars alignment
+
+Last run: ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv.bad
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv.bak2
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/files.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/musicians.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_musicians.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/session_songs.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/sessions.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/song_files.csv
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/prepped_csvs/songs.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/database_augmented.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/musicians.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/session_musicians.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/session_songs.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/sessions.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/song_files.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/songs.csv
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251208.txt
 Changes: Add tests for missing secrets.yml to base/tasks/main.yml
 
 Last run: ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass
@@ -19,16 +64,6 @@ Changes to be committed:
 	modified:   ansible/roles/cloud_init/files/network-config
 	modified:   ansible/roles/cloud_init/files/user-data
 	modified:   user-prompts.md
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251208.txt
