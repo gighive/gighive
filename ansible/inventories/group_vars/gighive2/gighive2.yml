@@ -33,8 +33,8 @@ nocloud_iso: "{{ cloud_init_files_dir }}/seed-{{ vm_name }}.iso"
 ansible_remote_tmp: "/tmp/.ansible/tmp"
 
 # app flavor for build-time overlay; database_full kept as-is
-app_flavor: gighive
-database_full: false
+app_flavor: defaultcodebase
+database_full: true
 
 # Docker container rebuild control
 rebuild_mysql: false       # Rebuild MySQL container (preserve data)
@@ -42,9 +42,9 @@ rebuild_mysql_data: false   # Rebuild MySQL container + wipe database (nuclear)
 
 # these vars control full/reduced set of media
 sync_video: true
-reduced_video: true
+reduced_video: false
 sync_audio: true
-reduced_audio: true
+reduced_audio: false
 
 # Users
 admin_user: admin
