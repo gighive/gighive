@@ -93,6 +93,14 @@
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin uploader
     </Location>
+
+    # --- MEDIA-FILES API: admin + uploader ---
+    <Location "/api/media-files">
+        AuthType Basic
+        AuthName "GigHive"
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin uploader
+    </Location>
     
     
     # --- ADMIN-ONLY: change-password page ---

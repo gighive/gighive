@@ -1,5 +1,35 @@
 *** 
 releaseNotes20251210.txt
+Changes: Plan for /api/media-files rename as well as non-destructive changes to the apache configuration to support new api name.
+
+Last run (dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/templates/modsecurity.conf.j2
+	deleted:    docs/API_CLEANUP.md
+	modified:   docs/API_CURRENT_STATE.md
+	modified:   user-prompts.md
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251210.txt
 Changes: API cleanup doc
 
 *** 
@@ -31,16 +61,6 @@ Changes not staged for commit:
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/musicians.csv
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/session_musicians.csv
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/sessions.csv
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251208.txt
