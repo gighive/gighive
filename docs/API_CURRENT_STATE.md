@@ -154,25 +154,42 @@ Key points:
 
 ## 6. Current Status vs API_CLEANUP Plan
 
-The `docs/API_CLEANUP.md` plan outlined a migration from `/api/uploads.php`
-into the MVC router and eventually into `/src/uploads` URLs.
+The `docs/API_CLEANUP.md` plan outlined a migration from the legacy
+`/api/uploads.php` script into a centralized MVC router and then toward
+cleaner, REST-style API URLs. That migration has largely happened at the
+implementation level (via `src/index.php`), while `/api/uploads.php`
+remains as a backward-compatible entrypoint.
 
 What has been implemented:
 
-- ✅ A minimal router exists at `src/index.php` and handles upload routes.
-- ✅ `api/uploads.php` now delegates into `src/index.php` (shim), so both
-  legacy and new-style URLs share the same `UploadController` logic.
+- ✅ A router exists at `src/index.php` and handles upload routes.
+- ✅ `api/uploads.php` is now a thin shim that delegates into
+  `src/index.php`, so legacy `/api/uploads.php` calls and canonical
+  `/api/uploads` / `/api/uploads/{id}` URLs all share the same
+  `UploadController` logic.
 - ✅ The MVC stack (controllers/services/repositories) is the single
   implementation of upload behavior.
 
 What remains from the original plan:
 
-- ⏳ Upload forms in `/db/` still point to `/api/uploads.php` instead of
-  `/src/uploads`.
+- ⏳ Upload forms in `/db/` still post to `/api/uploads.php` instead of
+  the canonical `/api/uploads` endpoint.
 - ⏳ The `/api/` directory and `uploads.php` shim are still present and
   active; final cleanup/deletion has not yet occurred.
 
-This document reflects the **actual, deployed state**, not just the plan.
+Why prefer the canonical endpoints directly (`/api/uploads`,
+`/api/uploads/{id}`):
+
+- **Fewer moving parts** – clients talk directly to the intended API
+  paths instead of going through a compatibility shim.
+- **Clearer routing and logs** – access logs and error messages reflect
+  the real API surface, which makes debugging and monitoring easier.
+- **Safer deprecation** – once all clients use the canonical paths, the
+  legacy `/api/uploads.php` shim can be removed with minimal risk.
+
+This document reflects the **actual, deployed state**, not just the plan,
+and treats `/api/uploads` / `/api/uploads/{id}` as the preferred public
+API URLs for uploads today.
 
 ---
 

@@ -591,6 +591,9 @@ GigHive is dual-licensed:
 
 - 2025-12-10T12:04:00-05:00
   - in the hamburger menu of docs/index.md, create a new section called API Reference.  Under that, link the API_CURRENT_STATE.md as API Current State.  From under Documentation, move Request Flow under API Reference as the second item under API Reference.  From under Documentation, move API Documentation under API Reference and change it's link name to Swagger and put that as the third link under API Reference.  Move the entire API Reference section below the Links section.
+
+- 2025-12-10T12:19:00-05:00
+  - yes, please make that more accurate update.  also, explain why it is a good idea to use the canonical endpoints directly.
 ## 2025-11-30
 
 - 2025-11-30T10:58:00-05:00
