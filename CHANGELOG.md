@@ -1,9 +1,14 @@
 *** 
-releaseNotes20251208.txt
+releaseNotes20251210.txt
+Changes: API cleanup doc
+
+*** 
+releaseNotes20251209.txt
 Changes: Added date query params to db/database.php (and db typo fix)
 
 Last run (prod): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
 Last run (dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass
+Last run (staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
