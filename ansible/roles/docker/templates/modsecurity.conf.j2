@@ -27,8 +27,8 @@ SecAuditLogType Serial
 SecAuditLog /var/log/apache2/modsec_audit.log
 SecAuditLogRelevantStatus "^(?:5|4(?!04))"
 
-# Allow large bodies on API upload endpoint explicitly
-<LocationMatch "^/api/uploads\.php$">
+# Allow large bodies on API upload endpoints explicitly
+<LocationMatch "^/api/(uploads\.php|media-files)$">
     SecRuleEngine On
     SecRequestBodyAccess On
     SecRequestBodyLimit 6442450944

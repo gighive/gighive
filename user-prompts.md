@@ -589,11 +589,31 @@ GigHive is dual-licensed:
 
 ## 2025-12-10
 
+- 2025-12-10T15:44:00-05:00
+  - the apache configs are within here: ansible/roles/docker, specifically herre: ansible/roles/docker/templates and in the Dockerfile.  please review these configs for what you just called out.
+
+## 2025-12-10
+
+- 2025-12-10T15:41:00-05:00
+  - looking at the api current state md file, will step 7.2 Introduce /api/media-files GET/POST Endpoints require the apache configuration to have adjustments?  
+
+## 2025-12-10
+
 - 2025-12-10T12:04:00-05:00
   - in the hamburger menu of docs/index.md, create a new section called API Reference.  Under that, link the API_CURRENT_STATE.md as API Current State.  From under Documentation, move Request Flow under API Reference as the second item under API Reference.  From under Documentation, move API Documentation under API Reference and change it's link name to Swagger and put that as the third link under API Reference.  Move the entire API Reference section below the Links section.
 
 - 2025-12-10T12:19:00-05:00
   - yes, please make that more accurate update.  also, explain why it is a good idea to use the canonical endpoints directly.
+
+- 2025-12-10T12:24:00-05:00
+  - I think the API current state markdown document has all the information we need. Period. Let's get rid of the older API cleanup markdown document.
+
+- 2025-12-10T15:51:00-05:00
+  - draft the exact changes we will need to make and update api_current_state.md to reflect the latest plan
+
+- 2025-12-10T15:58:00-05:00
+  - what we accomplished today was to put a plan in place for /api/media-files api rename as well as made initial, additive (meaning non-destructive) changes to the apache configuration to support media-files.  Is that correct?
+
 ## 2025-11-30
 
 - 2025-11-30T10:58:00-05:00

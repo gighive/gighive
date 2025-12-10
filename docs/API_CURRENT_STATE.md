@@ -263,6 +263,13 @@ Design principles:
    - This allows a gradual migration of clients and documentation without
      forcing a breaking change.
 
+3. **Apache auth and ModSecurity behavior**
+   - Authentication:
+     - All `/api/...` paths already require Basic Auth (`Require valid-user`) via the main `LocationMatch` in `default-ssl.conf`.
+     - Both `/api/uploads.php` and `/api/media-files` have a stricter `Location` block that limits access to `admin` and `uploader` users.
+   - ModSecurity:
+     - The ModSecurity template (`modsecurity.conf.j2`) is configured so that the upload-specific rules (large body limit, multipart/form-data requirement, disallowed extensions) apply to both `/api/uploads.php` and `/api/media-files`.
+
 #### 7.2.2 OpenAPI Spec Plan
 
 1. **Add new path definitions to `openapi.yaml`**
