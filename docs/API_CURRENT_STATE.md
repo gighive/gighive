@@ -3,6 +3,12 @@
 This document describes the **current, implemented API behavior** under
 `ansible/roles/docker/files/apache/webroot` and outlines planned enhancements.
 
+High-level best practices followed here:
+
+- **Code in `src/`** – MVC controllers, services, repositories, models, and the router/front controller live under `src/` and are loaded via Composer.
+- **Public URLs under `/api/...` (and other webroot paths)** – clients call `/api/...` and `/db/...` URLs, which are small entrypoints, not the bulk of the application logic.
+- **Router/front controller bridging the two** – `src/index.php` acts as a front controller/router that receives requests from thin entrypoints (such as `/api/uploads.php`) and dispatches them into the MVC stack.
+
 ---
 
 ## 1. Directory Overview
@@ -14,9 +20,13 @@ The Apache webroot for the API and UI is:
 Key subdirectories relevant to the API:
 
 - `/api/`
-  - Legacy entrypoints, currently only `uploads.php` is active.
+  - Public API entrypoints. Currently only `uploads.php` is active, and it
+    exists as a thin compatibility shim that forwards into the router
+    implemented under `src/`.
 - `/src/`
-  - Modern MVC implementation (controllers, services, repositories, router).
+  - Modern MVC implementation (controllers, services, repositories, router)
+    and the **front controller** (`src/index.php`) that handles API routing
+    for uploads and, in future, additional endpoints.
 - `/db/`
   - Upload forms and database listing pages.
 
@@ -199,14 +209,14 @@ Planned steps:
      - Remove the `/api/` directory if it has no other responsibilities.
    - Update documentation to remove references to the legacy path.
 
-### 7.2 Introduce `/media-files` GET/POST Endpoints
+### 7.2 Introduce `/api/media-files` GET/POST Endpoints
 
 Goal:
 
 - Provide clearer, more resource-oriented endpoints for media uploads and
-  listings:
-  - `POST /media-files` — upload a media file.
-  - `GET  /media-files` — list media files (JSON).
+  listings under a conventional `/api` prefix:
+  - `POST /api/media-files` — upload a media file.
+  - `GET  /api/media-files` — list media files (JSON).
 
 Design principles:
 
@@ -218,9 +228,12 @@ Design principles:
 
 1. **Extend the router** (`src/index.php`)
    - Add new routes that map to the existing upload and listing logic:
-     - `POST /media-files` → same behavior as `POST /uploads` today.
-     - `GET  /media-files` → same JSON list behavior as
-       `GET /database.php?format=json`.
+     - Public URLs: `POST /api/media-files` and `GET /api/media-files`.
+     - Internally, after the router strips the `/api` prefix, it will match
+       on `/media-files` and:
+       - `POST /media-files` → same behavior as `POST /uploads` today.
+       - `GET  /media-files` → same JSON list behavior as
+         `GET /database.php?format=json`.
    - Internally, ensure there is a **single implementation** of each
      behavior, with the new `/media-files` routes and the existing routes
      both calling into the same functions/services.
@@ -236,14 +249,14 @@ Design principles:
 #### 7.2.2 OpenAPI Spec Plan
 
 1. **Add new path definitions to `openapi.yaml`**
-   - `POST /media-files`
+   - `POST /api/media-files`
      - Summary: "Upload media file".
      - Request body: reuse the schema from the current upload endpoint.
      - Responses: mirror existing upload responses (including file metadata
        plus session information, errors, etc.).
      - `operationId: uploadMediaFile`.
 
-   - `GET /media-files`
+   - `GET /api/media-files`
      - Summary: "Get media file list".
      - Response: JSON array/object structure equivalent to what
        `database.php?format=json` returns today.
