@@ -587,6 +587,10 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+## 2025-12-10
+
+- 2025-12-10T12:04:00-05:00
+  - in the hamburger menu of docs/index.md, create a new section called API Reference.  Under that, link the API_CURRENT_STATE.md as API Current State.  From under Documentation, move Request Flow under API Reference as the second item under API Reference.  From under Documentation, move API Documentation under API Reference and change it's link name to Swagger and put that as the third link under API Reference.  Move the entire API Reference section below the Links section.
 ## 2025-11-30
 
 - 2025-11-30T10:58:00-05:00

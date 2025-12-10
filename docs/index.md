@@ -181,8 +181,6 @@ img {
         <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
         <li><a href="README.html">🚀 Setup Guide</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
-        <li><a href="images/requestFlowBasic.png">🔄 Request Flow</a></li>
-        <li><a href="https://staging.gighive.app/docs/api-docs.html" target="_blank">📋 API Documentation</a></li>
     </ul>
     
     <h3>🗄️ Database</h3>
@@ -220,6 +218,13 @@ img {
         <li><a href="https://github.com/gighive/gighive" target="_blank">🐙 GitHub</a></li>
     </ul>
 
+    <h3>🔮 API Reference</h3>
+    <ul>
+        <li><a href="API_CURRENT_STATE.html">📊 API Current State</a></li>
+        <li><a href="images/requestFlowBasic.png">🔄 Request Flow</a></li>
+        <li><a href="https://staging.gighive.app/docs/api-docs.html" target="_blank">📋 Swagger</a></li>
+    </ul>
+    
     <h3>🔮 Advanced / Internals</h3>
     <ul>
         <li><a href="DEPENDENCIES.html">📦 Dependencies</a></li>
