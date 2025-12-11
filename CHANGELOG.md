@@ -1,4 +1,32 @@
 *** 
+releaseNotes20251211.txt
+Changes: extend src/index.php router to support /media-files without altering existing /uploads routes, and new ansible tests for POST and GET /api/media-files endpoints 
+
+Last run (dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/files/apache/webroot/src/index.php
+	modified:   ansible/roles/validate_app/tasks/main.yml
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251210.txt
 Changes: Plan for /api/media-files rename as well as non-destructive changes to the apache configuration to support new api name.
 
@@ -17,16 +45,6 @@ Changes to be committed:
 	deleted:    docs/API_CLEANUP.md
 	modified:   docs/API_CURRENT_STATE.md
 	modified:   user-prompts.md
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251210.txt

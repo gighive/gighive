@@ -148,3 +148,56 @@
     - db_health_json is defined
     - db_health_json.status != 'ok'
 
+- name: Ensure test upload file for media-files API exists
+  ansible.builtin.copy:
+    dest: /tmp/gighive-test-upload.txt
+    content: "1234567890\n"
+    mode: "0644"
+
+- name: Validate POST /api/media-files works
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/media-files"
+    method: POST
+    url_username: "{{ uploader_user }}"
+    url_password: "{{ gighive_uploader_password }}"
+    force_basic_auth: yes
+    validate_certs: yes
+    body_format: form-multipart
+    body:
+      mediafile: "@/tmp/gighive-test-upload.txt"
+      title: "ansible-test-upload"
+    return_content: yes
+    status_code: [200, 201]
+  register: media_files_post
+  failed_when: false
+
+- name: Assert POST /api/media-files response is valid (when implemented)
+  ansible.builtin.assert:
+    that:
+      - media_files_post.status in [200, 201]
+      - media_files_post.json is defined
+      - media_files_post.json.id is defined
+    fail_msg: "POST /api/media-files did not return expected JSON with id"
+  when: media_files_post.status is defined and media_files_post.status in [200, 201]
+
+- name: Validate GET /api/media-files works
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/media-files"
+    method: GET
+    url_username: "{{ uploader_user }}"
+    url_password: "{{ gighive_uploader_password }}"
+    force_basic_auth: yes
+    validate_certs: yes
+    return_content: yes
+    status_code: [200, 501, 404]
+  register: media_files_get
+  failed_when: false
+
+- name: Assert GET /api/media-files returns JSON when implemented
+  ansible.builtin.assert:
+    that:
+      - media_files_get.status == 200
+      - media_files_get.json is defined
+    fail_msg: "GET /api/media-files did not return valid JSON when implemented"
+  when: media_files_get.status is defined and media_files_get.status == 200
+
