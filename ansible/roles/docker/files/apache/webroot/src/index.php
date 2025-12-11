@@ -42,10 +42,25 @@ try {
         // POST /src/uploads
         debug_log("Matched POST route for /uploads");
         $resp = $controller->post($_FILES, $_POST);
+    } elseif ($method === 'POST' && $path === '/media-files') {
+        // POST /api/media-files (after /api prefix stripped)
+        debug_log("Matched POST route for /media-files (alias of /uploads)");
+        // Reuse the same upload behavior as /uploads
+        $resp = $controller->post($_FILES, $_POST);
+    } elseif ($method === 'GET' && $path === '/media-files') {
+        // GET /api/media-files (after /api prefix stripped)
+        debug_log("Matched GET route for /media-files (currently not implemented)");
+        http_response_code(501);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'error' => 'Not Implemented',
+            'message' => 'GET /api/media-files is planned but not yet implemented.'
+        ]);
+        exit;
     } else {
         // 404 for unmatched routes
         debug_log("No route matched! Method: $method, Path: '$path'");
-        debug_log("Available routes: GET /uploads/{id}, POST /uploads");
+        debug_log("Available routes: GET /uploads/{id}, POST /uploads, POST /media-files, GET /media-files (planned)");
         http_response_code(404);
         header('Content-Type: application/json');
         echo json_encode(['error' => 'Not Found', 'debug' => ['method' => $method, 'path' => $path]]);
