@@ -1414,3 +1414,65 @@ there is a lot of output from this particular ansible task in roles/docker/tasks
 - 2025-12-08T12:24:00-05:00
   - OK, cleaning up the old reference allowed me to continue: sodo@pop-os:~/scripts/gighive$ VBoxManage closemedium disk 1c23707a-eaa6-4f1c-bd20-c364c2d35713
     sodo@pop-os:~/scripts/gighive$
+
+## 2025-12-12
+
+- 2025-12-12T15:12:00-05:00
+  - when a video is uploaded to gighive, what software that figures out the length of the file?
+
+- 2025-12-12T15:19:00-05:00
+  - thanks.  secondly, I'd like to plan to implement two new database columns in the FILES table.  the two column names should be STREAM_VIDEO and STREAM_AUDIO.  the content of these fields will be the details around the contents of the audio and video streams in the media file that gets uploaded.  As I user, I can get this information from ffprobe (shown below).  But I wonder if there is a python library that can acheive the same thing?  macbook2025:Downloads sodo$ ffprobe 20040818.mp4 2>&1 | grep Stream   Stream #0:0[0x1](eng): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 320x240 [SAR 6:5 DAR 8:5], 480 kb/s, 29.97 fps, 29.97 tbr, 30k tbn (default)   Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 193 kb/s (default)
+
+- 2025-12-12T15:22:00-05:00
+  - We should probably capture all streams, not just the default.
+
+- 2025-12-12T15:24:00-05:00
+  - what is the default install size of getID3?  what is the default install size of ffmpeg?
+
+- 2025-12-12T15:25:00-05:00
+  - what is the full install size of either package, along with all dependencies?
+
+- 2025-12-12T15:31:00-05:00
+  - is there a lightweight python library that can capture the audio and video stream information from a media file?
+
+- 2025-12-12T15:33:00-05:00
+  - since i already run getID3 in my apache container, doesn't this mean that I've got the python runtime plus dependencies already running?
+
+- 2025-12-12T15:34:00-05:00
+  - so is there a python library (not runtime) that would allow me to capture the same stream information as ffprobe?
+
+- 2025-12-12T15:37:00-05:00
+  - my apache container is currently running.  can we determine what the total install size of that container is?  Also, can we determine what the install size would be after installing ffprobe?
+
+- 2025-12-12T15:40:00-05:00
+  - i had to run those commands manually: ubuntu@gighive2:~$ docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.ID}}\t{{.Status}}' | sed -n '1,30p' NAMES IMAGE CONTAINER ID STATUS apacheWebServer ubuntu-apache-img:1.00 af8068346362 Up 3 seconds mysqlServer mysql:8.0 8d70a3c55adb Up 3 seconds ubuntu@gighive2:~$ docker ps -q | head -n 20 | xargs -r docker inspect --format '{{.Name}}\t{{.Config.Image}}\t{{.Id}}' | sed 's#^/##' apacheWebServer\tubuntu-apache-img:1.00\taf8068346362a1d487ce97815722295c78ff8459acc1fd19d4fcd7eedcbe3775 mysqlServer\tmysql:8.0\t8d70a3c55adbc9bae1fec834efedc31f6c317206f6610a4dfdfe031c3c4104fa ubuntu@gighive2:~$ docker system df -v | sed -n '1,120p' [output omitted here in prompt log]
+
+- 2025-12-12T15:43:00-05:00
+  - can i just  do apt-get install ffmpeg in the running container to see how large it gets?
+
+- 2025-12-12T15:49:00-05:00
+  - root@af8068346362:/var/www/html# which ffprobe /usr/bin/ffprobe root@af8068346362:/var/www/html# ffprobe --version ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers. ubuntu@gighive2:~$ docker ps -s --filter name=apacheWebServer CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES SIZE af8068346362 ubuntu-apache-img:1.00 "/entrypointapache.sh" 27 hours ago Up 5 hours 0.0.0.0:443->443/tcp apacheWebServer 679MB (virtual 1.47GB)
+
+- 2025-12-12T16:05:00-05:00
+  - ok, i rebuilt the image with ffmpeg.  what's the before/after size comparison?  ubuntu@gighive2:~$ docker ps -s --filter name=apacheWebServer CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES SIZE c00f8d4b31c9 ubuntu-apache-img:1.00 "/entrypointapache.sh" 2 minutes ago Up 2 minutes 0.0.0.0:443->443/tcp apacheWebServer 20.1MB (virtual 1.41GB) ubuntu@gighive2:~$ docker exec -it apacheWebServer ffprobe -version ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers built with gcc 13 (Ubuntu 13.2.0-23ubuntu3)
+
+- 2025-12-12T16:07:00-05:00
+  - ubuntu@gighive2:~$ docker system df -v | sed -n '1,20p' Images space usage: REPOSITORY TAG IMAGE ID CREATED SIZE SHARED SIZE UNIQUE SIZE CONTAINERS ubuntu-apache-img 1.00 a5ea93ff2b8d 5 minutes ago 1.86GB 0B 1.86GB 1 mysql 8.0 0275a35e79c6 10 days ago 1.08GB 0B 1.078GB 1 Containers space usage: CONTAINER ID IMAGE COMMAND LOCAL VOLUMES SIZE CREATED STATUS NAMES 1f21805e1821 mysql:8.0 "docker-entrypoint.s…" 1 53.2kB 4 minutes ago Up 4 minutes mysqlServer c00f8d4b31c9 ubuntu-apache-img:1.00 "/entrypointapache.sh" 0 20.1MB 4 minutes ago Up 4 minutes apacheWebServer
+
+- 2025-12-12T16:27:00-05:00
+  - bottom line, did the addition of ffmpeg/ffprobe add much to the size of the running container?
+
+- 2025-12-12T16:30:00-05:00
+  - so, do you think it's an OK idea to continue with the idea of adding the two columns for details around the stream (audio / video streams) to the FILES table and then use ffprobe to extract those details when files are uploaded to save them to those columns?  secondly, does having ffmpeg/ffprobe as installed files increase any security surface with the apache web server?
+
+- 2025-12-12T16:35:00-05:00
+  - looking at the output of ffprobe with the json switch on a test file, it looks like it might be easier just to create one new column called STREAM_INFO, as the json output is just one long array that describes any and all streams in the media file.  Agree?
+
+- 2025-12-12T16:38:00-05:00
+  - if the column stores information about the container format, video and audio streams, it might make sense to rename the column to media_info
+
+- 2025-12-12T16:40:00-05:00
+  - good idea, let's plan the implementation to have both columns
+
+- 2025-12-12T16:41:00-05:00
+  - yes, media_info and media_info_tool would be good.  thinking long term, if this gighive becomes popular and people keep it around for years, might be good to have that lineage.

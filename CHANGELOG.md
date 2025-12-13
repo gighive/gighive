@@ -1,9 +1,22 @@
 *** 
+releaseNotes20251213.txt
+Changes: resurrect vodcast 
+
+Last run (prod: from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+
+*** 
+releaseNotes20251213.txt
+Changes: new vodcast
+
+Last run (prod: from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+
+*** 
 releaseNotes20251211.txt
 Changes: extend src/index.php router to support /media-files without altering existing /uploads routes, and new ansible tests for POST and GET /api/media-files endpoints 
 
-Last run (dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
-Last run (staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
