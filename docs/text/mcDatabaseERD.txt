@@ -1,57 +1,60 @@
 erDiagram
   GENRES {
     int genre_id PK
-    varchar name
+    varchar(255) name
     datetime created_at
     datetime updated_at
   }
 
   STYLES {
     int style_id PK
-    varchar name
+    varchar(255) name
     datetime created_at
     datetime updated_at
   }
 
   SESSIONS {
     int session_id PK
-    varchar title
+    varchar(255) title
     date date
     datetime published_at
     int duration_seconds
-    varchar cover_image_url
-    varchar location
+    varchar(1024) cover_image_url
+    varchar(255) location
     text description
     text summary
     text keywords
-    decimal rating
-    bool explicit
-    varchar event_type
-    varchar org_name
+    decimal_2_1 rating
+    tinyint(1) explicit
+    enum_band_wedding event_type
+    varchar(128) org_name
     datetime created_at
     datetime updated_at
   }
 
   SONGS {
     int song_id PK
-    varchar title
+    varchar(255) title
     int duration_seconds
     int genre_id FK
     int style_id FK
-    varchar type
+    enum_loop_song_event_label type
     datetime created_at
     datetime updated_at
   }
 
   FILES {
     int file_id PK
-    varchar file_name
-    varchar file_type
+    varchar(4096) file_name
+    enum_audio_video file_type
     int session_id FK
     int seq
-    varchar mime_type
+    int duration_seconds
+    json media_info
+    varchar(255) media_info_tool
+    varchar(255) mime_type
     bigint size_bytes
-    varchar checksum_sha256
+    char(64) checksum_sha256
     datetime created_at
     datetime updated_at
   }
@@ -70,7 +73,7 @@ erDiagram
 
   MUSICIANS {
     int musician_id PK
-    varchar name
+    varchar(255) name
     datetime created_at
     datetime updated_at
   }
@@ -78,16 +81,16 @@ erDiagram
   SESSION_MUSICIANS {
     int session_id FK
     int musician_id FK
-    varchar role
+    varchar(255) role
   }
 
   USERS {
     int id PK
-    varchar email
-    char password_hash
-    bool is_active
-    char activation_token
-    char reset_token
+    varchar(255) email
+    char(60) password_hash
+    tinyint(1) is_active
+    char(32) activation_token
+    char(32) reset_token
     datetime reset_expires
     int failed_logins
     datetime locked_until
