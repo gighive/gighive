@@ -1,5 +1,9 @@
 *** 
 releaseNotes20251213.txt
+Changes: New databaseErd.png
+
+*** 
+releaseNotes20251213.txt
 Changes: Add media_info and media_info_tool to FILES table and delimiter fix for files.csv
 
 Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
