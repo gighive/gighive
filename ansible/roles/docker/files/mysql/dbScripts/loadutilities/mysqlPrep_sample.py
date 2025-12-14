@@ -148,8 +148,6 @@ def probe_media_info_json(filepath: str) -> str:
         if out == "":
             return ""
         obj = json.loads(out)
-        if isinstance(obj, dict) and isinstance(obj.get("format"), dict) and isinstance(obj["format"].get("filename"), str):
-            obj["format"]["filename"] = os.path.basename(obj["format"]["filename"])
         return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
     except Exception:
         return ""
@@ -352,3 +350,4 @@ write_csv(
 )
 
 print("✅ Preprocessing complete — all CSVs in 'prepped_csvs/' ready for MySQL load.")
+
