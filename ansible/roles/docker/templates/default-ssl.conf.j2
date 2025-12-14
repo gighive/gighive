@@ -62,7 +62,7 @@
     
     # --- EXISTING PROTECTED AREAS (any valid user) ---
     # Excludes /db/health.php from authentication requirement
-    <LocationMatch "^/(?:app/(?!cache(?:/|$)).*|api|db/(?!health\.php$).*|debug|src|vendor|video|audio)(?:/|$)">
+    <LocationMatch "^/(?:app/(?!cache(?:/|$)).*|api|db/(?!health\.php$).*|debug|src|vendor|video(?!/podcasts(?:/|$))|audio)(?:/|$)">
         AuthType Basic
         AuthName "GigHive Protected"
         AuthBasicProvider file

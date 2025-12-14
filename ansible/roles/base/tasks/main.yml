@@ -218,6 +218,7 @@
   loop:
     - { path: "{{ web_root }}", mode: "0775" }
     - { path: "{{ video_dir }}", mode: "0775" }
+    - { path: "{{ video_dir }}/podcasts", mode: "0775" }
 
 - name: Ensure scripts_dir directory exists
   ansible.builtin.file:

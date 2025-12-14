@@ -1,8 +1,55 @@
 *** 
 releaseNotes20251213.txt
+Changes: Allow podcasts dir in apache config, changed vodcast to reference new podcasts directory, added contact us to sp page which required a new overflow calculation, flavor_contract doc, new vodcast
+
+Last run (prod: from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
+	deleted:    ansible/roles/docker/files/apache/overlays/gighive/comingsoon.html
+	new file:   ansible/roles/docker/files/apache/webroot/images/stormpigsPodcastSplash.png
+	modified:   ansible/roles/docker/files/apache/webroot/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/vodcast.xml
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	new file:   docs/FLAVOR_CONTRACT.md
+	modified:   user-prompts.md
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251213.txt
 Changes: resurrect vodcast 
 
 Last run (prod: from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,mysql_backup
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/webroot/images/sp.jpg
+	modified:   ansible/roles/docker/files/apache/webroot/vodcast.xml
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20251213.txt
@@ -28,16 +75,6 @@ Changes to be committed:
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
 	modified:   ansible/roles/docker/files/apache/webroot/src/index.php
 	modified:   ansible/roles/validate_app/tasks/main.yml
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251210.txt
