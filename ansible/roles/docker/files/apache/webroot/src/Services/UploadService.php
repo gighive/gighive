@@ -8,6 +8,8 @@ use PDO;
 
 final class UploadService
 {
+    private ?string $ffprobeTool = null;
+
     public function __construct(
         private PDO $pdo,
         private ?UploadValidator $validator = null,
@@ -93,6 +95,9 @@ final class UploadService
         // Optional: probe duration via ffprobe if available
         $durationSeconds = $this->probeDuration($targetPath);
 
+        $mediaInfo = $this->probeMediaInfo($targetPath);
+        $mediaInfoTool = $mediaInfo !== null ? $this->ffprobeToolString() : null;
+
         // Persist metadata (with session linkage and seq)
         $id = $this->files->create([
             'file_name'       => basename($targetPath),
@@ -100,6 +105,8 @@ final class UploadService
             'session_id'      => $sessionId,
             'seq'             => $seq,
             'duration_seconds'=> $durationSeconds,
+            'media_info'      => $mediaInfo,
+            'media_info_tool' => $mediaInfoTool,
             'mime_type'       => $mime ?: null,
             'size_bytes'      => $size ?: null,
             'checksum_sha256' => $checksum,
@@ -295,5 +302,63 @@ final class UploadService
         }
 
         return null;
+    }
+
+    private function ffprobeToolString(): ?string
+    {
+        if ($this->ffprobeTool !== null) {
+            return $this->ffprobeTool;
+        }
+        $which = @shell_exec('command -v ffprobe 2>/dev/null');
+        if (!is_string($which) || trim($which) === '') {
+            $this->ffprobeTool = null;
+            return null;
+        }
+        $out = @shell_exec('ffprobe -version 2>/dev/null');
+        if (!is_string($out) || trim($out) === '') {
+            $this->ffprobeTool = null;
+            return null;
+        }
+        $first = trim(strtok($out, "\n"));
+        if (preg_match('/\bversion\s+([^\s]+)/', $first, $m) && isset($m[1])) {
+            $this->ffprobeTool = 'ffprobe ' . $m[1];
+            return $this->ffprobeTool;
+        }
+        $this->ffprobeTool = null;
+        return null;
+    }
+
+    private function probeMediaInfo(string $path): ?string
+    {
+        $which = @shell_exec('command -v ffprobe 2>/dev/null');
+        if (!is_string($which) || trim($which) === '') {
+            return null;
+        }
+        $cmd = sprintf(
+            'ffprobe -v error -print_format json -show_format -show_streams -show_chapters -show_programs %s',
+            escapeshellarg($path)
+        );
+        $out = @shell_exec($cmd);
+        if (!is_string($out)) {
+            return null;
+        }
+        $out = trim($out);
+        if ($out === '') {
+            return null;
+        }
+        $decoded = json_decode($out, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        if (
+            isset($decoded['format'])
+            && is_array($decoded['format'])
+            && isset($decoded['format']['filename'])
+            && is_string($decoded['format']['filename'])
+        ) {
+            $decoded['format']['filename'] = basename($decoded['format']['filename']);
+        }
+        return json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 }

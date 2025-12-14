@@ -71,6 +71,8 @@ CREATE TABLE files (
     seq INT NULL,
     duration_seconds INT NULL,
     -- Useful metadata for uploads
+    media_info JSON NULL,
+    media_info_tool VARCHAR(255) NULL,
     mime_type VARCHAR(255) NULL,
     size_bytes BIGINT NULL,
     checksum_sha256 CHAR(64) NULL,

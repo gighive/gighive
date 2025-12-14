@@ -10,8 +10,8 @@ final class FileRepository
     public function create(array $data): int
     {
         // files(file_id PK AI, file_name, file_type, session_id?, seq?, duration_seconds?, mime_type?, size_bytes?, checksum_sha256?)
-        $sql = 'INSERT INTO files (file_name, file_type, session_id, seq, duration_seconds, mime_type, size_bytes, checksum_sha256)'
-             . ' VALUES (:file_name, :file_type, :session_id, :seq, :duration_seconds, :mime_type, :size_bytes, :checksum)';
+        $sql = 'INSERT INTO files (file_name, file_type, session_id, seq, duration_seconds, media_info, media_info_tool, mime_type, size_bytes, checksum_sha256)'
+             . ' VALUES (:file_name, :file_type, :session_id, :seq, :duration_seconds, :media_info, :media_info_tool, :mime_type, :size_bytes, :checksum)';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
             ':file_name' => $data['file_name'] ?? '',
@@ -19,6 +19,8 @@ final class FileRepository
             ':session_id' => $data['session_id'] ?? null,
             ':seq' => $data['seq'] ?? null,
             ':duration_seconds' => $data['duration_seconds'] ?? null,
+            ':media_info' => $data['media_info'] ?? null,
+            ':media_info_tool' => $data['media_info_tool'] ?? null,
             ':mime_type' => $data['mime_type'] ?? null,
             ':size_bytes' => $data['size_bytes'] ?? null,
             ':checksum' => $data['checksum_sha256'] ?? null,
