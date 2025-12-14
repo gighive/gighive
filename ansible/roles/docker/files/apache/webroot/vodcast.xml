@@ -1,33 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"-->
-<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
 	<channel>
 <title>StormPigs Video Podcast</title>
 <itunes:author>StormPigs</itunes:author>
-<itunes:new-feed-url>http://feedproxy.google.com/StormpigsPodcast</itunes:new-feed-url> 
-<link>http://www.stormpigs.com</link>
+<dc:creator>StormPigs</dc:creator>
+<itunes:new-feed-url>https://www.stormpigs.com/vodcast.xml</itunes:new-feed-url> 
+<link>https://www.stormpigs.com</link>
 	<description>
 These guys get together and play improvisational rock and funk.  It comes together organically.
 </description>
 	<itunes:subtitle>
-Various pigs will join the trough, so expect the unexpected.  Or not.  Produced with Open Source tools: Cinelerra, ffmpeg, mplex and vlc.
+Various pigs will join the trough, so expect the unexpected.  Or not.  Produced with Open Source tools.
 </itunes:subtitle>
 	<itunes:summary>
 Getcher rock and roll, yer funk, yer psychadelic fix here with dudes who aren't half bad, I must say.
 </itunes:summary>
 <language>en</language>
-<copyright>Copyright 2024 StormPig Productions, Inc.</copyright>
+<copyright>Copyright 2025 StormPig Productions, Inc.</copyright>
 	<itunes:owner>
 <itunes:name>StormPig Productions, Inc.</itunes:name>
-<itunes:email>webmaster@stormpigs.com</itunes:email>
+<itunes:email>admin@stormpigs.com</itunes:email>
 </itunes:owner>
 	<image>
-	<url>http://www.stormpigs.com/images/stormpigsItunesVideo.jpg</url>
+	<url>https://www.stormpigs.com/images/stormpigsPodcastSplash.png</url>
 <title>StormPigs Video Podcast</title>
-<link>http://www.stormpigs.com</link>
+<link>https://www.stormpigs.com</link>
 </image>
-<category>Rock</category>
-<itunes:image href="http://www.stormpigs.com/images/stormpigsItunesVideo.jpg"/>
+<itunes:category text="Music"/>
+<itunes:image href="https://www.stormpigs.com/images/stormpigsPodcastSplash.png"/>
 <item>
         <title>StormPigs20040818 (** 1/2 Snuffler rating)</title>
         <itunes:author>StormPigs</itunes:author>
@@ -59,8 +61,8 @@ Smash Studios, NYC. August 18, 2004. 01:14:55 long.
 ]]>
         </itunes:subtitle>
         <itunes:summary>H264. Cosmic Bruce, Maximus, Ourance, Snuffler, SRC, Stu, Trebor Greb. Sunset room jam with good vibes and brown liquid flowing. Smash Studios, NYC. August 18, 2004. 01:14:55 long.</itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20040818.mp4" length="400592157" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20040818.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20040818.mp4" length="400592157" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20040818.mp4</guid>
         <pubDate>Mon, 08 Dec 2025 21:24:32 -0500</pubDate>
         <category>Rock</category>
         <itunes:explicit>yes</itunes:explicit>
@@ -100,8 +102,8 @@ Smash Studios, NYC. July 24, 2025. 01:44:10 long.
         <itunes:summary>
 H264. PChoff, Maximus, Snuffler, Stu, Tbonk. Good to have our friend Maximus back in the mix for what was a classic StormPigs jam with lots of exploration. Smash Studios, NYC. July 24, 2025. 01:44:10 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20250724.mp4" length="4146363663" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20250724.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20250724.mp4" length="4146363663" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20250724.mp4</guid>
         <pubDate>Sun, 14 Sep 2025 12:22:52 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -136,8 +138,8 @@ Funkadelic Studios, NYC. June 3, 2025. 01:09:39 long.
         <itunes:summary>
 H264. PChoff, Snuffler, Stu, Tbonk, Zig. Fever Jam 2025 the Bonk in Heat and not in a good way. Funkadelic Studios, NYC. June 3, 2025. 01:09:39 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20250603.mp4" length="2776885166" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20250603.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20250603.mp4" length="2776885166" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20250603.mp4</guid>
         <pubDate>Fri, 01 Aug 2025 19:12:59 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -174,8 +176,8 @@ Michiko Studios, NYC. July 18, 2024. 01:13:47 long.
         <itunes:summary>
 H264. Maximus, PChoff, Snuffler, Stu, Tbonk. After hiatus, the aging, bang up boys are in the hot summer city with some fan favorites, celebrating with long away Max. Michiko Studios, NYC. July 18, 2024. 01:13:47 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20240718.mp4" length="449329085" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20240718.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20240718.mp4" length="449329085" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20240718.mp4</guid>
         <pubDate>Sat, 27 Jul 2024 09:01:57 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -217,8 +219,8 @@ Smash Studios, NYC. July 25, 2023. 01:37:39 long.
         <itunes:summary>
 H264. NickDub, Snuffler, Stu, TBonk. After yet another break, our good friend NickDub joins us from across the pond. Smash Studios, NYC. July 25, 2023. 01:37:39 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20230725.mp4" length="3892582116" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20230725.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20230725.mp4" length="3892582116" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20230725.mp4</guid>
         <pubDate>Sun, 13 Aug 2023 17:40:18 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -252,8 +254,8 @@ Castle Frasenstein, AH NJ. November 5, 2022. 01:14:32 long.
         <itunes:summary>
 H264. Ironlung, PChoff, Snuffler, Stu. Getting the machine back up and running after a 5 year hiatus. Castle Frasenstein, AH NJ. November 5, 2022. 01:14:32 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20221105.mp4" length="1144631925" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20221105.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20221105.mp4" length="1144631925" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20221105.mp4</guid>
         <pubDate>Sun, 13 Nov 2022 15:46:31 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -288,8 +290,8 @@ JC Studios, Jersey City, NJ. May 9, 2017. 01:13:11 long.
         <itunes:summary>
 H264. Evil G, Maximus, Snuffler, Stu. A high energy jam with special guest star from up north, Sir Maximus of Globodyne, mesh of guitars is scintillating at times. JC Studios, Jersey City, NJ. May 9, 2017. 01:13:11 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20170509.mp4" length="297351610" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20170509.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20170509.mp4" length="297351610" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20170509.mp4</guid>
         <pubDate>Sat, 13 May 2017 21:03:40 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -324,8 +326,8 @@ JC Studios, Jersey City, NJ. January 10, 2017. 00:42:38 long.
         <itunes:summary>
 H264. EvilG, PChoff, Snuffler, Stu. A round of rock and roll standards and one new angry rocker. JC Studios, Jersey City, NJ. January 10, 2017. 00:42:38 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20170110.mp4" length="164708205" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20170110.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20170110.mp4" length="164708205" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20170110.mp4</guid>
         <pubDate>Sun, 22 Jan 2017 15:54:48 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -360,8 +362,8 @@ Ultrasound Studios, NYC. December 21, 2016. 01:29:48 long.
         <itunes:summary>
 H264. Evil G, NickDub, Snuffler, Stevie, TBonk, Zig. Uproarious Holiday 2016 celebration, impressive showing for the inebriated lot of em. Ultrasound Studios, NYC. December 21, 2016. 01:29:48 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20161221.mp4" length="323636551" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20161221.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20161221.mp4" length="323636551" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20161221.mp4</guid>
         <pubDate>Sat, 31 Dec 2016 16:45:44 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -397,8 +399,8 @@ Ultrasound Rehearsal, NYC. November 16, 2016. 01:13:56 long.
         <itunes:summary>
 H264. EvilG, PChoff, Snuffler, Stu. Big Star meets Velvet Underground with a dash of Toto, might be the start of something interesting. Ultrasound Rehearsal, NYC. November 16, 2016. 01:13:56 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20161116.mp4" length="264427240" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20161116.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20161116.mp4" length="264427240" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20161116.mp4</guid>
         <pubDate>Tue, 27 Dec 2016 16:29:21 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -433,8 +435,8 @@ JC Studios, Jersey City, NJ. December 7, 2016. 01:10:38 long.
         <itunes:summary>
 H264. EvilG, PChoff, Snuffler, Stu. A review of some old favorites plus a couple very special new moments really special new moments. JC Studios, Jersey City, NJ. December 7, 2016. 01:10:38 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20161207.mp4" length="282994652" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20161207.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20161207.mp4" length="282994652" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20161207.mp4</guid>
         <pubDate>Sun, 18 Dec 2016 18:55:56 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -468,8 +470,8 @@ Ultrasound Rehearsal, NYC. September 21, 2016. 01:16:42 long.
         <itunes:summary>
 H264. Evil G, NickDub, PChoff, Snuffler, Stevie, Zig. After extended hiatus, the boys come back in fine, if unrehearsed form, tasty performances at moments by all. Ultrasound Rehearsal, NYC. September 21, 2016. 01:16:42 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20160921.mp4" length="336681219" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20160921.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20160921.mp4" length="336681219" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20160921.mp4</guid>
         <pubDate>Sun, 02 Oct 2016 16:03:41 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -507,8 +509,8 @@ Ultrasound Rehearsal, NYC. December 30, 2015. 01:30:46 long.
         <itunes:summary>
 H264. PChoff, Snuffler, Stevie, Tbonk, Zig. Jockularity, good vibes and vigorous jamming are the hallmark of this Holiday 2015 jam, missing some of our favorite Pigs, but 2016 promises jams anew, Lemmy Lives. Ultrasound Rehearsal, NYC. December 30, 2015. 01:30:46 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20151230.mp4" length="369901916" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20151230.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20151230.mp4" length="369901916" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20151230.mp4</guid>
         <pubDate>Thu, 31 Dec 2015 23:06:34 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -546,8 +548,8 @@ Jam House #1, Highlands. September 19, 2015. 2:04:48 long.
         <itunes:summary>
 H264. Ironlung, NickDub, PChoff and Snuffler. Super tasty guitar licks and restraint from rhythym section rule the day, pleasureable to listen to, a classic.  Jam House #1, Atlantic Highlands. September 19, 2015. 2:04:48 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20150919.mp4" length="475954550" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20150919.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20150919.mp4" length="475954550" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20150919.mp4</guid>
 	<pubDate>Wed, 19 Aug 2015 21:50:25 EDT</pubDate>
         <itunes:explicit>Yes</itunes:explicit>
         <itunes:duration>2:04:48</itunes:duration>
@@ -583,8 +585,8 @@ Jam House #2, Highlands. August 1, 2015. 1:31:36 long.
         <itunes:summary>
 H264. Ironlung, NickDub, Snuffler. Trio of pigs, knocking it out in fine form at Jam House #2, sleepy, bluesy, movie soundtrack kinda feel.  Jam House #2, Atlantic Highlands. August 1, 2015. 1:31:36 long. 
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20150801.mp4" length="356886344" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20150801.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20150801.mp4" length="356886344" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20150801.mp4</guid>
         <pubDate>Wed, 19 Aug 2015 21:50:25 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -619,8 +621,8 @@ Smash Studios, NYC. June 11, 2015. 1:04:06 long.
         <itunes:summary>
 H264. Maximus, NickDub, Snuffler, StevieRay, Stu, Zignet. The boys hadnt been together with Maximus for a while but they still sound like the Pigs, sloppy but always tasty.  Smash Studios, NYC. June 11, 2015. 1:04:06 long. 
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20150611.mp4" length="369795781" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20150611.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20150611.mp4" length="369795781" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20150611.mp4</guid>
         <pubDate>Sat, 20 Jun 2015 15:55:28 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -659,8 +661,8 @@ Ultrasound Rehearsal, NYC. August 7, 2014. 1:17:44 long.
         <itunes:summary>
 H264. Ankhboy, PChoff, NickDub, Snuffler, Stevie, Tbonk. The lads got together for a few short hours and got inspired a couple of times with a mix of blues, funk and rock.  Ultrasound Rehearsal, NYC. August 7, 2014. 1:17:44 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20140807.mp4" length="258841552" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20140807.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20140807.mp4" length="258841552" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20140807.mp4</guid>
         <pubDate>Fri, 02 Jan 2015 21:37:11 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -697,8 +699,8 @@ Ultrasound Rehearsal, NYC. December 27, 2014. 01:42:48 long.
         <itunes:summary>
 H264. Ironlung, Snuffler, Stu, TBonk. Mostly instrumental jam, missing some Pigs for the holidays, but making the best out of it, reminiscent of old-skool, late '90s.  Ultrasound Rehearsal, NYC. December 27, 2014. 01:42:48 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20141227.mp4" length="368690162" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20141227.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20141227.mp4" length="368690162" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20141227.mp4</guid>
         <pubDate>Wed, 31 Dec 2014 15:56:47 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -737,8 +739,8 @@ Ultrasound Rehearsal, NYC. April 16, 2014. 01:27:17 long.
         <itunes:summary>
 H264. Snuffler, Stevie Ray, Stu, Sweet P. Boys swing it with a small crew, lossa blues, lossa funk, lossa rock, all things to all people.  Ultrasound Rehearsal, NYC. April 16, 2014. 01:27:17 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20140416.mp4" length="350708001" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20140416.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20140416.mp4" length="350708001" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20140416.mp4</guid>
         <pubDate>Tue, 29 Apr 2014 23:43:55 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>yes</itunes:explicit>
@@ -776,8 +778,8 @@ Ultrasound Rehearsal, NYC. December 27, 2013. 02:03:34 long.
         <itunes:summary>
 H264. evilG, ironlung, maximus, nickdub, snuffler, stevie ray, stu, sweet p. Whiskey-fueling rocking from the boys with the toys, hella holiday fun.  Ultrasound Rehearsal, NYC. December 27, 2013. 02:03:34 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20131227.mp4" length="399203477" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20131227.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20131227.mp4" length="399203477" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20131227.mp4</guid>
         <pubDate>Sat, 28 Dec 2013 22:09:51 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -816,8 +818,8 @@ Ultrasound Rehearsal, NYC. November 26, 2012. 01:52:46 long.
         <itunes:summary>
 H264. evilg, ironlung, jim, maximus, nickdub, peach, snuffler, stevie ray, sweet p, tbonk, zigacious. Pre-holiday mayhem and good feelings abound in the absurd chaos that follows.  Ultrasound Rehearsal, NYC. November 26, 2012. 01:52:46 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20121126.mp4" length="505776481" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20121126.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20121126.mp4" length="505776481" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20121126.mp4</guid>
         <pubDate>Tue, 24 Dec 2013 12:04:41 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -851,8 +853,8 @@ Ultrasound Rehearsal, NYC. November 19, 2013. 01:31:07 long.
         <itunes:summary>
 H264. evil g, nickdub, pchoff, snuffler, stevie ray. Funked up mix of heavy beats, wailing vox and sublime guitars, courtesy of the fab five.  Ultrasound Rehearsal, NYC. November 19, 2013. 01:31:07 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20131119.mp4" length="330237622" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20131119.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20131119.mp4" length="330237622" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20131119.mp4</guid>
         <pubDate>Tue, 17 Dec 2013 19:49:34 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>yes</itunes:explicit>
@@ -891,8 +893,8 @@ Ultrasound Rehearsal, NYC. December 28, 2010. 1:53:15 long.
         <itunes:summary>
 H264. EvilG, Ironlung, Maximus, Stu, SweetP, Snuffler, Zig, NickDub, SRC, PChoff. Massive, but diverse holiday jam with special guest star Maximus.  Ultrasound Rehearsal, NYC. December 28, 2010. 1:53:15 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20101228.mp4" length="992276252" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20101228.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20101228.mp4" length="992276252" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20101228.mp4</guid>
         <pubDate>Tue, 04 Jan 2011 07:09:41 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -928,8 +930,8 @@ Ultrasound Rehearsal, NYC. October 28, 2010. 1:17:18 long.
         <itunes:summary>
 H264. Ironlung, NickDub, PChoff, Snuffler, Stu. Loose and lively retelling of some classics, the boys in fine form.  Ultrasound Rehearsal, NYC. October 28, 2010. 1:17:18 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20101028.mp4" length="308087585" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20101028.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20101028.mp4" length="308087585" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20101028.mp4</guid>
         <pubDate>Sun, 31 Oct 2010 15:47:39 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -963,8 +965,8 @@ Ultrasound Rehearsal, NYC. September 26, 2010. 1:12:37 long.
         <itunes:summary>
 H264. Ironlung, Nickdub, Snuffler, Stu. Very late Sunday jam gets sleepy at times, but the boys always got soul behind it, some good noise rock mid and last.  Ultrasound Rehearsal, NYC. September 26, 2010. 1:12:37 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20100926.mp4" length="280221305" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20100926.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20100926.mp4" length="280221305" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20100926.mp4</guid>
         <pubDate>Tue, 12 Oct 2010 21:13:31 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -998,8 +1000,8 @@ Smash Studios, NYC. February 27, 2007. 1:01:01 long.
         <itunes:summary>
 H264. EvilG, HiredGun, i, Snuffler, Maximus. A slow night as the boys were a bit scattered, a couple interesting bits from some Pigs not seen recently, HiredGun and EvilG and it's worth a listen.  Smash Studios, NYC. February 27, 2007. 1:01:01 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20070227.mp4" length="243303681" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20070227.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20070227.mp4" length="243303681" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20070227.mp4</guid>
         <pubDate>Sun, 28 Mar 2010 10:31:06 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -1035,8 +1037,8 @@ Ultrasound Rehearsal, NYC. January 28, 2010. 1:01:10 long.
         <itunes:summary>
 H264. i, NickDub, Snuffler, Stevie, Stu. Hard rockin good time with nice melodies coming from Dub, i and Stu swing their respective axes mightly, and Stevie blows a mean harp.  Ultrasound Rehearsal, NYC. January 28, 2010. 1:01:10 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20100128.mp4" length="275485572" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20100128.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20100128.mp4" length="275485572" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20100128.mp4</guid>
         <pubDate>Wed, 17 Feb 2010 21:39:36 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -1067,8 +1069,8 @@ Ultrasound Rehearsal, NYC. December 15, 2009. 0:47:45 long.
         <itunes:summary>
 H264. Ankhboy, I, Nickdub, Snuffler. A small crew not lacking for ideas, some more subtle, jazzy moments among the bombast, I and Ankhboy show their stuff ably backed by Nickdub and Snuf.  Ultrasound Rehearsal, NYC. December 15, 2009. 0:47:45 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20091215.mp4" length="184254866" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20091215.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20091215.mp4" length="184254866" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20091215.mp4</guid>
         <pubDate>Mon, 11 Jan 2010 08:44:51 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -1101,8 +1103,8 @@ Ultrasound Rehearsal, NYC. July 30, 2009. 1:12:37 long.
         <itunes:summary>
 H264. I, Ironlung, Maximus, SRC, Snuffler. Long gone but since returned Stevie, fine guitar work by the lads as they switch off, pay attention, there is interesting stuff here.  Ultrasound Rehearsal, NYC. July 30, 2009. 1:12:37 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20090730.mp4" length="281379431" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20090730.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20090730.mp4" length="281379431" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20090730.mp4</guid>
         <pubDate>Sat, 09 Jan 2010 22:05:44 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>yes</itunes:explicit>
@@ -1135,8 +1137,8 @@ Ultrasound Rehearsal, NYC. June 3, 2009. 1:29:46 long.
         <itunes:summary>
 H264. Ankhboy, Ironlung, Maximus, Snuffler, Stu. Some gnarly sounds coming from the studio this night, not especially tight but loud.  Ultrasound Rehearsal, NYC. June 3, 2009. 1:29:46 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20090603.mp4" length="350308691" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20090603.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20090603.mp4" length="350308691" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20090603.mp4</guid>
         <pubDate>Sun, 03 Jan 2010 23:19:25 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -1174,8 +1176,8 @@ Ultrasound Rehearsal, NYC. May 14, 2009. 1:33:59 long.
         <itunes:summary>
 H264. i, Ironlung, NickDub, Snuffler, Stevie, Stu. Jazzy explorations, some heavy rock a-bludgeoning and stanky funk to whet your appetite.  Ultrasound Rehearsal, NYC. May 14, 2009. 1:33:59 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20090514.mp4" length="362922440" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20090514.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20090514.mp4" length="362922440" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20090514.mp4</guid>
         <pubDate>Fri, 05 Jun 2009 15:59:27 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -1210,8 +1212,8 @@ Ultrasound Rehearsal, NYC. April 30, 2009. 1:19:12 long.
         <itunes:summary>
 H264. i,Maximus,Snuffler,SRC,Stu. April jams don't bring the rain, boys are working off the work blues with a selection of funk, nice to have our Maximus back in fine form, with Stu ably bassing.  Ultrasound Rehearsal, NYC. April 30, 2009. 1:19:12 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20090430.mp4" length="684386708" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20090430.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20090430.mp4" length="684386708" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20090430.mp4</guid>
         <pubDate>Wed, 20 May 2009 00:20:17 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -1251,8 +1253,8 @@ Unknown location. February 26, 2009. 1:36:52 long.
         <itunes:summary>
 H264. i, Snuffler, Stu, Stevie. The first jam of the new year in the New Economy, press pause and hold for five years, call me back then.  Unknown location, NYC. February 26, 2009. 1:36:52 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20090226.mp4" length="301638527" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20090226.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20090226.mp4" length="301638527" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20090226.mp4</guid>
         <pubDate>Wed, 04 Mar 2009 21:52:58 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -1284,8 +1286,8 @@ Ultrasound Rehearsal, NYC. April 3, 2008. 1:30:26 long.
         <itunes:summary>
 H264. Ironlung, Snuffler, Stu. Instrumental jam with a small crew, very interesting bass lines from the 'lung, overplaying from Snuf and thoughtful guitar from Stu.  Ultrasound Rehearsal, NYC. April 3, 2008. 1:30:26 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20080403.mp4" length="281043601" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20080403.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20080403.mp4" length="281043601" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20080403.mp4</guid>
         <pubDate>Mon, 15 Dec 2008 23:02:44 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -1321,8 +1323,8 @@ Ultrasound Rehearsal, NYC. October 30, 2008. 1:19:59 long.
         <itunes:summary>
 H264. i, Snuf, Stevie, Stu. Decision 2008 jam, fine guitar work by i is the highlight of this sesh, solid and varied grooves from the rhythym section.  Ultrasound Rehearsal, NYC. October 30, 2008. 1:19:59 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20081030.mp4" length="251050157" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20081030.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20081030.mp4" length="251050157" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20081030.mp4</guid>
         <pubDate>Wed, 05 Nov 2008 16:35:26 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -1356,8 +1358,8 @@ Ultrasound Rehearsal, NYC. October 16, 2008. 1:08:20 long.
         <itunes:summary>
 H264. i, Snuffler, Stu. The power trio rules the day with a variety of rock and funk, Maker's Mark helps.  Ultrasound Rehearsal, NYC. October 16, 2008. 1:08:20 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20081016.mp4" length="214462189" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20081016.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20081016.mp4" length="214462189" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20081016.mp4</guid>
         <pubDate>Wed, 22 Oct 2008 08:19:37 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>No</itunes:explicit>
@@ -1394,8 +1396,8 @@ Ultrasound Rehearsal, NYC. August 21, 2008. 1:35:49 long.
         <itunes:summary>
 H264. Ankhboy, i, Maximus, Snuffler, SRC. The Pot Luck jam, some good, some bad, but give a listen and let us know how we sounded, because we dont know, thats for sure.  Ultrasound Rehearsal, NYC. August 21, 2008. 1:35:49 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20080821.mp4" length="300747489" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20080821.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20080821.mp4" length="300747489" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20080821.mp4</guid>
         <pubDate>Sun, 28 Sep 2008 14:18:46 EDT</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -1437,8 +1439,8 @@ Ultrasound Studios, NYC. September 12, 2007. 1:37:09 long.
         <itunes:summary>
 H264. i, NickDub, PatChoff, Snuffler, SRC, Stu. Some early dross, but the boys wake up to give a fine performance.  Ultrasound Studios, NYC. September 12, 2007. 1:37:09 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20070912.mp4" length="304945900" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20070912.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20070912.mp4" length="304945900" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20070912.mp4</guid>
         <pubDate>Sat, 01 Mar 2008 16:54:27 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -1481,8 +1483,8 @@ Ultrasound Studios, NYC. February 6, 2008. 1:50:38 long.
         <itunes:summary>
 H264. i, Ironlung, Maximus, Snuffler, SRC, Stu. A little sleepy tonight, but still manage to work the quarry. Ultrasound Studios, NYC. February 6, 2008. 1:50:38 long.
         </itunes:summary>
-        <enclosure url="http://www.stormpigs.com/video/StormPigs20080206.mp4" length="347258580" type="video/quicktime"/>
-        <guid>http://www.stormpigs.com/video/StormPigs20080206.mp4</guid>
+        <enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20080206.mp4" length="347258580" type="video/quicktime"/>
+        <guid>https://www.stormpigs.com/video/podcasts/StormPigs20080206.mp4</guid>
         <pubDate>Tue, 19 Feb 2008 10:43:14 EST</pubDate>
         <category>Rock</category>
         <itunes:explicit>Yes</itunes:explicit>
@@ -1508,8 +1510,8 @@ Lambertville, NJ.  January 13, 2007. 58:42 long.
 	<itunes:summary>
 H264. Ironlung, Maximus, NickDub, PChoff and Snuffler. Kicking the New Year off in rousing fashion with this seventeen minute gem, fabulous guitar work. Lambertville, NJ. January 13, 2007. 17:27 long.
 	</itunes:summary>
-	<enclosure url="http://www.stormpigs.com/video/StormPigs20070113.mp4" length="54838258" type="video/quicktime"/>
-	<guid>http://www.stormpigs.com/video/StormPigs20070113_10thatsit.mp4</guid>
+	<enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20070113.mp4" length="54838258" type="video/quicktime"/>
+	<guid>https://www.stormpigs.com/video/podcasts/StormPigs20070113_10thatsit.mp4</guid>
 	<pubDate>Sun, 28 Jan 2007 17:27:00 EST</pubDate>
 	<category>Rock</category>
 	<itunes:explicit>No</itunes:explicit>
@@ -1549,8 +1551,8 @@ Smash Studios, NYC. January 11, 2007. 1:24:59 long.
 	<itunes:summary>
 H264. EvilG, Hi-Fi, Hired Gun, Maximus, NickDub, Snuffler, SRC, and Stu. Worry that there may be too many guitarists, thankfully, these concerns go unwarranted, as the players work within the realm of aural sanity and take care not to tread on each others toes.  Smash Studios, NYC. January 11, 2007. 1:24:59 long.
 	</itunes:summary>
-	<enclosure url="http://www.stormpigs.com/video/StormPigs20070111.mp4" length="266740068" type="video/quicktime"/>
-	<guid>http://www.stormpigs.com/video/StormPigs20070111.mp4</guid>
+	<enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20070111.mp4" length="266740068" type="video/quicktime"/>
+	<guid>https://www.stormpigs.com/video/podcasts/StormPigs20070111.mp4</guid>
 	<pubDate>Tue, 13 Feb 2007 01:24:59 EST</pubDate>
 	<category>Rock</category>
 	<itunes:explicit>Yes</itunes:explicit>
@@ -1586,8 +1588,8 @@ Smash Studios, NYC. November 2, 2006. 58:42 long.
 	<itunes:summary>
 H264. Evil G, iBonk, NickDub, Snuffler, and SRC. Aches and pains this round yielding some linear jams, good natured ribbing lightens the heart and soul and makes up for less than stellar performances. Smash Studios, NYC. November 2, 2006. 58:42 long.
 	</itunes:summary>
-	<enclosure url="http://www.stormpigs.com/video/StormPigs20061102.mp4" length="193154240" type="video/quicktime"/>
-	<guid>http://www.stormpigs.com/video/StormPigs20061102.mp4</guid>
+	<enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20061102.mp4" length="193154240" type="video/quicktime"/>
+	<guid>https://www.stormpigs.com/video/podcasts/StormPigs20061102.mp4</guid>
 	<pubDate>Thu, 16 Nov 2006 11:32:40 EST</pubDate>
 	<category>Rock</category>
 	<itunes:explicit>Yes</itunes:explicit>
@@ -1627,8 +1629,8 @@ Smash Studios, NYC. August 31, 2006. 1:45:05 long.
 	<itunes:summary>
 H264. Evil G, Maximus, NickDub, PChoff, Snuffler, SRC, and Stu. Running out the summer like a dog chasing water from a sprinkler.  Smash Studios, NYC. August 31, 2006. 1:45:05 long.
 	</itunes:summary>
-	<enclosure url="http://www.stormpigs.com/video/StormPigs20060831.mp4" length="466062003" type="video/quicktime"/>
-	<guid>http://www.stormpigs.com/video/StormPigs20060831.mp4</guid>
+	<enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20060831.mp4" length="466062003" type="video/quicktime"/>
+	<guid>https://www.stormpigs.com/video/podcasts/StormPigs20060831.mp4</guid>
 	<pubDate>Sun, 13 Aug 2006 23:52:50 EDT</pubDate>
 	<category>Rock</category>
 	<itunes:explicit>No</itunes:explicit>
@@ -1661,8 +1663,8 @@ Smash Studios, NYC. June 27, 2006. 1:04:36 long.
 	<itunes:summary>
 H264. Ankhboy, Ironlung, Maximus, NickDub, Snuffler, SRC, and Trebor. At it again, this time with a wallapin round of funk based sweetness that's tastier than Smuckers. Smash Studios, NYC. June 27, 2006. 1:04:36 long.
 	</itunes:summary>
-	<enclosure url="http://www.stormpigs.com/video/StormPigs20060627.mp4" length="341051891" type="video/quicktime"/>
-	<guid>http://www.stormpigs.com/video/StormPigs20060627.mp4</guid>
+	<enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20060627.mp4" length="341051891" type="video/quicktime"/>
+	<guid>https://www.stormpigs.com/video/podcasts/StormPigs20060627.mp4</guid>
 	<pubDate>Sat, 29 Jul 2006 18:12:50 EDT</pubDate>
 	<category>Rock</category>
 	<itunes:explicit>Yes</itunes:explicit>
@@ -1697,8 +1699,8 @@ Smash Studios, NYC.  April 6, 2006. 56:38 long.
 	<itunes:summary>
 H264. Maximus, NickDub, Snuffler, SRC, Stu, Sweet, Tbonk and Trebor. Give a most welcome Spring Cleaning to the Grand Dame of the East Coast, flying in the face of convention once more. Smash Studios, NYC. April 6, 2006. 56:38 long.
 	</itunes:summary>
-	<enclosure url="http://www.stormpigs.com/video/StormPigs20060406.mp4" length="202564954" type="video/quicktime"/>
-	<guid>http://www.stormpigs.com/video/StormPigs20060406.mp4</guid>
+	<enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20060406.mp4" length="202564954" type="video/quicktime"/>
+	<guid>https://www.stormpigs.com/video/podcasts/StormPigs20060406.mp4</guid>
 	<pubDate>Tue, 01 Aug 2006 18:12:50 EDT</pubDate>
 	<category>Rock</category>
 	<itunes:explicit>Yes</itunes:explicit>
@@ -1738,8 +1740,8 @@ Smash Studios, NYC. July 21, 2005. 1:28:38 long.
 	<itunes:summary>
 H264. Evil G, Maximus, Ourance, Snuffler, SRC, Stu and Tbonk. Sweating in a very sunlight pen. Smash Studios, NYC. July 21, 2005. 1:28:38 long.
 	</itunes:summary>
-	<enclosure url="http://www.stormpigs.com/video/StormPigs20050721.mp4" length="278222946" type="video/quicktime"/>
-	<guid>http://www.stormpigs.com/video/StormPigs20050721.mp4</guid>
+	<enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20050721.mp4" length="278222946" type="video/quicktime"/>
+	<guid>https://www.stormpigs.com/video/podcasts/StormPigs20050721.mp4</guid>
 	<pubDate>Sun, 22 Oct 2006 23:52:50 EDT</pubDate>
 	<category>Rock</category>
 	<itunes:explicit>Yes</itunes:explicit>
@@ -1775,8 +1777,8 @@ Smash Studios, NYC. September 10, 2003. 1:01:40 minutes long.
 	<itunes:summary>
 H264. Maximus, Snuffler, SRC, Stu, Tbonk and Trebor. Rock the house with abandon, the decades best.  Smash Studios, NYC. September 10, 2003. 1:01:40 minutes long.
 	</itunes:summary>
-	<enclosure url="http://www.stormpigs.com/video/StormPigs20030910.mp4" length="311795550" type="video/quicktime"/>
-	<guid>http://www.stormpigs.com/video/StormPigs20030910.mp4</guid>
+	<enclosure url="https://www.stormpigs.com/video/podcasts/StormPigs20030910.mp4" length="311795550" type="video/quicktime"/>
+	<guid>https://www.stormpigs.com/video/podcasts/StormPigs20030910.mp4</guid>
 	<pubDate>Sun, 12 Mar 2006 18:12:50 EST</pubDate>
 	<category>Rock</category>
 	<itunes:explicit>Yes</itunes:explicit>

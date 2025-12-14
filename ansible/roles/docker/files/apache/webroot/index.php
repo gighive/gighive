@@ -41,5 +41,36 @@
 <div id="my-timeline" style="height: 340px; border: 1px solid #EB0">
 <!--div id="my-timeline" class="timeline-default" style="height: 240px; border: 5px solid #aaa"-->
 </div>
+
+
+
+<div id="contact-us" style="margin-top: 10px;">
+	<font class="pageHeading"><a href="mailto:admin@stormpigs.com">CONTACT US</a></font>
+</div>
+
+<script type="text/javascript">
+	(function () {
+		function adjustContactUs() {
+			var timelineHost = document.getElementById('my-timeline');
+			var contact = document.getElementById('contact-us');
+			if (!timelineHost || !contact) return;
+			var overflow = (timelineHost.scrollHeight || 0) - (timelineHost.offsetHeight || 0);
+			if (overflow > 0) {
+				contact.style.marginTop = (10 + overflow) + 'px';
+			}
+		}
+		if (document.readyState === 'complete') {
+			setTimeout(adjustContactUs, 0);
+			setTimeout(adjustContactUs, 250);
+			setTimeout(adjustContactUs, 1000);
+		} else {
+			window.addEventListener('load', function () {
+				setTimeout(adjustContactUs, 0);
+				setTimeout(adjustContactUs, 250);
+				setTimeout(adjustContactUs, 1000);
+			});
+		}
+	})();
+</script>
 </body>
 </html>

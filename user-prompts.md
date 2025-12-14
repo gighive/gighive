@@ -1476,3 +1476,27 @@ there is a lot of output from this particular ansible task in roles/docker/tasks
 
 - 2025-12-12T16:41:00-05:00
   - yes, media_info and media_info_tool would be good.  thinking long term, if this gighive becomes popular and people keep it around for years, might be good to have that lineage.
+
+- 2025-12-13T13:56:00-05:00
+  - will my apache configuration deny requests to /video/podcasts?  here is where the configuration files are: ansible/roles/docker/files/apache/externalConfigs and ansible/roles/docker/templates
+
+- 2025-12-13T13:58:00-05:00
+  - can i add an exclude for the podcasts subdirectory?
+
+- 2025-12-13T14:17:00-05:00
+  - getting rsync permission errors syncing new video file into /home/ubuntu/video/podcasts (mounted into docker-compose), wondering if ansible needs to set permissions/ownership for that directory
+
+- 2025-12-13T14:18:00-05:00
+  - can i just change write perms on the source files from 664 to 775?
+
+- 2025-12-13T14:23:00-05:00
+  - let's go with the base role precedent for {{ video_dir }}/podcasts. what is the ansible task needed in base/tasks/main.yml to add?
+
+- 2025-12-13T16:31:00-05:00
+  - in the home page of stormpigs.com, I'd like to put a CONTACT US link at the bottom of the page, below the timeline, in the same font as HISTORY OF STORMPIG JAMMING shown in the picture. the link will be a mailto: link going to admin@stormpigs.com. here is where the index.php resides: ansible/roles/docker/files/apache/webroot/index.php
+
+- 2025-12-13T16:47:00-05:00
+  - please come up with a new solution that doesn't touch the my-timeline
+
+- 2025-12-13T16:52:00-05:00
+  - i see the contact us link, but it seems to be appearing in the timeline:
