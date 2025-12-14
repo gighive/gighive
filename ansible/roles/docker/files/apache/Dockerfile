@@ -15,6 +15,7 @@ RUN apt-get update && \
     autoconf automake \
     build-essential \
     composer curl ssl-cert ca-certificates \
+    ffmpeg \
     iproute2 \
     libapache2-mod-security2 libcap2-bin libssl-dev libtool \
     logrotate \

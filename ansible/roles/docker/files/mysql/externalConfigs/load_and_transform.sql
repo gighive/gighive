@@ -153,14 +153,16 @@ INTO TABLE files
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 LINES TERMINATED BY '\r\n'
 IGNORE 1 LINES
-(file_id, file_name, file_type, @duration_seconds)
-SET duration_seconds = NULLIF(@duration_seconds, '');
+(file_id, file_name, file_type, @duration_seconds, @media_info, @media_info_tool)
+SET
+  duration_seconds = NULLIF(@duration_seconds, ''),
+  media_info = NULLIF(@media_info, ''),
+  media_info_tool = NULLIF(@media_info_tool, '');
 
--- 7) Song ↔ File
+-- 7) Song File
 LOAD DATA INFILE '/var/lib/mysql-files/song_files.csv'
 INTO TABLE song_files
 FIELDS TERMINATED BY ','
 LINES TERMINATED BY '\r\n'
 IGNORE 1 LINES
 (song_id, file_id);
-

@@ -21,6 +21,7 @@ Outputs:
 import pandas as pd
 import os
 import csv
+import json
 import re
 import shlex
 import subprocess
@@ -82,6 +83,7 @@ def which(cmd: str) -> bool:
         return False
 
 FFPROBE_AVAILABLE = which("ffprobe")
+_FFPROBE_TOOL = None
 
 def probe_duration_seconds(filepath: str) -> str:
     """
@@ -99,6 +101,56 @@ def probe_duration_seconds(filepath: str) -> str:
         if out and re.match(r"^[0-9]+(\.[0-9]+)?$", out):
             return str(int(round(float(out))))
         return ""
+    except Exception:
+        return ""
+
+def ffprobe_tool_string() -> str:
+    global _FFPROBE_TOOL
+    if _FFPROBE_TOOL is not None:
+        return _FFPROBE_TOOL
+    if not FFPROBE_AVAILABLE:
+        _FFPROBE_TOOL = ""
+        return _FFPROBE_TOOL
+    try:
+        result = subprocess.run(["ffprobe", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+        first = (result.stdout or "").splitlines()[0].strip() if result.stdout else ""
+        m = re.search(r"\bversion\s+([^\s]+)", first)
+        _FFPROBE_TOOL = f"ffprobe {m.group(1)}" if m else ""
+        return _FFPROBE_TOOL
+    except Exception:
+        _FFPROBE_TOOL = ""
+        return _FFPROBE_TOOL
+
+def probe_media_info_json(filepath: str) -> str:
+    """Return compact ffprobe JSON (format/streams/chapters/programs) or empty string."""
+    if not FFPROBE_AVAILABLE:
+        return ""
+    if not os.path.isfile(filepath):
+        return ""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "error",
+                "-print_format", "json",
+                "-show_format",
+                "-show_streams",
+                "-show_chapters",
+                "-show_programs",
+                filepath,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        out = (result.stdout or "").strip()
+        if out == "":
+            return ""
+        obj = json.loads(out)
+        if isinstance(obj, dict) and isinstance(obj.get("format"), dict) and isinstance(obj["format"].get("filename"), str):
+            obj["format"]["filename"] = os.path.basename(obj["format"]["filename"])
+        return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
     except Exception:
         return ""
 
@@ -201,10 +253,14 @@ for idx, row in df.iterrows():
             # Try to resolve a local path and probe duration
             resolved = resolve_media_path(fname)
             dur = probe_duration_seconds(resolved)
+            media_info = probe_media_info_json(resolved)
+            media_info_tool = ffprobe_tool_string() if media_info != "" else ""
             files[fname] = {
                 "file_id":   len(files) + 1,
                 "file_type": media,
-                "duration_seconds": dur
+                "duration_seconds": dur,
+                "media_info": media_info,
+                "media_info_tool": media_info_tool,
             }
         fid = files[fname]["file_id"]
         if i < len(song_list):
@@ -280,10 +336,12 @@ write_csv(
         "file_id": info["file_id"],
         "file_name": name,
         "file_type": info["file_type"],
-        "duration_seconds": info.get("duration_seconds", "")
+        "duration_seconds": info.get("duration_seconds", ""),
+        "media_info": info.get("media_info", ""),
+        "media_info_tool": info.get("media_info_tool", ""),
      }
      for name, info in files.items()],
-    ["file_id","file_name","file_type","duration_seconds"],
+    ["file_id","file_name","file_type","duration_seconds","media_info","media_info_tool"],
     "files.csv"
 )
 
@@ -294,4 +352,3 @@ write_csv(
 )
 
 print("✅ Preprocessing complete — all CSVs in 'prepped_csvs/' ready for MySQL load.")
-
