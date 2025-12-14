@@ -1,6 +1,6 @@
 *** 
 releaseNotes20251213.txt
-Changes: Add media_info and media_info_tool to FILES table
+Changes: Add media_info and media_info_tool to FILES table and delimiter fix for files.csv
 
 Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
@@ -15,6 +15,7 @@ Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
 	modified:   ansible/roles/base/tasks/main.yml
 	modified:   ansible/roles/docker/files/apache/Dockerfile
 	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php

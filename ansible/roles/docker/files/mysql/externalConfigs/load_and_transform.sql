@@ -150,7 +150,7 @@ IGNORE 1 LINES
 -- 6) Files
 LOAD DATA INFILE '/var/lib/mysql-files/files.csv'
 INTO TABLE files
-FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY ''
 LINES TERMINATED BY '\r\n'
 IGNORE 1 LINES
 (file_id, file_name, file_type, @duration_seconds, @media_info, @media_info_tool)
