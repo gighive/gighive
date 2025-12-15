@@ -112,6 +112,15 @@
         Require user admin
     </Files>
 
+    # --- ADMIN PAGE: admin only ---
+    <Location "admin.php">
+        AuthType Basic
+        AuthName "GigHive Admin"
+        AuthBasicProvider file
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin
+    </Location>
+
     # ------------------------------------------------------
     # Extra safety: never serve these sensitive files
     # ------------------------------------------------------
