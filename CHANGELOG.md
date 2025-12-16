@@ -1,6 +1,6 @@
 *** 
 releaseNotes20251216.txt
-Changes: New endpoint for db refresh (full), edit to make sure minimum header fields are there
+Changes: New endpoint for db refresh (full), edit to make sure minimum header fields are there, updated index.md
 
 Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
@@ -14,6 +14,7 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/apache/webroot/admin.php
 	new file:   ansible/roles/docker/files/apache/webroot/import_database.php
 	new file:   ansible/roles/docker/files/apache/webroot/tools/mysqlPrep_full.py
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/databaseSmall.csv
 	new file:   docs/DATABASE_LOAD_METHODS.md
 
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
