@@ -257,6 +257,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div id="clearMediaStatus"></div>
         <button type="button" id="clearMediaBtn" class="danger" onclick="confirmClearMedia()">Clear All Media Data</button>
       </div>
+
+      <div class="section-divider">
+        <h2>Section 3: Upload CSV and Reload Database</h2>
+        <p class="muted">
+          Upload a CSV export and rebuild the media database tables.
+          This action is <strong>irreversible</strong> and will truncate all media tables before loading.
+          The users table will be preserved.
+        </p>
+        <div class="warning-box">
+          <strong>⚠️ Warning:</strong> This will permanently delete and replace all media data from the database.
+        </div>
+        <div class="row">
+          <label for="database_csv">Select CSV file</label>
+          <input type="file" id="database_csv" name="database_csv" accept=".csv" />
+        </div>
+        <div id="importDbStatus"></div>
+        <button type="button" id="importDbBtn" class="danger" onclick="confirmImportDatabase()">Upload CSV and Reload DB</button>
+      </div>
     </div>
   </div>
 
@@ -296,6 +314,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
       btn.disabled = false;
       btn.textContent = 'Clear All Media Data';
+    });
+  }
+
+  function renderImportSteps(steps) {
+    if (!Array.isArray(steps)) return '';
+    let html = '<div class="muted">Progress:</div><div style="margin-top:.5rem">';
+    for (const s of steps) {
+      const status = s.status || 'pending';
+      const name = s.name || '';
+      const msg = s.message || '';
+      const color = status === 'ok' ? '#22c55e' : (status === 'error' ? '#ef4444' : '#a8b3cf');
+      html += '<div style="margin:.25rem 0">'
+        + '<span style="display:inline-block;min-width:72px;color:' + color + '">' + status.toUpperCase() + '</span>'
+        + '<span>' + name + '</span>'
+        + (msg ? '<div class="muted" style="margin-left:72px;white-space:pre-wrap">' + msg.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>' : '')
+        + '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function confirmImportDatabase() {
+    if (!confirm('Are you sure you want to upload a CSV and reload the database?\n\nThis will permanently delete and replace ALL media data (sessions/songs/files/musicians/genres/styles).\n\nThis action CANNOT be undone!')) {
+      return;
+    }
+
+    const fileInput = document.getElementById('database_csv');
+    const btn = document.getElementById('importDbBtn');
+    const status = document.getElementById('importDbStatus');
+
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+      status.innerHTML = '<div class="alert-err">Please select a CSV file first.</div>';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('database_csv', fileInput.files[0]);
+
+    btn.disabled = true;
+    btn.textContent = 'Uploading and Importing...';
+    status.innerHTML = '<div class="muted">Processing request...</div>';
+
+    fetch('import_database.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(async response => {
+      const data = await response.json().catch(() => null);
+      return { ok: response.ok, status: response.status, data };
+    })
+    .then(({ ok, data }) => {
+      if (ok && data && data.success) {
+        status.innerHTML = '<div class="alert-ok">' + (data.message || 'Import completed successfully.') + '</div>'
+          + renderImportSteps(data.steps);
+        btn.textContent = 'Import Completed';
+        btn.style.background = '#28a745';
+      } else {
+        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+        status.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+          + (data && data.steps ? renderImportSteps(data.steps) : '');
+        btn.disabled = false;
+        btn.textContent = 'Upload CSV and Reload DB';
+      }
+    })
+    .catch(error => {
+      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      btn.disabled = false;
+      btn.textContent = 'Upload CSV and Reload DB';
     });
   }
   </script>
