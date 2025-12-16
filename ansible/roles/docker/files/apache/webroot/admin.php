@@ -335,6 +335,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     return html;
   }
 
+  function parseCsvHeaderLine(line) {
+    const out = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          cur += ch;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ',') {
+          out.push(cur.trim());
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
+  async function validateDatabaseCsvHeaders(file) {
+    const required = [
+      't_title',
+      'd_date',
+      'd_merged_song_lists',
+      'f_singles'
+    ];
+
+    const chunk = file.slice(0, 65536);
+    const text = await chunk.text();
+    const firstLine = (text.split(/\r\n|\n|\r/)[0] || '').trim();
+    if (!firstLine) {
+      return { ok: false, message: 'CSV appears to be empty.' };
+    }
+
+    const headers = parseCsvHeaderLine(firstLine);
+    const normalized = new Set(headers.map(h => String(h || '').trim()));
+    const missing = required.filter(r => !normalized.has(r));
+
+    if (missing.length) {
+      return {
+        ok: false,
+        message: 'Missing required CSV headers: ' + missing.join(', ') + '\n\nThe uploaded CSV must include a header row.'
+      };
+    }
+
+    return { ok: true };
+  }
+
   function confirmImportDatabase() {
     if (!confirm('Are you sure you want to upload a CSV and reload the database?\n\nThis will permanently delete and replace ALL media data (sessions/songs/files/musicians/genres/styles).\n\nThis action CANNOT be undone!')) {
       return;
@@ -349,39 +410,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('database_csv', fileInput.files[0]);
+    validateDatabaseCsvHeaders(fileInput.files[0]).then(result => {
+      if (!result.ok) {
+        status.innerHTML = '<div class="alert-err">' + result.message.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replace(/\n/g, '<br>') + '</div>';
+        return;
+      }
 
-    btn.disabled = true;
-    btn.textContent = 'Uploading and Importing...';
-    status.innerHTML = '<div class="muted">Processing request...</div>';
+      const formData = new FormData();
+      formData.append('database_csv', fileInput.files[0]);
 
-    fetch('import_database.php', {
-      method: 'POST',
-      body: formData
-    })
-    .then(async response => {
-      const data = await response.json().catch(() => null);
-      return { ok: response.ok, status: response.status, data };
-    })
-    .then(({ ok, data }) => {
-      if (ok && data && data.success) {
-        status.innerHTML = '<div class="alert-ok">' + (data.message || 'Import completed successfully.') + '</div>'
-          + renderImportSteps(data.steps);
-        btn.textContent = 'Import Completed';
-        btn.style.background = '#28a745';
-      } else {
-        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
-        status.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
-          + (data && data.steps ? renderImportSteps(data.steps) : '');
+      btn.disabled = true;
+      btn.textContent = 'Uploading and Importing...';
+      status.innerHTML = '<div class="muted">Processing request...</div>';
+
+      fetch('import_database.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(async response => {
+        const data = await response.json().catch(() => null);
+        return { ok: response.ok, status: response.status, data };
+      })
+      .then(({ ok, data }) => {
+        if (ok && data && data.success) {
+          status.innerHTML = '<div class="alert-ok">' + (data.message || 'Database import completed successfully.') +
+            ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Updated Database</a></div>'
+            + renderImportSteps(data.steps);
+          btn.textContent = 'Import Completed';
+          btn.style.background = '#28a745';
+        } else {
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+          status.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+            + (data && data.steps ? renderImportSteps(data.steps) : '');
+          btn.disabled = false;
+          btn.textContent = 'Upload CSV and Reload DB';
+        }
+      })
+      .catch(error => {
+        status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
         btn.disabled = false;
         btn.textContent = 'Upload CSV and Reload DB';
-      }
-    })
-    .catch(error => {
-      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
-      btn.disabled = false;
-      btn.textContent = 'Upload CSV and Reload DB';
+      });
     });
   }
   </script>

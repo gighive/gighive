@@ -71,6 +71,17 @@ If the MySQL container is restarted with an already-initialized datadir, the `/d
   - `mysqlPrep_full.py`
 - That script generates normalized per-table CSVs (e.g., `sessions.csv`, `songs.csv`, etc.) in a job directory.
 
+### Minimum required headers in the uploaded source CSV
+
+The uploaded source CSV must include a header row. The admin UI performs a preflight check before starting an import.
+
+Minimum required headers:
+
+- `t_title` (sessions title)
+- `d_date` (session date)
+- `d_merged_song_lists` (songs source)
+- `f_singles` (files source)
+
 ### How data is loaded
 
 - Uses **client-side** loading from the Apache container into the MySQL server:

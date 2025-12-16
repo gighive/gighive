@@ -1,6 +1,6 @@
 *** 
 releaseNotes20251216.txt
-Changes: New endpoint for db refresh (full)
+Changes: New endpoint for db refresh (full), edit to make sure minimum header fields are there
 
 Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
