@@ -1,8 +1,33 @@
 *** 
 releaseNotes20251216.txt
+Changes: Add default-mysql-client and python3-pandas to install for web-based db update script, plus ignore python cached files
+
+Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/Dockerfile
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251216.txt
 Changes: Moved admin functions to defaultcodebase, corrected local-infile=1 and location of /etc/mysql/conf.d/z*
 
-Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -16,16 +41,6 @@ Changes to be committed:
 	renamed:    ansible/roles/docker/files/apache/overlays/gighive/clear_media.php -> ansible/roles/docker/files/apache/webroot/clear_media.php
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/z-custommysqld.cnf
 	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251215.txt
