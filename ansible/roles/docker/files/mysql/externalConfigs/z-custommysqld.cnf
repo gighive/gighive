@@ -8,5 +8,4 @@ general_log = 1
 general_log_file = /var/lib/mysql/general.log
 server-id = 1
 secure_file_priv=/var/lib/mysql-files
-local_infile=1
-
+local-infile=1

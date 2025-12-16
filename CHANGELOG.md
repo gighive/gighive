@@ -1,7 +1,8 @@
 *** 
-releaseNotes20251215.txt
-Changes: Add security for admin.php to default-ssl.conf.j2 
+releaseNotes20251216.txt
+Changes: Moved admin functions to defaultcodebase, corrected local-infile=1 and location of /etc/mysql/conf.d/z*
 
+Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -11,7 +12,10 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	renamed:    ansible/roles/docker/files/apache/overlays/gighive/admin.php -> ansible/roles/docker/files/apache/webroot/admin.php
+	renamed:    ansible/roles/docker/files/apache/overlays/gighive/clear_media.php -> ansible/roles/docker/files/apache/webroot/clear_media.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/z-custommysqld.cnf
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
 
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
 ToDo: create a canonical md versions for the site and convert using composer recommendation
@@ -22,6 +26,22 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251215.txt
+Changes: Add security for admin.php to default-ssl.conf.j2 
+
+Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
 
 *** 
 releaseNotes20251214.txt
