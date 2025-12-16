@@ -19,9 +19,11 @@ RUN apt-get update && \
     iproute2 \
     libapache2-mod-security2 libcap2-bin libssl-dev libtool \
     logrotate \
+    default-mysql-client \
     net-tools nfs-common \
     php-curl php-fpm php-mbstring php-mysql php-xml \
     pkg-config \
+    python3-pandas \
     tzdata \
     unzip \
     vim \
