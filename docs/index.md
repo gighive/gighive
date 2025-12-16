@@ -174,7 +174,7 @@ img {
 
 <!-- Navigation Menu -->
 <nav class="nav-menu">
-    <h3>📚 Documentation</h3>
+    <h3>📚 Setup</h3>
     <ul>
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
         <li><a href="README.html">🚀 Setup Guide</a></li>
