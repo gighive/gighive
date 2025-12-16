@@ -176,15 +176,14 @@ img {
 <nav class="nav-menu">
     <h3>📚 Documentation</h3>
     <ul>
-        <li><a href="feature_set.html">⭐ Feature Set</a></li>
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
-        <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
         <li><a href="README.html">🚀 Setup Guide</a></li>
-        <li><a href="SECURITY.html">🔒 Security</a></li>
+        <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
     </ul>
     
     <h3>🗄️ Database</h3>
     <ul>
+        <li><a href="DATABASE_LOAD_OPTIONS.html">📥 Database Load Options</a></li>
         <li><a href="database-import-process.html">📥 Database Import Process</a></li>
     </ul>
     
@@ -227,9 +226,11 @@ img {
     
     <h3>🔮 Advanced / Internals</h3>
     <ul>
+        <li><a href="feature_set.html">⭐ Architectural Feature Set</a></li>
         <li><a href="DEPENDENCIES.html">📦 Dependencies</a></li>
         <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
         <li><a href="MIXING_HOSTVM_DOCKER_VERSIONS.html">🔄 Mixing Host/Container Versions</a></li>
+        <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
         <li><a href="PICKER_TRANSCODING_METHOD.html">🎬 Picker Transcoding</a></li>
     </ul>
