@@ -183,7 +183,7 @@ img {
     
     <h3>🗄️ Database</h3>
     <ul>
-        <li><a href="DATABASE_LOAD_OPTIONS.html">📥 Database Load Options</a></li>
+        <li><a href="DATABASE_LOAD_METHODS.html">📥 Database Load Options</a></li>
         <li><a href="database-import-process.html">📥 Database Import Process</a></li>
     </ul>
     
