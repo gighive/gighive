@@ -135,3 +135,37 @@ The runtime import will:
 - For the official `mysql:8.0` image, mysqld reads includes from:
   - `/etc/my.cnf` and `!includedir /etc/mysql/conf.d/`
   Mount custom config files into `/etc/mysql/conf.d/` to ensure settings like `local-infile=1` are applied.
+
+---
+
+## Admin UI: Folder Scan → Import-Ready CSV (Section 4)
+
+### What was added
+
+`admin.php` now includes a folder scan/import section titled:
+
+**Choose a Folder to Scan & Update the Database**
+
+This section includes:
+
+- A folder picker (`<input type="file" webkitdirectory ...>`)
+- A preview panel showing detected sessions and counts
+- A **Scan Folder and Update DB** button that generates an import-ready CSV and uploads it to `import_database.php`
+
+### What it does
+
+- The browser enumerates files from the selected folder and filters to supported media extensions.
+- Files are grouped into sessions by derived `d_date`.
+- An in-memory CSV is generated with the required headers:
+  - `t_title`
+  - `d_date`
+  - `d_merged_song_lists`
+  - `f_singles`
+- The CSV is uploaded directly to `import_database.php` as `database.csv` (same upload field name `database_csv`).
+
+### Status / file impact
+
+- Modified:
+  - `ansible/roles/docker/files/apache/webroot/admin.php`
+- Added:
+  - None

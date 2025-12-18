@@ -275,6 +275,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div id="importDbStatus"></div>
         <button type="button" id="importDbBtn" class="danger" onclick="confirmImportDatabase()">Upload CSV and Reload DB</button>
       </div>
+
+      <div class="section-divider">
+        <h2>Choose a Folder to Scan &amp; Update the Database</h2>
+        <p class="muted">
+          Select a folder on this computer to scan for media files and generate an import-ready CSV.
+          This action is <strong>irreversible</strong> and will truncate all media tables before loading.
+          The users table will be preserved.
+        </p>
+        <div class="warning-box">
+          <strong>⚠️ Warning:</strong> This will permanently delete and replace all media data from the database.
+        </div>
+        <div class="row">
+          <label for="media_folder">Select folder</label>
+          <input type="file" id="media_folder" name="media_folder" webkitdirectory directory multiple />
+        </div>
+        <div id="scanFolderPreview"></div>
+        <div id="scanFolderStatus"></div>
+        <button type="button" id="scanFolderBtn" class="danger" onclick="confirmScanFolderImport()" disabled>Scan Folder and Update DB</button>
+      </div>
     </div>
   </div>
 
@@ -450,6 +469,227 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
         btn.disabled = false;
         btn.textContent = 'Upload CSV and Reload DB';
+      });
+    });
+  }
+
+  const MEDIA_EXTS = new Set(['mp3','wav','aac','flac','m4a','mp4','mov','mkv','webm','avi']);
+
+  function formatDateYmd(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function parseDateFromFilename(name) {
+    const base = String(name || '');
+    const m1 = base.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+    if (m1) {
+      const d = new Date(`${m1[1]}-${m1[2]}-${m1[3]}T00:00:00`);
+      if (!Number.isNaN(d.getTime())) return formatDateYmd(d);
+    }
+    const m2 = base.match(/\b(\d{4})(\d{2})(\d{2})\b/);
+    if (m2) {
+      const d = new Date(`${m2[1]}-${m2[2]}-${m2[3]}T00:00:00`);
+      if (!Number.isNaN(d.getTime())) return formatDateYmd(d);
+    }
+    return '';
+  }
+
+  function fileBasenameNoExt(filename) {
+    const name = String(filename || '');
+    const dot = name.lastIndexOf('.');
+    return dot > 0 ? name.slice(0, dot) : name;
+  }
+
+  function fileExtLower(filename) {
+    const name = String(filename || '');
+    const dot = name.lastIndexOf('.');
+    return dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+  }
+
+  function escapeCsvField(v) {
+    const s = String(v ?? '');
+    if (/[\r\n",]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function buildSessionsFromFolderFiles(files) {
+    const sessions = new Map();
+    let supportedCount = 0;
+    let ignoredCount = 0;
+    let fallbackTimestampCount = 0;
+    let epochFallbackCount = 0;
+
+    for (const f of files) {
+      const ext = fileExtLower(f.name);
+      if (!MEDIA_EXTS.has(ext)) {
+        ignoredCount++;
+        continue;
+      }
+      supportedCount++;
+
+      let dDate = parseDateFromFilename(f.name);
+      if (!dDate) {
+        const lm = Number(f.lastModified);
+        if (!Number.isNaN(lm) && lm > 0) {
+          dDate = formatDateYmd(new Date(lm));
+          fallbackTimestampCount++;
+        } else {
+          dDate = '1970-01-01';
+          epochFallbackCount++;
+        }
+      }
+
+      const tTitle = dDate;
+      const fSingles = fileBasenameNoExt(f.name);
+      const key = dDate;
+      if (!sessions.has(key)) {
+        sessions.set(key, {
+          t_title: tTitle,
+          d_date: dDate,
+          d_merged_song_lists: 'local-folder-no-songlist',
+          files: []
+        });
+      }
+      sessions.get(key).files.push(fSingles);
+    }
+
+    const sorted = Array.from(sessions.values()).sort((a, b) => a.d_date.localeCompare(b.d_date));
+    for (const s of sorted) {
+      s.files = Array.from(new Set(s.files)).sort();
+    }
+
+    return {
+      sessions: sorted,
+      supportedCount,
+      ignoredCount,
+      fallbackTimestampCount,
+      epochFallbackCount
+    };
+  }
+
+  function sessionsToCsv(sessions) {
+    const header = ['t_title','d_date','d_merged_song_lists','f_singles'];
+    const lines = [header.join(',')];
+    for (const s of sessions) {
+      const row = [
+        escapeCsvField(s.t_title),
+        escapeCsvField(s.d_date),
+        escapeCsvField(s.d_merged_song_lists),
+        escapeCsvField((s.files || []).join(','))
+      ];
+      lines.push(row.join(','));
+    }
+    return lines.join('\r\n') + '\r\n';
+  }
+
+  function renderScanPreview(info) {
+    const sessions = info.sessions || [];
+    let html = '';
+    html += '<div class="muted">Files selected: ' + (info.totalCount ?? 0) + '</div>';
+    html += '<div class="muted">Supported media files: ' + (info.supportedCount ?? 0) + '</div>';
+    html += '<div class="muted">Ignored files: ' + (info.ignoredCount ?? 0) + '</div>';
+    if ((info.fallbackTimestampCount ?? 0) > 0) {
+      html += '<div class="muted">Used file timestamp for date: ' + info.fallbackTimestampCount + '</div>';
+    }
+    if ((info.epochFallbackCount ?? 0) > 0) {
+      html += '<div class="muted">Used 1970-01-01 for date: ' + info.epochFallbackCount + '</div>';
+    }
+    html += '<div class="muted" style="margin-top:.75rem">Sessions detected: ' + sessions.length + '</div>';
+
+    if (sessions.length) {
+      html += '<div style="margin-top:.75rem;max-height:240px;overflow:auto;border:1px solid #1d2a55;border-radius:10px;padding:.75rem;background:#0e1530">';
+      html += '<div class="muted" style="margin-bottom:.5rem">Preview (first 25 sessions)</div>';
+      const show = sessions.slice(0, 25);
+      for (const s of show) {
+        html += '<div style="margin:.35rem 0">'
+          + '<strong>' + String(s.d_date).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</strong>'
+          + '<span class="muted"> — files: ' + (s.files ? s.files.length : 0) + '</span>'
+          + '</div>';
+      }
+      html += '</div>';
+    }
+
+    return html;
+  }
+
+  let _scanFolderState = null;
+
+  const mediaFolderInput = document.getElementById('media_folder');
+  const scanFolderPreview = document.getElementById('scanFolderPreview');
+  const scanFolderStatus = document.getElementById('scanFolderStatus');
+  const scanFolderBtn = document.getElementById('scanFolderBtn');
+
+  if (mediaFolderInput) {
+    mediaFolderInput.addEventListener('change', () => {
+      scanFolderStatus.innerHTML = '';
+      const list = mediaFolderInput.files ? Array.from(mediaFolderInput.files) : [];
+      const built = buildSessionsFromFolderFiles(list);
+      _scanFolderState = {
+        totalCount: list.length,
+        ...built
+      };
+      scanFolderPreview.innerHTML = renderScanPreview(_scanFolderState);
+      scanFolderBtn.disabled = !(_scanFolderState.supportedCount > 0 && _scanFolderState.sessions.length > 0);
+    });
+  }
+
+  function confirmScanFolderImport() {
+    if (!_scanFolderState || !_scanFolderState.sessions || !_scanFolderState.sessions.length) {
+      scanFolderStatus.innerHTML = '<div class="alert-err">Please select a folder with supported media files first.</div>';
+      return;
+    }
+
+    if (!confirm('Are you sure you want to scan this folder and reload the database?\n\nThis will permanently delete and replace ALL media data (sessions/songs/files/musicians/genres/styles).\n\nThis action CANNOT be undone!')) {
+      return;
+    }
+
+    const csvText = sessionsToCsv(_scanFolderState.sessions);
+    const blob = new Blob([csvText], { type: 'text/csv' });
+    const file = new File([blob], 'database.csv', { type: 'text/csv' });
+
+    validateDatabaseCsvHeaders(file).then(result => {
+      if (!result.ok) {
+        scanFolderStatus.innerHTML = '<div class="alert-err">' + result.message.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replace(/\n/g, '<br>') + '</div>';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('database_csv', file);
+
+      scanFolderBtn.disabled = true;
+      scanFolderBtn.textContent = 'Scanning and Importing...';
+      scanFolderStatus.innerHTML = '<div class="muted">Processing request...</div>';
+
+      fetch('import_database.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(async response => {
+        const data = await response.json().catch(() => null);
+        return { ok: response.ok, status: response.status, data };
+      })
+      .then(({ ok, data }) => {
+        if (ok && data && data.success) {
+          scanFolderStatus.innerHTML = '<div class="alert-ok">' + (data.message || 'Database import completed successfully.') +
+            ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Updated Database</a></div>'
+            + renderImportSteps(data.steps);
+          scanFolderBtn.textContent = 'Import Completed';
+          scanFolderBtn.style.background = '#28a745';
+        } else {
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+          scanFolderStatus.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+            + (data && data.steps ? renderImportSteps(data.steps) : '');
+          scanFolderBtn.disabled = false;
+          scanFolderBtn.textContent = 'Scan Folder and Update DB';
+        }
+      })
+      .catch(error => {
+        scanFolderStatus.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+        scanFolderBtn.disabled = false;
+        scanFolderBtn.textContent = 'Scan Folder and Update DB';
       });
     });
   }
