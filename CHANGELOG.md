@@ -1,4 +1,31 @@
 *** 
+releaseNotes20251218.txt
+Changes: New feature to scan a local folder, grab the media files within and update the database
+
+Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/databaseSmallFourColumns.csv
+	modified:   docs/DATABASE_LOAD_METHODS.md
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251216.txt
 Changes: New endpoint for db refresh (full), edit to make sure minimum header fields are there, updated index.md
 
@@ -16,16 +43,6 @@ Changes to be committed:
 	new file:   ansible/roles/docker/files/apache/webroot/tools/mysqlPrep_full.py
 	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/databaseSmall.csv
 	new file:   docs/DATABASE_LOAD_METHODS.md
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251216.txt
