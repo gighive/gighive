@@ -1626,12 +1626,6 @@ total 540072
 - 2025-12-21T10:55:00-05:00
   - i noticed section 4 on ansible/roles/docker/files/apache/webroot/admin.php does not have the same button structure as section 5. do you agree that we should jibe these? something more explicit please
 
-## 2025-12-22
-
-- 2025-12-22T09:47:00-05:00
-  - summarize what the script does in less than ten steps
-
-- 2025-12-22T09:48:00-05:00
   - continue
 
 - 2025-12-22T09:54:00-05:00
@@ -1843,3 +1837,9 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 - 2025-12-26T09:51:00-05:00
   - fixed ! ubuntu@gighive2:~$ docker exec -it mysqlServer cat /etc/timezone
     America/New_York
+
+- 2025-12-26T11:54:00-05:00
+  - can the ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py reference relative urls, like in this example with the tilde?  MYSQL_PASSWORD='musiclibrary' python3   /home/sodo/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py   --source-root ~/gighive/assets/audio/   --source-roots /home/gmk/gighive/assets/video/   --ssh-target ubuntu@gighive   --db-host gighive --db-user root --db-name music_db   --group-vars /home/sodo/scripts/gighive/ansible/inventories/group_vars/gighive/gighive.yml
+
+- 2025-12-26T12:22:00-05:00
+  - i think the docs/DATABASE_LOAD_METHODS.md instructions needs to be updated to jibe 100% to the upload methods on the ansible/roles/docker/files/apache/webroot/admin.php.  that said, the note about how import_jobs works is fine.  the section on mysql initialization load is a custom topic and should be pushed to the very bottom of the document in a new "For Advanced Users" section.  Sections 3A and 3B really apply to musicians/event planners that have need for the sessioning mechanism.  Sections 4 and 5 apply to Media Librarians.  Call that out in the headers by Inserting "For Bands/Event Planners. " before the headings for Section 3A and 3B.  Insert "For Media Librarians. " before the headings for Sections 4/5. Prepend this information into same html header as the existing heading text so they appear on the same line.

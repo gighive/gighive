@@ -13,3 +13,4 @@ base_packages:
   - ca-certificates
   - lsb-release
   - apt-transport-https
+  - mysql-client

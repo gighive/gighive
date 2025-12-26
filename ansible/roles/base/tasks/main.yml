@@ -132,6 +132,7 @@
       - inotify-tools
       - python3-docker
       - python3-pip
+      - mysql-client
 
 - name: Install Docker Engine & Compose V2 plugin (distro packages)
   ansible.builtin.apt:
