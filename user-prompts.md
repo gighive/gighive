@@ -1500,3 +1500,346 @@ there is a lot of output from this particular ansible task in roles/docker/tasks
 
 - 2025-12-13T16:52:00-05:00
   - i see the contact us link, but it seems to be appearing in the timeline:
+
+- 2025-12-18T14:40:00-05:00
+  - yes, let's do option 1 to keep it simple for now
+
+- 2025-12-18T14:49:00-05:00
+  - please update docs/DATABASE_LOAD_METHODS.md with this latest info at the appropriate place in the file.
+
+- 2025-12-18T15:05:00-05:00
+  - cool, basic test of method 4 works!  I see the original directory structure:  ===== FILES TABLE =====
+Total Rows in files
+9072
+
+
+file_id\tfile_name\tsource_relpath\tfile_type\tsession_id\tseq\tduration_seconds\tmedia_info\tmedia_info_tool\tmime_type\tsize_bytes\tchecksum_sha256\tcreated_at\tupdated_at
+1\tPanneton\tMusic/Panneton\taudio\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\t2025-12-18 20:03:33\t2025-12-18 20:03:33
+2\t02 Esquisses Byzantines (En Me?moire Basilique Montmartre (1914-19) _ 1-Nef (Casavant 1913 St-Viateur Outremont).m4a\tHe?le?ne/Henri Mulet - He?le?ne Panneton/02 Esquisses Byzantines (En Me?moire Basilique Montmartre (1914-19) _ 1-Nef (Casavant 1913 St-Viateur Outremont).m4a\taudio\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\t2025-12-18 20:03:33\t2025-12-18 20:03:33
+
+- 2025-12-18T18:45:00-05:00
+  - i would assume that we would identify any non-files (ie, directories) where the file name is missing a file extension of one of our standard media types.  is that correct or is there an additional way to identify non-files?
+
+- 2025-12-18T18:51:00-05:00
+  - here is the row from the database.csv for the session/date in question: t_title,d_date,d_merged_song_lists,f_singles
+1914-01-01,1914-01-01,"02 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 1-Nef (Casavant 1913 St-Viateur Outremont),03 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 2-Vitrail (Casavant 1913 St-Viateur Outremont),04 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 3-Vitrail (Casavant 1913 St-Viateur Outremont),05 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 4-Rosace (Casavant 1913 St-Viateur Outremont),06 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 5-Campanile (Casavant 1913 St-Viateur Outremont),07 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 6-Procession (Casavant 1913 St-Viateur Outremont),08 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 7-Chant Funèbre (Casavant 1913 St-Viateur Outremont),09 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 8-Noël (Casavant 1913 St-Viateur Outremont),10 Esquisses Byzantines (E...[2075 bytes truncated]
+
+- 2025-12-18T18:54:00-05:00
+  - sorry, let me paste in the full listing: macbook2025:~ sodo$ ll Music/ | grep Panneton
+drwxrwxrwx@  3 sodo  staff       96 Jul 27  2013 Panneton, Hélène
+macbook2025:~ sodo$ ll Music/Panneton\,\ Hélène/
+total 0
+drwxrwxrwx@ 13 sodo  staff  416 Jul 27  2013 Henri Mulet - Hélène Panneton
+macbook2025:~ sodo$ ll Music/Panneton\,\ Hélène/Henri\ Mulet\ -\ Hélène\ Panneton/
+total 540072
+-rw-r--rw-@ 1 sodo  staff  23903590 Sep 25  2011 01 Carillon-Sortie.m4a
+-rw-r--rw-@ 1 sodo  staff  41362200 Sep 25  2011 02 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 1-Nef (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  14669271 Sep 25  2011 03 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 2-Vitrail (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  23354783 Sep 25  2011 04 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 3-Vitrail (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  27342702 Sep 25  2011 05 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 4-Rosace (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  18620807 Sep 25  2011 06 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 5-Campanile (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  34446075 Sep 25  2011 07 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 6-Procession (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  28013341 Sep 25  2011 08 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 7-Chant Funèbre (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  11758246 Sep 25  2011 09 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 8-Noël (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  28033484 Sep 25  2011 10 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 9-In Paradisum (Casavant 1913 St-Viateur Outremont).m4a
+-rw-r--rw-@ 1 sodo  staff  24985980 Sep 25  2011 11 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 10-Tu Es Petra... (Casavant 1913 St-Viateur Outremont).m4a
+
+- 2025-12-18T18:58:00-05:00
+  - the end goal is to import a clean list of media files with the file nesting in f_singles in tact.  are we reinventing the wheel with our php and python code?  is there a better way to handle this?
+
+- 2025-12-18T19:01:00-05:00
+  - propose a plan to update Method 4.  what needs to change?
+
+- 2025-12-18T19:03:00-05:00
+  - is this plan better than just updating f_singles to a json structure?
+
+- 2025-12-18T19:05:00-05:00
+  - let's go with the normalized 2-csv format rather than json.  will the normalized choice support the older multiple files embedded in f_singles method or no?
+
+- 2025-12-18T19:09:00-05:00
+  - i'd probably want to go with the least fragile method and not support the old method.  that said, i will need to do a one time conversion of my existing database.csv for both gighive and stormpigs.  but please show me the plan to enable this.
+ Basilique Montmartre (1914-19) _ 9-In Paradisum (Casavant 1913 St-Viateur Outremont),11 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 10-Tu Es Petra... (Casavant 1913 St-Viateur Outremont)","Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/02 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 1-Nef (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/03 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 2-Vitrail (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/04 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 3-Vitrail (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/05 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 4-Rosace (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/06 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 5-Campanile (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/07 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 6-Procession (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/08 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 7-Chant Funèbre (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/09 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 8-Noël (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/10 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 9-In Paradisum (Casavant 1913 St-Viateur Outremont).m4a,Music/Panneton, Hélène/Henri Mulet - Hélène Panneton/11 Esquisses Byzantines (En Mémoire Basilique Montmartre (1914-19) _ 10-Tu Es Petra... (Casavant 1913 St-Viateur Outremont).m4a"
+
+- 2025-12-20T16:07:00-05:00
+  - 1) yes, page_size should be equal to the threshhold. 2) pagination is really media rows.  that's acceptable.  3) given the answer to two, please change the title of the page from Sessions to Media Files.  4) please show me the implementation plan and exact code changes
+
+- 2025-12-20T16:15:00-05:00
+  - 1) match behavior should be substring matching 2) multiple boxes should be AND behavior
+
+- 2025-12-20T16:19:00-05:00
+  - only when i press enter.  please have a little descriptive text above the table and search boxes that explains this to the user.  Here is the text: "Search will only take place after you fill in one or more fields and hit Enter."  Secondly, have a notification that pops up after the user hits Enter that says "Enter pressed..searching" and then lastly, when the results come back, change the text to "X rows found" where X is the number of rows found given the search string(s)
+
+- 2025-12-20T16:27:00-05:00
+  - ok, i will test the changes now
+
+- 2025-12-20T16:35:00-05:00
+  - 1) when i start filling in a field, the column does a reverse sort.  2) after i fill the field in and then hit Enter, the Enter does not perform a database search.  so there seems to be  competing behaviors at work: a.  Javascript ui niceness interfering with actual backend searching. do you see what i mean?  can we get both working in tandem?
+
+- 2025-12-20T16:52:00-05:00
+  - ok, i've returned list.php and mediacontroller.php that we had customized for gighive back in these two folders: ansible/roles/docker/files/apache/overlays/gighive/src/Controllers/MediaController.php and ansible/roles/docker/files/apache/overlays/gighive/src/Views/media/list.php.  you can use them to reference when creating conditional versions of the live ones that we just edited under ansible/roles/docker/files/apache/webroot.  my intent was to keep the ones that live under ansible/roles/docker/files/apache/webroot as the canonical and just have two different views based upon the app_flavor variable found here: ansible/inventories/group_vars/gighive2/gighive2.yml
+
+- 2025-12-21T08:43:00-05:00
+  - yes, my thought exactly.  let's do it!
+
+- 2025-12-21T09:38:00-05:00
+  - can you 1) narrow column 1 (the # column) and 2) enable nowrap on the last column (media)?  3) also, rename that column Media File Info
+
+- 2025-12-21T09:43:00-05:00
+  - ooops, word wrap went beyond column width for media file info column
+
+- 2025-12-21T09:49:00-05:00
+  - no, don't rely on extension. investigate what ffprobe outputs in the column itself to determine the container format.
+
+- 2025-12-21T09:51:00-05:00
+  - from the output i gave you, show me examples of the mat block please
+
+- 2025-12-21T09:55:00-05:00
+  - you know, i think the most valuable fields in this regard are format_name and format_long_name. display those fields as the first row, along with the bit_rate as you originally had. secondly, append an integer for duration to that first line using same delimiter as you've already selected
+
+- 2025-12-21T09:56:00-05:00
+  - switch the order of format_name and format_long_name to show long name first
+
+- 2025-12-21T10:03:00-05:00
+  - ok word wrap on media file info column still broken, 2) duration at end of the first row in that column needs an "s" indicating seconds, 3) clicking on the column header does not sort, 4) search field is missing on that column and duration column
+
+- 2025-12-21T10:08:00-05:00
+  - what i mean is that media file info has three subsections: format, video stream and audio stream. right now, you should have line breaks at the end of those sections. i don't necessary need the entire table to be width-constrained, so you can relax that specification. i just want the media file info column to be as wide as the text within those subsections dictate.
+
+- 2025-12-21T10:09:00-05:00
+  - don't remove fixed widths for any of the other columns..i just want that last media file info column to conform to the specs i just laid out.
+
+- 2025-12-21T10:16:00-05:00
+  - ok, better, but the table seems to be constrained by a div tag (see pics). can you relax that div tag as well to allow us to see the whole table?
+
+- 2025-12-21T10:18:00-05:00
+  - also the name of the page seems to have reverted to "Sessions" please retitle the page to Media Library
+
+- 2025-12-21T10:35:00-05:00
+  - please add source_relpath as the last column in the table.  also, the header above the table should be left justified (see  picture)
+
+- 2025-12-21T10:51:00-05:00
+  - move duration and media file info columns to the second to last and last columns in the table, respectively. move file type column before the song name column. move source relpath column after the song name column.
+
+- 2025-12-21T10:53:00-05:00
+  - actually rename it "Download / View" so that the title can word wrap
+
+- 2025-12-21T10:55:00-05:00
+  - i noticed section 4 on ansible/roles/docker/files/apache/webroot/admin.php does not have the same button structure as section 5. do you agree that we should jibe these? something more explicit please
+
+## 2025-12-22
+
+- 2025-12-22T09:47:00-05:00
+  - summarize what the script does in less than ten steps
+
+- 2025-12-22T09:48:00-05:00
+  - continue
+
+- 2025-12-22T09:54:00-05:00
+  - please document these steps in /docs/resizeRequestInstructions.md
+
+- 2025-12-22T09:56:00-05:00
+  - oops, i inadvertantly cancelled the last command to save the documentation.  1) please rerun that command.  2) I ran the runner and got this error.  we are specifying the wrong directory.  the request files on the vm live here: /home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/resizerequests. so please fix the runner script.  error below: sodo@pop-os:~/scripts/gighive$ ./ansible/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml \
+  --request-host gighive2 --latest
+Error: no request files found on gighive2:/var/www/private/resizerequests
+
+- 2025-12-22T10:10:00-05:00
+  - i see the resizerequests directory on the gighive2 vm perms/ownership looks correct, can you verify? ubuntu@gighive2:~/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs$ ll total 28 drwxr-xr-x 4 ubuntu   ubuntu   4096 Dec 22 09:50 ./ drwxr-xr-x 5 ubuntu   ubuntu   4096 Dec 16 13:32 ../ -rwxr-xr-x 1 ubuntu   ubuntu    222 Jun 16  2025 apache2-logrotate.conf* drwxr-xr-x 2 ubuntu   ubuntu   4096 Sep  2 16:29 crs/ -rwxr-xr-x 1 ubuntu   ubuntu    142 Aug 23 12:33 logging.conf* -rwxr-xr-x 1 ubuntu   ubuntu    336 Aug  5 16:38 ports.conf* drwxr-x--- 2 www-data www-data 4096 Dec 22 09:50 resizerequests/
+
+- 2025-12-22T10:12:00-05:00
+  - ubuntu@gighive2:~/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs$ docker exec -it apacheWebServer bash -lc 'ls -ld /var/www/private /var/www/private/resizerequests && id && whoami' drwxrwxr-x 1 www-data www-data 4096 Dec 22 14:19 /var/www/private drwxr-xr-x 0 ubuntu   ubuntu      0 Dec 22 14:50 /var/www/private/resizerequests uid=0(root) gid=0(root) groups=0(root) root
+
+- 2025-12-22T10:16:00-05:00
+  - ubuntu@gighive2:~/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs$ docker inspect apacheWebServer --format '{{ range .Mounts }}{{ println .Type .Source "->" .Destination "rw=" .RW }}{{ end }}' | grep -E 'resizerequests|gighive.htpasswd|/var/www/private' bind /home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/gighive.htpasswd -> /var/www/private/gighive.htpasswd rw= true bind /home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/resizerequests -> /var/www/private/resizerequests rw= true
+
+## 2025-12-23
+
+- 2025-12-23T13:25:00-05:00
+  - on this page, ansible/roles/docker/files/apache/webroot/db/database.php the database search fields at the top of the html table seem to be case sensitive for each of the non-numeric, string columns. can you add case-insensitivity for the database searches applied when the user hits "enter"?
+
+- 2025-12-23T13:31:00-05:00
+  - if we ever add DAY to the date field, then yes, let's go ahead and make that field case-insensitive as well
+
+## 2025-12-24
+
+- 2025-12-24T12:40:00-05:00
+  - what's wrong here: sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities$ python3 ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/convert_legacy_database_csv_to_normalized.py   database.csv   --output-dir normalized_csvs   --source-roots "/home/sodo/videos/stormpigs/finals/singles:/home/sodo/scripts/stormpigsCode/production/audio"
+Traceback (most recent call last):
+  File "/home/sodo/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/convert_legacy_database_csv_to_normalized.py", line 453, in <module>
+    raise SystemExit(main())
+  File "/home/sodo/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/convert_legacy_database_csv_to_normalized.py", line 434, in main
+    sessions_path, session_files_path, manifest_path, report_path = convert_legacy_csv(
+  File "/home/sodo/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/convert_legacy_database_csv_to_normalized.py", line 276, in convert_legacy_csv
+    if source_root or media_search_dirs:
+NameError: name 'source_root' is not defined. Did you mean: 'source_roots'?
+
+- 2025-12-24T12:43:00-05:00
+  - can you update the script to give a live process meter based upon the number of total sessions in the file against the ones that have been completed?  right now, the program only outputs status when it is done.  we want a live reading.
+
+- 2025-12-24T12:48:00-05:00
+  - 1) please update the .md file to reflect the progress meter switch 2) i ran the program and it worked!  3) what's the next step to load the files?
+
+- 2025-12-24T12:48:00-05:00
+  - sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities$ python3 ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/convert_legacy_database_csv_to_normalized.py   database.csv   --output-dir normalized_csvs   --source-roots "/home/sodo/videos/stormpigs/finals/singles:/home/sodo/scripts/stormpigsCode/production/audio"
+Progress: 135/135 sessions (100%)
+
+✅ Conversion complete
+- sessions.csv: normalized_csvs/sessions.csv
+- session_files.csv: normalized_csvs/session_files.csv
+- manifest.json: normalized_csvs/manifest.json
+- report: normalized_csvs/conversion_report.txt
+sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities$ tail -3 normalized_csvs/session_files.csv 
+92573bd631e689fc5009e186bb86e5474c12f984,StormPigs20040818_12_shootinatcans.mp4,25a61f6c85516766c279816b3521fc906ec3cbe433681737e9eb9ba5631db32a,12
+92573bd631e689fc5009e186bb86e5474c12f984,StormPigs20040818_13_gogandmagog.mp4,2b4b29a6b73650fe637878a6879d0c351590cd26bdf36b72b18504e72445469d,13
+92573bd631e689fc5009e186bb86e5474c12f984,StormPigs20040818_14_brandnewcadillac.mp4,6b22d960b0e82e86afb55e0ac97a42e1d6bc22e9b8eca52cc9ad9b499b92e23a,14
+sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities$ head -3 normalized_csvs/session_files.csv 
+session_key,source_relpath,checksum_sha256,seq
+b3e52f618aae2727d6b5c59df4553868e5acdd31,19970723_2.mp3,ae24b2bb331b1cd59fd26828f5e4c7ad2130fc110bccbbcaa47db8e260a86b48,1
+47de6258a8e6e5c0683368b2eabfdc5e9220cc78,19971230_1.mp3,776aa9208b5ecf5017266f7d48411ec783275474fdcd7f430bd22551128caf43,1
+
+- 2025-12-24T12:52:00-05:00
+  - oh good..maybe after a while we can deprecate section 3b.  but not now.
+
+- 2025-12-24T12:54:00-05:00
+  - I just noticed that the ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py doesn't accept multiple source_roots, like the way we updated the converter python script.  If that is the case, please update that file to accept multiple upload directories (if possible).  here is the command you had given me: MYSQL_PASSWORD='musiclibrary' python3 \
+  ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py \
+  --source-root /home/sodo/videos/stormpigs/finals/singles \
+  --ssh-target ubuntu@gighive2 \
+  --db-host gighive2 --db-user root --db-name music_db \
+  --group-vars /home/sodo/scripts/gighive/ansible/inventories/group_vars/gighive2/gighive2.yml
+
+- 2025-12-24T12:58:00-05:00
+  - what am i doing wrong..i don't see any update from the script: sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvs$ MYSQL_PASSWORD='musiclibrary' python3 \
+  ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py \
+  --source-root /home/sodo/videos/stormpigs/finals/singles \
+  --source-roots "/home/sodo/scripts/stormpigsCode/production/audio" \
+  --ssh-target ubuntu@gighive2 \
+  --db-host gighive2 --db-user root --db-name music_db \
+  --group-vars /home/sodo/scripts/gighive/ansible/inventories/group_vars/gighive2/gighive2.yml
+INFO: loaded extension lists from group_vars: /home/sodo/scripts/gighive/ansible/inventories/group_vars/gighive2/gighive2.yml
+STATUS\tFILE_TYPE\tSOURCE_RELPATH\tDEST
+SUMMARY copied=0 recopied=0 skip_exists=0 missing_src=0 failed=0 skip_type=0 probed=0 probe_failed=0 rows=0
+
+- 2025-12-24T13:00:00-05:00
+  - note that i did not load the csvs with either section 3b or section 4.  but the database does have information in it 1) should that be cleared out first/truncate tables first?  2) or what do i need to do?
+
+- 2025-12-24T13:02:00-05:00
+  - sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvs$ mysql -h gighive2 -u root -pmusiclibrary music_db -e "
+SELECT
+  COUNT(*) total,
+  SUM(source_relpath IS NOT NULL AND source_relpath <> '') with_relpath,
+  SUM(checksum_sha256 IS NOT NULL AND checksum_sha256 <> '') with_sha
+FROM files;"
+mysql: [Warning] Using a password on the command line interface can be insecure.
++-------+--------------+----------+
+| total | with_relpath | with_sha |
++-------+--------------+----------+
+|   657 |          657 |        0 |
++-------+--------------+----------+
+
+- 2025-12-24T13:03:00-05:00
+  - ok, make sure these steps are documented in the .md file please
+
+- 2025-12-24T13:04:00-05:00
+  - what's up with this: sodo@pop-os:~/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvs$ curl -k -u admin:secretadmin \
+  -H 'Content-Type: application/json' \
+  --data-binary @manifest.json \
+  https://gighive2/import_manifest_reload.php
+{"success":false,"error":"Import failed","message":"Invalid checksum_sha256 at index 157","steps":[{"name":"Upload received","status":"ok","message":"Request received","index":0},{"name":"Validate request","status":"error","message":"Invalid checksum_sha256 at index 157","index":1},{"name":"Truncate tables","status":"pending","message":"","index":2},{"name":"Seed genres\/styles","status":"pending","message":"","index":3},{"name":"Upsert sessions","status":"pending","message":"","index":4},{"name":"Insert files (dedupe by checksum_sha256)","status":"pending","message":"","index":5},{"name":"Link labels (songs)","status":"pending","message":"","index":6}]}
+
+- 2025-12-24T13:13:00-05:00
+  - ii see what happened, one session 20060406 had 11 songs, but only 3 had actual files on the file system (songs 4, 6, and 11).  so that's the reason why that bombed.
+
+- 2025-12-24T13:15:00-05:00
+  - i would rather that the database gets updated with the rows for songs that do not have associated files.  this means that the Download link wouldn't work on db/database.php and source_relpath and hash would be empty.  This would occur very rarely.
+
+- 2025-12-24T13:17:00-05:00
+  - ok i will do section 3b right now.  give me the command for the upload_media_by_hash.py please
+
+- 2025-12-24T13:22:00-05:00
+  - i used 3b which worked fine: Database import completed successfully. See Updated Database
+Progress:
+OKUpload received
+Saved to 20251224-182039-40a4de151cae/sessions.csv and session_files.csv
+OKPreprocess CSVs (mysqlPrep_normalized.py)
+Preprocess complete
+OKValidate generated CSVs
+All generated CSVs present
+OKTruncate tables
+Tables truncated
+OKSeed genres/styles
+Seeded genres/styles
+OKLoad sessions
+Sessions loaded: 135
+OKLoad musicians
+Musicians loaded: 38
+OKLoad songs
+Songs loaded: 737
+OKLoad files
+Files loaded: 657
+OKLoad session_musicians
+session_musicians loaded: 718
+OKLoad session_songs
+session_songs loaded: 737
+OKLoad song_files
+song_files loaded: 647. but the script did not work (below).  can we put in more debugging to tell us what went wrong?
+
+- 2025-12-24T13:51:00-05:00
+  - ok, i see it's running correctly now..so it's really FOUR steps for 3B: 1) convert old database.csv, 2) upload sessions/session_files.csv via 3B, 3) run the manifest and then 4) run the uploader..is that correct?
+
+- 2025-12-25T18:57:00-05:00
+  - approved
+
+- 2025-12-26T09:06:00-05:00
+  - Hmmm..the ansible task ran all the way through but the validation failed: TASK [validate_app : Assert host timezone matches expected that=['host_timezone.stdout | trim == gighive_timezone'], fail_msg=Host timezone is {{ host_timezone.stdout | trim }}, expected {{ gighive_timezone }}] ***
+    Friday 26 December 2025  09:04:45 -0500 (0:00:00.130)       0:03:44.164 ******* 
+    fatal: [gighive_vm]: FAILED! => {
+        "assertion": "host_timezone.stdout | trim == gighive_timezone",
+        "changed": false,
+        "evaluated_to": false,
+        "msg": "Host timezone is Etc/UTC, expected America/New_York"
+    }
+    Here is the status of the timezone across the vmhost and containers: ubuntu@gighive2:~$ cat /etc/timezone 
+    Etc/UTC
+    ubuntu@gighive2:~$ docker exec -it apacheWebServer cat /etc/timezone
+    Etc/UTC
+    ubuntu@gighive2:~$ docker exec -it mysqlServer cat /etc/timezone
+    Etc/UTC. Note that the vm was not rebuilt, only updated.  the containers were rebuilt: ubuntu@gighive2:~$ docker ps
+    CONTAINER ID   IMAGE                    COMMAND                  CREATED         STATUS         PORTS                                                    NAMES
+    e1b1f4dc15e0   mysql:8.0                "docker-entrypoint.s…"   4 minutes ago   Up 4 minutes   0.0.0.0:3306->3306/tcp, [::]:3306->3306/tcp, 33060/tcp   mysqlServer
+    1344277da0d3   ubuntu-apache-img:1.00   "/entrypointapache.sh"   4 minutes ago   Up 4 minutes   0.0.0.0:443->443/tcp                                     apacheWebServer
+
+- 2025-12-26T09:09:00-05:00
+  - but you said ansible.builtin.timezone was not idempotent.  is there any other way to acheive the goal but do it in an idempotent way?
+
+- 2025-12-26T09:11:00-05:00
+  - Option B seems more belt and suspenders, let's do that.  i believe we are already checking for community.general.
+
+- 2025-12-26T09:21:00-05:00
+  - no luck.  TASK [validate_app : Assert host timezone matches expected that=['host_timezone.stdout | trim == gighive_timezone'], fail_msg=Host timezone is {{ host_timezone.stdout | trim }}, expected {{ gighive_timezone }}] ***
+    Friday 26 December 2025  09:15:52 -0500 (0:00:00.131)       0:03:25.082 ******* 
+    fatal: [gighive_vm]: FAILED! => {
+        "assertion": "host_timezone.stdout | trim == gighive_timezone",
+        "changed": false,
+        "evaluated_to": false,
+        "msg": "Host timezone is Etc/UTC, expected America/New_York"
+    }
+
+    ubuntu@gighive2:~$ cat /etc/timezone 
+    Etc/UTC
+    ubuntu@gighive2:~$ docker exec -it apacheWebServer cat /etc/timezone
+    Etc/UTC
+    ubuntu@gighive2:~$ docker exec -it mysqlServer cat /etc/timezone
+    Etc/UTC
+
+- 2025-12-26T09:23:00-05:00
+  - ubuntu@gighive2:~$ ls -l /etc/timezone /etc/localtime
+    lrwxrwxrwx 1 root root 36 Dec  9 12:45 /etc/localtime -> /usr/share/zoneinfo/America/New_York
+    -rw-r--r-- 1 root root  8 Nov 13 07:54 /etc/timezone
+    ubuntu@gighive2:~$ cat /etc/timezone
+    Etc/UTC
+    ubuntu@gighive2:~$ readlink -f /etc/localtime
+    /usr/share/zoneinfo/America/New_York
+
+- 2025-12-26T09:51:00-05:00
+  - fixed ! ubuntu@gighive2:~$ docker exec -it mysqlServer cat /etc/timezone
+    America/New_York

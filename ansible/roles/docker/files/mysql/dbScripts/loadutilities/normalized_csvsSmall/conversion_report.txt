@@ -1,0 +1,14 @@
+input_csv: databaseSmall.csv
+output_dir: normalized_csvsSmall
+manifest_path: normalized_csvsSmall/manifest.json
+manifest_items: 15
+
+sessions_total: 2
+sessions_with_files: 2
+file_tokens_total (post-split): 15
+files_emitted (supported media): 15
+files_hashed: 15
+files_missing_on_disk: 0
+ignored_non_media: 0
+ignored_suspicious: 0
+

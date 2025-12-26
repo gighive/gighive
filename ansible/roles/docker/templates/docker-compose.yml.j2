@@ -11,6 +11,8 @@ services:
     pull_policy: build
     env_file:
       - ./apache/externalConfigs/.env
+    environment:
+      TZ: "{{ gighive_timezone }}"
     container_name: apacheWebServer
     restart: unless-stopped
     dns:
@@ -18,9 +20,12 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     volumes:
-      - "/home/{{ ansible_user }}/audio:/var/www/html/audio"
-      - "/home/{{ ansible_user }}/video:/var/www/html/video"
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - "/home/{{ ansible_user }}/audio:{{ media_search_dir_audio }}"
+      - "/home/{{ ansible_user }}/video:{{ media_search_dir_video }}"
       - "{{ gighive_htpasswd_host_path }}:{{ gighive_htpasswd_path }}:rw"
+      - "{{ gighive_resize_requests_host_path }}:{{ gighive_resize_requests_path }}:rw"
       - "{{ docker_dir }}/apache/externalConfigs/apache2.conf:/etc/apache2/apache2.conf:ro"
       - "{{ docker_dir }}/apache/externalConfigs/ports.conf:/etc/apache2/ports.conf:ro"
       - "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf:/etc/apache2/sites-available/default-ssl.conf:ro"
@@ -44,8 +49,12 @@ services:
       - "3306:3306"
     env_file:
       - ./mysql/externalConfigs/.env.mysql
+    environment:
+      TZ: "{{ gighive_timezone }}"
     volumes:
       - mysql_data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
       - "{{ docker_dir }}/mysql/externalConfigs/prepped_csvs/{{ 'full' if database_full | bool else 'sample' }}:/var/lib/mysql-files/"
       - "{{ docker_dir }}/mysql/externalConfigs/create_music_db.sql:/docker-entrypoint-initdb.d/00-create_music_db.sql"
       - "{{ docker_dir }}/mysql/externalConfigs/load_and_transform.sql:/docker-entrypoint-initdb.d/01-load_and_transform.sql"

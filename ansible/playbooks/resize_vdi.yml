@@ -1,0 +1,101 @@
+---
+- name: Resize VirtualBox VDI for a VM (no full provisioning)
+  hosts: all
+  gather_facts: false
+  connection: local
+
+  pre_tasks:
+    - name: Set controller-side VirtualBox env vars
+      delegate_to: localhost
+      run_once: true
+      ansible.builtin.set_fact:
+        vbox_home: "{{ lookup('env','HOME') }}"
+
+    - name: Set root_dir used by included poweroff task (controller HOME)
+      delegate_to: localhost
+      run_once: true
+      ansible.builtin.set_fact:
+        root_dir: "{{ vbox_home }}"
+
+  tasks:
+    - name: Validate required variables are present
+      ansible.builtin.assert:
+        that:
+          - vm_name is defined
+          - cloud_image_vdi is defined
+          - disk_size_mb is defined
+        fail_msg: "Required vars missing. Need vm_name, cloud_image_vdi, disk_size_mb."
+
+    - name: Power off VM and wait for unlock
+      ansible.builtin.include_tasks: "{{ roles_dir }}/cloud_init/tasks/poweroff.yml"
+
+    - name: Check if disk is attached at SATA Controller port 0
+      delegate_to: localhost
+      environment:
+        HOME: "{{ vbox_home }}"
+        VBOX_USER_HOME: "{{ vbox_home }}/.config/VirtualBox"
+      ansible.builtin.command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+      register: vminfo_storage
+      changed_when: false
+      failed_when: false
+
+    - name: Detach VDI before resizing (only if attached)
+      delegate_to: localhost
+      environment:
+        HOME: "{{ vbox_home }}"
+        VBOX_USER_HOME: "{{ vbox_home }}/.config/VirtualBox"
+      ansible.builtin.command: >
+        VBoxManage storageattach "{{ vm_name }}"
+        --storagectl "SATA Controller"
+        --port 0 --device 0 --medium none
+      when: vminfo_storage.stdout is search('^SATA Controller-0-0=')
+      changed_when: false
+      failed_when: false
+
+    - name: Compute target disk size in bytes
+      ansible.builtin.set_fact:
+        disk_size_bytes: "{{ (disk_size_mb | int) * 1024 * 1024 }}"
+
+    - name: Resize VDI disk (byte-precise)
+      delegate_to: localhost
+      environment:
+        HOME: "{{ vbox_home }}"
+        VBOX_USER_HOME: "{{ vbox_home }}/.config/VirtualBox"
+      ansible.builtin.command: >
+        VBoxManage modifymedium disk "{{ cloud_image_vdi }}" --resizebyte {{ disk_size_bytes }}
+
+    - name: Attach VDI disk
+      delegate_to: localhost
+      environment:
+        HOME: "{{ vbox_home }}"
+        VBOX_USER_HOME: "{{ vbox_home }}/.config/VirtualBox"
+      ansible.builtin.command: >
+        VBoxManage storageattach "{{ vm_name }}"
+        --storagectl "SATA Controller"
+        --port 0 --device 0 --type hdd --medium "{{ cloud_image_vdi }}"
+
+    - name: Gather VM info (machinereadable) after resize
+      delegate_to: localhost
+      environment:
+        HOME: "{{ vbox_home }}"
+        VBOX_USER_HOME: "{{ vbox_home }}/.config/VirtualBox"
+      ansible.builtin.command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
+      register: vm_info_after
+      changed_when: false
+      failed_when: false
+
+    - name: Start VM headless (if powered off)
+      delegate_to: localhost
+      environment:
+        HOME: "{{ vbox_home }}"
+        VBOX_USER_HOME: "{{ vbox_home }}/.config/VirtualBox"
+      ansible.builtin.command: VBoxManage startvm "{{ vm_name }}" --type headless
+      when: vm_info_after.stdout.find('VMState="poweroff"') != -1
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for SSH availability
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        port: 22
+        timeout: 300

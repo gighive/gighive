@@ -1,0 +1,126 @@
+{
+  "org_name": "default",
+  "event_type": "band",
+  "items": [
+    {
+      "file_name": "StormPigs20021024_1_fleshmachine.mp4",
+      "source_relpath": "StormPigs20021024_1_fleshmachine.mp4",
+      "file_type": "video",
+      "event_date": "2002-10-24",
+      "size_bytes": 46033015,
+      "checksum_sha256": "3ed8bbc43ec35bb4662ac8b75843eb89fbd50557eccb3aa960cbc2f6e0601e4d"
+    },
+    {
+      "file_name": "StormPigs20021024_2_fountainofstillness.mp4",
+      "source_relpath": "StormPigs20021024_2_fountainofstillness.mp4",
+      "file_type": "video",
+      "event_date": "2002-10-24",
+      "size_bytes": 93041852,
+      "checksum_sha256": "b212a654ddf160523373a7da95a0ddbfa752e6dbe57c13b6e220e0211bf71d95"
+    },
+    {
+      "file_name": "StormPigs20021024_3_gettingold.mp4",
+      "source_relpath": "StormPigs20021024_3_gettingold.mp4",
+      "file_type": "video",
+      "event_date": "2002-10-24",
+      "size_bytes": 72952940,
+      "checksum_sha256": "25823bec0d2950e1253c6d22903cefe5ed4e2fa4cb73da036fba818e67c85f4f"
+    },
+    {
+      "file_name": "StormPigs20021024_4_hollowbody.mp4",
+      "source_relpath": "StormPigs20021024_4_hollowbody.mp4",
+      "file_type": "video",
+      "event_date": "2002-10-24",
+      "size_bytes": 46945350,
+      "checksum_sha256": "5a5a63917260e8d1d7b32ac4d5b2998fb48d35d97315874a218f86f02dbc7bbd"
+    },
+    {
+      "file_name": "StormPigs20021024_5_likeadrugaddict.mp4",
+      "source_relpath": "StormPigs20021024_5_likeadrugaddict.mp4",
+      "file_type": "video",
+      "event_date": "2002-10-24",
+      "size_bytes": 41433535,
+      "checksum_sha256": "b40e8cc50deea9c90f38df4ae44bfd999db4e2d04815ed1941a381db17c89a31"
+    },
+    {
+      "file_name": "20050303_1.mp3",
+      "source_relpath": "20050303_1.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 11612473,
+      "checksum_sha256": "1982d30224070906ccee90c54279cb027099c5ab00783b7f4ec5382bb1e42b7a"
+    },
+    {
+      "file_name": "20050303_10.mp3",
+      "source_relpath": "20050303_10.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 11118497,
+      "checksum_sha256": "fc3012499e468cf375fda17e4fece54db6c9b5b9f1a64d9ccb01974f15beb1e8"
+    },
+    {
+      "file_name": "20050303_2.mp3",
+      "source_relpath": "20050303_2.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 14266246,
+      "checksum_sha256": "d68010b40ac8e07d91762fd5d803dbc35b8bde8eea57c74b62e5cabcbee0380b"
+    },
+    {
+      "file_name": "20050303_3.mp3",
+      "source_relpath": "20050303_3.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 12378056,
+      "checksum_sha256": "b2fdf8a92ea8358f338921a2b4cdf8afac97c818583430ccc9a059a1cebd69eb"
+    },
+    {
+      "file_name": "20050303_4.mp3",
+      "source_relpath": "20050303_4.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 25459666,
+      "checksum_sha256": "c811d7631f5b6a849800222be4b61e8dc531f8215d01e56738281a64acde457a"
+    },
+    {
+      "file_name": "20050303_5.mp3",
+      "source_relpath": "20050303_5.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 15053440,
+      "checksum_sha256": "c6ed20216e7dca7f732340c4207a9458fa8c35d75ddf513c90bf29313a35667f"
+    },
+    {
+      "file_name": "20050303_6.mp3",
+      "source_relpath": "20050303_6.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 18728920,
+      "checksum_sha256": "e9683685ad998f3e1e2c081512df05115e6d6f55881f0e4cd1720206e000d10e"
+    },
+    {
+      "file_name": "20050303_7.mp3",
+      "source_relpath": "20050303_7.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 19180933,
+      "checksum_sha256": "e8acabfe56a4bb5b3f4bdcb2acd7f8055619021b9ae4316bcb10bd6c46e57056"
+    },
+    {
+      "file_name": "20050303_8.mp3",
+      "source_relpath": "20050303_8.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 12553405,
+      "checksum_sha256": "007e8780a31bc28ce5a2aa1161748ad7b8864f613697459694d70a3689ee61ca"
+    },
+    {
+      "file_name": "20050303_9.mp3",
+      "source_relpath": "20050303_9.mp3",
+      "file_type": "audio",
+      "event_date": "2005-03-03",
+      "size_bytes": 36480177,
+      "checksum_sha256": "1f5509977d26776e5634a23f84ce76ab5363721642b34ebfc138ed1982feea87"
+    }
+  ]
+}

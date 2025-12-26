@@ -65,6 +65,7 @@ CREATE TABLE songs (
 CREATE TABLE files (
     file_id INT PRIMARY KEY AUTO_INCREMENT,
     file_name VARCHAR(4096) NOT NULL,
+    source_relpath VARCHAR(4096) NULL,
     file_type ENUM('audio', 'video') NOT NULL,
     -- Link directly to session for easy association and per-session sequencing
     session_id INT NULL,
@@ -79,7 +80,8 @@ CREATE TABLE files (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_files_session FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE SET NULL,
-    CONSTRAINT uq_files_session_seq UNIQUE (session_id, seq)
+    CONSTRAINT uq_files_session_seq UNIQUE (session_id, seq),
+    CONSTRAINT uq_files_checksum_sha256 UNIQUE (checksum_sha256)
 );
 
 -- Many-to-many: sessions ↔ songs

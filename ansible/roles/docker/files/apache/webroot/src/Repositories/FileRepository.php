@@ -10,11 +10,12 @@ final class FileRepository
     public function create(array $data): int
     {
         // files(file_id PK AI, file_name, file_type, session_id?, seq?, duration_seconds?, mime_type?, size_bytes?, checksum_sha256?)
-        $sql = 'INSERT INTO files (file_name, file_type, session_id, seq, duration_seconds, media_info, media_info_tool, mime_type, size_bytes, checksum_sha256)'
-             . ' VALUES (:file_name, :file_type, :session_id, :seq, :duration_seconds, :media_info, :media_info_tool, :mime_type, :size_bytes, :checksum)';
+        $sql = 'INSERT INTO files (file_name, source_relpath, file_type, session_id, seq, duration_seconds, media_info, media_info_tool, mime_type, size_bytes, checksum_sha256)'
+             . ' VALUES (:file_name, :source_relpath, :file_type, :session_id, :seq, :duration_seconds, :media_info, :media_info_tool, :mime_type, :size_bytes, :checksum)';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
             ':file_name' => $data['file_name'] ?? '',
+            ':source_relpath' => $data['source_relpath'] ?? null,
             ':file_type' => $data['file_type'] ?? '',
             ':session_id' => $data['session_id'] ?? null,
             ':seq' => $data['seq'] ?? null,

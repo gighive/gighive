@@ -1,6 +1,8 @@
 <?php declare(strict_types=1);
 namespace Production\Api\Validation;
 
+ use Production\Api\Config\MediaTypes;
+
 final class UploadValidator
 {
     /** @var int */
@@ -8,16 +10,24 @@ final class UploadValidator
     /** @var string[] */
     private array $allowedMimes;
 
-    public function __construct(?int $maxBytes = null, array $allowedMimes = [
-        'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/flac', 'audio/mp4',
-        'video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm', 'video/x-msvideo'
-    ]) {
+    public function __construct(?int $maxBytes = null, ?array $allowedMimes = null) {
         // Default to 6 GB if not specified; allow override via env UPLOAD_MAX_BYTES
         // Use 6 * 1024 * 1024 * 1024 = 6442450944 bytes
         $env = getenv('UPLOAD_MAX_BYTES');
         $defaultMax = 6 * 1024 * 1024 * 1024; // 6 GB calculated at runtime to avoid literal overflow
         $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : $defaultMax);
-        $this->allowedMimes = $allowedMimes;
+
+        $defaultAllowed = [
+            'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/flac', 'audio/mp4',
+            'video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm', 'video/x-msvideo'
+        ];
+
+        if ($allowedMimes === null) {
+            $fromEnv = MediaTypes::allowedMimes();
+            $this->allowedMimes = $fromEnv !== [] ? $fromEnv : $defaultAllowed;
+        } else {
+            $this->allowedMimes = $allowedMimes;
+        }
     }
 
     public function validateFilesArray(array $files): void

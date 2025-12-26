@@ -2,6 +2,8 @@
 hostname: "gighive"
 vm_name: "gighive"
 
+gighive_timezone: "America/New_York"
+
 # OS version configuration
 ubuntu_version: "24.04"
 ubuntu_codename: "noble"
@@ -21,6 +23,10 @@ audio_full: "/home/sodo/scripts/stormpigsCode/production/audio/"
 video_reduced: "{{ repo_root }}/assets/video"
 audio_reduced: "{{ repo_root }}/assets/audio"
 
+media_search_dir_audio: "/var/www/html/audio"
+media_search_dir_video: "/var/www/html/video"
+media_search_dirs: "{{ media_search_dir_audio }}:{{ media_search_dir_video }}"
+
 # vmdk/vdi specs for local vm
 # Cloud image URL format (verified 2024-11 for Noble 24.04)
 # Format may change; check https://cloud-images.ubuntu.com/ if download fails
@@ -38,13 +44,128 @@ database_full: false
 
 # Docker container rebuild control
 rebuild_mysql: false       # Rebuild MySQL container (preserve data)
-rebuild_mysql_data: false   # Rebuild MySQL container + wipe database (nuclear)
+rebuild_mysql_data: true # Rebuild MySQL container + wipe database (nuclear)
 
 # these vars control full/reduced set of media
 sync_video: true
 reduced_video: true
 sync_audio: true
 reduced_audio: true
+
+# --------------------------------------------------------------------
+# Supported media formats (centralized for PHP upload validation/inference)
+#
+# BACKUP (original hardcoded PHP lists before centralization):
+#
+# UploadValidator.php default allowed MIME allowlist:
+#   audio/mpeg
+#   audio/mp3
+#   audio/wav
+#   audio/x-wav
+#   audio/aac
+#   audio/flac
+#   audio/mp4
+#   video/mp4
+#   video/quicktime
+#   video/x-matroska
+#   video/webm
+#   video/x-msvideo
+#
+# UploadService.php inferType() fallback extensions:
+#   audio: mp3, wav, flac, aac
+#   video: mp4, mov, mkv, webm
+# --------------------------------------------------------------------
+ 
+gighive_upload_allowed_mimes:
+  # Original (existing)
+  - audio/mpeg
+  - audio/mp3
+  - audio/wav
+  - audio/x-wav
+  - audio/aac
+  - audio/flac
+  - audio/mp4
+  - video/mp4
+  - video/quicktime
+  - video/x-matroska
+  - video/webm
+  - video/x-msvideo
+ 
+  # Added (audio)
+  - audio/aiff
+  - audio/x-aiff
+  - audio/ogg
+  - application/ogg
+  - audio/vorbis
+  - audio/basic
+  - audio/x-au
+  - audio/au
+  - audio/mp2
+  - audio/mpeg2
+  - audio/x-ms-wma
+
+  # Added (video)
+  - video/mpeg
+  - video/mp2t
+  - video/MP2T
+  - video/ogg
+  - video/x-flv
+  - application/mxf
+  - video/mxf
+  - application/vnd.rn-realmedia
+  - audio/vnd.rn-realaudio
+  - audio/x-pn-realaudio
+  - video/vnd.rn-realvideo
+  - video/x-ms-wmv
+  - video/x-ms-asf
+  - application/vnd.ms-asf
+ 
+gighive_upload_audio_exts:
+  # Original (existing)
+  - mp3
+  - wav
+  - flac
+  - aac
+ 
+  # Added
+  - m4a
+  - m4p
+  - aif
+  - aifc
+  - aiff
+  - ogg
+  - oga
+  - au
+  - m2a
+  - ram
+  - wma
+ 
+gighive_upload_video_exts:
+  # Original (existing)
+  - mp4
+  - mov
+  - mkv
+  - webm
+ 
+  # Added
+  - m4v
+  - avi
+  - mpg
+  - mpeg
+  - ts
+  - m2t
+  - m2ts
+  - ogv
+  - mxf
+  - flv
+  - rm
+  - rmvb
+  - rv
+  - wmv
+  - vob
+  - m2v
+  - bup
+  - ifo
 
 # Users
 admin_user: admin
@@ -55,6 +176,15 @@ uploader_user: uploader
 gighive_apache_container: apacheWebServer
 gighive_htpasswd_host_path: "{{ docker_dir }}/apache/externalConfigs/gighive.htpasswd"  # on the host
 gighive_htpasswd_path: /var/www/private/gighive.htpasswd                  # inside the container
+
+# resize request locations, one on the host, other on the container
+gighive_resize_requests_host_path: "{{ docker_dir }}/apache/externalConfigs/resizerequests"  # on the host
+gighive_resize_requests_path: /var/www/private/resizerequests                                # inside the container
+
+# resize request directory permissions
+gighive_resize_requests_owner: www-data
+gighive_resize_requests_group: www-data
+gighive_resize_requests_mode: "0750"
 
 # for password reset 
 gighive_htpasswd_owner: www-data
@@ -79,7 +209,7 @@ gighive_base_url: "{{ gighive_scheme }}://{{ gighive_host }}"
 gighive_auth_probe_url: "{{ gighive_scheme }}://{{ gighive_host }}/db/database.php"
 gighive_auth_probe_insecure: true
 
-gighive_server_name: "gighive" # name in cert
+gighive_server_name: "{{ vm_name | default(inventory_hostname) }}" # name in cert
 gighive_server_alias: "gighive" # alias in cert
 gighive_ssl_cert_file: "/etc/ssl/certs/origin_cert.pem"
 gighive_ssl_key_file:  "/etc/ssl/private/origin_key.pem"
@@ -119,11 +249,8 @@ mysql_backup_retention_days: 90
 mysql_backup_log: "{{ mysql_backups_dir }}/cron.log"
 
 # --- App upload/filename settings ---
-# Number of digits to pad the per-session sequence in generated filenames
 filename_seq_pad: 5
-
-# Application-level upload size cap in bytes (honored by UploadValidator)
 upload_max_bytes: 6442450944 
 upload_max_mb: 6144
 
-
+database_pagination_threshold: 750

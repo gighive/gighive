@@ -299,8 +299,9 @@ try {
 "FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY ''\n" .
 "LINES TERMINATED BY '\\r\\n'\n" .
 "IGNORE 1 LINES\n" .
-"(file_id, file_name, file_type, @duration_seconds, @media_info, @media_info_tool)\n" .
+"(file_id, file_name, @source_relpath, file_type, @duration_seconds, @media_info, @media_info_tool)\n" .
 "SET\n" .
+"  source_relpath = NULLIF(@source_relpath, ''),\n" .
 "  duration_seconds = NULLIF(@duration_seconds, ''),\n" .
 "  media_info = NULLIF(@media_info, ''),\n" .
 "  media_info_tool = NULLIF(@media_info_tool, '');\n\n" .
@@ -361,6 +362,24 @@ try {
     $finishStep(10, 'ok', 'session_songs loaded');
     $finishStep(11, 'ok', 'song_files loaded');
 
+    $fileCount = null;
+    $tableCounts = [];
+    try {
+        $fileCount = (int)$pdo->query('SELECT COUNT(*) FROM files')->fetchColumn();
+        $tableCounts = [
+            'sessions' => (int)$pdo->query('SELECT COUNT(*) FROM sessions')->fetchColumn(),
+            'musicians' => (int)$pdo->query('SELECT COUNT(*) FROM musicians')->fetchColumn(),
+            'songs' => (int)$pdo->query('SELECT COUNT(*) FROM songs')->fetchColumn(),
+            'files' => $fileCount,
+            'session_musicians' => (int)$pdo->query('SELECT COUNT(*) FROM session_musicians')->fetchColumn(),
+            'session_songs' => (int)$pdo->query('SELECT COUNT(*) FROM session_songs')->fetchColumn(),
+            'song_files' => (int)$pdo->query('SELECT COUNT(*) FROM song_files')->fetchColumn(),
+        ];
+    } catch (Throwable $e) {
+        $fileCount = null;
+        $tableCounts = [];
+    }
+
     http_response_code(200);
     header('Content-Type: application/json');
     echo json_encode([
@@ -368,6 +387,8 @@ try {
         'message' => 'Database import completed successfully.',
         'job_id' => $jobId,
         'steps' => $steps,
+        'file_count' => $fileCount,
+        'table_counts' => $tableCounts,
     ]);
 
 } catch (Throwable $e) {

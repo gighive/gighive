@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 namespace Production\Api\Services;
 
+use Production\Api\Config\MediaTypes;
 use Production\Api\Infrastructure\FileStorage;
 use Production\Api\Repositories\FileRepository;
 use Production\Api\Validation\UploadValidator;
@@ -41,7 +42,15 @@ final class UploadService
         $fileType = $this->inferType($mime, $ext); // 'audio' | 'video' | 'unknown'
         if ($fileType === 'unknown') {
             // Map common extensions if mime is unreliable
-            $fileType = in_array($ext, ['mp3','wav','flac','aac'], true) ? 'audio' : (in_array($ext, ['mp4','mov','mkv','webm'], true) ? 'video' : 'unknown');
+            $audioExts = MediaTypes::audioExts();
+            if ($audioExts === []) {
+                $audioExts = ['mp3','wav','flac','aac'];
+            }
+            $videoExts = MediaTypes::videoExts();
+            if ($videoExts === []) {
+                $videoExts = ['mp4','mov','mkv','webm'];
+            }
+            $fileType = in_array($ext, $audioExts, true) ? 'audio' : (in_array($ext, $videoExts, true) ? 'video' : 'unknown');
         }
         if ($fileType === 'unknown') {
             throw new \InvalidArgumentException('Unsupported media type');
@@ -89,6 +98,16 @@ final class UploadService
         // Compute checksum (before move for reliability)
         $checksum = @hash_file('sha256', $tmpPath) ?: null;
 
+        // Store on disk as {sha256}.{ext} when possible, but keep canonical name in DB.
+        if ($checksum !== null) {
+            $checksumNorm = strtolower(trim($checksum));
+            if (preg_match('/^[0-9a-f]{64}$/', $checksumNorm) === 1) {
+                $storedName = $ext !== '' ? ($checksumNorm . '.' . $ext) : $checksumNorm;
+                $targetPath = $this->uniquePath($targetDir, $storedName);
+                $checksum = $checksumNorm;
+            }
+        }
+
         // Move the file
         $this->storage->moveUploadedFile($tmpPath, $targetPath);
 
@@ -101,6 +120,7 @@ final class UploadService
         // Persist metadata (with session linkage and seq)
         $id = $this->files->create([
             'file_name'       => basename($targetPath),
+            'source_relpath'  => $finalName,
             'file_type'       => $fileType,
             'session_id'      => $sessionId,
             'seq'             => $seq,
@@ -151,8 +171,17 @@ final class UploadService
         if (str_starts_with($m, 'audio/')) return 'audio';
         if (str_starts_with($m, 'video/')) return 'video';
         // fallback by extension
-        if (in_array($ext, ['mp3','wav','flac','aac'], true)) return 'audio';
-        if (in_array($ext, ['mp4','mov','mkv','webm'], true)) return 'video';
+        $audioExts = MediaTypes::audioExts();
+        if ($audioExts === []) {
+            $audioExts = ['mp3','wav','flac','aac'];
+        }
+        if (in_array($ext, $audioExts, true)) return 'audio';
+
+        $videoExts = MediaTypes::videoExts();
+        if ($videoExts === []) {
+            $videoExts = ['mp4','mov','mkv','webm'];
+        }
+        if (in_array($ext, $videoExts, true)) return 'video';
         return 'unknown';
     }
 

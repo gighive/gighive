@@ -153,8 +153,10 @@ INTO TABLE files
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY ''
 LINES TERMINATED BY '\r\n'
 IGNORE 1 LINES
-(file_id, file_name, file_type, @duration_seconds, @media_info, @media_info_tool)
+(file_id, file_name, @source_relpath, @checksum_sha256, file_type, @duration_seconds, @media_info, @media_info_tool)
 SET
+  source_relpath = NULLIF(@source_relpath, ''),
+  checksum_sha256 = NULLIF(@checksum_sha256, ''),
   duration_seconds = NULLIF(@duration_seconds, ''),
   media_info = NULLIF(@media_info, ''),
   media_info_tool = NULLIF(@media_info_tool, '');

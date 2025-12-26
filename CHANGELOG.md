@@ -1,7 +1,141 @@
 *** 
+releaseNotes20251226.txt
+Plan for today in prep for rolling out csv to hash-first changes
+Done: test mysql rebuild for gighive small file list, test app against gighive2, prep gighive group_vars, full rebuild of gighive2
+ToDo: update git, check sonarqube, 
+ToDo: full rebuild of gighive, test app against gighive, 
+ToDo: update stormpigs
+
+*** 
+releaseNotes20251226.txt
+Changes: Massive update to change import, sessioning and mime types/file extensions to support the import of users libraries.  load_and_transform.sql totally changed, migrating from “CSV-driven” to “hash-first”.
+
+Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   MediaDatabase.html
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	new file:   ansible/playbooks/resize_vdi.yml
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/cloud_init/files/network-config
+	deleted:    ansible/roles/docker/files/apache/overlays/gighive/src/Controllers/MediaController.php
+	deleted:    ansible/roles/docker/files/apache/overlays/gighive/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_database.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_add.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_reload.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_normalized.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Config/MediaTypes.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	new file:   ansible/roles/docker/files/apache/webroot/tools/convert_legacy_database_csv_to_normalized.py
+	modified:   ansible/roles/docker/files/apache/webroot/tools/mysqlPrep_full.py
+	new file:   ansible/roles/docker/files/apache/webroot/tools/mysqlPrep_normalized.py
+	new file:   ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh
+	new file:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
+	new file:   ansible/roles/docker/files/apache/webroot/write_resize_request.php
+	modified:   ansible/roles/docker/files/mysql/dbScripts/dbCommands.sh
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_full.py
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/mysqlPrep_sample.py
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvs/conversion_report.txt
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvs/manifest.json
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvs/session_files.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvs/sessions.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvsLarge/conversion_report.txt
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvsLarge/manifest.json
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvsLarge/session_files.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvsLarge/sessions.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvsSmall/conversion_report.txt
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvsSmall/manifest.json
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvsSmall/session_files.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_csvsSmall/sessions.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_from_legacy_old/conversion_report.txt
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_from_legacy_old/session_files.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_from_legacy_old/sessions.csv
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/load_and_transform.sql
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/files.csv
+	renamed:    ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/database_augmented.csv -> ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod/database_augmented.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod/files.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod/musicians.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod/session_musicians.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod/session_songs.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod/sessions.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod/song_files.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod/songs.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/rememberTheseGennedBy1-3B_2-importjobs_3-upload_media_by_hash.txt
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample/files.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample_csvmethod/database_augmented.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample_csvmethod/files.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample_csvmethod/musicians.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample_csvmethod/session_musicians.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample_csvmethod/session_songs.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample_csvmethod/sessions.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample_csvmethod/song_files.csv
+	new file:   ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/sample_csvmethod/songs.csv
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   ansible/roles/docker/templates/apache2.conf.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   ansible/roles/docker/templates/entrypoint.sh.j2
+	modified:   ansible/roles/docker/templates/php-fpm.conf.j2
+	modified:   ansible/roles/docker/templates/www.conf.j2
+	modified:   ansible/roles/installprerequisites/vars/main.yml
+	modified:   ansible/roles/security_owasp_crs/tasks/verify.yml
+	modified:   ansible/roles/validate_app/tasks/main.yml
+	modified:   docs/DATABASE_LOAD_METHODS.md
+	new file:   docs/DATABASE_LOAD_METHODS_SIMPLIFICATION.md
+	new file:   docs/addToDatabaseFeature.md
+	new file:   docs/audioVideoFullReducedLogic.md
+	new file:   docs/convert_legacy_database.md
+	new file:   docs/convert_legacy_database_via_mysql_init.md
+	new file:   docs/guide1Intro.txt
+	modified:   docs/images/databaseErd.png
+	new file:   docs/images/databaseErd.png.bak2
+	new file:   docs/images/databaseImportFlows.png
+	new file:   docs/images/databaseImportLegacy.png
+	new file:   docs/load_and_transform_mysql_initialization.md
+	new file:   docs/musiclibrary.txt
+	new file:   docs/resizeRequestInstructions.md
+	new file:   docs/supportedMediaFormats.md
+	new file:   docs/uploadMediaByHash.md
+	new file:   promptScanPlan.txt
+	new file:   test
+	modified:   user-prompts.md
+
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Should I build the restart functionality if server reboots?
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Can we confine ffmpeg install to vm only?
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
 releaseNotes20251218.txt
 Changes: New feature to scan a local folder, grab the media files within and update the database
 
+Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -14,16 +148,6 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/apache/webroot/admin.php
 	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/databaseSmallFourColumns.csv
 	modified:   docs/DATABASE_LOAD_METHODS.md
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251216.txt
