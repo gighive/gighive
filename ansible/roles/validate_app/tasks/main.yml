@@ -201,3 +201,52 @@
     fail_msg: "GET /api/media-files did not return valid JSON when implemented"
   when: media_files_get.status is defined and media_files_get.status == 200
 
+- name: Read host timezone via /etc/localtime symlink
+  become: true
+  ansible.builtin.command:
+    cmd: readlink -f /etc/localtime
+  register: host_localtime_link
+  changed_when: false
+
+- name: Assert host timezone matches expected
+  ansible.builtin.assert:
+    that:
+      - host_localtime_link.stdout | trim == ("/usr/share/zoneinfo/" ~ gighive_timezone)
+    fail_msg: "Host /etc/localtime resolves to {{ host_localtime_link.stdout | trim }}, expected /usr/share/zoneinfo/{{ gighive_timezone }}"
+
+- name: Read apache container timezone
+  ansible.builtin.command:
+    cmd: docker exec -i apacheWebServer cat /etc/timezone
+  register: apache_timezone
+  changed_when: false
+
+- name: Assert apache container timezone matches expected
+  ansible.builtin.assert:
+    that:
+      - apache_timezone.stdout | trim == gighive_timezone
+    fail_msg: "apacheWebServer timezone is {{ apache_timezone.stdout | trim }}, expected {{ gighive_timezone }}"
+
+- name: Read mysql container TZ env
+  ansible.builtin.command:
+    cmd: docker exec -i mysqlServer printenv TZ
+  register: mysql_tz_env
+  changed_when: false
+
+- name: Assert mysql container TZ env matches expected
+  ansible.builtin.assert:
+    that:
+      - mysql_tz_env.stdout | trim == gighive_timezone
+    fail_msg: "mysqlServer TZ env is {{ mysql_tz_env.stdout | trim }}, expected {{ gighive_timezone }}"
+
+- name: Read mysql container timezone
+  ansible.builtin.command:
+    cmd: docker exec -i mysqlServer cat /etc/timezone
+  register: mysql_timezone
+  changed_when: false
+
+- name: Assert mysql container timezone matches expected
+  ansible.builtin.assert:
+    that:
+      - mysql_timezone.stdout | trim == gighive_timezone
+    fail_msg: "mysqlServer timezone is {{ mysql_timezone.stdout | trim }}, expected {{ gighive_timezone }}"
+

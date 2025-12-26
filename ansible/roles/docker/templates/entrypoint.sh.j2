@@ -23,6 +23,13 @@ mkdir -p /var/www/html/audio /var/www/html/video
 chown -R www-data:www-data /var/www/html
 chmod 775 /var/www/html/audio /var/www/html/video
 
+# Ensure php-fpm log files exist and are writable
+mkdir -p /var/log/php-fpm
+touch /var/log/fpm-php.www.log /var/log/php-fpm/www.slow.log
+chown -R www-data:www-data /var/log/php-fpm
+chown www-data:www-data /var/log/fpm-php.www.log
+chmod 664 /var/log/fpm-php.www.log /var/log/php-fpm/www.slow.log
+
 # Ensure php-fpm runtime dir exists and start php-fpm in the background
 mkdir -p /run/php && chown www-data:www-data /run/php && ${PHP_FPM_BIN} || true
 

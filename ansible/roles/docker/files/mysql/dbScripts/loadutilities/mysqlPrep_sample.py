@@ -248,6 +248,8 @@ for idx, row in df.iterrows():
         if fname not in files:
             ext   = os.path.splitext(fname)[1].lower().lstrip(".")
             media = MEDIA_TYPE.get(ext, 'audio')
+            source_relpath = fname
+            canonical_name = os.path.basename(fname)
             # Try to resolve a local path and probe duration
             resolved = resolve_media_path(fname)
             dur = probe_duration_seconds(resolved)
@@ -256,6 +258,8 @@ for idx, row in df.iterrows():
             files[fname] = {
                 "file_id":   len(files) + 1,
                 "file_type": media,
+                "file_name": canonical_name,
+                "source_relpath": source_relpath,
                 "duration_seconds": dur,
                 "media_info": media_info,
                 "media_info_tool": media_info_tool,
@@ -332,14 +336,15 @@ write_csv(
 write_csv(
     [{
         "file_id": info["file_id"],
-        "file_name": name,
+        "file_name": info.get("file_name", os.path.basename(name)),
+        "source_relpath": info.get("source_relpath", name),
         "file_type": info["file_type"],
         "duration_seconds": info.get("duration_seconds", ""),
         "media_info": info.get("media_info", ""),
         "media_info_tool": info.get("media_info_tool", ""),
      }
      for name, info in files.items()],
-    ["file_id","file_name","file_type","duration_seconds","media_info","media_info_tool"],
+    ["file_id","file_name","source_relpath","file_type","duration_seconds","media_info","media_info_tool"],
     "files.csv"
 )
 

@@ -36,7 +36,7 @@
     container: apacheWebServer
     command: /bin/sh -lc "test -s {{ gighive_ssl_cert_file | quote }}"
   register: cert_check
-  retries: 30
+  retries: 60
   delay: 1
   until: cert_check.rc == 0
   changed_when: false

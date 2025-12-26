@@ -1,0 +1,25 @@
+input_csv: database.csv
+output_dir: normalized_csvs
+manifest_path: normalized_csvs/manifest.json
+manifest_items: 657
+
+sessions_total: 135
+sessions_with_files: 91
+file_tokens_total (post-split): 657
+files_emitted (supported media): 657
+files_hashed: 647
+files_missing_on_disk: 10
+ignored_non_media: 0
+ignored_suspicious: 0
+
+Warnings (first 200):
+- Row 91: media file not found on disk for token: 'StormPigs20060406_1_1.mp4'
+- Row 91: media file not found on disk for token: 'StormPigs20060406_2_2.mp4'
+- Row 91: media file not found on disk for token: 'StormPigs20060406_3_3.mp4'
+- Row 91: media file not found on disk for token: 'StormPigs20060406_5_5.mp4'
+- Row 91: media file not found on disk for token: 'StormPigs20060406_7_7.mp4'
+- Row 91: media file not found on disk for token: 'StormPigs20060406_8_8.mp4'
+- Row 91: media file not found on disk for token: 'StormPigs20060406_9_9.mp4'
+- Row 91: media file not found on disk for token: 'StormPigs20060406_10_10.mp4'
+- Row 126: media file not found on disk for token: 'StormPigs20161207_8_25or6-to-4.mp4'
+- Row 134: media file not found on disk for token: 'StormPigs20250724_4_electrofunk42.mp4'

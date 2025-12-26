@@ -1,0 +1,10 @@
+input_csv: /home/sodo/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv
+output_dir: /home/sodo/scripts/gighive/ansible/roles/docker/files/mysql/dbScripts/loadutilities/normalized_from_legacy
+
+sessions_total: 135
+sessions_with_files: 91
+file_tokens_total (post-split): 657
+files_emitted (supported media): 657
+ignored_non_media: 0
+ignored_suspicious: 0
+

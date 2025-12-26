@@ -21,6 +21,7 @@ docker cp create_music_db.sql mysqlServer:/docker-entrypoint-initdb.d/00-create_
 # file (from untracked secrets.yml / vault); no real passwords are stored in this repo.
 docker exec -i mysqlServer sh -c "mysql -u root -p\"$MYSQL_ROOT_PASSWORD\" \"$MYSQL_DATABASE\" < /docker-entrypoint-initdb.d/00-create_music_db.sql"
 
+source ../externalConfigs/.env.mysql
 docker cp select.sql mysqlServer:/tmp/select.sql
 docker exec -i mysqlServer sh -c "mysql -u root -p\"$MYSQL_ROOT_PASSWORD\" \"$MYSQL_DATABASE\" < /tmp/select.sql"
 

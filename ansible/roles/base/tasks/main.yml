@@ -117,6 +117,7 @@
       - apt-transport-https
       - ca-certificates
       - curl
+      - ffmpeg
       - gnupg-agent
       - lsb-release
       - docker-ce
@@ -258,6 +259,7 @@
       - "--exclude=cloud-init/"
       - "--exclude=*.vdi"
       - "--exclude=*.vmdk"
+      - "--exclude=ansible/roles/docker/files/apache/externalConfigs/resizerequests/"
       - "--exclude=ansible/roles/docker/files/mysql/dbScripts/backups/"
       - "--no-group"
       - "--no-perms"
@@ -281,6 +283,34 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}" 
   tags: sync_csvs
+
+- name: Ensure ansible_user is in www-data group
+  become: yes
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: www-data
+    append: yes
+
+- name: Ensure resize request directory exists and is writable by Apache
+  become: yes
+  ansible.builtin.file:
+    path: "{{ gighive_resize_requests_host_path }}"
+    state: directory
+    owner: "{{ gighive_resize_requests_owner }}"
+    group: "{{ gighive_resize_requests_group }}"
+    mode: "{{ gighive_resize_requests_mode }}"
+
+- name: Ensure media bind mount dirs are writable by www-data group
+  become: yes
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "2775"
+  loop:
+    - audio
+    - video
 
 - name: Ensure video_dir exists with proper ownership by {{ ansible_user }}
   become: yes
@@ -444,7 +474,7 @@
 
 - name: Recursively fix directory permissions under {{ video_dir }}
   ansible.builtin.command: >
-    find {{ video_dir }} -type d -exec chmod 755 {} \;
+    find {{ video_dir }} -mindepth 1 -type d -exec chmod 755 {} \;
   tags:
     - sync_video
 
@@ -456,7 +486,7 @@
 
 - name: Recursively fix directory permissions under {{ audio_dir }}
   ansible.builtin.command: >
-    find {{ audio_dir }} -type d -exec chmod 755 {} \;
+    find {{ audio_dir }} -mindepth 1 -type d -exec chmod 755 {} \;
   tags:
     - sync_audio
 
@@ -486,9 +516,44 @@
   tags:
     - sync_video
 
-- name: Set system timezone to Eastern Time
-  ansible.builtin.timezone:
-    name: America/New_York
+- name: Ensure tzdata is installed
+  become: true
+  ansible.builtin.apt:
+    name: tzdata
+    state: present
+  tags: always
+
+- name: Verify zoneinfo file exists for configured timezone
+  become: true
+  ansible.builtin.stat:
+    path: "/usr/share/zoneinfo/{{ gighive_timezone }}"
+  register: gighive_zoneinfo
+  tags: always
+
+- name: Fail if configured timezone is not available on the host
+  ansible.builtin.fail:
+    msg: "Timezone '{{ gighive_timezone }}' not found at /usr/share/zoneinfo/{{ gighive_timezone }}"
+  when: not gighive_zoneinfo.stat.exists
+  tags: always
+
+- name: Write /etc/timezone
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/timezone
+    content: "{{ gighive_timezone }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: always
+
+- name: Set /etc/localtime symlink to configured timezone
+  become: true
+  ansible.builtin.file:
+    path: /etc/localtime
+    state: link
+    src: "/usr/share/zoneinfo/{{ gighive_timezone }}"
+    force: true
+  tags: always
 
 - name: Ensure the host’s own hostname is in /etc/hosts
   become: yes
