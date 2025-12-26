@@ -6,56 +6,20 @@ This document describes the two database (re)load mechanisms used by GigHive and
 
 GigHive currently supports two practical ways to wipe and repopulate the MySQL database with media data:
 
-1. **MySQL initialization load** (container bootstrap via `/docker-entrypoint-initdb.d/`)
-2. **Admin-triggered runtime import** (planned: `import_database.php` via the web admin UI, “Option A”)
+1. **Admin-triggered runtime import** (web admin UI: `import_database.php`, `import_normalized.php`)
+2. **MySQL initialization load** (container bootstrap via `/docker-entrypoint-initdb.d/`) (advanced)
 
 Both approaches ultimately load per-table CSVs into MySQL, but they differ in *when* they run, *where* data lives during load, and how much infrastructure is involved.
 
 ---
 
-## Method 1: MySQL initialization load (container bootstrap)
-
-### Where it lives
-
-- **Docker Compose / Ansible** mounts initialization SQL scripts into the MySQL container:
-  - `/docker-entrypoint-initdb.d/00-create_music_db.sql`
-  - `/docker-entrypoint-initdb.d/01-load_and_transform.sql`
-
-### When it runs
-
-- Runs **only when the MySQL container initializes a fresh/empty data directory**.
-- In practical terms this happens when:
-  - the MySQL container is created with a new/empty `/var/lib/mysql`
-  - a persistent volume is removed/reset
-
-If the MySQL container is restarted with an already-initialized datadir, the `/docker-entrypoint-initdb.d/` scripts are typically **not re-run**.
-
-### How data is loaded
-
-- Uses **server-side** loading:
-  - `LOAD DATA INFILE '/var/lib/mysql-files/<table>.csv' ...`
-- This relies on:
-  - `secure_file_priv` permitting `/var/lib/mysql-files/`
-  - the per-table CSVs being present in the MySQL container filesystem (usually via a volume mount)
-
-### Pros
-
-- Great for **first-time setup** and predictable provisioning.
-- Works without exposing any “dangerous” import capability in the web UI.
-
-### Cons
-
-- Not convenient for frequent reloads (often implies container lifecycle steps).
-- Generally tied to infrastructure actions (rebuild/recreate container, reset volume, rerun playbooks, etc.).
-
----
-
-## Method 2: Admin-triggered runtime import (web admin, Option A)
+## Method 1: Admin-triggered runtime import (web admin, Option A)
 
 ### Where it lives
 
 - Runs from the **Apache/PHP container** via an admin-only endpoint:
-  - planned endpoint: `import_database.php`
+  - `import_database.php`
+  - `import_normalized.php`
 - The admin UI (`admin.php`) provides a CSV upload control and triggers the import.
 
 ### When it runs
@@ -70,6 +34,44 @@ If the MySQL container is restarted with an already-initialized datadir, the `/d
 - Runs the existing preprocessing script:
   - `mysqlPrep_full.py`
 - That script generates normalized per-table CSVs (e.g., `sessions.csv`, `songs.csv`, etc.) in a job directory.
+
+---
+
+## For Bands/Event Planners. Admin UI Section 3A (Legacy): Upload Single CSV and Reload Database (destructive)
+
+- Endpoint: `import_database.php`
+- Upload field name: `database_csv`
+
+### Minimum required headers in the uploaded source CSV
+
+The uploaded source CSV must include a header row. The admin UI performs a preflight check before starting an import.
+
+Minimum required headers:
+
+- `t_title` (sessions title)
+- `d_date` (session date)
+- `d_merged_song_lists` (songs source)
+- `f_singles` (files source)
+
+---
+
+## For Bands/Event Planners. Admin UI Section 3B (Normalized): Upload Sessions + Session Files and Reload Database (destructive)
+
+- Endpoint: `import_normalized.php`
+- Upload field names:
+  - `sessions_csv`
+  - `session_files_csv`
+
+### Minimum required headers in `sessions.csv`
+
+- `session_key`
+- `t_title`
+- `d_date`
+
+### Minimum required headers in `session_files.csv`
+
+- `session_key`
+- `source_relpath`
 
 ### Where uploads and job artifacts are stored
 
@@ -119,17 +121,6 @@ drwxr-xr-x 3 www-data www-data   4096 Dec 24 19:20 ../
 -rw-r--r-- 1 www-data www-data   5692 Dec 24 19:19 song_files.csv
 -rw-r--r-- 1 www-data www-data  20756 Dec 24 19:19 songs.csv
 ```
-
-### Minimum required headers in the uploaded source CSV
-
-The uploaded source CSV must include a header row. The admin UI performs a preflight check before starting an import.
-
-Minimum required headers:
-
-- `t_title` (sessions title)
-- `d_date` (session date)
-- `d_merged_song_lists` (songs source)
-- `f_singles` (files source)
 
 ### `files.source_relpath` population behavior
 
@@ -182,7 +173,7 @@ The runtime import will:
 
 ## Summary Table
 
-| Aspect | MySQL initialization load | Admin-triggered runtime import (Option A) |
+| Aspect | MySQL initialization load (advanced) | Admin-triggered runtime import (Option A) |
 |---|---|---|
 | Trigger | MySQL entrypoint on fresh datadir | Admin action in web UI |
 | Best for | First install / provisioning | Ongoing admin reloads |
@@ -202,7 +193,7 @@ The runtime import will:
 
 ---
 
-## Admin UI: Folder Scan → Import-Ready CSV (Section 4)
+## For Media Librarians. Admin UI Section 4: Folder Scan → Import-Ready CSV (destructive)
 
 ### What was added
 
@@ -292,9 +283,68 @@ This section includes:
 - Copy the exact error text shown in the Section 4 status box.
 - Note your browser + version.
 
-### Status / file impact
+---
 
-- Modified:
-  - `ansible/roles/docker/files/apache/webroot/admin.php`
-- Added:
-  - None
+## For Media Librarians. Admin UI Section 5: Folder Scan → Add to the Database (non-destructive)
+
+Section 5 is intended for building a long-term media library without wiping existing data.
+
+- The browser hashes files (SHA-256) and uploads a JSON manifest to the server.
+- The server adds new items and skips duplicates.
+
+### Endpoint and payload
+
+- Endpoint: `import_manifest_add.php`
+- Request body: JSON
+- Minimum fields:
+  - `org_name`
+  - `event_type`
+  - `items` (array)
+
+Each item includes:
+
+- `file_name`
+- `source_relpath`
+- `file_type`
+- `event_date`
+- `size_bytes`
+- `checksum_sha256`
+
+---
+
+## For Advanced Users
+
+### MySQL initialization load (container bootstrap)
+
+#### Where it lives
+
+- **Docker Compose / Ansible** mounts initialization SQL scripts into the MySQL container:
+  - `/docker-entrypoint-initdb.d/00-create_music_db.sql`
+  - `/docker-entrypoint-initdb.d/01-load_and_transform.sql`
+
+#### When it runs
+
+- Runs **only when the MySQL container initializes a fresh/empty data directory**.
+- In practical terms this happens when:
+  - the MySQL container is created with a new/empty `/var/lib/mysql`
+  - a persistent volume is removed/reset
+
+If the MySQL container is restarted with an already-initialized datadir, the `/docker-entrypoint-initdb.d/` scripts are typically **not re-run**.
+
+#### How data is loaded
+
+- Uses **server-side** loading:
+  - `LOAD DATA INFILE '/var/lib/mysql-files/<table>.csv' ...`
+- This relies on:
+  - `secure_file_priv` permitting `/var/lib/mysql-files/`
+  - the per-table CSVs being present in the MySQL container filesystem (usually via a volume mount)
+
+#### Pros
+
+- Great for **first-time setup** and predictable provisioning.
+- Works without exposing any “dangerous” import capability in the web UI.
+
+#### Cons
+
+- Not convenient for frequent reloads (often implies container lifecycle steps).
+- Generally tied to infrastructure actions (rebuild/recreate container, reset volume, rerun playbooks, etc.).
