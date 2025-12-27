@@ -1,10 +1,9 @@
 *** 
 releaseNotes20251227.txt
-Changes: Minor fixes to list.php
+Changes: Minor fixes to list.php, replaced named default assets for gighive with hashed versions
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
-Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -13,13 +12,26 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/prod/prod.yml
-	new file:   ansible/roles/docker/files/apache/webroot/src/Views/media/list copy.php
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/cloud_init/files/network-config
 	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
-	deleted:    ansible/roles/docker/files/apache/webroot/views/media/list.php
-	new file:   docs/databasePhpColumnRules.txt
-	deleted:    test
-	new file:   uploadMediaForProd.sh
+	renamed:    assets/audio/20050303_8.mp3 -> assets/audio/007e8780a31bc28ce5a2aa1161748ad7b8864f613697459694d70a3689ee61ca.mp3
+	renamed:    assets/audio/20050303_1.mp3 -> assets/audio/1982d30224070906ccee90c54279cb027099c5ab00783b7f4ec5382bb1e42b7a.mp3
+	renamed:    assets/audio/20050303_9.mp3 -> assets/audio/1f5509977d26776e5634a23f84ce76ab5363721642b34ebfc138ed1982feea87.mp3
+	renamed:    assets/audio/20050303_3.mp3 -> assets/audio/b2fdf8a92ea8358f338921a2b4cdf8afac97c818583430ccc9a059a1cebd69eb.mp3
+	renamed:    assets/audio/20050303_5.mp3 -> assets/audio/c6ed20216e7dca7f732340c4207a9458fa8c35d75ddf513c90bf29313a35667f.mp3
+	renamed:    assets/audio/20050303_4.mp3 -> assets/audio/c811d7631f5b6a849800222be4b61e8dc531f8215d01e56738281a64acde457a.mp3
+	renamed:    assets/audio/20050303_2.mp3 -> assets/audio/d68010b40ac8e07d91762fd5d803dbc35b8bde8eea57c74b62e5cabcbee0380b.mp3
+	renamed:    assets/audio/20050303_7.mp3 -> assets/audio/e8acabfe56a4bb5b3f4bdcb2acd7f8055619021b9ae4316bcb10bd6c46e57056.mp3
+	renamed:    assets/audio/20050303_6.mp3 -> assets/audio/e9683685ad998f3e1e2c081512df05115e6d6f55881f0e4cd1720206e000d10e.mp3
+	renamed:    assets/audio/20050303_10.mp3 -> assets/audio/fc3012499e468cf375fda17e4fece54db6c9b5b9f1a64d9ccb01974f15beb1e8.mp3
+	renamed:    assets/video/StormPigs20021024_3_gettingold.mp4 -> assets/video/25823bec0d2950e1253c6d22903cefe5ed4e2fa4cb73da036fba818e67c85f4f.mp4
+	new file:   assets/video/32f0133ac6debb9cc42afab3734f400d69851d9020d2db43c9146a399a96e8ac.mp4
+	renamed:    assets/video/StormPigs20021024_1_fleshmachine.mp4 -> assets/video/3ed8bbc43ec35bb4662ac8b75843eb89fbd50557eccb3aa960cbc2f6e0601e4d.mp4
+	renamed:    assets/video/StormPigs20021024_4_hollowbody.mp4 -> assets/video/5a5a63917260e8d1d7b32ac4d5b2998fb48d35d97315874a218f86f02dbc7bbd.mp4
+	renamed:    assets/video/StormPigs20021024_2_fountainofstillness.mp4 -> assets/video/b212a654ddf160523373a7da95a0ddbfa752e6dbe57c13b6e220e0211bf71d95.mp4
+	renamed:    assets/video/StormPigs20021024_5_likeadrugaddict.mp4 -> assets/video/b40e8cc50deea9c90f38df4ae44bfd999db4e2d04815ed1941a381db17c89a31.mp4
+	modified:   docs/text/timings.txt
 	modified:   user-prompts.md
 
 ToDo: replace gmk user on staging with ubuntu
@@ -41,6 +53,30 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251227.txt
+Changes: Minor fixes to list.php
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	new file:   ansible/roles/docker/files/apache/webroot/src/Views/media/list copy.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	deleted:    ansible/roles/docker/files/apache/webroot/views/media/list.php
+	new file:   docs/databasePhpColumnRules.txt
+	deleted:    test
+	new file:   uploadMediaForProd.sh
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20251226.txt

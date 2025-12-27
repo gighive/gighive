@@ -1,3 +1,29 @@
+VIRTUALBOX 12/27/25
+Playbook run took 0 days, 0 hours, 34 minutes, 19 seconds
+Saturday 27 December 2025  17:23:03 -0500 (0:00:00.025)       0:34:19.570 ***** 
+=============================================================================== 
+docker : Start Docker Compose stack ------------------------------------------------------------------------------- 724.89s
+base : Upgrade all packages to the latest available versions ------------------------------------------------------ 659.56s
+base : Install required build-and-runtime dependencies (incl. Docker) --------------------------------------------- 425.02s
+post_build_checks : Pause for X seconds to let the stack settle ---------------------------------------------------- 60.02s
+cloud_init : Wait for SSH availability ----------------------------------------------------------------------------- 30.48s
+security_owasp_crs : Wait for TLS cert file (container) ------------------------------------------------------------ 23.07s
+base : Sync scripts to the VM (excluding cloud-init) --------------------------------------------------------------- 15.93s
+base : Install systemd-timesyncd for time synchronization ---------------------------------------------------------- 10.26s
+base : Wait for time synchronization to complete ------------------------------------------------------------------- 10.03s
+security_basic_auth : Install passlib for htpasswd bcrypt ----------------------------------------------------------- 9.31s
+validate_app : Install ping and netcat in Apache container ---------------------------------------------------------- 9.06s
+cloud_init : Convert VMDK to VDI ------------------------------------------------------------------------------------ 5.02s
+post_build_checks : Check Docker service status --------------------------------------------------------------------- 4.31s
+cloud_init_disable : Wait for SSH after network change (controller) ------------------------------------------------- 3.12s
+base : Add Docker’s APT repository (multi-arch) --------------------------------------------------------------------- 2.99s
+cloud_init_disable : Stop and mask cloud-init units ----------------------------------------------------------------- 2.93s
+Gathering Facts ----------------------------------------------------------------------------------------------------- 2.31s
+cloud_init : Check if target IP is already in use ------------------------------------------------------------------- 2.15s
+docker : Ensure python3-pip is installed ---------------------------------------------------------------------------- 1.87s
+Gathering Facts ----------------------------------------------------------------------------------------------------- 1.74s
+
+
 VIRTUALBOX
 sodo@pop-os:~/gighive$ ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/site.yml --ask-become-pass -v
 
