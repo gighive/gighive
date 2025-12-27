@@ -1886,3 +1886,6 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2025-12-27T11:00:00-05:00
   - some of the row 1 label headings get obscured, but that is OK.  Having said that, can you put some hover text on the labels so that if a person moves the mouse over the labels, the text of the label will show in the little window that pops up when you hover?  this should be added as base functionality.
+
+- 2025-12-27T12:15:00-05:00
+  - good idea.  where "User is logged in as (user)" text, add ". v1.0 view" to indicate the version of the base template we're using.  then I'll reapply the ansible template and see what we're using first.  then we can decide on course of action.

@@ -373,9 +373,9 @@
     delay_updates: false
     rsync_opts:
 #      - "--inplace"
-      - "--include=StormPigs20021024*"
+#      - "--include=StormPigs20021024*" Remmed out on 12/27/25
 #      - "--include=StormPigs202[45]*"
-      - "--exclude=*"
+#      - "--exclude=*" Remmed out on 12/27/25
       - "--no-p"
       - "--no-o"
       - "--no-g"
@@ -443,8 +443,8 @@
     delay_updates: false
     rsync_opts:
 #      - "--inplace"
-      - "--include=2005*"
-      - "--exclude=*"
+#      - "--include=2005*" Remmed out on 12/27/25 
+#      - "--exclude=*"  Remmed out on 12/27/25
       - "--no-p"
       - "--no-o"
       - "--no-g"

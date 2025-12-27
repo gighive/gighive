@@ -14,18 +14,81 @@
   <?php endif; ?>
   <title>Media Library</title>
   <style>
-    body{font-family:system-ui,Arial,sans-serif;margin:0;padding:1rem;overflow-x:auto;}
+    :root{
+      --page-bg:#ffffff;
+      --text:#111111;
+      --muted:#666666;
+      --border:#dddddd;
+      --th-bg:#f6f6f6;
+      --th-text:#111111;
+      --link:#0366d6;
+      --row-highlight:#fff8c2;
+      --input-bg:#ffffff;
+      --input-text:#111111;
+      --input-border:#cccccc;
+      --resizer:#d0d0d0;
+    }
+
+    body.theme-defaultcodebase{
+      --page-bg:#000000;
+      --text:#d8cf6a;
+      --muted:#cfcfcf;
+      --border:#3b3b3b;
+      --th-bg:#ffffff;
+      --th-text:#111111;
+      --link:#9cc7ff;
+      --row-highlight:#1a1a1a;
+      --input-bg:#ffffff;
+      --input-text:#111111;
+      --input-border:#cfcfcf;
+      --resizer:#7a7a7a;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="keywords"],
+    body.theme-defaultcodebase #searchableTable td[data-col="keywords"],
+    body.theme-defaultcodebase #searchableTable th[data-col="summary"],
+    body.theme-defaultcodebase #searchableTable td[data-col="summary"]{
+      max-width:275px;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="keywords"],
+    body.theme-defaultcodebase #searchableTable td[data-col="keywords"]{
+      max-width:270px;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="location"],
+    body.theme-defaultcodebase #searchableTable td[data-col="location"],
+    body.theme-defaultcodebase #searchableTable th[data-col="download"],
+    body.theme-defaultcodebase #searchableTable td[data-col="download"]{
+      width:150px;
+      max-width:150px;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="media_info"],
+    body.theme-defaultcodebase #searchableTable td[data-col="media_info"]{
+      width:430px;
+      max-width:430px;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="keywords"] .th-search-row > input,
+    body.theme-defaultcodebase #searchableTable th[data-col="summary"] .th-search-row > input,
+    body.theme-defaultcodebase #searchableTable th[data-col="location"] .th-search-row > input,
+    body.theme-defaultcodebase #searchableTable th[data-col="download"] .th-search-row > input{
+      max-width:160px;
+    }
+
+    body{font-family:system-ui,Arial,sans-serif;margin:0;padding:1rem;overflow-x:auto;background:var(--page-bg);color:var(--text);}
     h1{margin:0 0 1rem 0;}
-    .user-indicator{font-size:12px;color:#666;margin:0 0 0.5rem 0;}
+    .user-indicator{font-size:12px;color:var(--muted);margin:0 0 0.5rem 0;}
     .pagination{max-width:<?= (int)$maxWidth ?>px;margin:0 auto 0.75rem auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
-    .pagination .links a,.pagination .links span{display:inline-block;padding:4px 8px;border:1px solid #ddd;border-radius:4px;text-decoration:none;color:#0366d6;}
-    .pagination .links span{color:#999;border-color:#eee;}
+    .pagination .links a,.pagination .links span{display:inline-block;padding:4px 8px;border:1px solid var(--border);border-radius:4px;text-decoration:none;color:var(--link);}
+    .pagination .links span{color:var(--muted);border-color:var(--border);}
     .header-block{max-width:<?= (int)$maxWidth ?>px;margin:0 0 0.75rem 0;text-align:left;}
     table{width:max-content;table-layout:auto;border-collapse:collapse;margin:0 auto;}
-    th,td{border:1px solid #ddd;padding:8px;vertical-align:top;word-wrap:break-word;}
-    th{background:#f6f6f6;text-align:left;cursor:pointer;}
-    thead input{width:100%;box-sizing:border-box;margin-top:0;}
-    .highlighted-jam{background-color:#fff8c2;}
+    th,td{border:1px solid var(--border);padding:8px;vertical-align:top;word-wrap:break-word;}
+    th{background:var(--th-bg);color:var(--th-text);text-align:left;cursor:pointer;}
+    thead input{width:100%;box-sizing:border-box;margin-top:0;background:var(--input-bg);color:var(--input-text);border:1px solid var(--input-border);}
+    .highlighted-jam{background-color:var(--row-highlight);}
     #searchableTable th:first-child,
     #searchableTable td:first-child{width:40px;}
     .media-file-info{white-space:pre;display:inline-block;}
@@ -91,6 +154,10 @@
     .th-search-row{margin-top:4px;}
 
     th.col-collapsed,td.col-collapsed{width:32px;min-width:32px;max-width:32px;padding-left:4px;padding-right:4px;overflow:hidden;white-space:nowrap;}
+    #searchableTable th.col-collapsed,
+    #searchableTable td.col-collapsed,
+    body.theme-defaultcodebase #searchableTable th.col-collapsed,
+    body.theme-defaultcodebase #searchableTable td.col-collapsed{width:32px;min-width:32px;max-width:32px;}
     th.col-collapsed .th-title-row{justify-content:center;}
     th.col-collapsed .th-title-row h4{display:none;}
     th.col-collapsed .th-search-row{display:none;}
@@ -99,18 +166,18 @@
     /* Resizable columns */
     #searchableTable th{position:relative;}
     #searchableTable th .col-resizer{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;user-select:none;touch-action:none;}
-    #searchableTable th .col-resizer::after{content:'';position:absolute;top:0;left:3px;width:1px;height:100%;background:#d0d0d0;}
+    #searchableTable th .col-resizer::after{content:'';position:absolute;top:0;left:3px;width:1px;height:100%;background:var(--resizer);}
     body.resizing-col{cursor:col-resize;user-select:none;}
   </style>
 </head>
-<body>
+<body class="<?= $isGighive ? 'theme-gighive' : 'theme-defaultcodebase' ?>">
   <?php
-  $user = $_SERVER['PHP_AUTH_USER']
-      ?? $_SERVER['REMOTE_USER']
+  $user = $_SERVER['REMOTE_USER']
+      ?? $_SERVER['PHP_AUTH_USER']
       ?? $_SERVER['REDIRECT_REMOTE_USER']
       ?? 'Unknown';
   ?>
-  <div class="user-indicator header-block">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?></div>
+  <div class="user-indicator header-block">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?>. v1.0 view</div>
   <h1 id="all" class="header-block">Media Library</h1>
 
   <?php
