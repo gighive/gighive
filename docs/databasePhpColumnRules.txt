@@ -1,0 +1,7 @@
+# column rules for ansible/roles/docker/files/apache/webroot/db/database.php 
+date,org,rating,file type, duration columns should be reduced to widest date value within the column including the top row with the label, checkbox and search bar, but not wrap
+keywords, location, summary, download / view, source_relpath columns should word wrap
+song name column should be set to 175 px width, but then word wrap
+media file info column should be set to 345px width, but then word wrap
+musicians column should be to 250 px width, but then word wrap
+

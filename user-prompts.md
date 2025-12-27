@@ -1843,3 +1843,46 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2025-12-26T12:22:00-05:00
   - i think the docs/DATABASE_LOAD_METHODS.md instructions needs to be updated to jibe 100% to the upload methods on the ansible/roles/docker/files/apache/webroot/admin.php.  that said, the note about how import_jobs works is fine.  the section on mysql initialization load is a custom topic and should be pushed to the very bottom of the document in a new "For Advanced Users" section.  Sections 3A and 3B really apply to musicians/event planners that have need for the sessioning mechanism.  Sections 4 and 5 apply to Media Librarians.  Call that out in the headers by Inserting "For Bands/Event Planners. " before the headings for Section 3A and 3B.  Insert "For Media Librarians. " before the headings for Sections 4/5. Prepend this information into same html header as the existing heading text so they appear on the same line.
+
+- 2025-12-26T13:55:00-05:00
+  - OK, choose Option A, set wrapping on for those four fields.  keep some horizontal scrolling.  wrap media file info and long-text.
+
+- 2025-12-26T13:58:00-05:00
+  - Also, please change the text of the link under the Download / View column from just "Download" to "Download / View"
+
+- 2025-12-26T14:07:00-05:00
+  - oops, this is incorrect, please rollback those changes
+
+- 2025-12-26T14:08:00-05:00
+  - you don't need to rollback the download / view change.  i will test the rollback now.
+
+- 2025-12-27T09:35:00-05:00
+  - looking at ansible/roles/docker/files/apache/webroot/db/database.php , i'd like to make the following changes: date,org,rating,file type, duration columns should be reduced to widest date value within the column including the top row with the label, checkbox and search bar, but not wrap
+    keywords, location, summary, download / view columns should word wrap
+    song name column should be set to 175 px width, but then word wrap
+    media file info column should be set to 345px width, but then word wrap
+    musicians column should be to 250 px width, but then word wrap
+
+- 2025-12-27T09:49:00-05:00
+  - situation is a ittle better, but  see picture.  look at date, band or event, file type and download / view and duration.  those should be more narrow.  is that because of the search box? secondly, source_relpath can word wrap
+
+- 2025-12-27T09:59:00-05:00
+  - oh, i'm sorry all these changes should be applied to both modes.  have they only been applied to defaultcodebase thus far?
+
+- 2025-12-27T10:01:00-05:00
+  - Right now, let's make it easy on ourselves and apply the changes that we've made today to both modes.  Is there a "base" configuration, so that we can just do overrides for each of the modes (gighive/defaultcodebase) as needed?
+
+- 2025-12-27T10:02:00-05:00
+  - yes
+
+- 2025-12-27T10:22:00-05:00
+  - looks pretty good.  does it make sense to move eacb search box into it's own row under the label and checkbox?  as it is, the vertical location of the search box varies.  be nice to have the location consistent.  that said, I want the new row for the search box to appear as if it is in the same row as the label and checkbox, with the same background color scheme and no line in between the label and checkbox.  is this possible?  just advise, make no changes.'
+
+- 2025-12-27T10:24:00-05:00
+  - ok, let's do it
+
+- 2025-12-27T10:29:00-05:00
+  - Also, if you look at that picture again, download / view has a lot of unnecessary extra whitespace.  can that be fixed?
+
+- 2025-12-27T11:00:00-05:00
+  - some of the row 1 label headings get obscured, but that is OK.  Having said that, can you put some hover text on the labels so that if a person moves the mouse over the labels, the text of the label will show in the little window that pops up when you hover?  this should be added as base functionality.

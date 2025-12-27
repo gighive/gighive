@@ -1,15 +1,10 @@
 *** 
-releaseNotes20251226.txt
-Plan for today in prep for rolling out csv to hash-first changes
-Done: test mysql rebuild for gighive small file list, test app against gighive2, prep gighive group_vars, full rebuild of gighive2
-ToDo: update git, check sonarqube, 
-ToDo: full rebuild of gighive, test app against gighive, 
-ToDo: update stormpigs
+releaseNotes20251227.txt
+Changes: Minor fixes to list.php
 
-Changes: Minor fixes for mysql-client and doc
-
-Last run (dev: from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
-Last run (staging: from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -18,11 +13,19 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/base/tasks/main.yml
-	modified:   ansible/roles/installprerequisites/vars/main.yml
-	modified:   docs/DATABASE_LOAD_METHODS.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	new file:   ansible/roles/docker/files/apache/webroot/src/Views/media/list copy.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	deleted:    ansible/roles/docker/files/apache/webroot/views/media/list.php
+	new file:   docs/databasePhpColumnRules.txt
+	deleted:    test
+	new file:   uploadMediaForProd.sh
 	modified:   user-prompts.md
 
+ToDo: replace gmk user on staging with ubuntu
+ToDo: rebuild prod with same ansible scripts as staging
+ToDo: defaultcodebase db/database.php should have limited fields and is in need of reordering
+ToDo: make sure macbook can access dev/prod/staging w/passwordless ssh
 ToDo: Make sure ask-become-pass is run at first part of vbox_provision
 ToDo: Should I build the restart functionality if server reboots?
 ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
@@ -38,6 +41,29 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251226.txt
+Plan for today in prep for rolling out csv to hash-first changes
+Done: test mysql rebuild for gighive small file list, test app against gighive2, prep gighive group_vars, full rebuild of gighive2, update git, check sonarqube, full rebuild of gighive, test app against gighive, update stormpigs
+
+Changes: Minor fixes for mysql-client and doc
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/installprerequisites/vars/main.yml
+	modified:   docs/DATABASE_LOAD_METHODS.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20251226.txt
