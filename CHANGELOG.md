@@ -1,6 +1,6 @@
 *** 
 releaseNotes20251230.txt
-Changes: Index.md tagline change
+Changes: Minor text changes to overlays/gighive/index.php and admin.php
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
@@ -11,7 +11,11 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   docs/index.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	new file:   docs/calculate_durationseconds_hash.md
+	new file:   docs/how_are_thumbnails_calculated.md
+	new file:   docs/media_file_location_variables.md
 
 ToDo: replace gmk user on staging with ubuntu
 ToDo: rebuild prod with same ansible scripts as staging
@@ -32,6 +36,21 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251230.txt
+Changes: Index.md tagline change
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/index.md
 
 *** 
 releaseNotes20251227.txt
