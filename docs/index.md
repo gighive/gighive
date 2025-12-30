@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <div class="custom-h1">Welcome to GigHive!</div>
-<div class="custom-h2">Gighive is a web-accessible media database for you, your fans, or wedding guests.</div>
+<div class="custom-h2">Upload, organize, and stream your media.</div>
 ### If you're a musician
 - You can use it as a library of your bands sessions, audio and video files.
 - Have your fans upload videos from your gigs and utilize the footage from every conceivable angle.
