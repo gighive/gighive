@@ -57,7 +57,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
              style="height:224px; vertical-align:middle; margin-left:.5rem;">
       </h1>
 
-      <h2>Gighive is a web-accessible media database for you, your fans, or wedding guests.</h2>
+      <h2>Upload, organize, and stream your media.</h2>
       <h3>If you're a musician</h3>
       <ul>
       <li>You can use it as a library of your bands sessions, audio and video files.</li>
