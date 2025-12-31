@@ -409,6 +409,7 @@ final class MediaController
                 'url'       => $url,
                 'mediaSummary' => $mediaSummary,
                 'sourceRelpath' => $sourceRelpath,
+                'checksumSha256' => $checksumSha256,
             ];
         }
 

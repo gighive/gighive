@@ -137,7 +137,6 @@ gighive_upload_audio_exts:
   - oga
   - au
   - m2a
-  - ram
   - wma
  
 gighive_upload_video_exts:

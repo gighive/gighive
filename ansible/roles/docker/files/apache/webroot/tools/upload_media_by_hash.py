@@ -20,6 +20,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -43,8 +44,18 @@ def eprint(*args: object) -> None:
     print(*args, file=sys.stderr)
 
 
-def run(cmd: List[str], *, env: Optional[dict] = None, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, check=check)
+def run(
+    cmd: List[str], *, env: Optional[dict] = None, check: bool = True, timeout_seconds: Optional[int] = None
+) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        check=check,
+        timeout=timeout_seconds,
+    )
 
 
 def require_cmd(cmd: str) -> None:
@@ -60,6 +71,31 @@ def validate_sha256(x: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def pick_thumbnail_timestamp(duration_seconds: Optional[int], checksum_sha256: str) -> float:
+    dur = int(duration_seconds) if isinstance(duration_seconds, int) else -1
+    if dur <= 0:
+        return 0.0
+
+    if dur < 4:
+        return max(0.0, float(dur) / 2.0)
+
+    start = min(2.0, float(dur) * 0.10)
+    end = max(float(dur) - 2.0, start)
+
+    try:
+        n = int(checksum_sha256[:8], 16)
+    except Exception:
+        n = 0
+    r = float(n) / float(0xFFFFFFFF)
+
+    t = start + r * (end - start)
+    if t < 0.0:
+        return 0.0
+    if t > float(dur):
+        return float(dur)
+    return t
 
 
 def file_ext_lower(relpath: str) -> str:
@@ -375,6 +411,43 @@ def remote_path_exists(ssh_target: str, remote_path: str) -> bool:
     return cp.returncode == 0
 
 
+def remote_ffmpeg_thumbnail(
+    *,
+    ssh_target: str,
+    video_path: str,
+    thumb_path: str,
+    seek_seconds: float,
+    width_px: int,
+    timeout_seconds: int,
+) -> None:
+    require_cmd("ssh")
+
+    thumb_dir = str(Path(thumb_path).parent)
+    ensure_remote_dir(ssh_target, thumb_dir)
+
+    tmp_path = thumb_path + ".tmp.png"
+
+    vf = f"scale={int(width_px)}:-1"
+    cmd = (
+        "set -euo pipefail; "
+        f"ffmpeg -nostdin -hide_banner -loglevel error -y -ss {seek_seconds:.3f} -i {shlex.quote(video_path)} "
+        f"  -frames:v 1 -vf {shlex.quote(vf)} -an -sn {shlex.quote(tmp_path)}; "
+        f"mv -f {shlex.quote(tmp_path)} {shlex.quote(thumb_path)}; "
+        "if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then "
+        f"  sudo -n chown www-data:www-data {shlex.quote(thumb_path)} 2>/dev/null || true; "
+        f"  sudo -n chmod 0664 {shlex.quote(thumb_path)} 2>/dev/null || true; "
+        "fi"
+    )
+
+    cp = run(
+        ["ssh", "-o", "BatchMode=yes", ssh_target, "bash", "-lc", cmd],
+        check=False,
+        timeout_seconds=timeout_seconds,
+    )
+    if cp.returncode != 0:
+        raise RuntimeError((cp.stderr or cp.stdout or "ffmpeg thumbnail failed").strip())
+
+
 def remote_ffprobe_json(ssh_target: str, remote_path: str) -> Tuple[Optional[int], str, str]:
     """Return (duration_seconds, json_text, tool_string)."""
     require_cmd("ssh")
@@ -431,9 +504,17 @@ def remote_ffprobe_json(ssh_target: str, remote_path: str) -> Tuple[Optional[int
 
 def ensure_remote_dir(ssh_target: str, remote_dir: str) -> None:
     require_cmd("ssh")
-    cp = run(["ssh", "-o", "BatchMode=yes", ssh_target, "mkdir", "-p", remote_dir], check=False)
+    # Prefer creating with www-data ownership + group-writable perms when possible.
+    # This matters for paths like /home/ubuntu/video/thumbnails which are typically owned by www-data.
+    cmd = (
+        "set -euo pipefail; "
+        + f"(sudo -n install -d -o www-data -g www-data -m 0775 {shlex.quote(remote_dir)} 2>/dev/null || true); "
+        + f"mkdir -p {shlex.quote(remote_dir)}; "
+        + f"chmod 0775 {shlex.quote(remote_dir)} 2>/dev/null || true"
+    )
+    cp = run(["ssh", "-o", "BatchMode=yes", ssh_target, "bash", "-lc", cmd], check=False)
     if cp.returncode != 0:
-        raise RuntimeError(f"Failed to ensure remote dir {remote_dir}: {cp.stderr.strip()}")
+        raise RuntimeError(f"Failed to ensure remote dir {remote_dir}: {(cp.stderr or cp.stdout).strip()}")
 
 
 def rsync_copy(src: str, ssh_target: str, dest_abs: str) -> Tuple[bool, str]:
@@ -500,6 +581,24 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--force-recopy",
         action="store_true",
         help="If destination exists, re-copy (overwrite) the file via rsync before probing/DB refresh",
+    )
+
+    p.add_argument("--thumbs", action="store_true", default=True, help="Generate video thumbnails (default: enabled)")
+    p.add_argument("--no-thumbs", dest="thumbs", action="store_false", help="Disable thumbnail generation")
+    p.add_argument("--thumb-width", type=int, default=320, help="Thumbnail width in pixels (default: 320)")
+    p.add_argument("--thumb-timeout", type=int, default=30, help="Thumbnail ffmpeg timeout in seconds (default: 30)")
+    p.add_argument("--force-thumb", action="store_true", help="Re-generate thumbnail even if it already exists")
+
+    p.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="Disable live progress meter",
+    )
+    p.add_argument(
+        "--progress-every-seconds",
+        type=float,
+        default=0.5,
+        help="Progress meter update interval in seconds (default: 0.5)",
     )
 
     args = p.parse_args(argv)
@@ -611,8 +710,17 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print("STATUS\tFILE_TYPE\tSOURCE_RELPATH\tDEST")
 
-    copied = recopied = skipped_exists = missing_src = failed = skipped_type = 0
-    probed = probe_failed = 0
+    copied = 0
+    recopied = 0
+    skipped_exists = 0
+    missing_src = 0
+    failed = 0
+    skipped_type = 0
+    probed = 0
+    probe_failed = 0
+    thumbs_created = 0
+    thumbs_exists = 0
+    thumbs_failed = 0
 
     if not args.dry_run:
         try:
@@ -645,7 +753,40 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         return None
 
-    for r in rows:
+    total_rows = len(rows)
+    show_progress = (not bool(args.no_progress))
+    progress_every_seconds = float(args.progress_every_seconds)
+    started_at = time.monotonic()
+    last_progress_at = 0.0
+    last_progress_printed = ""
+    progress_line_active = False
+
+    def flush_progress_line() -> None:
+        nonlocal progress_line_active
+        if show_progress and progress_line_active:
+            print("", file=sys.stderr)
+            progress_line_active = False
+
+    for row_index_0, r in enumerate(rows):
+        row_index = row_index_0 + 1
+        if show_progress and total_rows > 0:
+            now = time.monotonic()
+            if (now - last_progress_at) >= progress_every_seconds:
+                elapsed = max(0.0, now - started_at)
+                rate = (float(row_index) / elapsed) if elapsed > 0.0 else 0.0
+                remaining = max(0, total_rows - row_index)
+                eta_seconds = int((float(remaining) / rate)) if rate > 0.0 else 0
+                pct = int((row_index / total_rows) * 100)
+                msg = (
+                    f"Progress: {row_index}/{total_rows} rows ({pct}%) "
+                    f"elapsed={int(elapsed)}s eta={eta_seconds}s rate={rate:.2f} rows/s"
+                )
+                if msg != last_progress_printed:
+                    print("\r" + msg, end="", file=sys.stderr, flush=True)
+                    last_progress_printed = msg
+                    progress_line_active = True
+                last_progress_at = now
+
         ext = file_ext_lower(r.source_relpath)
         dest_type = r.file_type
 
@@ -656,6 +797,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         if dest_type not in ("audio", "video"):
             skipped_type += 1
+            flush_progress_line()
             log_row("SKIP_TYPE", r.file_type or "", r.source_relpath, "")
             continue
 
@@ -667,42 +809,60 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         dest_abs = f"{dest_dir.rstrip('/')}/{dest_filename}"
 
-        src_abs = resolve_src_abs(r.source_relpath)
-        if src_abs is None:
-            missing_src += 1
-            log_row("MISSING_SRC", dest_type, r.source_relpath, dest_abs)
-            continue
-
         dest_exists = remote_path_exists(args.ssh_target, dest_abs)
         if dest_exists:
             if args.force_recopy:
+                flush_progress_line()
                 log_row("FORCE_RECOPY", dest_type, r.source_relpath, dest_abs)
             else:
                 skipped_exists += 1
+                flush_progress_line()
                 log_row("SKIP_COPY_EXISTS", dest_type, r.source_relpath, dest_abs)
 
         if args.dry_run:
             if dest_exists and args.force_recopy:
+                flush_progress_line()
                 log_row("DRY_RUN_RECOPY", dest_type, r.source_relpath, dest_abs)
             else:
+                flush_progress_line()
                 log_row("DRY_RUN", dest_type, r.source_relpath, dest_abs)
             continue
 
         if (not dest_exists) or args.force_recopy:
+            src_abs = resolve_src_abs(r.source_relpath)
+            if src_abs is None:
+                missing_src += 1
+                flush_progress_line()
+                log_row("MISSING_SRC", dest_type, r.source_relpath, dest_abs)
+                continue
             ok, err = rsync_copy(str(src_abs), args.ssh_target, dest_abs)
             if ok:
                 if dest_exists and args.force_recopy:
                     recopied += 1
+                    flush_progress_line()
                     log_row("RECOPIED", dest_type, r.source_relpath, dest_abs)
                 else:
                     copied += 1
+                    flush_progress_line()
                     log_row("COPIED", dest_type, r.source_relpath, dest_abs)
             else:
                 failed += 1
+                flush_progress_line()
                 log_row("FAILED", dest_type, r.source_relpath, dest_abs)
                 if err:
+                    flush_progress_line()
                     eprint(f"FAILED\t{dest_type}\t{r.source_relpath}\t{dest_abs}\t{err}")
                 continue
+
+            dest_exists = True
+
+        if not dest_exists:
+            failed += 1
+            flush_progress_line()
+            log_row("FAILED", dest_type, r.source_relpath, dest_abs)
+            flush_progress_line()
+            eprint(f"FAILED\t{dest_type}\t{r.source_relpath}\t{dest_abs}\tmissing destination file after copy")
+            continue
 
         try:
             dur, jtxt, tool = remote_ffprobe_json(args.ssh_target, dest_abs)
@@ -718,11 +878,46 @@ def main(argv: Optional[List[str]] = None) -> int:
                 media_info_tool=tool,
             )
             probed += 1
+
+            if args.thumbs and dest_type == "video":
+                try:
+                    thumb_dir = f"{args.dest_video.rstrip('/')}/thumbnails"
+                    thumb_path = f"{thumb_dir}/{r.checksum_sha256}.png"
+                    if args.force_thumb or not remote_path_exists(args.ssh_target, thumb_path):
+                        t = pick_thumbnail_timestamp(dur, r.checksum_sha256)
+                        remote_ffmpeg_thumbnail(
+                            ssh_target=args.ssh_target,
+                            video_path=dest_abs,
+                            thumb_path=thumb_path,
+                            seek_seconds=t,
+                            width_px=max(32, int(args.thumb_width)),
+                            timeout_seconds=max(5, int(args.thumb_timeout)),
+                        )
+                        thumbs_created += 1
+                        flush_progress_line()
+                        log_row("THUMBNAIL_CREATED", dest_type, r.source_relpath, thumb_path)
+                    else:
+                        thumbs_exists += 1
+                        flush_progress_line()
+                        log_row("THUMBNAIL_EXISTS", dest_type, r.source_relpath, thumb_path)
+                except Exception as e:
+                    thumbs_failed += 1
+                    flush_progress_line()
+                    log_row("THUMBNAIL_FAILED", dest_type, r.source_relpath, dest_abs)
+                    flush_progress_line()
+                    eprint(f"THUMBNAIL_FAILED\t{dest_type}\t{r.source_relpath}\t{dest_abs}\t{str(e)}")
+
+            flush_progress_line()
             log_row("DB_REFRESHED", dest_type, r.source_relpath, dest_abs)
         except Exception as e:
             probe_failed += 1
+            flush_progress_line()
             log_row("DB_REFRESH_FAILED", dest_type, r.source_relpath, dest_abs)
+            flush_progress_line()
             eprint(f"PROBE_FAILED\t{dest_type}\t{r.source_relpath}\t{dest_abs}\t{str(e)}")
+
+    if show_progress and total_rows > 0 and last_progress_printed:
+        print("", file=sys.stderr)
 
     eprint(
         "SUMMARY "
@@ -734,6 +929,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         f"skip_type={skipped_type} "
         f"probed={probed} "
         f"probe_failed={probe_failed} "
+        f"thumbs_created={thumbs_created} "
+        f"thumbs_exists={thumbs_exists} "
+        f"thumbs_failed={thumbs_failed} "
         f"rows={len(rows)}"
     )
 

@@ -1889,3 +1889,11 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2025-12-27T12:15:00-05:00
   - good idea.  where "User is logged in as (user)" text, add ". v1.0 view" to indicate the version of the base template we're using.  then I'll reapply the ansible template and see what we're using first.  then we can decide on course of action.
+
+---
+
+## 2025-12-30
+
+- 2025-12-30T13:59:00-05:00
+  - macbook2025:~ sodo$ ls -lah ~/videos/thenic/shows/shShow20111014/all2.mov
+    -rw-r--r--  1 1000  1000     0B Oct 16  2011 /Users/sodo/videos/thenic/shows/shShow20111014/all2.mov. I would say that Sections 4/5 that generate the manifest should not load where filesize =0.  let's nip that behavior in the bud.  but zero-bytes should be logged to the screen in the "Ignored media files" section  so user knows why file wasn't uploaded.
