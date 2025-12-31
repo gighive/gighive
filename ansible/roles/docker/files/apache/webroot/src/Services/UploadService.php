@@ -114,6 +114,10 @@ final class UploadService
         // Optional: probe duration via ffprobe if available
         $durationSeconds = $this->probeDuration($targetPath);
 
+        if ($fileType === 'video' && is_string($checksum) && preg_match('/^[0-9a-f]{64}$/', $checksum) === 1) {
+            $this->generateVideoThumbnail($targetPath, $checksum, $durationSeconds);
+        }
+
         $mediaInfo = $this->probeMediaInfo($targetPath);
         $mediaInfoTool = $mediaInfo !== null ? $this->ffprobeToolString() : null;
 
@@ -163,6 +167,127 @@ final class UploadService
             'keywords'        => $keywords,
             'duration_seconds'=> $durationSeconds,
         ];
+    }
+
+    private function pickThumbnailTimestamp(?int $durationSeconds, string $sha256): float
+    {
+        $dur = is_int($durationSeconds) ? $durationSeconds : 0;
+        if ($dur <= 0) return 0.0;
+        if ($dur < 4) return max(0.0, $dur / 2.0);
+
+        $start = min(2.0, $dur * 0.10);
+        $end = max($dur - 2.0, $start);
+
+        $prefix = substr($sha256, 0, 8);
+        $n = ctype_xdigit($prefix) ? hexdec($prefix) : 0;
+        $r = $n / 0xFFFFFFFF;
+
+        $t = $start + $r * ($end - $start);
+        if ($t < 0.0) return 0.0;
+        if ($t > $dur) return (float)$dur;
+        return (float)$t;
+    }
+
+    private function runWithTimeout(array $cmd, int $timeoutSeconds): array
+    {
+        $proc = @proc_open(
+            $cmd,
+            [
+                0 => ['pipe', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ],
+            $pipes,
+            null,
+            null,
+            ['bypass_shell' => true]
+        );
+        if (!is_resource($proc)) {
+            return [127, '', 'proc_open failed'];
+        }
+
+        fclose($pipes[0]);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+
+        $stdout = '';
+        $stderr = '';
+        $start = microtime(true);
+
+        while (true) {
+            $stdout .= (string)stream_get_contents($pipes[1]);
+            $stderr .= (string)stream_get_contents($pipes[2]);
+
+            $status = proc_get_status($proc);
+            if (!is_array($status) || !($status['running'] ?? false)) {
+                break;
+            }
+
+            if ((microtime(true) - $start) > max(1, $timeoutSeconds)) {
+                @proc_terminate($proc);
+                usleep(200000);
+                @proc_terminate($proc, 9);
+                break;
+            }
+            usleep(25000);
+        }
+
+        $stdout .= (string)stream_get_contents($pipes[1]);
+        $stderr .= (string)stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        $code = proc_close($proc);
+        return [(int)$code, $stdout, $stderr];
+    }
+
+    private function generateVideoThumbnail(string $videoPath, string $sha256, ?int $durationSeconds): void
+    {
+        // Best-effort: never fail the upload if thumbnail generation fails.
+        $which = @shell_exec('command -v ffmpeg 2>/dev/null');
+        if (!is_string($which) || trim($which) === '') {
+            return;
+        }
+
+        $baseDir = dirname(__DIR__, 2); // .../webroot
+        $thumbDir = $baseDir . '/video/thumbnails';
+        $this->storage->ensureDir($thumbDir);
+
+        $thumbPath = $thumbDir . '/' . $sha256 . '.png';
+        if (file_exists($thumbPath)) {
+            return;
+        }
+
+        $tmpPath = $thumbPath . '.tmp.png';
+        $t = $this->pickThumbnailTimestamp($durationSeconds, $sha256);
+        $timeout = 30;
+        $width = 320;
+
+        $cmd = [
+            'ffmpeg',
+            '-nostdin',
+            '-hide_banner',
+            '-loglevel', 'error',
+            '-y',
+            '-ss', sprintf('%.3f', $t),
+            '-i', $videoPath,
+            '-frames:v', '1',
+            '-vf', 'scale=' . $width . ':-1',
+            '-an',
+            '-sn',
+            $tmpPath,
+        ];
+
+        [$code, $out, $err] = $this->runWithTimeout($cmd, $timeout);
+        if ($code !== 0) {
+            @unlink($tmpPath);
+            error_log('ffmpeg thumbnail failed (rc=' . $code . '): ' . trim($err ?: $out));
+            return;
+        }
+
+        if (!@rename($tmpPath, $thumbPath)) {
+            @unlink($tmpPath);
+        }
     }
 
     private function inferType(string $mime, string $ext): string

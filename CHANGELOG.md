@@ -1,8 +1,14 @@
 *** 
-releaseNotes20251230.txt
-Changes: Minor text changes to overlays/gighive/index.php and admin.php
+releaseNotes20251231.txt
+Changes: Large change set to add support for thumbnails on db/database.php and default image for audio files (images/audiofile.png), slim down list.php, progress meter on upload_media_by_hash.php, updated resize instructions
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -11,13 +17,24 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/base/tasks/main.yml
 	modified:   ansible/roles/docker/files/apache/webroot/admin.php
-	new file:   docs/calculate_durationseconds_hash.md
-	new file:   docs/how_are_thumbnails_calculated.md
-	new file:   docs/media_file_location_variables.md
+	new file:   ansible/roles/docker/files/apache/webroot/images/audiofile.png
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list copy.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
+	new file:   docs/images/diskResizeRequest.png
+	modified:   docs/resizeRequestInstructions.md
+	modified:   docs/uploadMediaByHash.md
+	modified:   user-prompts.md
 
 ToDo: replace gmk user on staging with ubuntu
+ToDo: investigate vids that didn't produce thumbnails 
 ToDo: rebuild prod with same ansible scripts as staging
 ToDo: defaultcodebase db/database.php should have limited fields and is in need of reordering
 ToDo: make sure macbook can access dev/prod/staging w/passwordless ssh
@@ -36,6 +53,25 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: select 2015-09-19 as sample 
 ToDo: Make instructory video
 ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251230.txt
+Changes: Minor text changes to overlays/gighive/index.php and admin.php
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	new file:   docs/calculate_durationseconds_hash.md
+	new file:   docs/how_are_thumbnails_calculated.md
+	new file:   docs/media_file_location_variables.md
 
 *** 
 releaseNotes20251230.txt

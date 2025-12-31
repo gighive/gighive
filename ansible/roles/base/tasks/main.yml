@@ -517,6 +517,26 @@
   tags:
     - sync_video
 
+- name: Ensure ansible_user is in apache_group (needed for thumbnail creation via SSH)
+  become: yes
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: "{{ apache_group }}"
+    append: yes
+  tags:
+    - sync_video
+
+- name: Ensure video thumbnails directory exists and is group-writable
+  become: yes
+  ansible.builtin.file:
+    path: "{{ video_dir }}/thumbnails"
+    state: directory
+    owner: "{{ apache_group }}"
+    group: "{{ apache_group }}"
+    mode: "0775"
+  tags:
+    - sync_video
+
 - name: Ensure tzdata is installed
   become: true
   ansible.builtin.apt:

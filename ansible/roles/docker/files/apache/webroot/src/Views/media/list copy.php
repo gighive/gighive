@@ -14,47 +14,181 @@
   <?php endif; ?>
   <title>Media Library</title>
   <style>
-    body{font-family:system-ui,Arial,sans-serif;margin:0;padding:1rem;overflow-x:auto;}
+    :root{
+      --page-bg:#ffffff;
+      --text:#111111;
+      --muted:#666666;
+      --border:#dddddd;
+      --th-bg:#f6f6f6;
+      --th-text:#111111;
+      --link:#0366d6;
+      --row-highlight:#fff8c2;
+      --input-bg:#ffffff;
+      --input-text:#111111;
+      --input-border:#cccccc;
+      --resizer:#d0d0d0;
+    }
+
+    body.theme-defaultcodebase{
+      --page-bg:#000000;
+      --text:#d8cf6a;
+      --muted:#cfcfcf;
+      --border:#3b3b3b;
+      --th-bg:#ffffff;
+      --th-text:#111111;
+      --link:#9cc7ff;
+      --row-highlight:#1a1a1a;
+      --input-bg:#ffffff;
+      --input-text:#111111;
+      --input-border:#cfcfcf;
+      --resizer:#7a7a7a;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="keywords"],
+    body.theme-defaultcodebase #searchableTable td[data-col="keywords"],
+    body.theme-defaultcodebase #searchableTable th[data-col="summary"],
+    body.theme-defaultcodebase #searchableTable td[data-col="summary"]{
+      max-width:275px;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="keywords"],
+    body.theme-defaultcodebase #searchableTable td[data-col="keywords"]{
+      max-width:270px;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="location"],
+    body.theme-defaultcodebase #searchableTable td[data-col="location"],
+    body.theme-defaultcodebase #searchableTable th[data-col="download"],
+    body.theme-defaultcodebase #searchableTable td[data-col="download"]{
+      width:150px;
+      max-width:150px;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="media_info"],
+    body.theme-defaultcodebase #searchableTable td[data-col="media_info"]{
+      width:430px;
+      max-width:430px;
+    }
+
+    body.theme-defaultcodebase #searchableTable th[data-col="keywords"] .th-search-row > input,
+    body.theme-defaultcodebase #searchableTable th[data-col="summary"] .th-search-row > input,
+    body.theme-defaultcodebase #searchableTable th[data-col="location"] .th-search-row > input,
+    body.theme-defaultcodebase #searchableTable th[data-col="download"] .th-search-row > input{
+      max-width:160px;
+    }
+
+    body{font-family:system-ui,Arial,sans-serif;margin:0;padding:1rem;overflow-x:auto;background:var(--page-bg);color:var(--text);}
     h1{margin:0 0 1rem 0;}
-    .user-indicator{font-size:12px;color:#666;margin:0 0 0.5rem 0;}
+    .user-indicator{font-size:12px;color:var(--muted);margin:0 0 0.5rem 0;}
     .pagination{max-width:<?= (int)$maxWidth ?>px;margin:0 auto 0.75rem auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
-    .pagination .links a,.pagination .links span{display:inline-block;padding:4px 8px;border:1px solid #ddd;border-radius:4px;text-decoration:none;color:#0366d6;}
-    .pagination .links span{color:#999;border-color:#eee;}
+    .pagination .links a,.pagination .links span{display:inline-block;padding:4px 8px;border:1px solid var(--border);border-radius:4px;text-decoration:none;color:var(--link);}
+    .pagination .links span{color:var(--muted);border-color:var(--border);}
     .header-block{max-width:<?= (int)$maxWidth ?>px;margin:0 0 0.75rem 0;text-align:left;}
-    table{width:max-content;table-layout:fixed;border-collapse:collapse;margin:0 auto;}
-    th,td{border:1px solid #ddd;padding:8px;vertical-align:top;word-wrap:break-word;}
-    th{background:#f6f6f6;text-align:left;cursor:pointer;}
-    thead input{width:100%;box-sizing:border-box;margin-top:4px;}
-    .highlighted-jam{background-color:#fff8c2;}
+    table{width:max-content;table-layout:auto;border-collapse:collapse;margin:0 auto;}
+    th,td{border:1px solid var(--border);padding:8px;vertical-align:top;word-wrap:break-word;}
+    th{background:var(--th-bg);color:var(--th-text);text-align:left;cursor:pointer;}
+    thead input{width:100%;box-sizing:border-box;margin-top:0;background:var(--input-bg);color:var(--input-text);border:1px solid var(--input-border);}
+    .highlighted-jam{background-color:var(--row-highlight);}
     #searchableTable th:first-child,
     #searchableTable td:first-child{width:40px;}
     .media-file-info{white-space:pre;display:inline-block;}
 
+    /* Base column sizing & wrapping (applies to both modes via data-col) */
+    #searchableTable th[data-col="date"],
+    #searchableTable td[data-col="date"],
+    #searchableTable th[data-col="org"],
+    #searchableTable td[data-col="org"],
+    #searchableTable th[data-col="rating"],
+    #searchableTable td[data-col="rating"],
+    #searchableTable th[data-col="file_type"],
+    #searchableTable td[data-col="file_type"],
+    #searchableTable th[data-col="duration"],
+    #searchableTable td[data-col="duration"]{
+      white-space:nowrap;
+      width:1%;
+    }
+
+    #searchableTable th[data-col="date"] > input,
+    #searchableTable th[data-col="org"] > input,
+    #searchableTable th[data-col="rating"] > input,
+    #searchableTable th[data-col="file_type"] > input,
+    #searchableTable th[data-col="duration"] > input{max-width:120px;}
+
+    #searchableTable th[data-col="download"],
+    #searchableTable td[data-col="download"]{
+      white-space:nowrap;
+      width:1%;
+    }
+
+    #searchableTable th[data-col="thumbnail"],
+    #searchableTable td[data-col="thumbnail"]{
+      white-space:nowrap;
+      width:1%;
+    }
+
+    #searchableTable th[data-col="download"] > .th-search-row > input{max-width:120px;}
+
+    #searchableTable th[data-col="keywords"],
+    #searchableTable td[data-col="keywords"],
+    #searchableTable th[data-col="location"],
+    #searchableTable td[data-col="location"],
+    #searchableTable th[data-col="summary"],
+    #searchableTable td[data-col="summary"],
+    #searchableTable th[data-col="source_relpath"],
+    #searchableTable td[data-col="source_relpath"]{
+      white-space:normal;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    #searchableTable th[data-col="song_name"],
+    #searchableTable td[data-col="song_name"]{width:175px;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+
+    #searchableTable th[data-col="media_info"],
+    #searchableTable td[data-col="media_info"]{width:345px;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+
+    #searchableTable th[data-col="musicians"],
+    #searchableTable td[data-col="musicians"]{width:250px;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+
+    #searchableTable td[data-col="media_info"] .media-file-info{white-space:pre-wrap;display:block;max-width:100%;overflow-wrap:anywhere;word-break:break-word;}
+
     .th-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .th-title-row{min-height:32px;align-items:flex-start;}
+    .th-title-row h4{line-height:16px;max-height:32px;overflow:hidden;}
     .th-title-row h4{margin:0;}
     .th-title-row .col-collapse-checkbox{margin:0;}
+    .th-search-row{margin-top:4px;}
 
     th.col-collapsed,td.col-collapsed{width:32px;min-width:32px;max-width:32px;padding-left:4px;padding-right:4px;overflow:hidden;white-space:nowrap;}
+    #searchableTable th.col-collapsed,
+    #searchableTable td.col-collapsed,
+    body.theme-defaultcodebase #searchableTable th.col-collapsed,
+    body.theme-defaultcodebase #searchableTable td.col-collapsed{width:32px;min-width:32px;max-width:32px;}
     th.col-collapsed .th-title-row{justify-content:center;}
     th.col-collapsed .th-title-row h4{display:none;}
-    th.col-collapsed > input{display:none;}
+    th.col-collapsed .th-search-row{display:none;}
     th.col-collapsed .col-resizer{display:none;}
+
+    .col-hide-btn{width:16px;height:16px;display:inline-block;vertical-align:middle;padding:0;border:0;background-color:transparent;background-repeat:no-repeat;background-position:center;background-size:16px 16px;cursor:pointer;}
+    .col-hide-btn{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='0.75' y='0.75' width='14.5' height='14.5' fill='none' stroke='%23d10000' stroke-width='1.5'/><path d='M4 4 L12 12 M12 4 L4 12' stroke='%23d10000' stroke-width='2' stroke-linecap='square'/></svg>");}
+    .col-hide-btn:focus{outline:2px solid var(--link);outline-offset:2px;}
+    th.col-hidden,td.col-hidden{display:none;}
 
     /* Resizable columns */
     #searchableTable th{position:relative;}
     #searchableTable th .col-resizer{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;user-select:none;touch-action:none;}
-    #searchableTable th .col-resizer::after{content:'';position:absolute;top:0;left:3px;width:1px;height:100%;background:#d0d0d0;}
+    #searchableTable th .col-resizer::after{content:'';position:absolute;top:0;left:3px;width:1px;height:100%;background:var(--resizer);}
     body.resizing-col{cursor:col-resize;user-select:none;}
   </style>
 </head>
-<body>
+<body class="<?= $isGighive ? 'theme-gighive' : 'theme-defaultcodebase' ?>">
   <?php
-  $user = $_SERVER['PHP_AUTH_USER']
-      ?? $_SERVER['REMOTE_USER']
+  $user = $_SERVER['REMOTE_USER']
+      ?? $_SERVER['PHP_AUTH_USER']
       ?? $_SERVER['REDIRECT_REMOTE_USER']
       ?? 'Unknown';
   ?>
-  <div class="user-indicator header-block">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?></div>
+  <div class="user-indicator header-block">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?>. v1.0 view</div>
   <h1 id="all" class="header-block">Media Library</h1>
 
   <?php
@@ -119,34 +253,36 @@
 
   <form id="searchForm" method="get" action="database.php" onsubmit="alert('Enter pressed..searching');">
   <div style="margin:0 auto;">
-  <table id="searchableTable" data-sort-order="asc">
+  <table id="searchableTable" class="<?= $isGighive ? 'table-gighive' : 'table-defaultcodebase' ?>" data-sort-order="asc">
     <thead>
       <tr>
         <?php if ($isGighive): ?>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(0)}"><div class="th-title-row"><h4>#</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(1)}"><div class="th-title-row"><h4>Date</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="date" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['date'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(2)}"><div class="th-title-row"><h4>Band or Event</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="org_name" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['org_name'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(3)}"><div class="th-title-row"><h4>File Type</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="file_type" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['file_type'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(4)}"><div class="th-title-row"><h4>Song Name</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="song_title" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['song_title'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(5)}"><div class="th-title-row"><h4>Source Relpath</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="source_relpath" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['source_relpath'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(6)}"><div class="th-title-row"><h4>Download / View</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="file_name" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['file_name'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(7)}"><div class="th-title-row"><h4>Duration</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="duration_seconds" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['duration_seconds'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(8)}"><div class="th-title-row"><h4>Media File Info</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="media_info" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['media_info'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(9)}"><div class="th-title-row"><h4>Musicians</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="crew" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['crew'] ?? ''), ENT_QUOTES) ?>"></th>
+          <th data-col="idx" onclick="if(event.target.tagName!=='INPUT'){sortTable(0)}"><div class="th-title-row"><h4 title="#">#</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div></th>
+          <th data-col="date" onclick="if(event.target.tagName!=='INPUT'){sortTable(1)}"><div class="th-title-row"><h4 title="Date">Date</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="date" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['date'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="org" onclick="if(event.target.tagName!=='INPUT'){sortTable(2)}"><div class="th-title-row"><h4 title="Band or Event">Band or Event</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="org_name" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['org_name'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="file_type" onclick="if(event.target.tagName!=='INPUT'){sortTable(3)}"><div class="th-title-row"><h4 title="File Type">File Type</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="file_type" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['file_type'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="song_name" onclick="if(event.target.tagName!=='INPUT'){sortTable(4)}"><div class="th-title-row"><h4 title="Song Name">Song Name</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="song_title" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['song_title'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="source_relpath" onclick="if(event.target.tagName!=='INPUT'){sortTable(5)}"><div class="th-title-row"><h4 title="Source Relpath">Source Relpath</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="source_relpath" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['source_relpath'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="thumbnail" onclick="if(event.target.tagName!=='INPUT'){sortTable(6)}"><div class="th-title-row"><h4 title="Thumbnail" style="white-space:nowrap;">Thumbnail</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div></th>
+          <th data-col="download" onclick="if(event.target.tagName!=='INPUT'){sortTable(7)}"><div class="th-title-row"><h4 title="Download / View">Download / View</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="file_name" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['file_name'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="duration" onclick="if(event.target.tagName!=='INPUT'){sortTable(8)}"><div class="th-title-row"><h4 title="Duration">Duration</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="duration_seconds" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['duration_seconds'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="media_info" onclick="if(event.target.tagName!=='INPUT'){sortTable(9)}"><div class="th-title-row"><h4 title="Media File Info">Media File Info</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="media_info" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['media_info'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="musicians" onclick="if(event.target.tagName!=='INPUT'){sortTable(10)}"><div class="th-title-row"><h4 title="Musicians">Musicians</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="crew" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['crew'] ?? ''), ENT_QUOTES) ?>"></div></th>
         <?php else: ?>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(0)}"><div class="th-title-row"><h4>#</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(1)}"><div class="th-title-row"><h4>Date</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="date" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['date'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(2)}"><div class="th-title-row"><h4>Org</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="org_name" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['org_name'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(3)}"><div class="th-title-row"><h4>Rating</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="rating" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['rating'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(4)}"><div class="th-title-row"><h4>Keywords</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="keywords" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['keywords'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(5)}"><div class="th-title-row"><h4>Location</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="location" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['location'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(6)}"><div class="th-title-row"><h4>Summary</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="summary" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['summary'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(7)}"><div class="th-title-row"><h4>File Type</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="file_type" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['file_type'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(8)}"><div class="th-title-row"><h4>Song Name</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="song_title" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['song_title'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(9)}"><div class="th-title-row"><h4>Download / View</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="file_name" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['file_name'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(10)}"><div class="th-title-row"><h4>Duration</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="duration_seconds" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['duration_seconds'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(11)}"><div class="th-title-row"><h4>Media File Info</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="media_info" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['media_info'] ?? ''), ENT_QUOTES) ?>"></th>
-          <th onclick="if(event.target.tagName!=='INPUT'){sortTable(12)}"><div class="th-title-row"><h4>Musicians</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column"></div><input name="crew" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['crew'] ?? ''), ENT_QUOTES) ?>"></th>
+          <th data-col="idx" onclick="if(event.target.tagName!=='INPUT'){sortTable(0)}"><div class="th-title-row"><h4 title="#">#</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div></th>
+          <th data-col="date" onclick="if(event.target.tagName!=='INPUT'){sortTable(1)}"><div class="th-title-row"><h4 title="Date">Date</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="date" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['date'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="org" onclick="if(event.target.tagName!=='INPUT'){sortTable(2)}"><div class="th-title-row"><h4 title="Org">Org</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="org_name" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['org_name'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="rating" onclick="if(event.target.tagName!=='INPUT'){sortTable(3)}"><div class="th-title-row"><h4 title="Rating">Rating</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="rating" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['rating'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="keywords" onclick="if(event.target.tagName!=='INPUT'){sortTable(4)}"><div class="th-title-row"><h4 title="Keywords">Keywords</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="keywords" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['keywords'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="location" onclick="if(event.target.tagName!=='INPUT'){sortTable(5)}"><div class="th-title-row"><h4 title="Location">Location</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="location" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['location'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="summary" onclick="if(event.target.tagName!=='INPUT'){sortTable(6)}"><div class="th-title-row"><h4 title="Summary">Summary</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="summary" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['summary'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="file_type" onclick="if(event.target.tagName!=='INPUT'){sortTable(7)}"><div class="th-title-row"><h4 title="File Type">File Type</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="file_type" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['file_type'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="song_name" onclick="if(event.target.tagName!=='INPUT'){sortTable(8)}"><div class="th-title-row"><h4 title="Song Name">Song Name</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="song_title" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['song_title'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="thumbnail" onclick="if(event.target.tagName!=='INPUT'){sortTable(9)}"><div class="th-title-row"><h4 title="Thumbnail" style="white-space:nowrap;">Thumbnail</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div></th>
+          <th data-col="download" onclick="if(event.target.tagName!=='INPUT'){sortTable(10)}"><div class="th-title-row"><h4 title="Download / View">Download / View</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="file_name" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['file_name'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="duration" onclick="if(event.target.tagName!=='INPUT'){sortTable(11)}"><div class="th-title-row"><h4 title="Duration">Duration</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="duration_seconds" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['duration_seconds'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="media_info" onclick="if(event.target.tagName!=='INPUT'){sortTable(12)}"><div class="th-title-row"><h4 title="Media File Info">Media File Info</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="media_info" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['media_info'] ?? ''), ENT_QUOTES) ?>"></div></th>
+          <th data-col="musicians" onclick="if(event.target.tagName!=='INPUT'){sortTable(13)}"><div class="th-title-row"><h4 title="Musicians">Musicians</h4><input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">&nbsp;<button type="button" class="col-hide-btn" aria-label="Hide column"></button></div><div class="th-search-row"><input name="crew" type="text" placeholder="Search..." value="<?= htmlspecialchars((string)($query['crew'] ?? ''), ENT_QUOTES) ?>"></div></th>
         <?php endif; ?>
       </tr>
     </thead>
@@ -159,42 +295,76 @@
           data-org="<?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?>"
         >
           <?php if ($isGighive): ?>
-            <td><?= htmlspecialchars((string)$r['idx'], ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['type'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['songTitle'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['sourceRelpath'] ?? '', ENT_QUOTES) ?></td>
-            <td>
-              <?php if (!empty($r['url'])): ?>
-                <a href="<?= htmlspecialchars($r['url'], ENT_QUOTES) ?>" target="_blank">Download</a>
+            <td data-col="idx"><?= htmlspecialchars((string)$r['idx'], ENT_QUOTES) ?></td>
+            <td data-col="date"><?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="org"><?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="file_type"><?= htmlspecialchars($r['type'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="song_name"><?= htmlspecialchars($r['songTitle'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="source_relpath"><?= htmlspecialchars($r['sourceRelpath'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="thumbnail">
+              <?php
+                $sha = (string)($r['checksumSha256'] ?? '');
+                $isVideo = ((string)($r['type'] ?? '')) === 'video';
+                $isAudio = ((string)($r['type'] ?? '')) === 'audio';
+                $thumbUrl = ($isVideo && $sha !== '') ? ('/video/thumbnails/' . rawurlencode($sha) . '.png') : ($isAudio ? '/images/audiofile.png' : '');
+              ?>
+              <?php if ($thumbUrl !== ''): ?>
+                <img
+                  src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES) ?>"
+                  alt=""
+                  loading="lazy"
+                  style="width:96px; height:auto; display:block;"
+                  onerror="this.style.display='none';"
+                />
               <?php endif; ?>
             </td>
-            <td data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
+            <td data-col="download">
+              <?php if (!empty($r['url'])): ?>
+                <a href="<?= htmlspecialchars($r['url'], ENT_QUOTES) ?>" target="_blank">Download / View</a>
+              <?php endif; ?>
+            </td>
+            <td data-col="duration" data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
               <?= htmlspecialchars($r['duration'] ?? '', ENT_QUOTES) ?>
             </td>
-            <td><div class="media-file-info"><?= htmlspecialchars($r['mediaSummary'] ?? '', ENT_QUOTES) ?></div></td>
-            <td><?= htmlspecialchars($r['crew'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="media_info"><div class="media-file-info"><?= htmlspecialchars($r['mediaSummary'] ?? '', ENT_QUOTES) ?></div></td>
+            <td data-col="musicians"><?= htmlspecialchars($r['crew'] ?? '', ENT_QUOTES) ?></td>
           <?php else: ?>
-            <td><?= htmlspecialchars((string)$r['idx'], ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['rating'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['keywords'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['location'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['summary'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['type'] ?? '', ENT_QUOTES) ?></td>
-            <td><?= htmlspecialchars($r['songTitle'] ?? '', ENT_QUOTES) ?></td>
-            <td>
-              <?php if (!empty($r['url'])): ?>
-                <a href="<?= htmlspecialchars($r['url'], ENT_QUOTES) ?>" target="_blank">Download</a>
+            <td data-col="idx"><?= htmlspecialchars((string)$r['idx'], ENT_QUOTES) ?></td>
+            <td data-col="date"><?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="org"><?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="rating"><?= htmlspecialchars($r['rating'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="keywords"><?= htmlspecialchars($r['keywords'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="location"><?= htmlspecialchars($r['location'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="summary"><?= htmlspecialchars($r['summary'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="file_type"><?= htmlspecialchars($r['type'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="song_name"><?= htmlspecialchars($r['songTitle'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="thumbnail">
+              <?php
+                $sha = (string)($r['checksumSha256'] ?? '');
+                $isVideo = ((string)($r['type'] ?? '')) === 'video';
+                $isAudio = ((string)($r['type'] ?? '')) === 'audio';
+                $thumbUrl = ($isVideo && $sha !== '') ? ('/video/thumbnails/' . rawurlencode($sha) . '.png') : ($isAudio ? '/images/audiofile.png' : '');
+              ?>
+              <?php if ($thumbUrl !== ''): ?>
+                <img
+                  src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES) ?>"
+                  alt=""
+                  loading="lazy"
+                  style="width:96px; height:auto; display:block;"
+                  onerror="this.style.display='none';"
+                />
               <?php endif; ?>
             </td>
-            <td data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
+            <td data-col="download">
+              <?php if (!empty($r['url'])): ?>
+                <a href="<?= htmlspecialchars($r['url'], ENT_QUOTES) ?>" target="_blank">Download / View</a>
+              <?php endif; ?>
+            </td>
+            <td data-col="duration" data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
               <?= htmlspecialchars($r['duration'] ?? '', ENT_QUOTES) ?>
             </td>
-            <td><div class="media-file-info"><?= htmlspecialchars($r['mediaSummary'] ?? '', ENT_QUOTES) ?></div></td>
-            <td><?= htmlspecialchars($r['crew'] ?? '', ENT_QUOTES) ?></td>
+            <td data-col="media_info"><div class="media-file-info"><?= htmlspecialchars($r['mediaSummary'] ?? '', ENT_QUOTES) ?></div></td>
+            <td data-col="musicians"><?= htmlspecialchars($r['crew'] ?? '', ENT_QUOTES) ?></td>
           <?php endif; ?>
         </tr>
       <?php endforeach; ?>
@@ -294,6 +464,35 @@
       });
     }
 
+    function setColumnHidden(table, colIndex, hidden){
+      if(!table){return;}
+      const headRow = table.tHead && table.tHead.rows && table.tHead.rows[0] ? table.tHead.rows[0] : null;
+      if(!headRow){return;}
+      const th = headRow.cells[colIndex];
+      if(!th){return;}
+
+      if(hidden){
+        th.classList.add('col-hidden');
+      }else{
+        th.classList.remove('col-hidden');
+      }
+
+      const bodyRows = Array.from(table.tBodies[0]?.rows ?? []);
+      bodyRows.forEach((row)=>{
+        const cell = row.cells[colIndex];
+        if(!cell){return;}
+        if(hidden){
+          cell.classList.add('col-hidden');
+        }else{
+          cell.classList.remove('col-hidden');
+        }
+      });
+    }
+
+    document.querySelectorAll('#searchForm thead .th-search-row').forEach((row)=>{
+      row.addEventListener('click',(e)=>e.stopPropagation());
+    });
+
     document.querySelectorAll('#searchForm thead input').forEach((input)=>{
       input.addEventListener('click',(e)=>e.stopPropagation());
       input.addEventListener('keydown',(e)=>{
@@ -381,6 +580,19 @@
           const colIndex = Array.from(th.parentElement?.children ?? []).indexOf(th);
           if(colIndex < 0){return;}
           setColumnCollapsed(table, colIndex, cb.checked);
+        });
+      });
+
+      const hideButtons = Array.from(document.querySelectorAll('#searchableTable thead .col-hide-btn'));
+      hideButtons.forEach((btn)=>{
+        btn.addEventListener('click',(e)=>{
+          e.preventDefault();
+          e.stopPropagation();
+          const th = btn.closest('th');
+          if(!th || !table){return;}
+          const colIndex = Array.from(th.parentElement?.children ?? []).indexOf(th);
+          if(colIndex < 0){return;}
+          setColumnHidden(table, colIndex, true);
         });
       });
 
