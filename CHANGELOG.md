@@ -1,10 +1,54 @@
 *** 
 releaseNotes20251231.txt
-Changes: Large change set to add support for thumbnails on db/database.php and default image for audio files (images/audiofile.png), slim down list.php, progress meter on upload_media_by_hash.php, updated resize instructions
+Changes: Added --omit-dir-times from video rsync and added thumbnails for default gighive videos, updated resize request instructions
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/base/tasks/main.yml
+	new file:   assets/video/thumbnails/25823bec0d2950e1253c6d22903cefe5ed4e2fa4cb73da036fba818e67c85f4f.png
+	new file:   assets/video/thumbnails/3ed8bbc43ec35bb4662ac8b75843eb89fbd50557eccb3aa960cbc2f6e0601e4d.png
+	new file:   assets/video/thumbnails/5a5a63917260e8d1d7b32ac4d5b2998fb48d35d97315874a218f86f02dbc7bbd.png
+	new file:   assets/video/thumbnails/b212a654ddf160523373a7da95a0ddbfa752e6dbe57c13b6e220e0211bf71d95.png
+	new file:   assets/video/thumbnails/b40e8cc50deea9c90f38df4ae44bfd999db4e2d04815ed1941a381db17c89a31.png
+	modified:   docs/resizeRequestInstructions.md
+
+ToDo: replace gmk user on staging with ubuntu
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod with same ansible scripts as staging
+ToDo: defaultcodebase db/database.php should have limited fields and is in need of reordering
+ToDo: make sure macbook can access dev/prod/staging w/passwordless ssh
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Should I build the restart functionality if server reboots?
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Can we confine ffmpeg install to vm only?
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: select 2015-09-19 as sample 
+ToDo: Make instructory video
+ToDo: Integrate Let's Encrypt for future
+
+*** 
+releaseNotes20251231.txt
+Changes: Large change set to add support for thumbnails on db/database.php and default image for audio files (images/audiofile.png), slim down list.php, progress meter on upload_media_by_hash.php, updated resize instructions
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -32,27 +76,6 @@ Changes to be committed:
 	modified:   docs/resizeRequestInstructions.md
 	modified:   docs/uploadMediaByHash.md
 	modified:   user-prompts.md
-
-ToDo: replace gmk user on staging with ubuntu
-ToDo: investigate vids that didn't produce thumbnails 
-ToDo: rebuild prod with same ansible scripts as staging
-ToDo: defaultcodebase db/database.php should have limited fields and is in need of reordering
-ToDo: make sure macbook can access dev/prod/staging w/passwordless ssh
-ToDo: Make sure ask-become-pass is run at first part of vbox_provision
-ToDo: Should I build the restart functionality if server reboots?
-ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-ToDo: Can we confine ffmpeg install to vm only?
-ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251230.txt

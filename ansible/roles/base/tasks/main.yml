@@ -348,6 +348,7 @@
     delay_updates: false
     rsync_opts:
 #      - "--inplace"
+      - "--omit-dir-times"
       - "--no-p"
       - "--no-o"
       - "--no-g"
@@ -376,6 +377,7 @@
 #      - "--include=StormPigs20021024*" Remmed out on 12/27/25
 #      - "--include=StormPigs202[45]*"
 #      - "--exclude=*" Remmed out on 12/27/25
+      - "--omit-dir-times"
       - "--no-p"
       - "--no-o"
       - "--no-g"
