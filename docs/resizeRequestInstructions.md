@@ -1,4 +1,4 @@
-## Quickstart (3 steps)
+## Resize Request Instructions (3 steps)
 
 1) In the GigHive admin page (`admin.php`), use **Section 6: Write Disk Resize Request (Optional)** to create a disk resize request.
 <img src="/images/diskResizeRequest.png" alt="Database Import Process" style="height: 400px; width: auto;">
