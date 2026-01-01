@@ -60,7 +60,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       <h2>Upload, organize, and stream your media.</h2>
       <h3>If you're a musician</h3>
       <ul>
-      <li>You can use it as a library of your bands sessions, audio and video files.</li>
+      <li>You can use Gighive as a library of your bands sessions, audio and video files.</li>
       <li>Have your fans upload videos from your gigs and utilize the footage from every conceivable angle.</li> 
       </ul>
 
@@ -72,7 +72,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>If you are a media librarian or have a preesisting cache of media files</h3>
       <ul>
-      <li>You can edit the default csv file to create your own historical Gighive.</li>
+      <li>You can use the <a href="https://gighive.app/images/adminUtilities.png">Admin Utilities</a> to import your videos and create your own historical Gighive.</li>
       </ul>
 
       <h3>Or you just need a web server with basic authentication and security to host files in your own network </h3>
@@ -82,7 +82,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>What is it?</h3>
       <ul>
-      <li>Gighive is an <a href="https://github.com/gighive/gighive">open source website and database</a> that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and Terraform.</li>
+      <li>Gighive is an <a href="https://github.com/gighive/gighive">open source website and database</a> that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.</li>
       </ul>
 
       <h3>Why not just use YouTube?</h3>
@@ -109,8 +109,8 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>Media formats supported</h3>
       <ul>
-      <li>Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4)</li>
-      <li>Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo)</li>
+      <li>Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4) and <a href="https://gighive.app/mediaFormatsSupported.html>a bunch more</a>.</li>
+      <li>Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo) and <a href="https://gighive.app/mediaFormatsSupported.html>a bunch more</a>.</li>
       <li>Note that HEVC, .MOV and .AVI don't autoplay in the browser</li>
       </ul>
 

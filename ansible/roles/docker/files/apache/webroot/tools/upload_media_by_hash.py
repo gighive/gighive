@@ -906,6 +906,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                     log_row("THUMBNAIL_FAILED", dest_type, r.source_relpath, dest_abs)
                     flush_progress_line()
                     eprint(f"THUMBNAIL_FAILED\t{dest_type}\t{r.source_relpath}\t{dest_abs}\t{str(e)}")
+            elif args.thumbs and dest_type == "audio":
+                flush_progress_line()
+                log_row("AUDIO_FILE_NO_THUMBNAIL_CREATED", dest_type, r.source_relpath, dest_abs)
 
             flush_progress_line()
             log_row("DB_REFRESHED", dest_type, r.source_relpath, dest_abs)
