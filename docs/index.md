@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="custom-h1">Welcome to GigHive!</div>
 <div class="custom-h2">Upload, organize, and stream your media.</div>
 ### If you're a musician
-- You can use it as a library of your bands sessions, audio and video files.
+- You can use Gighive as a library of your bands sessions, audio and video files.
 - Have your fans upload videos from your gigs and utilize the footage from every conceivable angle.
 
 ### If you're a wedding photographer
@@ -295,13 +295,13 @@ document.addEventListener('DOMContentLoaded', function() {
 - Collect media from everyone during the event, offload it and then spin down the compute instance after you're done, thus saving you money.
 
 ### If you are a media librarian or have a preexisting cache of media files
-- You can edit the default csv file to create your own historical Gighive.
+- You can use the [Admin Utilities](/images/adminUtilities.png) to import your videos and create your own historical Gighive.
 
 ### Or you just need a web server with basic authentication and security to host files in your own network
 - You can plop php files or static content in the default web root and off you go. 
 
 ### What is it? 
-- Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and Terraform.
+- Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.
 
 ### Why not just use YouTube?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
@@ -323,9 +323,9 @@ These are shown in this <a href="images/architecture.png">architecture diagram</
 - Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
 
 ### Media formats supported
-- Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4)
-- Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo)
-- Note that HEVC, .MOV and .AVI don't autoplay in the browser
+- Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4) and [a bunch more](mediaFormatsSupported.html).
+- Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo) and [a bunch more](mediaFormatsSupported.html).
+- Note that many formats like HEVC, .MOV and .AVI don't autoplay in the browser, so you'll associate those with your OS's media player.
 
 ### For the future
 - Eventually, we will develop more interesting features. But for now, we've keeping it simple and easy to manage.

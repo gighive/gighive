@@ -123,7 +123,8 @@
     #searchableTable th[data-col="thumbnail"],
     #searchableTable td[data-col="thumbnail"]{
       white-space:nowrap;
-      width:1%;
+      width:320px;
+      min-width:320px;
     }
 
     #searchableTable th[data-col="download"] > .th-search-row > input{max-width:120px;}

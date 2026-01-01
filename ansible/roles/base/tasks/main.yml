@@ -177,6 +177,7 @@
       alias hive='cd $GIGHIVE_HOME'
       alias files='cd {{ docker_dir }}'
       alias dbscripts='cd {{ docker_dir }}/mysql/dbScripts/'
+      alias webroot='cd {{ docker_dir }}/apache/webroot/'
       alias vars='cd $GIGHIVE_HOME/ansible/inventories/group_vars'
       alias singles='cd ~/video'
       alias video='cd ~/video'

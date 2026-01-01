@@ -1,4 +1,46 @@
 *** 
+releaseNotes20260101.txt
+Changes: Additional log output for upload_media_by_hash.py, once created..copied all SP thumbnails back to source, updated index pages and updated thumbnail column width.
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
+	new file:   docs/images/adminUtilities.png
+	modified:   docs/index.md
+	renamed:    docs/supportedMediaFormats.md -> docs/mediaFormatsSupported.md
+
+ToDo: Make instructory video
+ToDo: replace gmk user on staging with ubuntu
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod with same ansible scripts as staging
+ToDo: make sure macbook can access dev/prod/staging w/passwordless ssh
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Should I build the restart functionality if server reboots?
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Can we confine ffmpeg install to vm only?
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: make csv mgmt easier
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: Integrate Let's Encrypt for future
+ToDo: Improve user management, guest user?
+
+*** 
 releaseNotes20251231.txt
 Changes: Added --omit-dir-times from video rsync and added thumbnails for default gighive videos, updated resize request instructions
 
@@ -21,27 +63,6 @@ Changes to be committed:
 	new file:   assets/video/thumbnails/b212a654ddf160523373a7da95a0ddbfa752e6dbe57c13b6e220e0211bf71d95.png
 	new file:   assets/video/thumbnails/b40e8cc50deea9c90f38df4ae44bfd999db4e2d04815ed1941a381db17c89a31.png
 	modified:   docs/resizeRequestInstructions.md
-
-ToDo: replace gmk user on staging with ubuntu
-ToDo: investigate vids that didn't produce thumbnails 
-ToDo: rebuild prod with same ansible scripts as staging
-ToDo: defaultcodebase db/database.php should have limited fields and is in need of reordering
-ToDo: make sure macbook can access dev/prod/staging w/passwordless ssh
-ToDo: Make sure ask-become-pass is run at first part of vbox_provision
-ToDo: Should I build the restart functionality if server reboots?
-ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-ToDo: Can we confine ffmpeg install to vm only?
-ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: select 2015-09-19 as sample 
-ToDo: Make instructory video
-ToDo: Integrate Let's Encrypt for future
 
 *** 
 releaseNotes20251231.txt

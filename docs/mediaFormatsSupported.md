@@ -79,7 +79,6 @@ GigHive ingestion support is defined in two ways:
 - `mp3`
 - `oga`
 - `ogg`
-- `ram`
 - `wav`
 
 ### Common MIME types (explicit allowlist)
