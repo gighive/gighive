@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260101.txt
-Changes: Additional log output for upload_media_by_hash.py, once created..copied all SP thumbnails back to source, updated index pages and updated thumbnail column width.
+Changes: Additional log output for upload_media_by_hash.py, once created..copied all SP thumbnails back to source, updated index pages, updated thumbnail column width, and reverse order of checkboxes.
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
@@ -15,12 +15,15 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/roles/base/tasks/main.yml
 	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
 	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
 	new file:   docs/images/adminUtilities.png
 	modified:   docs/index.md
 	renamed:    docs/supportedMediaFormats.md -> docs/mediaFormatsSupported.md
 
 ToDo: Make instructory video
+ToDo: Embed video
+ToDo: database table name change to genericize songs 
 ToDo: replace gmk user on staging with ubuntu
 ToDo: investigate vids that didn't produce thumbnails 
 ToDo: rebuild prod with same ansible scripts as staging

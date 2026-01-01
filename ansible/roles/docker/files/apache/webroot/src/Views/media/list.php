@@ -306,8 +306,8 @@
                 <?= htmlspecialchars((string)$col['label'], ENT_QUOTES) ?>
               </h4>
               <div class="th-controls">
-                <button type="button" class="col-hide-btn" aria-label="Hide column"></button>
                 <input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">
+                <button type="button" class="col-hide-btn" aria-label="Hide column"></button>
               </div>
             </div>
             <?php if (!empty($col['search'])): ?>
