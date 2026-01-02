@@ -209,7 +209,7 @@ gighive_auth_probe_url: "{{ gighive_scheme }}://{{ gighive_host }}/db/database.p
 gighive_auth_probe_insecure: true
 
 gighive_server_name: "{{ vm_name | default(inventory_hostname) }}" # name in cert
-gighive_server_alias: "gighive" # alias in cert
+gighive_server_alias: "staging.gighive.app" # alias in cert
 gighive_ssl_cert_file: "/etc/ssl/certs/origin_cert.pem"
 gighive_ssl_key_file:  "/etc/ssl/private/origin_key.pem"
 gighive_ssl_san_config: "/etc/ssl/openssl_san.cnf"
