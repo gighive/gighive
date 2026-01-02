@@ -82,7 +82,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>What is it?</h3>
       <ul>
-      <li>Gighive is an <a href="https://github.com/gighive/gighive">open source website and database</a> that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. An example is on <a href="https://staging.gighive.app/db/database.php">our staging site</a> for you to look at.  Also, <a href="https://gighive.app/images/mediaLibraryCustom.png">here is an image</a> of one of our customers databases.
+      <li>Gighive is an <a href="https://github.com/gighive/gighive">open source website and database</a> that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. <a href="https://gighive.app/images/mediaLibraryCustom.png">Here is an image</a> of one of our customers databases.  A more interactive version is <a href="https://staging.gighive.app/db/database.php">here</a>.
 </li>
       <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.</li>
       </ul>
