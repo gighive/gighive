@@ -301,7 +301,8 @@ document.addEventListener('DOMContentLoaded', function() {
 - You can plop php files or static content in the default web root and off you go. 
 
 ### What is it? 
-- Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.
+- Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. An example is on [our staging site](https://staging.gighive.app/db/database.php) for you to look at.
+- Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.
 
 ### Why not just use YouTube?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
