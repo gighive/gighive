@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260102.txt
-Changes: Added exception to allow browsers to see the db/database.php page and link on index pages.
+Changes: Added exception to allow browsers to see the db/database.php page and added links on index pages.
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
@@ -14,6 +14,9 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/inventories/group_vars/gighive/gighive.yml
 	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	new file:   docs/images/mediaLibraryCustom.png
+	modified:   docs/index.md
 
 ToDo: Make instructory video
 ToDo: Embed video
