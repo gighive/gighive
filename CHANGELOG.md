@@ -1,10 +1,8 @@
 *** 
-releaseNotes20260101.txt
-Changes: Additional log output for upload_media_by_hash.py, once created..copied all SP thumbnails back to source, updated index pages, updated thumbnail column width, and reverse order of checkboxes.
+releaseNotes20260102.txt
+Changes: Added exception to allow browsers to see the db/database.php page
 
-Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
-Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -13,13 +11,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/base/tasks/main.yml
-	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
-	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
-	new file:   docs/images/adminUtilities.png
-	modified:   docs/index.md
-	renamed:    docs/supportedMediaFormats.md -> docs/mediaFormatsSupported.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
 
 ToDo: Make instructory video
 ToDo: Embed video
@@ -42,6 +35,29 @@ ToDo: make csv mgmt easier
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Integrate Let's Encrypt for future
 ToDo: Improve user management, guest user?
+
+*** 
+releaseNotes20260101.txt
+Changes: Additional log output for upload_media_by_hash.py, once created..copied all SP thumbnails back to source, updated index pages, updated thumbnail column width, and reverse order of checkboxes.
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
+	new file:   docs/images/adminUtilities.png
+	modified:   docs/index.md
+	renamed:    docs/supportedMediaFormats.md -> docs/mediaFormatsSupported.md
 
 *** 
 releaseNotes20251231.txt

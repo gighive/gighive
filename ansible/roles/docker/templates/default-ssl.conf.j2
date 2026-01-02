@@ -60,6 +60,15 @@
     # --- PUBLIC HOMEPAGE ---
     # (No auth block here, so / and /index.php stay open)
     
+    # --- STAGING PUBLIC EXCEPTION ---
+    # allow unauthenticated access to exactly /db/database.php
+    {% if gighive_server_alias == 'staging.gighive.app' %}
+    <Location "/db/database.php">
+        Require all granted
+        Satisfy any
+    </Location>
+    {% endif %}
+
     # --- EXISTING PROTECTED AREAS (any valid user) ---
     # Excludes /db/health.php from authentication requirement
     <LocationMatch "^/(?:app/(?!cache(?:/|$)).*|api|db/(?!health\.php$).*|debug|src|vendor|video(?!/podcasts(?:/|$))|audio)(?:/|$)">
