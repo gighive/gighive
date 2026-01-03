@@ -80,10 +80,13 @@
     body{font-family:system-ui,Arial,sans-serif;margin:0;padding:1rem;overflow-x:auto;background:var(--page-bg);color:var(--text);}
     h1{margin:0 0 1rem 0;}
     .user-indicator{font-size:12px;color:var(--muted);margin:0 0 0.5rem 0;}
+    .header-top{margin:0 0 0.5rem 0;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;width:100%;max-width:none;}
+    .header-top .home-link a{text-decoration:none;color:var(--link);}
     .pagination{max-width:<?= (int)$maxWidth ?>px;margin:0 auto 0.75rem auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
     .pagination .links a,.pagination .links span{display:inline-block;padding:4px 8px;border:1px solid var(--border);border-radius:4px;text-decoration:none;color:var(--link);}
     .pagination .links span{color:var(--muted);border-color:var(--border);}
     .header-block{max-width:<?= (int)$maxWidth ?>px;margin:0 0 0.75rem 0;text-align:left;}
+    .header-top.header-block{max-width:none;width:100%;}
     table{width:max-content;table-layout:auto;border-collapse:collapse;margin:0 auto;}
     th,td{border:1px solid var(--border);padding:8px;vertical-align:top;word-wrap:break-word;}
     th{background:var(--th-bg);color:var(--th-text);text-align:left;cursor:pointer;}
@@ -193,7 +196,10 @@
       ?? $_SERVER['REDIRECT_REMOTE_USER']
       ?? 'Unknown';
   ?>
-  <div class="user-indicator header-block">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?>. v1.0 view</div>
+  <div class="header-top header-block">
+    <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?>. v1.0 view</div>
+    <div class="home-link"><a href="/index.php">Return to Home Page</a></div>
+  </div>
   <h1 id="all" class="header-block">Media Library</h1>
 
   <?php
@@ -253,7 +259,7 @@
   ?>
 
   <div class="header-block" style="margin-bottom:0.5rem;white-space:nowrap;max-width:none;">
-    Search will only take place after you fill in one or more fields and hit Enter.  Checkbox toggles column width.  X removes column.  CTRL-R refreshes page to default view.
+    Search will only take place after you fill in one or more fields and hit Enter.  Checkbox toggles column width.  X removes column.  Clicking on label in header sorts column.  CTRL-R refreshes page to default view.
   </div>
   <?php if ($hasSearch): ?>
     <div id="searchStatus" class="header-block">
@@ -356,13 +362,25 @@
                 ?>
                 <?php if ($thumbUrl !== ''): ?>
                   <?php $thumbWidth = $isVideo ? 240 : 96; ?>
-                  <img
-                    src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES) ?>"
-                    alt=""
-                    loading="lazy"
-                    style="width:<?= (int)$thumbWidth ?>px; height:auto; display:block;"
-                    onerror="this.style.display='none';"
-                  />
+                  <?php if (!empty($r['url'])): ?>
+                    <a href="<?= htmlspecialchars((string)$r['url'], ENT_QUOTES) ?>" target="_blank">
+                      <img
+                        src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES) ?>"
+                        alt=""
+                        loading="lazy"
+                        style="width:<?= (int)$thumbWidth ?>px; height:auto; display:block;"
+                        onerror="this.style.display='none';"
+                      />
+                    </a>
+                  <?php else: ?>
+                    <img
+                      src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES) ?>"
+                      alt=""
+                      loading="lazy"
+                      style="width:<?= (int)$thumbWidth ?>px; height:auto; display:block;"
+                      onerror="this.style.display='none';"
+                    />
+                  <?php endif; ?>
                 <?php endif; ?>
               </td>
             <?php else: ?>

@@ -1897,3 +1897,27 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 - 2025-12-30T13:59:00-05:00
   - macbook2025:~ sodo$ ls -lah ~/videos/thenic/shows/shShow20111014/all2.mov
     -rw-r--r--  1 1000  1000     0B Oct 16  2011 /Users/sodo/videos/thenic/shows/shShow20111014/all2.mov. I would say that Sections 4/5 that generate the manifest should not load where filesize =0.  let's nip that behavior in the bud.  but zero-bytes should be logged to the screen in the "Ignored media files" section  so user knows why file wasn't uploaded.
+
+---
+
+## 2026-01-03
+
+- 2026-01-03T08:16:00-05:00
+  - please add a "Return to Home Page" link on the upper right of our database php page.  ansible/roles/docker/files/apache/webroot/db/database.php
+
+- 2026-01-03T08:18:00-05:00
+  - correct link should be "/index.php" and it should be visible on both flavors
+
+- 2026-01-03T08:21:00-05:00
+  - do you think the download / view column is worthwhile?  Couldn't we just link the thumbnail?
+
+- 2026-01-03T08:23:00-05:00
+  - ok, let's make one change to link the thumbnail to the media URL.  do this for both flavors.
+
+- 2026-01-03T08:28:00-05:00
+  - back to the return to home page link..i want the link right justified to the browser window.  right now, it seems to be in it's own constrained table (see pic)
+
+- 2026-01-03T08:38:00-05:00
+  - hmmm..i updated the software via ansible, but don't see the change had any effect.  I see this is View > Page Source:     h1{margin:0 0 1rem 0;}
+    .user-indicator{font-size:12px;color:var(--muted);margin:0 0 0.5rem 0;}
+    .header-top{margin:0 0 0.5rem 0;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;width:100%;max-width:none;}. 
