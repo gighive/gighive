@@ -302,6 +302,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ### What is it? 
 - Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. [Here is an image](/images/mediaLibraryCustom.png) of one of our customers databases.  A more interactive version is [here](https://staging.gighive.app/db/database.php).
+  - <span style="display: inline-flex; align-items: center; gap: 8px; margin-right: 16px;">
+      <span>Customer Example:</span>
+      <a href="/images/mediaLibraryCustom.png"><img src="/images/mediaLibraryCustom.png" alt="Customer database example" style="width: 320px; height: auto;"></a>
+    </span>
+    <span style="display: inline-flex; align-items: center; gap: 8px;">
+      <span>Interactive Example:</span>
+      <a href="https://staging.gighive.app/db/database.php"><img src="https://gighive.app/images/gighiveMediaLibrary.png" alt="Interactive media library example" style="width: 320px; height: auto;"></a>
+    </span>
 - Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.
 
 ### Why not just use YouTube?
