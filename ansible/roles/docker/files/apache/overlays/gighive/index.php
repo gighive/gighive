@@ -83,7 +83,19 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       <h3>What is it?</h3>
       <ul>
       <li>Gighive is an <a href="https://github.com/gighive/gighive">open source website and database</a> that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. <a href="https://gighive.app/images/mediaLibraryCustom.png">Here is an image</a> of one of our customers databases.  A more interactive version is <a href="https://staging.gighive.app/db/database.php">here</a>.
-</li>
+        <ul>
+          <li>
+            <span style="display: inline-flex; align-items: center; gap: 8px; margin-right: 16px;">
+              <span>Customer Example:</span>
+              <a href="https://gighive.app/images/mediaLibraryCustom.png"><img src="https://gighive.app/images/mediaLibraryCustom.png" alt="Customer database example" style="width: 320px; height: auto;"></a>
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 8px;">
+              <span>Interactive Example:</span>
+              <a href="https://staging.gighive.app/db/database.php"><img src="https://gighive.app/images/gighiveMediaLibrary.png" alt="Interactive media library example" style="width: 320px; height: auto;"></a>
+            </span>
+          </li>
+        </ul>
+      </li>
       <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.</li>
       </ul>
 
