@@ -302,16 +302,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ### What is it? 
 - Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. [Here is an image](/images/mediaLibraryCustom.png) of one of our customers databases.  A more interactive version is [here](https://staging.gighive.app/db/database.php).
-  - <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-      <span style="display: inline-flex; align-items: center; gap: 8px;">
-        <span>Customer Example:</span>
-        <a href="/images/mediaLibraryCustom.png"><img src="/images/mediaLibraryCustom.png" alt="Customer database example" style="width: 320px; height: auto;"></a>
-      </span>
-      <span style="display: inline-flex; align-items: center; gap: 8px;">
-        <span>Interactive Example:</span>
-        <a href="https://staging.gighive.app/db/database.php"><img src="https://gighive.app/images/gighiveMediaLibrary.png" alt="Interactive media library example" style="width: 320px; height: auto;"></a>
-      </span>
-    </div>
+  <ul style="margin: 0.5rem 0 0; padding-left: 0; list-style-position: inside;">
+    <li style="padding-left: 0; margin-left: 0;">
+      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
+        <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
+          <span>Customer Example:</span>
+          <a href="/images/mediaLibraryCustom.png"><img src="/images/mediaLibraryCustom.png" alt="Customer database example" style="width: 320px; height: auto;"></a>
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
+          <span>Interactive Example:</span>
+          <a href="https://staging.gighive.app/db/database.php"><img src="https://gighive.app/images/gighiveMediaLibrary.png" alt="Interactive media library example" style="width: 320px; height: auto;"></a>
+        </span>
+      </div>
+    </li>
+  </ul>
 - Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.
 
 ### Why not just use YouTube?
