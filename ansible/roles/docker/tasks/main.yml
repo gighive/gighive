@@ -39,6 +39,17 @@
     - docker
     - htpasswd
 
+- name: Ensure restore logs directory exists on host
+  ansible.builtin.file:
+    path: "{{ docker_dir }}/apache/externalConfigs/restorelogs"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0750"
+  tags:
+    - docker
+    - restore
+
 - name: Ensure “docker” group exists
   ansible.builtin.group:
     name: docker

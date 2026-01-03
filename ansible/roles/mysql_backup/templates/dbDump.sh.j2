@@ -80,6 +80,7 @@ if docker exec -e MYSQL_PWD="$DB_PASSWORD" -i "$CONTAINER" \
   --databases "$DB_NAME" \
 | gzip > "$OUTFILE"
 then
+  chgrp "{{ apache_group | default('www-data') }}" "$OUTFILE" || true
   chmod 0640 "$OUTFILE"
   # optional integrity check
   if gzip -t "$OUTFILE"; then

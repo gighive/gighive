@@ -26,6 +26,8 @@ services:
       - "/home/{{ ansible_user }}/video:{{ media_search_dir_video }}"
       - "{{ gighive_htpasswd_host_path }}:{{ gighive_htpasswd_path }}:rw"
       - "{{ gighive_resize_requests_host_path }}:{{ gighive_resize_requests_path }}:rw"
+      - "{{ mysql_backups_dir }}:/var/www/private/mysql_backups:ro"
+      - "{{ docker_dir }}/apache/externalConfigs/restorelogs:/var/www/private/restorelogs:rw"
       - "{{ docker_dir }}/apache/externalConfigs/apache2.conf:/etc/apache2/apache2.conf:ro"
       - "{{ docker_dir }}/apache/externalConfigs/ports.conf:/etc/apache2/ports.conf:ro"
       - "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf:/etc/apache2/sites-available/default-ssl.conf:ro"
