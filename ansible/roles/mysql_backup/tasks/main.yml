@@ -1,14 +1,20 @@
 ---
-- name: Ensure script and backups directories exist
+
+- name: Ensure script directory exists
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ mysql_backup_script_dir }}"
     state: directory
     owner: "{{ mysql_backup_user }}"
     group: "{{ mysql_backup_user }}"
     mode: "0750"
-  loop:
-    - "{{ mysql_backup_script_dir }}"
-    - "{{ mysql_backups_dir }}"
+
+- name: Ensure backups directory exists
+  ansible.builtin.file:
+    path: "{{ mysql_backups_dir }}"
+    state: directory
+    owner: "{{ mysql_backup_user }}"
+    group: "{{ apache_group | default('www-data') }}"
+    mode: "0750"
 
 - name: Install dbDump.sh
   ansible.builtin.template:

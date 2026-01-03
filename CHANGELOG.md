@@ -1,9 +1,10 @@
 *** 
 releaseNotes20260103.txt
-Changes: In list.php, linked thumbnail to media URL, return to home page, added explanation. Minor fix to env.j2.  Added backups/roles aliases.
+Changes: Created restore procedure and added internal endpoints doc.
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -12,10 +13,18 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/base/tasks/main.yml
-	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	new file:   ansible/roles/docker/files/apache/webroot/db/restore_database.php
+	new file:   ansible/roles/docker/files/apache/webroot/db/restore_database_status.php
+	modified:   ansible/roles/docker/tasks/main.yml
 	modified:   ansible/roles/docker/templates/.env.j2
-	modified:   user-prompts.md
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   ansible/roles/mysql_backup/tasks/main.yml
+	modified:   ansible/roles/mysql_backup/templates/dbDump.sh.j2
+	new file:   docs/images/gighiveMediaLibrary.png
+	new file:   docs/internalEndpoints.md
 
 ToDo: Make instructory video
 ToDo: Embed video
@@ -39,6 +48,26 @@ ToDo: make csv mgmt easier
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Integrate Let's Encrypt for future
 ToDo: Improve user management, guest user?
+
+*** 
+releaseNotes20260103.txt
+Changes: In list.php, linked thumbnail to media URL, return to home page, added explanation. Minor fix to env.j2.  Added backups/roles aliases.
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260102.txt

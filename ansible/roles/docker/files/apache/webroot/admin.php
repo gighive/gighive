@@ -193,6 +193,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$__restore_backup_dir = getenv('GIGHIVE_MYSQL_BACKUPS_DIR') ?: '';
+$__restore_db_name = getenv('MYSQL_DATABASE') ?: '';
+$__restore_backup_files = [];
+
+if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($__restore_backup_dir) && is_readable($__restore_backup_dir) && is_string($__restore_db_name) && $__restore_db_name !== '') {
+    $latest = $__restore_db_name . '_latest.sql.gz';
+    $latestPath = rtrim($__restore_backup_dir, '/') . '/' . $latest;
+    if (is_file($latestPath)) {
+        $__restore_backup_files[] = [
+            'name' => $latest,
+            'mtime' => @filemtime($latestPath) ?: 0,
+            'size' => @filesize($latestPath) ?: 0,
+            'is_latest' => true,
+        ];
+    }
+
+    $pattern = rtrim($__restore_backup_dir, '/') . '/' . $__restore_db_name . '_*.sql.gz';
+    foreach (glob($pattern) ?: [] as $p) {
+        if (!is_string($p) || !is_file($p)) {
+            continue;
+        }
+        $bn = basename($p);
+        if ($bn === $latest) {
+            continue;
+        }
+        if (!preg_match('/^' . preg_quote($__restore_db_name, '/') . '_\\d{4}-\\d{2}-\\d{2}_\\d{6}\\.sql\\.gz$/', $bn)) {
+            continue;
+        }
+        $__restore_backup_files[] = [
+            'name' => $bn,
+            'mtime' => @filemtime($p) ?: 0,
+            'size' => @filesize($p) ?: 0,
+            'is_latest' => false,
+        ];
+    }
+
+    usort($__restore_backup_files, function ($a, $b) {
+        $aLatest = !empty($a['is_latest']);
+        $bLatest = !empty($b['is_latest']);
+        if ($aLatest !== $bLatest) {
+            return $aLatest ? -1 : 1;
+        }
+        return ($b['mtime'] ?? 0) <=> ($a['mtime'] ?? 0);
+    });
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -404,6 +450,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div id="resizeRequestStatus"></div>
         <button type="button" id="writeResizeRequestBtn" class="danger" onclick="confirmWriteResizeRequest()">Write Resize Request</button>
       </div>
+
+      <div class="section-divider">
+        <h2>Section 7: Restore Database From Backup (Destructive)</h2>
+        <p class="muted">
+          A full database backup is created daily by the server. Use this section to restore the entire database if something goes wrong.
+        </p>
+        <div class="warning-box">
+          <strong>⚠️ Warning:</strong> This will overwrite the current database with the selected backup.
+        </div>
+
+        <div class="row">
+          <label for="restore_backup_file">Select a backup</label>
+          <select id="restore_backup_file" name="restore_backup_file" style="width:100%;padding:.7rem;border-radius:10px;border:1px solid #33427a;background:#0e1530;color:#e9eef7;">
+            <?php if (!count($__restore_backup_files)): ?>
+              <option value="" selected disabled>No backups yet created</option>
+            <?php else: ?>
+              <?php foreach ($__restore_backup_files as $__b): ?>
+                <option value="<?= htmlspecialchars((string)$__b['name']) ?>">
+                  <?= htmlspecialchars((string)$__b['name']) ?>
+                </option>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="restore_confirm">Type <code>RESTORE</code> to confirm</label>
+          <input type="text" id="restore_confirm" name="restore_confirm" value="" style="width:100%;padding:.7rem;border-radius:10px;border:1px solid #33427a;background:#0e1530;color:#e9eef7;" />
+        </div>
+
+        <div id="restoreDbStatus"></div>
+        <div id="restoreDbLog" style="display:none;margin-top:.75rem;background:#0e1530;border:1px solid #33427a;border-radius:10px;padding:.75rem;max-height:280px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:.85rem;"></div>
+
+        <button type="button" id="restoreDbBtn" class="danger" onclick="confirmRestoreDatabase()" <?php if (!count($__restore_backup_files)): ?>disabled<?php endif; ?>>Restore Database</button>
+      </div>
     </div>
   </div>
 
@@ -505,6 +586,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       btn.disabled = false;
       btn.textContent = 'Clear All Media Data';
     });
+  }
+
+  let __restorePollTimer = null;
+
+  function confirmRestoreDatabase() {
+    const sel = document.getElementById('restore_backup_file');
+    const confirmEl = document.getElementById('restore_confirm');
+    const btn = document.getElementById('restoreDbBtn');
+    const status = document.getElementById('restoreDbStatus');
+    const logEl = document.getElementById('restoreDbLog');
+
+    const filename = sel && sel.value ? String(sel.value).trim() : '';
+    const confirmText = confirmEl && typeof confirmEl.value === 'string' ? String(confirmEl.value).trim() : '';
+
+    if (!filename) {
+      status.innerHTML = '<div class="alert-err">Please select a backup file.</div>';
+      return;
+    }
+
+    if (confirmText !== 'RESTORE') {
+      status.innerHTML = '<div class="alert-err">Please type RESTORE to confirm.</div>';
+      return;
+    }
+
+    if (!confirm('Restore the database from:\n\n' + filename + '\n\nThis will OVERWRITE the current database. Continue?')) {
+      return;
+    }
+
+    if (__restorePollTimer) {
+      clearInterval(__restorePollTimer);
+      __restorePollTimer = null;
+    }
+
+    btn.disabled = true;
+    btn.style.background = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    btn.textContent = 'Starting restore…';
+    status.innerHTML = '<div class="muted">Starting restore job...</div>';
+    logEl.style.display = 'block';
+    logEl.textContent = '';
+
+    fetch('/db/restore_database.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename, confirm: confirmText })
+    })
+    .then(async response => {
+      const data = await response.json().catch(() => null);
+      return { ok: response.ok, data };
+    })
+    .then(({ ok, data }) => {
+      if (!(ok && data && data.success && data.job_id)) {
+        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+        status.innerHTML = '<div class="alert-err">Error: ' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+        btn.disabled = false;
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        btn.textContent = 'Restore Database';
+        return;
+      }
+
+      const jobId = String(data.job_id);
+      status.innerHTML = '<div class="alert-ok">Restore started. Job: <code>' + jobId.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</code></div>';
+      btn.textContent = 'Restore Running…';
+      pollRestoreLog(jobId);
+    })
+    .catch(error => {
+      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      btn.disabled = false;
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.textContent = 'Restore Database';
+    });
+  }
+
+  function pollRestoreLog(jobId) {
+    const btn = document.getElementById('restoreDbBtn');
+    const status = document.getElementById('restoreDbStatus');
+    const logEl = document.getElementById('restoreDbLog');
+
+    let offset = 0;
+
+    const tick = () => {
+      fetch('/db/restore_database_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
+        method: 'GET'
+      })
+      .then(async response => {
+        const data = await response.json().catch(() => null);
+        return { ok: response.ok, data };
+      })
+      .then(({ ok, data }) => {
+        if (!(ok && data && data.success)) {
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+          status.innerHTML = '<div class="alert-err">Error reading restore status: ' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+          if (__restorePollTimer) {
+            clearInterval(__restorePollTimer);
+            __restorePollTimer = null;
+          }
+          btn.disabled = false;
+          btn.textContent = 'Restore Database';
+          return;
+        }
+
+        if (typeof data.log_chunk === 'string' && data.log_chunk.length) {
+          logEl.textContent += data.log_chunk;
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        if (typeof data.offset === 'number') {
+          offset = data.offset;
+        }
+
+        const st = String(data.state || 'running');
+        if (st === 'ok') {
+          if (__restorePollTimer) {
+            clearInterval(__restorePollTimer);
+            __restorePollTimer = null;
+          }
+          status.innerHTML = '<div class="alert-ok">Restore completed successfully.</div>';
+          btn.disabled = true;
+          btn.textContent = 'Database Restored!';
+          btn.style.background = '#28a745';
+          btn.style.borderColor = '#28a745';
+          btn.style.color = 'white';
+        } else if (st === 'error') {
+          if (__restorePollTimer) {
+            clearInterval(__restorePollTimer);
+            __restorePollTimer = null;
+          }
+          const code = (data.exit_code !== null && data.exit_code !== undefined) ? String(data.exit_code) : '?';
+          status.innerHTML = '<div class="alert-err">Restore failed. Exit code: ' + code.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+          btn.disabled = false;
+          btn.style.background = '';
+          btn.style.borderColor = '';
+          btn.style.color = '';
+          btn.textContent = 'Restore Database';
+        }
+      })
+      .catch(err => {
+        status.innerHTML = '<div class="alert-err">Network error: ' + err.message + '</div>';
+        if (__restorePollTimer) {
+          clearInterval(__restorePollTimer);
+          __restorePollTimer = null;
+        }
+        btn.disabled = false;
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        btn.textContent = 'Restore Database';
+      });
+    };
+
+    tick();
+    __restorePollTimer = setInterval(tick, 1500);
   }
 
   function confirmImportNormalized() {
