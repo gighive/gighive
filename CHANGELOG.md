@@ -14,8 +14,7 @@ Changes to be committed:
 	modified:   docs/README.md
 
 ToDo: Make instructory video
-ToDo: Staging (gighive: 192.168.1.248) doesn't auto come up if staging down
-ToDo: staging change username to sodo 
+ToDo: Staging doesn't auto come up if staging down
 ToDo: Check azure build
 ToDo: Embed video
 ToDo: Match cert with cloudflare, name only or something else needed?
