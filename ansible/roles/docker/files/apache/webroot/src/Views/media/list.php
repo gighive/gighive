@@ -213,7 +213,7 @@
           ['key' => 'org', 'label' => 'Band or Event', 'title' => 'Band or Event', 'search' => 'org_name'],
           ['key' => 'file_type', 'label' => 'File Type', 'title' => 'File Type', 'search' => 'file_type'],
           ['key' => 'song_name', 'label' => 'Song Name', 'title' => 'Song Name', 'search' => 'song_title'],
-          ['key' => 'source_relpath', 'label' => 'Source Relpath', 'title' => 'Source Relpath', 'search' => 'source_relpath'],
+          ['key' => 'source_relpath', 'label' => 'File Path', 'title' => 'File Path', 'search' => 'source_relpath'],
           ['key' => 'thumbnail', 'label' => 'Thumbnail', 'title' => 'Thumbnail', 'search' => null, 'h4Style' => 'white-space:nowrap;'],
           ['key' => 'download', 'label' => 'Download / View', 'title' => 'Download / View', 'search' => 'file_name'],
           ['key' => 'duration', 'label' => 'Duration', 'title' => 'Duration', 'search' => 'duration_seconds'],
@@ -259,7 +259,7 @@
   ?>
 
   <div class="header-block" style="margin-bottom:0.5rem;white-space:nowrap;max-width:none;">
-    Search will only take place after you fill in one or more fields and hit Enter.  Checkbox toggles column width.  X removes column.  Clicking on label in header sorts column.  CTRL-R refreshes page to default view.
+    Search will only take place after you fill in one or more fields and hit Enter.  Column widths adjustable.  X removes column.  Checkbox minimizes column width.  Clicking on label in header sorts column.  CTRL-R refreshes page to default view.
   </div>
   <?php if ($hasSearch): ?>
     <div id="searchStatus" class="header-block">
