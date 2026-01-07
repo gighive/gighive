@@ -1,10 +1,9 @@
 *** 
 releaseNotes20260103.txt
-Changes: Added examples to both home pages
+Changes: Fail fast if KVM modules are loaded, deleted outdated files, added alias
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
-Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -13,10 +12,14 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
-	modified:   docs/index.md
+	deleted:    MediaDatabase.html
+	modified:   ansible/roles/cloud_init/tasks/main.yml
+	renamed:    uploadMediaForProd.sh -> ansible/roles/docker/files/apache/webroot/tools/uploadMediaByHashExample.sh
+	deleted:    docs/guide1Intro.txt
+	deleted:    promptScanPlan.txt
 
 ToDo: Make instructory video
+ToDo: Check azure build
 ToDo: Embed video
 ToDo: Match cert with cloudflare, name only or something else needed?
 ToDo: database table name change to genericize songs 
@@ -38,6 +41,24 @@ ToDo: make csv mgmt easier
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Integrate Let's Encrypt for future
 ToDo: Improve user management, guest user?
+
+*** 
+releaseNotes20260103.txt
+Changes: Added examples to both home pages
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   docs/index.md
 
 *** 
 releaseNotes20260103.txt
