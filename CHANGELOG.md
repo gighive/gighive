@@ -1,17 +1,8 @@
 *** 
 releaseNotes20260103.txt
-Changes: Readme update
+Changes: Kvm alternative fix text in cloud_init/tasks/main.yml
 
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
-
-sodo@pop-os:~/scripts/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   docs/README.md
 
 ToDo: Make instructory video
 ToDo: Staging doesn't auto come up if staging down
@@ -37,6 +28,21 @@ ToDo: make csv mgmt easier
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Integrate Let's Encrypt for future
 ToDo: Improve user management, guest user?
+
+*** 
+releaseNotes20260103.txt
+Changes: Readme update
+
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/README.md
 
 *** 
 releaseNotes20260103.txt
