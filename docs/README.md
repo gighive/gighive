@@ -58,13 +58,13 @@ Internet-exposed or production deployment.  You will see a step for this below.
 ```bash
 sudo apt update && sudo apt install -y pipx python3-venv git
 pipx ensurepath
+pipx install --include-deps ansible
 ```
 
 3. Log out.
 
-4. Log back in and install Ansible.
+4. Log back in
 ```bash
-pipx install --include-deps ansible
 ansible --version # Should be 2.17.2 or higher
 ```
 
