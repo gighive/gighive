@@ -1,11 +1,22 @@
 *** 
 releaseNotes20260103.txt
-Changes: Kvm alternative fix text in cloud_init/tasks/main.yml
+Changes: Kvm alternative fix text in cloud_init/tasks/main.yml and list.php header label change
 
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/cloud_init/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+
 ToDo: Make instructory video
-ToDo: Staging doesn't auto come up if staging down
+ToDo: Staging vm (gighive) doesn't auto come up automatically if box down 
 ToDo: Check azure build
 ToDo: Embed video
 ToDo: Match cert with cloudflare, name only or something else needed?
