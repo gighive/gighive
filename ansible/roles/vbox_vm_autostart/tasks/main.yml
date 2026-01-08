@@ -146,5 +146,36 @@
       ansible.builtin.systemd:
         name: "gighive-vbox-autostart@{{ vbox_autostart_vm_name }}.service"
         enabled: true
+        state: stopped
+
+    - name: Attempt to start autostart unit (non-fatal)
+      ansible.builtin.systemd:
+        name: "gighive-vbox-autostart@{{ vbox_autostart_vm_name }}.service"
         state: started
+      register: vbox_autostart_unit_start
+      failed_when: false
+
+    - name: Debug unit start result
+      ansible.builtin.debug:
+        var: vbox_autostart_unit_start
+
+    - name: Debug systemctl status for autostart unit
+      ansible.builtin.command: "systemctl status gighive-vbox-autostart@{{ vbox_autostart_vm_name }}.service --no-pager"
+      changed_when: false
+      failed_when: false
+      register: vbox_autostart_unit_status
+
+    - name: Print systemctl status
+      ansible.builtin.debug:
+        var: vbox_autostart_unit_status.stdout_lines
+
+    - name: Debug journalctl for autostart unit
+      ansible.builtin.command: "journalctl -xeu gighive-vbox-autostart@{{ vbox_autostart_vm_name }}.service --no-pager -n 200"
+      changed_when: false
+      failed_when: false
+      register: vbox_autostart_unit_journal
+
+    - name: Print journalctl
+      ansible.builtin.debug:
+        var: vbox_autostart_unit_journal.stdout_lines
 
