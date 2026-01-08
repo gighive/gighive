@@ -123,8 +123,6 @@
         content: |
           [Unit]
           Description=GigHive VirtualBox VM autostart (%i)
-          After=vboxdrv.service
-          Requires=vboxdrv.service
           After=network-online.target
           Wants=network-online.target
 
