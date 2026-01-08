@@ -9,4 +9,9 @@
     install_virtualbox: true
   roles:
     - role: installprerequisites
-    - role: vbox_vm_autostart
+
+  tasks:
+    - name: Configure VirtualBox VM autostart (optional)
+      ansible.builtin.include_role:
+        name: vbox_vm_autostart
+      when: (hostvars[(groups['gighive'] | default([]) | first)].enable_vbox_vm_autostart | default(false)) | bool
