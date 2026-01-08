@@ -1,9 +1,54 @@
 *** 
 releaseNotes20260103.txt
+Changes: Enable VM autostart at host boot
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/playbooks/install_controller.yml
+	new file:   ansible/playbooks/vbox_autostart.yml
+	new file:   ansible/roles/vbox_vm_autostart/tasks/main.yml
+	new file:   docs/autostart_vm_implementation.md
+
+ToDo: For staging: build the restart functionality if server reboots?
+ToDo: For gighive: make optional the build the restart functionality if server reboots?
+ToDo: Make instructory video
+ToDo: Staging vm (gighive) doesn't auto come up automatically if box down 
+ToDo: Check azure build
+ToDo: Embed video
+ToDo: Match cert with cloudflare, name only or something else needed?
+ToDo: database table name change to genericize songs 
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod baremetal with same ansible scripts as staging
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Can we confine ffmpeg install to vm only?
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: Integrate Let's Encrypt for future
+ToDo: guest user?
+
+*** 
+releaseNotes20260103.txt
 Changes: Kvm alternative fix text in cloud_init/tasks/main.yml and list.php header label change
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -14,31 +59,6 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/roles/cloud_init/tasks/main.yml
 	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
-
-ToDo: Make instructory video
-ToDo: Staging vm (gighive) doesn't auto come up automatically if box down 
-ToDo: Check azure build
-ToDo: Embed video
-ToDo: Match cert with cloudflare, name only or something else needed?
-ToDo: database table name change to genericize songs 
-ToDo: replace gmk user on staging with ubuntu
-ToDo: investigate vids that didn't produce thumbnails 
-ToDo: rebuild prod with same ansible scripts as staging
-ToDo: make sure macbook can access dev/prod/staging w/passwordless ssh
-ToDo: Make sure ask-become-pass is run at first part of vbox_provision
-ToDo: Should I build the restart functionality if server reboots?
-ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-ToDo: Can we confine ffmpeg install to vm only?
-ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: make csv mgmt easier
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: Integrate Let's Encrypt for future
-ToDo: Improve user management, guest user?
 
 *** 
 releaseNotes20260103.txt

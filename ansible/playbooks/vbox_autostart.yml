@@ -1,0 +1,7 @@
+---
+- name: Configure VirtualBox VM autostart on controller
+  hosts: baremetal
+  gather_facts: false
+  become: true
+  roles:
+    - role: vbox_vm_autostart
