@@ -1,10 +1,9 @@
 *** 
-releaseNotes20260103.txt
-Changes: Enable VM autostart, manual process only working 
+releaseNotes20260108.txt
+Changes: Remove root ref, admin timings 
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
-Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -13,16 +12,12 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/playbooks/install_controller.yml
-	new file:   ansible/playbooks/vbox_autostart.yml
-	new file:   ansible/roles/vbox_vm_autostart/tasks/main.yml
-	new file:   docs/autostart_vm_implementation.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
+	modified:   docs/README.md
 
-ToDo: For staging: build the restart functionality if server reboots?
-ToDo: For gighive: make optional the build the restart functionality if server reboots?
+ToDo: Change def mysql authN to caching_sha2_password
 ToDo: Make instructory video
-ToDo: Staging vm (gighive) doesn't auto come up automatically if box down 
 ToDo: Check azure build
 ToDo: Embed video
 ToDo: Match cert with cloudflare, name only or something else needed?
@@ -41,6 +36,31 @@ ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
+
+*** 
+releaseNotes20260107.txt
+Changes: Enable VM autostart, manual process only working 
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+# Full builds
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml (34 minutes) 
+Last run (lab: run from lab): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass (14 minutes)
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/playbooks/install_controller.yml
+	new file:   ansible/playbooks/vbox_autostart.yml
+	new file:   ansible/roles/vbox_vm_autostart/tasks/main.yml
+	new file:   docs/autostart_vm_implementation.md
 
 *** 
 releaseNotes20260103.txt

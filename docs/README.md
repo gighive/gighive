@@ -54,7 +54,7 @@ Internet-exposed or production deployment.  You will see a step for this below.
 - In a later step, you will add that IP to the appropriate variable in the Ansible inventory file. 
 - See [Ansible core files](ANSIBLE_FILE_INTERACTION.md) discussion for more info on how Ansible's configuration works .
 
-2. Log onto that server and install Ansible:
+2. Log onto that server and install Ansible (3 minutes):
 ```bash
 sudo apt update && sudo apt install -y pipx python3-venv git
 pipx ensurepath
@@ -68,7 +68,7 @@ pipx install --include-deps ansible
 ansible --version # Should be 2.17.2 or higher
 ```
 
-5. Clone the repo from your desired location (usually /home/$USER).  
+5. Clone the repo from your desired location (usually /home/$USER, 4 minutes).  
 - The repo has some sample media files, so it's about 690MB in size.  
 - Takes a few minutes to download on an average connection.
 ```bash
@@ -103,7 +103,7 @@ cp ansible/inventories/group_vars/gighive/secrets.example.yml ansible/inventorie
 ---
 
 ## ⚙️  Option A: Gighive as a virtualbox VM.  Install Gighive as a vm on your Ansible controller machine.
-1. From $GIGHIVE_HOME, Install Virtualbox using Ansible. 
+1. From $GIGHIVE_HOME, Install Virtualbox using Ansible (5 minutes). 
 - Default shown below is the virtualbox install.
 - install_virtualbox=true will be set in the below Ansible command.
 - The script will ask for your sudo password, so enter it in when prompted.
@@ -115,7 +115,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 2. When the script finishes, it will prompt you to reboot.  
 - Hit "enter" to stop the script and then reboot.
 
-3. Verify the installation.
+3. Verify the installation (<1 minute).
 ```bash
 cd $GIGHIVE_HOME
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
@@ -127,7 +127,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 vi ansible/inventories/inventory_bootstrap.yml 
 ```
 
-5. Execute the Ansible playbook that will install Gighive.
+5. Execute the Ansible playbook that will install Gighive (15 minutes).
 ```bash
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
 ```
