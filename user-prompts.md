@@ -1932,3 +1932,9 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 - 2026-01-07T20:18:00-05:00
   - 1) yes, gate all debug tasks behind the variable and put the variable right next to the other in the group_vars.  2) add the last two commands you gave me (repeated below) as the final two ansible tasks showing the successful service setup.  3) if i run the commands again, they will be idempotent, correct?  here are those last two commands you gave me: systemctl status gighive-vbox-autostart@gighive.service --no-pager
     VBoxManage list runningvms
+
+- 2026-01-07T20:20:00-05:00
+  - 1) ok, let me test 2) meanwhile, please update the .md file to sync with our latest updates
+
+- 2026-01-07T20:29:00-05:00
+  - And i rebooted the vm host and the vm came back up!  Yay!
