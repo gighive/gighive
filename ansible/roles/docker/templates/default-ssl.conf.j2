@@ -75,6 +75,36 @@
         </Else>
     </Location>
 
+    # Request-time staging-only public access for /audio
+    <LocationMatch "^/audio(?:/|$)">
+        <If "%{HTTP_HOST} == 'staging.gighive.app'">
+            Require all granted
+            Satisfy any
+        </If>
+        <Else>
+            AuthType Basic
+            AuthName "GigHive Protected"
+            AuthBasicProvider file
+            AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+            Require valid-user
+        </Else>
+    </LocationMatch>
+
+    # Request-time staging-only public access for /video
+    <LocationMatch "^/video(?:/|$)">
+        <If "%{HTTP_HOST} == 'staging.gighive.app'">
+            Require all granted
+            Satisfy any
+        </If>
+        <Else>
+            AuthType Basic
+            AuthName "GigHive Protected"
+            AuthBasicProvider file
+            AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+            Require valid-user
+        </Else>
+    </LocationMatch>
+
     # --- EXISTING PROTECTED AREAS (any valid user) ---
     # Excludes /db/health.php from authentication requirement
     <LocationMatch "^/(?:app/(?!cache(?:/|$)).*|api|db/(?!health\.php$).*|debug|src|vendor|video(?!/podcasts(?:/|$))|audio)(?:/|$)">
