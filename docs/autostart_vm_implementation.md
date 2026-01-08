@@ -40,7 +40,7 @@ Because controller plays may run with `become: true`, we cannot assume the effec
 
 The unit will also set:
 
-- `VBOX_USER_HOME=%h/.config/VirtualBox`
+- `VBOX_USER_HOME` to the autostart user’s VirtualBox config directory (derived from that user’s home directory)
 
 ### Idempotency
 
@@ -64,6 +64,7 @@ This keeps the workflow simple while still allowing multi-VM support later if ne
 
 - Modify only: `ansible/inventories/group_vars/gighive/gighive.yml`
 - Add: `enable_vbox_vm_autostart: true`
+- Optional: `vbox_autostart_debug: true` to enable verbose debugging output from the role
 - No changes to any other `group_vars` files (you can add the var yourself later, per-VM)
 
 ### 2) New role (core functionality)
@@ -73,10 +74,14 @@ This keeps the workflow simple while still allowing multi-VM support later if ne
 Responsibilities:
 
 - Derive `vbox_autostart_user` from the controller login user (prefer `SUDO_USER`, fallback `USER`, optional `id -un` with `become: false`)
+- Resolve the autostart user’s `uid` and home directory (via `getent passwd`) to build stable `HOME`, `XDG_RUNTIME_DIR`, and `VBOX_USER_HOME` values for the systemd unit
 - Install `/etc/systemd/system/gighive-vbox-autostart@.service` (systemd template unit)
 - Run `systemctl daemon-reload`
 - Derive the VM name from `vm_name` in `ansible/inventories/group_vars/gighive/gighive.yml` (single-VM model)
 - Enable/start `gighive-vbox-autostart@<vm_name>.service` when `enable_vbox_vm_autostart: true`
+- Print final confirmation output:
+  - `systemctl status gighive-vbox-autostart@<vm_name>.service --no-pager`
+  - `VBoxManage list runningvms`
 
 ### 3) New playbook (run anytime)
 
@@ -130,5 +135,5 @@ Run:
 
 On the controller host, you can validate with:
 
-- `systemctl status gighive-vbox-autostart@gighive.service`
+- `systemctl status gighive-vbox-autostart@gighive.service --no-pager`
 - `VBoxManage list runningvms`
