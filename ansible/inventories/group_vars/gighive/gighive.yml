@@ -2,7 +2,7 @@
 hostname: "gighive"
 vm_name: "gighive"
 
-enable_vbox_vm_autostart: true
+enable_vbox_vm_autostart: false
 vbox_autostart_debug: false
 
 gighive_timezone: "America/New_York"

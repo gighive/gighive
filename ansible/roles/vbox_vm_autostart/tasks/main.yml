@@ -1,33 +1,34 @@
 ---
-- name: Require exactly one host in the gighive group for single-VM autostart
+- name: Require exactly one host in the target_vms group for single-VM autostart
   ansible.builtin.assert:
     that:
-      - (groups['gighive'] | default([])) | length == 1
+      - (groups['target_vms'] | default([])) | length == 1
     fail_msg: >-
-      Single-VM autostart expects exactly one inventory host in the 'gighive' group.
+      Single-VM autostart expects exactly one inventory host in the 'target_vms' group.
 
-- name: Capture the single gighive inventory host
+- name: Capture the single target VM inventory host
   ansible.builtin.set_fact:
-    gighive_inventory_host: "{{ (groups['gighive'] | default([]) | first) }}"
+    target_vm_inventory_host: "{{ (groups['target_vms'] | default([]) | first) }}"
 
-- name: Require enable_vbox_vm_autostart is enabled for gighive
+- name: Require enable_vbox_vm_autostart is enabled for target VM
   ansible.builtin.assert:
     that:
-      - (hostvars[gighive_inventory_host].enable_vbox_vm_autostart | default(false)) | bool
+      - (hostvars[target_vm_inventory_host].enable_vbox_vm_autostart | default(false)) | bool
     fail_msg: >-
-      enable_vbox_vm_autostart is not enabled for the gighive VM.
-      Set enable_vbox_vm_autostart: true in ansible/inventories/group_vars/gighive/gighive.yml
+      enable_vbox_vm_autostart is not enabled for target VM: {{ target_vm_inventory_host }}
+      (groups={{ hostvars[target_vm_inventory_host].group_names | default([]) | join(',') }}).
 
-- name: Derive vbox_autostart_vm_name from gighive vm_name
+- name: Derive vbox_autostart_vm_name from target VM vm_name
   ansible.builtin.set_fact:
-    vbox_autostart_vm_name: "{{ hostvars[gighive_inventory_host].vm_name }}"
+    vbox_autostart_vm_name: "{{ hostvars[target_vm_inventory_host].vm_name }}"
 
-- name: Require vm_name is set for gighive
+- name: Require vm_name is set for target VM
   ansible.builtin.assert:
     that:
       - (vbox_autostart_vm_name | default('') | trim) | length > 0
     fail_msg: >-
-      vm_name is not set for the gighive VM.
+      vm_name is not set for target VM: {{ target_vm_inventory_host }}
+      (groups={{ hostvars[target_vm_inventory_host].group_names | default([]) | join(',') }}).
 
 - name: Derive vbox_autostart_user from controller login environment
   ansible.builtin.set_fact:
@@ -73,7 +74,7 @@
 - name: Debug autostart derived values
   ansible.builtin.debug:
     msg:
-      - "gighive_inventory_host={{ gighive_inventory_host }}"
+      - "target_vm_inventory_host={{ target_vm_inventory_host }}"
       - "vbox_autostart_vm_name={{ vbox_autostart_vm_name }}"
       - "vbox_autostart_user={{ vbox_autostart_user }}"
       - "vbox_autostart_uid={{ vbox_autostart_uid }}"

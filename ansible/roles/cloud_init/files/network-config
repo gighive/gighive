@@ -2,7 +2,7 @@ version: 2
 ethernets:
   nic0:
     match:
-      macaddress: "08:00:27:11:3b:d3"
+      macaddress: "08:00:27:a8:1d:71"
       driver: virtio_net
     set-name: eth0
     dhcp4: false

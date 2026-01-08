@@ -14,4 +14,6 @@
     - name: Configure VirtualBox VM autostart (optional)
       ansible.builtin.include_role:
         name: vbox_vm_autostart
-      when: (hostvars[(groups['gighive'] | default([]) | first)].enable_vbox_vm_autostart | default(false)) | bool
+      when:
+        - (groups['target_vms'] | default([]) | length) > 0
+        - (hostvars[(groups['target_vms'] | first)].enable_vbox_vm_autostart | default(false)) | bool

@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260103.txt
-Changes: Enable VM autostart at host boot
+Changes: Enable VM autostart, manual process only working 
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
