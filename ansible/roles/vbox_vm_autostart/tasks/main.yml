@@ -78,6 +78,7 @@
       - "vbox_autostart_user={{ vbox_autostart_user }}"
       - "vbox_autostart_uid={{ vbox_autostart_uid }}"
       - "vbox_autostart_home={{ vbox_autostart_home }}"
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Debug VirtualBox CLI availability (as autostart user)
   ansible.builtin.command: /usr/bin/VBoxManage --version
@@ -85,10 +86,12 @@
   become_user: "{{ vbox_autostart_user }}"
   changed_when: false
   register: vboxmanage_version_debug
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Debug VBoxManage version output
   ansible.builtin.debug:
     var: vboxmanage_version_debug.stdout
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Debug autostart user environment (HOME, XDG_RUNTIME_DIR)
   ansible.builtin.shell: |
@@ -102,10 +105,12 @@
   become_user: "{{ vbox_autostart_user }}"
   changed_when: false
   register: autostart_user_env_debug
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Debug autostart user environment output
   ansible.builtin.debug:
     var: autostart_user_env_debug.stdout_lines
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Debug VBoxManage list vms (as autostart user)
   ansible.builtin.command: /usr/bin/VBoxManage list vms
@@ -114,10 +119,12 @@
   changed_when: false
   failed_when: false
   register: vbox_list_vms_debug
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Debug VBoxManage list vms output
   ansible.builtin.debug:
     var: vbox_list_vms_debug.stdout_lines
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Debug VBoxManage list runningvms (as autostart user)
   ansible.builtin.command: /usr/bin/VBoxManage list runningvms
@@ -126,10 +133,12 @@
   changed_when: false
   failed_when: false
   register: vbox_list_runningvms_debug
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Debug VBoxManage list runningvms output
   ansible.builtin.debug:
     var: vbox_list_runningvms_debug.stdout_lines
+  when: (vbox_autostart_debug | default(false)) | bool
 
 - name: Install and enable VM autostart systemd units
   block:
@@ -178,24 +187,50 @@
     - name: Debug unit start result
       ansible.builtin.debug:
         var: vbox_autostart_unit_start
+      when: (vbox_autostart_debug | default(false)) | bool
 
     - name: Debug systemctl status for autostart unit
       ansible.builtin.command: "systemctl status gighive-vbox-autostart@{{ vbox_autostart_vm_name }}.service --no-pager"
       changed_when: false
       failed_when: false
       register: vbox_autostart_unit_status
+      when: (vbox_autostart_debug | default(false)) | bool
 
     - name: Print systemctl status
       ansible.builtin.debug:
         var: vbox_autostart_unit_status.stdout_lines
+      when: (vbox_autostart_debug | default(false)) | bool
 
     - name: Debug journalctl for autostart unit
       ansible.builtin.command: "journalctl -xeu gighive-vbox-autostart@{{ vbox_autostart_vm_name }}.service --no-pager -n 200"
       changed_when: false
       failed_when: false
       register: vbox_autostart_unit_journal
+      when: (vbox_autostart_debug | default(false)) | bool
 
     - name: Print journalctl
       ansible.builtin.debug:
         var: vbox_autostart_unit_journal.stdout_lines
+      when: (vbox_autostart_debug | default(false)) | bool
 
+- name: Show autostart unit status
+  ansible.builtin.command: "systemctl status gighive-vbox-autostart@{{ vbox_autostart_vm_name }}.service --no-pager"
+  changed_when: false
+  failed_when: false
+  register: vbox_autostart_final_status
+
+- name: Show running VirtualBox VMs
+  ansible.builtin.command: /usr/bin/VBoxManage list runningvms
+  become: true
+  become_user: "{{ vbox_autostart_user }}"
+  changed_when: false
+  failed_when: false
+  register: vbox_autostart_final_runningvms
+
+- name: Display autostart unit status output
+  ansible.builtin.debug:
+    var: vbox_autostart_final_status.stdout_lines
+
+- name: Display running VirtualBox VMs output
+  ansible.builtin.debug:
+    var: vbox_autostart_final_runningvms.stdout_lines

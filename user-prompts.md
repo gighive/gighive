@@ -1921,3 +1921,14 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
   - hmmm..i updated the software via ansible, but don't see the change had any effect.  I see this is View > Page Source:     h1{margin:0 0 1rem 0;}
     .user-indicator{font-size:12px;color:var(--muted);margin:0 0 0.5rem 0;}
     .header-top{margin:0 0 0.5rem 0;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;width:100%;max-width:none;}. 
+
+---
+
+## 2026-01-07
+
+- 2026-01-07T19:14:00-05:00
+  - the configuration of the autostart should just run under as the username of  the person who installed gighive through the ansible scripts, correct?
+
+- 2026-01-07T20:18:00-05:00
+  - 1) yes, gate all debug tasks behind the variable and put the variable right next to the other in the group_vars.  2) add the last two commands you gave me (repeated below) as the final two ansible tasks showing the successful service setup.  3) if i run the commands again, they will be idempotent, correct?  here are those last two commands you gave me: systemctl status gighive-vbox-autostart@gighive.service --no-pager
+    VBoxManage list runningvms
