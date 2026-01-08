@@ -2,6 +2,9 @@
 hostname: "gighive2"
 vm_name: "gighive2"
 
+enable_vbox_vm_autostart: false
+vbox_autostart_debug: false
+
 gighive_timezone: "America/New_York"
 
 # OS version configuration

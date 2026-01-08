@@ -53,8 +53,8 @@ The goal is that running the configuration multiple times (or booting repeatedly
 
 This implementation is intentionally **single-VM** right now.
 
-- The role reads `enable_vbox_vm_autostart` and `vm_name` from `ansible/inventories/group_vars/gighive/gighive.yml`.
-- It assumes the inventory group `gighive` contains exactly one host.
+- The role reads `enable_vbox_vm_autostart` and `vm_name` from the single VM host under the `target_vms` inventory group.
+- It assumes the inventory group `target_vms` contains exactly one host.
 
 This keeps the workflow simple while still allowing multi-VM support later if needed.
 

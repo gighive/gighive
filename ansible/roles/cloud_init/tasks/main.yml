@@ -45,7 +45,7 @@
       VirtualBox cannot start VMs while KVM is loaded (VERR_VMX_IN_VMX_ROOT_MODE).
       Detected KVM modules loaded on this host.
 
-      Option A (persistent, MUST PERFORM THESE STEPS TO CONTINUE TO USE GIGHIVE):
+      Option A (persistent, ***YOU MUST PERFORM THESE STEPS IN ORDER TO CONTINUE TO INSTALL GIGHIVE***):
         echo -e "blacklist kvm\nblacklist kvm_intel\nblacklist kvm_amd" | sudo tee /etc/modprobe.d/blacklist-kvm.conf
         sudo reboot
 

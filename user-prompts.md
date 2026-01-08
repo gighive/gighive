@@ -1938,3 +1938,12 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-01-07T20:29:00-05:00
   - And i rebooted the vm host and the vm came back up!  Yay!
+
+- 2026-01-07T20:36:00-05:00
+  - so lastly, if i build a new gighive instance, and enable_vbox_vm_autostart is set to true, then the install_controller.yml should automatically implement the vm autostart, correcxt?
+
+- 2026-01-07T20:39:00-05:00
+  - OK, let me give it a shot now.
+
+- 2026-01-07T21:06:00-05:00
+  - 1) yes, I'm ok for one host enforcement.  We'll change this later down the line if necessary.  2) might as well make the error message state "target VM: [inventory host/group name]" for easier debugging.
