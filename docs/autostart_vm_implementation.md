@@ -49,23 +49,14 @@ The goal is that running the configuration multiple times (or booting repeatedly
 - The systemd unit will check whether the VM is already running before attempting to start it.
 - Enabling/starting the unit instances via Ansible is inherently idempotent.
 
-### Why we loop through `groups['target_vms']`
+### Single-VM scope (why we do not loop inventory groups)
 
-The enablement toggle and VM name are **per VM**, not global.
+This implementation is intentionally **single-VM** right now.
 
-Even if the variable name `enable_vbox_vm_autostart` exists in multiple `group_vars` files, Ansible variables are scoped **per host**. When running the controller play on the controller host (inventory host `baremetal`), there is no single global value of `enable_vbox_vm_autostart` to consult.
+- The role reads `enable_vbox_vm_autostart` and `vm_name` from `ansible/inventories/group_vars/gighive/gighive.yml`.
+- It assumes the inventory group `gighive` contains exactly one host.
 
-To decide which VMs should have autostart enabled, the controller tasks must:
-
-- Iterate the inventory group `target_vms`
-- Read each VM host’s variables via `hostvars[...]`, specifically:
-  - `hostvars[vm_host].enable_vbox_vm_autostart`
-  - `hostvars[vm_host].vm_name`
-
-This yields the set of systemd unit instances to enable, e.g.:
-
-- `gighive-vbox-autostart@gighive.service`
-- `gighive-vbox-autostart@gighive2.service`
+This keeps the workflow simple while still allowing multi-VM support later if needed.
 
 ## Updated scope + what will be implemented
 
@@ -84,9 +75,8 @@ Responsibilities:
 - Derive `vbox_autostart_user` from the controller login user (prefer `SUDO_USER`, fallback `USER`, optional `id -un` with `become: false`)
 - Install `/etc/systemd/system/gighive-vbox-autostart@.service` (systemd template unit)
 - Run `systemctl daemon-reload`
-- Loop over `groups['target_vms']` and enable/start unit instances for VMs where:
-  - `hostvars[item].enable_vbox_vm_autostart | bool` is true
-  - the instance name uses `hostvars[item].vm_name`
+- Derive the VM name from `vm_name` in `ansible/inventories/group_vars/gighive/gighive.yml` (single-VM model)
+- Enable/start `gighive-vbox-autostart@<vm_name>.service` when `enable_vbox_vm_autostart: true`
 
 ### 3) New playbook (run anytime)
 
@@ -98,23 +88,23 @@ Runs the role on `hosts: baremetal` with `become: true` so autostart can be conf
 
 - Modify: `ansible/playbooks/install_controller.yml`
 
-Include the new role *optionally*, guarded by whether any host in `groups['target_vms']` has `enable_vbox_vm_autostart: true`.
+Include the new role *optionally*, guarded by whether `enable_vbox_vm_autostart: true` is set for the single `gighive` host.
 
 ## Usage
 
 ### Enable during initial controller install
 
-1. Set `enable_vbox_vm_autostart: true` in the relevant VM’s `group_vars`.
+1. Set `enable_vbox_vm_autostart: true` in `ansible/inventories/group_vars/gighive/gighive.yml`.
 2. Run controller install:
 
    - `ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/install_controller.yml --ask-become-pass`
 
 ### Enable sometime later
 
-1. Set `enable_vbox_vm_autostart: true` in the relevant VM’s `group_vars`.
+1. Set `enable_vbox_vm_autostart: true` in `ansible/inventories/group_vars/gighive/gighive.yml`.
 2. Run:
 
-   - `ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass`
+   - `ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass`
 
 ## Example: enable autostart after initial install (gighive)
 
@@ -134,7 +124,7 @@ This section is an example workflow for the case where:
 
 Run:
 
-- `ansible-playbook -i ansible/inventories/inventory_virtualbox.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass`
+- `ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass`
 
 ### 3) Validate
 
