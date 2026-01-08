@@ -53,12 +53,31 @@
     - vbox_autostart_user_id is defined
     - (vbox_autostart_user_id.stdout | default('') | trim) | length > 0
 
+- name: Lookup autostart user passwd entry
+  ansible.builtin.command: "getent passwd {{ vbox_autostart_user }}"
+  register: vbox_autostart_passwd
+  changed_when: false
+
+- name: Derive autostart user uid and home
+  ansible.builtin.set_fact:
+    vbox_autostart_uid: "{{ (vbox_autostart_passwd.stdout.split(':')[2] | default('')) }}"
+    vbox_autostart_home: "{{ (vbox_autostart_passwd.stdout.split(':')[5] | default('')) }}"
+
+- name: Require autostart user uid and home are resolvable
+  ansible.builtin.assert:
+    that:
+      - (vbox_autostart_uid | default('') | trim) | length > 0
+      - (vbox_autostart_home | default('') | trim) | length > 0
+    fail_msg: "Could not resolve uid/home for vbox_autostart_user={{ vbox_autostart_user }} via getent passwd"
+
 - name: Debug autostart derived values
   ansible.builtin.debug:
     msg:
       - "gighive_inventory_host={{ gighive_inventory_host }}"
       - "vbox_autostart_vm_name={{ vbox_autostart_vm_name }}"
       - "vbox_autostart_user={{ vbox_autostart_user }}"
+      - "vbox_autostart_uid={{ vbox_autostart_uid }}"
+      - "vbox_autostart_home={{ vbox_autostart_home }}"
 
 - name: Debug VirtualBox CLI availability (as autostart user)
   ansible.builtin.command: /usr/bin/VBoxManage --version
@@ -129,10 +148,11 @@
           [Service]
           Type=oneshot
           User={{ vbox_autostart_user }}
-          Environment=HOME=%h
-          Environment=XDG_RUNTIME_DIR=/run/user/%U
-          Environment=VBOX_USER_HOME=%h/.config/VirtualBox
-          ExecStart=/bin/bash -lc '/usr/bin/VBoxManage list runningvms | grep -Fq "\"%i\"" || /usr/bin/VBoxManage startvm "%i" --type headless'
+          Environment=HOME={{ vbox_autostart_home }}
+          Environment=XDG_RUNTIME_DIR=/run/user/{{ vbox_autostart_uid }}
+          Environment=VBOX_USER_HOME={{ vbox_autostart_home }}/.config/VirtualBox
+          WorkingDirectory={{ vbox_autostart_home }}
+          ExecStart=/bin/bash -c '/usr/bin/VBoxManage list runningvms | grep -Fq "\"%i\"" || /usr/bin/VBoxManage startvm "%i" --type headless'
           RemainAfterExit=yes
 
           [Install]
