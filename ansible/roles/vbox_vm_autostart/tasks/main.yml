@@ -53,6 +53,65 @@
     - vbox_autostart_user_id is defined
     - (vbox_autostart_user_id.stdout | default('') | trim) | length > 0
 
+- name: Debug autostart derived values
+  ansible.builtin.debug:
+    msg:
+      - "gighive_inventory_host={{ gighive_inventory_host }}"
+      - "vbox_autostart_vm_name={{ vbox_autostart_vm_name }}"
+      - "vbox_autostart_user={{ vbox_autostart_user }}"
+
+- name: Debug VirtualBox CLI availability (as autostart user)
+  ansible.builtin.command: /usr/bin/VBoxManage --version
+  become: true
+  become_user: "{{ vbox_autostart_user }}"
+  changed_when: false
+  register: vboxmanage_version_debug
+
+- name: Debug VBoxManage version output
+  ansible.builtin.debug:
+    var: vboxmanage_version_debug.stdout
+
+- name: Debug autostart user environment (HOME, XDG_RUNTIME_DIR)
+  ansible.builtin.shell: |
+    set -e
+    echo "USER=$(id -un)"
+    echo "HOME=$HOME"
+    echo "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-}"
+    ls -ld "$HOME" || true
+    ls -ld "${XDG_RUNTIME_DIR:-/run/user/NO_XDG}" || true
+  become: true
+  become_user: "{{ vbox_autostart_user }}"
+  changed_when: false
+  register: autostart_user_env_debug
+
+- name: Debug autostart user environment output
+  ansible.builtin.debug:
+    var: autostart_user_env_debug.stdout_lines
+
+- name: Debug VBoxManage list vms (as autostart user)
+  ansible.builtin.command: /usr/bin/VBoxManage list vms
+  become: true
+  become_user: "{{ vbox_autostart_user }}"
+  changed_when: false
+  failed_when: false
+  register: vbox_list_vms_debug
+
+- name: Debug VBoxManage list vms output
+  ansible.builtin.debug:
+    var: vbox_list_vms_debug.stdout_lines
+
+- name: Debug VBoxManage list runningvms (as autostart user)
+  ansible.builtin.command: /usr/bin/VBoxManage list runningvms
+  become: true
+  become_user: "{{ vbox_autostart_user }}"
+  changed_when: false
+  failed_when: false
+  register: vbox_list_runningvms_debug
+
+- name: Debug VBoxManage list runningvms output
+  ansible.builtin.debug:
+    var: vbox_list_runningvms_debug.stdout_lines
+
 - name: Install and enable VM autostart systemd units
   block:
     - name: Install gighive-vbox-autostart@.service template
@@ -64,6 +123,8 @@
         content: |
           [Unit]
           Description=GigHive VirtualBox VM autostart (%i)
+          After=vboxdrv.service
+          Requires=vboxdrv.service
           After=network-online.target
           Wants=network-online.target
 
@@ -71,6 +132,7 @@
           Type=oneshot
           User={{ vbox_autostart_user }}
           Environment=HOME=%h
+          Environment=XDG_RUNTIME_DIR=/run/user/%U
           Environment=VBOX_USER_HOME=%h/.config/VirtualBox
           ExecStart=/bin/bash -lc '/usr/bin/VBoxManage list runningvms | grep -Fq "\"%i\"" || /usr/bin/VBoxManage startvm "%i" --type headless'
           RemainAfterExit=yes
