@@ -153,10 +153,10 @@ def load_ext_sets_from_group_vars(group_vars_path: str) -> Tuple[Optional[set], 
 def default_group_vars_path() -> str:
     here = Path(__file__).resolve()
     for parent in [here.parent, *here.parents]:
-        cand = parent / "inventories" / "group_vars" / "gighive2" / "gighive2.yml"
+        cand = parent / "inventories" / "group_vars" / "gighive" / "gighive.yml"
         if cand.is_file():
             return str(cand)
-    return str(here.parents[1] / "inventories" / "group_vars" / "gighive2" / "gighive2.yml")
+    return str(here.parents[1] / "inventories" / "group_vars" / "gighive" / "gighive.yml")
 
 
 def sql_quote(s: str) -> str:
