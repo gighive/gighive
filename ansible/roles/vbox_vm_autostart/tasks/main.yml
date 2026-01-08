@@ -1,0 +1,73 @@
+---
+- name: Init enabled_vm_names
+  ansible.builtin.set_fact:
+    enabled_vm_names: []
+
+- name: Collect enabled VM names from target_vms
+  ansible.builtin.set_fact:
+    enabled_vm_names: "{{ enabled_vm_names + [hostvars[item].vm_name] }}"
+  loop: "{{ groups['target_vms'] | default([]) }}"
+  when:
+    - hostvars[item] is defined
+    - (hostvars[item].enable_vbox_vm_autostart | default(false)) | bool
+    - (hostvars[item].vm_name | default('')) | length > 0
+
+- name: Derive vbox_autostart_user from controller login environment
+  ansible.builtin.set_fact:
+    vbox_autostart_user: >-
+      {{
+        (lookup('env', 'SUDO_USER') | default('') | trim)
+          if (lookup('env', 'SUDO_USER') | default('') | trim) | length > 0
+          else (lookup('env', 'USER') | default('') | trim)
+      }}
+
+- name: Fallback to id -un for vbox_autostart_user if env not set
+  ansible.builtin.command: id -un
+  register: vbox_autostart_user_id
+  changed_when: false
+  become: false
+  when: (vbox_autostart_user | default('') | trim) | length == 0
+
+- name: Set vbox_autostart_user from id -un fallback
+  ansible.builtin.set_fact:
+    vbox_autostart_user: "{{ vbox_autostart_user_id.stdout | trim }}"
+  when:
+    - (vbox_autostart_user | default('') | trim) | length == 0
+    - vbox_autostart_user_id is defined
+    - (vbox_autostart_user_id.stdout | default('') | trim) | length > 0
+
+- name: Install and enable VM autostart systemd units
+  when: (enabled_vm_names | length) > 0
+  block:
+    - name: Install gighive-vbox-autostart@.service template
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/gighive-vbox-autostart@.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=GigHive VirtualBox VM autostart (%i)
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          User={{ vbox_autostart_user }}
+          Environment=VBOX_USER_HOME=%h/.config/VirtualBox
+          ExecStart=/bin/bash -lc '/usr/bin/VBoxManage list runningvms | grep -Fq "\"%i\"" || /usr/bin/VBoxManage startvm "%i" --type headless'
+          RemainAfterExit=yes
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start autostart units for enabled VMs
+      ansible.builtin.systemd:
+        name: "gighive-vbox-autostart@{{ item }}.service"
+        enabled: true
+        state: started
+      loop: "{{ enabled_vm_names }}"

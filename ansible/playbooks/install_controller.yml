@@ -9,3 +9,4 @@
     install_virtualbox: true
   roles:
     - role: installprerequisites
+    - role: vbox_vm_autostart
