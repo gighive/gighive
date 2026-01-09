@@ -97,6 +97,14 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
         </ul>
       </li>
       <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the <a href="https://gighive.app/README.html">Setup Guide</a>, but you may want to jump right to the installation video below:</li>
+      <ul>
+        <li>
+          <span style="display: inline-flex; align-items: center; gap: 8px;">
+            <span>Installation Video:</span>
+            <a href="https://staging.gighive.app/video/ba3c55bfabd0592043c17c2c35f3b4cbb2a3739b6286afecd0430995dec36f62.mp4"><img src="https://staging.gighive.app/video/thumbnails/ba3c55bfabd0592043c17c2c35f3b4cbb2a3739b6286afecd0430995dec36f62.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
+          </span>
+        </li>
+      </ul>
       </ul>
 
       <h3>Why not just use YouTube?</h3>
