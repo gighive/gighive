@@ -432,11 +432,7 @@ def remote_ffmpeg_thumbnail(
         "set -euo pipefail; "
         f"ffmpeg -nostdin -hide_banner -loglevel error -y -ss {seek_seconds:.3f} -i {shlex.quote(video_path)} "
         f"  -frames:v 1 -vf {shlex.quote(vf)} -an -sn {shlex.quote(tmp_path)}; "
-        f"mv -f {shlex.quote(tmp_path)} {shlex.quote(thumb_path)}; "
-        "if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then "
-        f"  sudo -n chown www-data:www-data {shlex.quote(thumb_path)} 2>/dev/null || true; "
-        f"  sudo -n chmod 0664 {shlex.quote(thumb_path)} 2>/dev/null || true; "
-        "fi"
+        f"mv -f {shlex.quote(tmp_path)} {shlex.quote(thumb_path)}"
     )
 
     cp = run(
@@ -446,6 +442,8 @@ def remote_ffmpeg_thumbnail(
     )
     if cp.returncode != 0:
         raise RuntimeError((cp.stderr or cp.stdout or "ffmpeg thumbnail failed").strip())
+
+    remote_fix_ownership(ssh_target, thumb_path)
 
 
 def remote_ffprobe_json(ssh_target: str, remote_path: str) -> Tuple[Optional[int], str, str]:
@@ -517,20 +515,65 @@ def ensure_remote_dir(ssh_target: str, remote_dir: str) -> None:
         raise RuntimeError(f"Failed to ensure remote dir {remote_dir}: {(cp.stderr or cp.stdout).strip()}")
 
 
-def rsync_copy(src: str, ssh_target: str, dest_abs: str) -> Tuple[bool, str]:
+def remote_fix_ownership(ssh_target: str, remote_path: str) -> None:
+    require_cmd("ssh")
+    cmd = (
+        "set -euo pipefail; "
+        "if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then "
+        f"  sudo -n chown www-data:www-data {shlex.quote(remote_path)} 2>/dev/null || true; "
+        f"  sudo -n chmod 0664 {shlex.quote(remote_path)} 2>/dev/null || true; "
+        "fi"
+    )
+    run(["ssh", "-o", "BatchMode=yes", ssh_target, "bash", "-lc", cmd], check=False)
+
+
+def rsync_copy(src: str, ssh_target: str, dest_abs: str, *, show_progress: bool) -> Tuple[bool, str]:
     require_cmd("rsync")
     cmd = [
         "rsync",
         "-a",
         "--protect-args",
         "--partial",
+        "--info=progress2" if show_progress else "--info=none",
         src,
         f"{ssh_target}:{dest_abs}",
     ]
-    cp = run(cmd, check=False)
-    if cp.returncode == 0:
+
+    if not show_progress:
+        cp = run(cmd, check=False)
+        if cp.returncode == 0:
+            remote_fix_ownership(ssh_target, dest_abs)
+            return True, ""
+        return False, (cp.stderr.strip() or cp.stdout.strip() or f"rsync failed rc={cp.returncode}")
+
+    # Stream rsync progress to stderr so the STATUS table on stdout stays parseable.
+    # Note: rsync progress output may go to stdout depending on version/options, so
+    # we merge stderr into stdout and stream the combined output.
+    proc = subprocess.Popen(
+        cmd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+    )
+
+    err_lines: List[str] = []
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        sys.stderr.write(line)
+        sys.stderr.flush()
+        s = line.strip()
+        if s:
+            err_lines.append(s)
+            if len(err_lines) > 50:
+                err_lines = err_lines[-50:]
+
+    rc = proc.wait()
+    if rc == 0:
+        remote_fix_ownership(ssh_target, dest_abs)
         return True, ""
-    return False, (cp.stderr.strip() or cp.stdout.strip() or f"rsync failed rc={cp.returncode}")
+    err_text = "\n".join(err_lines).strip()
+    return False, (err_text or f"rsync failed rc={rc}")
 
 
 def log_row(status: str, file_type: str, source_relpath: str, dest: str) -> None:
@@ -835,7 +878,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                 flush_progress_line()
                 log_row("MISSING_SRC", dest_type, r.source_relpath, dest_abs)
                 continue
-            ok, err = rsync_copy(str(src_abs), args.ssh_target, dest_abs)
+
+            flush_progress_line()
+            log_row("START_COPY", dest_type, r.source_relpath, dest_abs)
+            ok, err = rsync_copy(str(src_abs), args.ssh_target, dest_abs, show_progress=show_progress)
             if ok:
                 if dest_exists and args.force_recopy:
                     recopied += 1

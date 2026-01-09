@@ -1,3 +1,0 @@
----
-# roles/cloud_init/tasks/main.yml
-- import_tasks: poweroff.yml

@@ -316,7 +316,18 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </li>
   </ul>
-- Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.
+- Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the [Setup Guide](README.html), but you may want to jump right to the installation video below: 
+
+  <ul style="margin: 0.5rem 0 0; padding-left: 0; list-style-position: inside;">
+    <li style="padding-left: 0; margin-left: 0;">
+      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
+        <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
+          <span>Installation Video:</span>
+          <a href="https://staging.gighive.app/video/ba3c55bfabd0592043c17c2c35f3b4cbb2a3739b6286afecd0430995dec36f62.mp4"><img src="https://staging.gighive.app/video/thumbnails/ba3c55bfabd0592043c17c2c35f3b4cbb2a3739b6286afecd0430995dec36f62.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
+        </span>
+      </div>
+    </li>
+  </ul>
 
 ### Why not just use YouTube?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
