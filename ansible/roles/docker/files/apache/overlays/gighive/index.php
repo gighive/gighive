@@ -96,7 +96,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
           </li>
         </ul>
       </li>
-      <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform.</li>
+      <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the <a href="https://gighive.app/README.html">Setup Guide</a>, but you may want to jump right to the installation video below:</li>
       </ul>
 
       <h3>Why not just use YouTube?</h3>

@@ -1,8 +1,7 @@
 *** 
 releaseNotes20260108.txt
-Changes: Fix staging exception to db and audio and video dirs
+Changes: Uploaded instructional video, fixed upload_media script to include upload progress meter
 
-Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -12,11 +11,19 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
-	modified:   user-prompts.md
+	deleted:    ansible/roles/cloud_init/tasks/main.yml.beforeLatest
+	deleted:    ansible/roles/cloud_init/tasks/main.yml.beforeMacFormat
+	deleted:    ansible/roles/cloud_init/tasks/main.yml.newcrappified
+	deleted:    ansible/roles/cloud_init/tasks/main.yml.poweroff
+	deleted:    ansible/roles/cloud_init/tasks/main.yml.working
+	deleted:    ansible/roles/cloud_init/tasks/main.yml.workingMissingUserMetaData
+	deleted:    ansible/roles/cloud_init/tasks/main.yml.workingbackup
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
+	modified:   docs/index.md
+	modified:   docs/uploadMediaByHash.md
 
 ToDo: Change def mysql authN to caching_sha2_password
-ToDo: Make instructory video
 ToDo: Check azure build
 ToDo: Embed video
 ToDo: Match cert with cloudflare, name only or something else needed?
@@ -35,6 +42,23 @@ ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
+
+*** 
+releaseNotes20260108.txt
+Changes: Fix staging exception to db and audio and video dirs
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260108.txt

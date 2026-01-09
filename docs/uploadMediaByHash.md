@@ -48,6 +48,29 @@ It copies files to the remote GigHive host via SSH.
 - `ssh`
 - `rsync`
 
+### SSH authentication must be non-interactive (no password prompts)
+
+This script runs many remote commands using `ssh` (and copies files using `rsync` over SSH). It must be able to authenticate **without prompting for a password**.
+
+Why:
+
+- Some script operations explicitly use `ssh -o BatchMode=yes`, which tells SSH to **fail rather than prompt**.
+- Other operations run via subprocess without a TTY, so password prompts cannot be answered.
+
+Recommended setup:
+
+- Use SSH keys for your target host (e.g. `ubuntu@gighive2`).
+- Ensure the key is either loaded in `ssh-agent` or configured in `~/.ssh/config`.
+
+Quick checks:
+
+```bash
+ssh ubuntu@gighive2
+ssh -o BatchMode=yes ubuntu@gighive2 true
+```
+
+If either command fails, fix your SSH config/keys first (otherwise the uploader will fail before it can copy files).
+
 ### Remote host requirements
 
 - `ffprobe` available on the remote host (`ubuntu@gighive2` in examples)
