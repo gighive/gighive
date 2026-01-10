@@ -1,0 +1,193 @@
+---
+config:
+  layout: fixed
+---
+flowchart TB
+    P["Power on"] --> F["Firmware UEFI BIOS"]
+    F --> G["Bootloader GRUB"]
+    G --> K["Kernel start"]
+    K --> I["Initramfs unpack"]
+    I --> INIT["Init runs"]
+    INIT --> DISC["Discover install media"]
+    DISC --> MNT["Mount live filesystem"]
+    MNT --> SW["Switch root to live"]
+    SW --> SD["systemd live"]
+    SD --> NET["Networking up"]
+    NET --> CI1["Cloud init early"]
+    CI1 --> SQ["Subiquity start"]
+    SQ --> VAL["Validate autoinstall"]
+    VAL --> PLAN["Plan installation"]
+    PLAN --> CT["Curtin start"]
+    CT --> PART["Partition disks"]
+    PART --> FMT["Format filesystems"]
+    FMT --> TGT["Mount target"]
+    TGT --> BASE["Install base system"]
+    BASE --> BL["Install bootloader"]
+    BL --> UM["Unmount target"]
+    UM --> RB["Reboot"]
+    RB --> BOOT2["Boot installed system"]
+    BOOT2 --> CIi["Cloud init init"]
+    CIi --> CIc["Cloud init config"]
+    CIc --> CIf["Cloud init final"]
+    CIf --> READY["System ready"]
+    P -.-> P1["Power applied"]
+    F -.-> F1["Hardware init and boot device"]
+    G -.-> G1["Loads kernel and initrd"]
+    K -.-> K1["Kernel initializes hardware"]
+    I -.-> I1["Early userspace loaded"]
+    INIT -.-> INIT1["Initramfs scripts execute"]
+    DISC -.-> DISC1["Locate ISO content"]
+    MNT -.-> MNT1["Mount squashfs read only"]
+    SW -.-> SW1["Enter live environment"]
+    SD -.-> SD1["Live services start"]
+    NET -.-> NET1["Network configured"]
+    CI1 -.-> CI11["Read NoCloud data"]
+    SQ -.-> SQ1["Installer orchestrates"]
+    VAL -.-> VAL1["Parse user data"]
+    PLAN -.-> PLAN1["Compute install plan"]
+    CT -.-> CT1["Performs installation"]
+    PART -.-> PART1["Create partitions"]
+    FMT -.-> FMT1["Create filesystems"]
+    TGT -.-> TGT1["Prepare target root"]
+    BASE -.-> BASE1["Install OS packages"]
+    BL -.-> BL1["Install GRUB"]
+    UM -.-> UM1["Cleanup mounts"]
+    RB -.-> RB1["Restart system"]
+    BOOT2 -.-> BOOT21["Boot from disk"]
+    CIi -.-> CIi1["First boot init"]
+    CIc -.-> CIc1["Apply configuration"]
+    CIf -.-> CIf1["Finalize setup"]
+    READY -.-> READY1["Login available"]
+    GRUBLBL["GRUB"] -.-> G & INIT
+    CASPER["Casper"] -.-> DISC & SW
+    SUBIQ["Subiquity"] -.-> SQ & PLAN
+    CURTIN["Curtin"] -.-> CT & BL
+    CLOUD["Cloud init"] -.-> CI1 & CIf
+    Gf["/boot/grub/grub.cfg<br>/EFI/BOOT/grub.cfg<br>/boot/grub/loopback.cfg"] -.-> G1
+    Kf["/casper/vmlinuz<br>/casper/hwe-vmlinuz<br>/proc/cmdline"] -.-> K1
+    Ifs["/casper/initrd<br>/casper/hwe-initrd<br>/init"] -.-> I1
+    INITf["(initrd) /init<br>(initrd) /scripts/*<br>(initrd) /conf/param.conf"] -.-> INIT1
+    DISCf["/scripts/casper*<br>/cdrom/.disk/info<br>/cdrom/casper/"] -.-> DISC1
+    MNTf["/cdrom/casper/*.squashfs<br>/run/casper/<br>/cow"] -.-> MNT1
+    SWf["/sbin/switch_root<br>/sbin/init<br>/lib/systemd/systemd"] -.-> SW1
+    SDf["/lib/systemd/systemd<br>/etc/systemd/system/<br>/lib/systemd/system/"] -.-> SD1
+    NETf["/etc/netplan/*.yaml<br>/run/systemd/network/<br>/etc/resolv.conf"] -.-> NET1
+    CI1f["/usr/bin/cloud-init<br>/var/lib/cloud/seed/nocloud/<br>/etc/cloud/cloud.cfg"] -.-> CI11
+    SQf["/snap/subiquity/current/bin/subiquity<br>/var/log/installer/subiquity-server-debug.log<br>/run/subiquity/"] -.-> SQ1
+    VALf["/var/lib/cloud/seed/nocloud/user-data<br>/var/lib/cloud/seed/nocloud/meta-data<br>/var/log/installer/subiquity-server-debug.log"] -.-> VAL1
+    PLANf["/var/log/installer/subiquity-server-debug.log<br>/var/log/installer/block/probe-data.json<br>/var/log/installer/block/discover.log"] -.-> PLAN1
+    CTf["/snap/subiquity/current/bin/curtin<br>/var/log/installer/curtin-install.log<br>/var/log/installer/installer-journal.txt"] -.-> CT1
+    PARTf["/sbin/parted<br>/sbin/sfdisk<br>/dev/sdX"] -.-> PART1
+    FMTf["/sbin/mkfs.ext4<br>/sbin/mkfs.vfat<br>/sbin/mkswap"] -.-> FMT1
+    TGTf["/target/<br>/etc/fstab<br>/proc/mounts"] -.-> TGT1
+    BASEf["/usr/bin/rsync<br>/usr/bin/unsquashfs<br>/target/usr/"] -.-> BASE1
+    BLf["/usr/sbin/grub-install<br>/target/boot/grub/grub.cfg<br>/etc/default/grub"] -.-> BL1
+    UMf["/bin/umount<br>/target/<br>/proc/mounts"] -.-> UM1
+    RBf["/sbin/reboot<br>/run/systemd/shutdown/<br>/var/log/installer/curtin-install.log"] -.-> RB1
+    BOOT2f["/boot/grub/grub.cfg<br>/boot/vmlinuz*<br>/boot/initrd.img*"] -.-> BOOT21
+    CIif["/usr/bin/cloud-init<br>/var/lib/cloud/instance/<br>/var/log/cloud-init.log"] -.-> CIi1
+    CIcf["/usr/bin/cloud-init<br>/etc/cloud/<br>/var/log/cloud-init-output.log"] -.-> CIc1
+    CIff["/usr/bin/cloud-init<br>/var/lib/cloud/<br>/var/log/cloud-init.log"] -.-> CIf1
+    A_MID((" "))
+    n1["Ubuntu Autoinstall Driver Program"]
+    n2["Boot Process stage"]
+    n3["Boot Process Description"]
+    n4["Files Involved"]
+    n5["Ubuntu Autoinstall and Boot Process"]
+
+    n1@{ shape: text}
+    n2@{ shape: text}
+    n3@{ shape: text}
+    n4@{ shape: text}
+    n5@{ shape: text}
+     P:::boot
+     F:::boot
+     G:::boot
+     K:::boot
+     I:::boot
+     INIT:::boot
+     DISC:::boot
+     MNT:::boot
+     SW:::boot
+     SD:::boot
+     NET:::boot
+     CI1:::boot
+     SQ:::boot
+     VAL:::boot
+     PLAN:::boot
+     CT:::boot
+     PART:::boot
+     FMT:::boot
+     TGT:::boot
+     BASE:::boot
+     BL:::boot
+     UM:::boot
+     RB:::boot
+     BOOT2:::boot
+     CIi:::boot
+     CIc:::boot
+     CIf:::boot
+     READY:::boot
+     P1:::desc
+     F1:::desc
+     G1:::desc
+     K1:::desc
+     I1:::desc
+     INIT1:::desc
+     DISC1:::desc
+     MNT1:::desc
+     SW1:::desc
+     SD1:::desc
+     NET1:::desc
+     CI11:::desc
+     SQ1:::desc
+     VAL1:::desc
+     PLAN1:::desc
+     CT1:::desc
+     PART1:::desc
+     FMT1:::desc
+     TGT1:::desc
+     BASE1:::desc
+     BL1:::desc
+     UM1:::desc
+     RB1:::desc
+     BOOT21:::desc
+     CIi1:::desc
+     CIc1:::desc
+     CIf1:::desc
+     READY1:::desc
+     Gf:::files
+     Kf:::files
+     Ifs:::files
+     INITf:::files
+     DISCf:::files
+     MNTf:::files
+     SWf:::files
+     SDf:::files
+     NETf:::files
+     CI1f:::files
+     SQf:::files
+     VALf:::files
+     PLANf:::files
+     CTf:::files
+     PARTf:::files
+     FMTf:::files
+     TGTf:::files
+     BASEf:::files
+     BLf:::files
+     UMf:::files
+     RBf:::files
+     BOOT2f:::files
+     CIif:::files
+     CIcf:::files
+     CIff:::files
+     A_MID:::invis
+    classDef boot fill:#e6f4ea,stroke:#2f6f3e,color:#000
+    classDef desc fill:#fde8ef,stroke:#d36b8a,color:#000
+    classDef files fill:#f2d4ff,stroke:#b35ad6,color:#000
+    classDef invis fill:transparent,stroke:transparent,color:transparent
+    style n1 stroke-width:4px,stroke-dasharray: 0,fill:#FFFFFF
+    style n2 stroke-width:4px,stroke-dasharray: 0,fill:#C8E6C9
+    style n3 stroke-width:4px,stroke-dasharray: 0,fill:#FFCDD2
+    style n4 stroke-width:4px,stroke-dasharray: 0,fill:#E1BEE7
+    style n5 stroke-width:4px,stroke-dasharray: 0

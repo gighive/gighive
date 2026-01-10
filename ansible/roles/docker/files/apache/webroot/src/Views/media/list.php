@@ -189,17 +189,18 @@
     body.resizing-col{cursor:col-resize;user-select:none;}
   </style>
 </head>
-<body class="<?= $isGighive ? 'theme-gighive' : 'theme-defaultcodebase' ?>">
-  <?php
-  $user = $_SERVER['REMOTE_USER']
-      ?? $_SERVER['PHP_AUTH_USER']
-      ?? $_SERVER['REDIRECT_REMOTE_USER']
-      ?? 'Unknown';
-  ?>
-  <div class="header-top header-block">
-    <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?>. v1.0 view</div>
-    <div class="home-link"><a href="/index.php">Return to Home Page</a></div>
-  </div>
+ <body class="<?= $isGighive ? 'theme-gighive' : 'theme-defaultcodebase' ?>">
+   <?php
+   $user = $_SERVER['REMOTE_USER']
+       ?? $_SERVER['PHP_AUTH_USER']
+       ?? $_SERVER['REDIRECT_REMOTE_USER']
+       ?? 'Unknown';
+   $isAdmin = ($user === 'admin');
+   ?>
+   <div class="header-top header-block">
+     <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?>. v1.0 view</div>
+     <div class="home-link"><a href="/index.php">Return to Home Page</a></div>
+   </div>
   <h1 id="all" class="header-block">Media Library</h1>
 
   <?php
@@ -237,6 +238,10 @@
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
       ];
 
+  if ($isAdmin) {
+      array_unshift($columns, ['key' => 'delete', 'label' => 'Delete', 'title' => 'Delete', 'search' => null]);
+  }
+
   $searchKeys = [];
   foreach ($columns as $c) {
       if (!empty($c['search'])) {
@@ -261,6 +266,12 @@
   <div class="header-block" style="margin-bottom:0.5rem;white-space:nowrap;max-width:none;">
     Search will only take place after you fill in one or more fields and hit Enter.  Column widths adjustable.  X removes column.  Checkbox minimizes column width.  Clicking on label in header sorts column.  CTRL-R refreshes page to default view.
   </div>
+  <?php if ($isAdmin): ?>
+    <div class="header-block" style="margin-bottom:0.5rem;max-width:none;">
+      <button type="button" id="deleteSelectedBtn" style="padding:6px 10px;border:1px solid #dc2626;border-radius:6px;background:transparent;color:var(--text);cursor:pointer;" disabled>Delete Media File(s)</button>
+      <span id="deleteSelectedStatus" class="user-indicator" style="margin-left:0.5rem;"></span>
+    </div>
+  <?php endif; ?>
   <?php if ($hasSearch): ?>
     <div id="searchStatus" class="header-block">
       <?= htmlspecialchars((string)($pagination['total'] ?? 0), ENT_QUOTES) ?> rows found
@@ -303,13 +314,18 @@
     <thead>
       <tr>
         <?php foreach ($columns as $col): ?>
-          <th data-col="<?= htmlspecialchars((string)$col['key'], ENT_QUOTES) ?>">
+          <?php $colKey = (string)$col['key']; ?>
+          <th data-col="<?= htmlspecialchars($colKey, ENT_QUOTES) ?>">
             <div class="th-title-row">
               <h4
                 title="<?= htmlspecialchars((string)$col['title'], ENT_QUOTES) ?>"
                 <?= !empty($col['h4Style']) ? ('style="' . htmlspecialchars((string)$col['h4Style'], ENT_QUOTES) . '"') : '' ?>
               >
-                <?= htmlspecialchars((string)$col['label'], ENT_QUOTES) ?>
+                <?php if ($colKey === 'delete'): ?>
+                  <input type="checkbox" id="deleteSelectAll" aria-label="Select all" />
+                <?php else: ?>
+                  <?= htmlspecialchars((string)$col['label'], ENT_QUOTES) ?>
+                <?php endif; ?>
               </h4>
               <div class="th-controls">
                 <input class="col-collapse-checkbox" type="checkbox" aria-label="Collapse column">
@@ -340,7 +356,11 @@
         >
           <?php foreach ($columns as $col): ?>
             <?php $key = (string)$col['key']; ?>
-            <?php if ($key === 'duration'): ?>
+            <?php if ($key === 'delete'): ?>
+              <td data-col="delete">
+                <input class="delete-checkbox" type="checkbox" value="<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>" aria-label="Select file for deletion" />
+              </td>
+            <?php elseif ($key === 'duration'): ?>
               <td data-col="duration" data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
                 <?= htmlspecialchars($r['duration'] ?? '', ENT_QUOTES) ?>
               </td>
@@ -451,6 +471,7 @@
   <script>
     const targetDate = <?= isset($targetDate) && $targetDate !== null ? json_encode($targetDate) : 'null' ?>;
     const targetOrg  = <?= isset($targetOrg)  && $targetOrg  !== null ? json_encode($targetOrg)  : 'null' ?>;
+    const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
 
     function enableResizableColumns(tableId){
       const table=document.getElementById(tableId);
@@ -666,6 +687,90 @@
       if(!row){return;}
       row.scrollIntoView({behavior:'smooth',block:'center'});
       row.classList.add('highlighted-jam');
+    });
+
+    function updateDeleteUi(){
+      if(!isAdmin){return;}
+      const btn = document.getElementById('deleteSelectedBtn');
+      const status = document.getElementById('deleteSelectedStatus');
+      const boxes = Array.from(document.querySelectorAll('.delete-checkbox'));
+      const selected = boxes.filter(cb => cb && cb.checked);
+      if(btn){
+        btn.disabled = selected.length === 0;
+      }
+      if(status){
+        status.textContent = selected.length ? (String(selected.length) + ' selected') : '';
+      }
+    }
+
+    async function deleteSelected(){
+      const btn = document.getElementById('deleteSelectedBtn');
+      const status = document.getElementById('deleteSelectedStatus');
+      const boxes = Array.from(document.querySelectorAll('.delete-checkbox'));
+      const ids = boxes.filter(cb => cb && cb.checked).map(cb => parseInt(String(cb.value), 10)).filter(n => Number.isFinite(n) && n > 0);
+      if(!ids.length){
+        return;
+      }
+      if(!confirm('Delete ' + String(ids.length) + ' media file(s)?\n\nThis will delete the database record, the file on disk, and (for video) the thumbnail.')){
+        return;
+      }
+      if(btn){
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
+      }
+      if(status){
+        status.textContent = 'Deleting…';
+      }
+      try{
+        const resp = await fetch('/db/delete_media_files.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_ids: ids })
+        });
+        const data = await resp.json().catch(() => null);
+        if(!(resp.ok && data && data.success)){
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('HTTP ' + String(resp.status));
+          if(status){
+            status.textContent = 'Error: ' + String(msg);
+          }
+          if(btn){
+            btn.disabled = false;
+            btn.textContent = 'Delete Media File(s)';
+          }
+          return;
+        }
+        window.location.reload();
+      }catch(e){
+        if(status){
+          status.textContent = 'Network error: ' + String(e && e.message ? e.message : e);
+        }
+        if(btn){
+          btn.disabled = false;
+          btn.textContent = 'Delete Media File(s)';
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      if(!isAdmin){return;}
+      const selectAll = document.getElementById('deleteSelectAll');
+      const btn = document.getElementById('deleteSelectedBtn');
+      const boxes = Array.from(document.querySelectorAll('.delete-checkbox'));
+      if(selectAll){
+        selectAll.addEventListener('click',(e)=>e.stopPropagation());
+        selectAll.addEventListener('change',()=>{
+          boxes.forEach(cb => { if(cb){ cb.checked = !!selectAll.checked; } });
+          updateDeleteUi();
+        });
+      }
+      boxes.forEach(cb => {
+        cb.addEventListener('click',(e)=>e.stopPropagation());
+        cb.addEventListener('change', updateDeleteUi);
+      });
+      if(btn){
+        btn.addEventListener('click', deleteSelected);
+      }
+      updateDeleteUi();
     });
   </script>
 </body>

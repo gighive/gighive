@@ -1,7 +1,51 @@
 *** 
+releaseNotes20260110.txt
+Changes: Added delete media file feature for admins
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/webroot/db/delete_media_files.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	new file:   docs/autoinstall.md
+	new file:   docs/autoinstall.mermaidchart
+	new file:   docs/autoinstall_iso_build.sh
+	new file:   docs/ubuntuAutoInstallLinuxBootProcess.png
+
+ToDo: Mask pswds in video
+ToDo: Change def mysql authN to caching_sha2_password
+ToDo: Check azure build
+ToDo: Embed video
+ToDo: Match cert with cloudflare, name only or something else needed?
+ToDo: database table name change to genericize songs 
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod baremetal with same ansible scripts as staging
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Can we confine ffmpeg install to vm only?
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: Integrate Let's Encrypt for future
+ToDo: guest user?
+
+*** 
 releaseNotes20260108.txt
 Changes: Uploaded instructional video, fixed upload_media script to include upload progress meter
 
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
@@ -22,26 +66,6 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
 	modified:   docs/index.md
 	modified:   docs/uploadMediaByHash.md
-
-ToDo: Change def mysql authN to caching_sha2_password
-ToDo: Check azure build
-ToDo: Embed video
-ToDo: Match cert with cloudflare, name only or something else needed?
-ToDo: database table name change to genericize songs 
-ToDo: investigate vids that didn't produce thumbnails 
-ToDo: rebuild prod baremetal with same ansible scripts as staging
-ToDo: Make sure ask-become-pass is run at first part of vbox_provision
-ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-ToDo: Can we confine ffmpeg install to vm only?
-ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: Integrate Let's Encrypt for future
-ToDo: guest user?
 
 *** 
 releaseNotes20260108.txt
