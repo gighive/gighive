@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
         <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
           <span>Installation Video:</span>
-          <a href="https://staging.gighive.app/video/ba3c55bfabd0592043c17c2c35f3b4cbb2a3739b6286afecd0430995dec36f62.mp4"><img src="https://staging.gighive.app/video/thumbnails/ba3c55bfabd0592043c17c2c35f3b4cbb2a3739b6286afecd0430995dec36f62.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
+          <a href="https://gighive/video/ac44a0da9542057b412165d2a9e4ca132157cd3d48d3275f9782e17b94522d02.mp4"><img src="https://gighive/video/thumbnails/ac44a0da9542057b412165d2a9e4ca132157cd3d48d3275f9782e17b94522d02.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
         </span>
       </div>
     </li>

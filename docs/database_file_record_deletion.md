@@ -147,3 +147,21 @@ This approach was chosen over relying on `LEFT JOIN` + `WHERE f.file_id IS NOT N
   - `ansible/roles/docker/templates/default-ssl.conf.j2`
 - Media list filtering to hide missing-file rows:
   - `ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php`
+
+## Troubleshooting: inspect delete request/response in Chrome DevTools
+
+The UI reloads the page after a successful delete, so any brief status text can disappear quickly. The most reliable way to debug delete behavior is to inspect the network request to `/db/delete_media_files.php`.
+
+1. Open Chrome DevTools (`F12` or `Ctrl+Shift+I`).
+2. Go to the `Network` tab.
+3. Enable:
+   - `Preserve log` (so requests remain visible after page reload)
+   - (Optional) `Disable cache`
+4. Perform the delete action (select row(s), click `Delete Media File(s)`, confirm).
+5. In the Network filter box, type `delete_media_files.php`.
+6. Click the request with:
+   - Method: `POST`
+   - Name: `delete_media_files.php`
+7. Inspect:
+   - `Payload` (should contain `{ "file_ids": [...] }`)
+   - `Response` (JSON from the endpoint, including counts and any per-file errors)
