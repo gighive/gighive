@@ -9,7 +9,7 @@ final class SessionRepository
 
     private function buildMediaListFilters(array $filters): array
     {
-        $where = [];
+        $where = ['f.file_id IS NOT NULL'];
         $params = [];
 
         $map = [

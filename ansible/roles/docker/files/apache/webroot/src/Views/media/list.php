@@ -728,11 +728,10 @@
           body: JSON.stringify({ file_ids: ids })
         });
         const data = await resp.json().catch(() => null);
+        if(status){
+          status.textContent = (data !== null) ? JSON.stringify(data) : ('HTTP ' + String(resp.status));
+        }
         if(!(resp.ok && data && data.success)){
-          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('HTTP ' + String(resp.status));
-          if(status){
-            status.textContent = 'Error: ' + String(msg);
-          }
           if(btn){
             btn.disabled = false;
             btn.textContent = 'Delete Media File(s)';

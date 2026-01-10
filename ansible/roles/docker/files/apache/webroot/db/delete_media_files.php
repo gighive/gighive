@@ -106,6 +106,9 @@ $audioDir = $root . '/audio';
 $videoDir = $root . '/video';
 $thumbDir = $videoDir . '/thumbnails';
 
+$dbHost = getenv('DB_HOST') ?: 'localhost';
+$dbName = getenv('MYSQL_DATABASE') ?: 'music_db';
+
 $results = [
     'deleted' => [],
     'errors' => [],
@@ -167,10 +170,15 @@ try {
         $results['deleted'][] = ['file_id' => $id];
     }
 
+    $ok = count($results['errors']) === 0;
     http_response_code(200);
     header('Content-Type: application/json');
     echo json_encode([
-        'success' => true,
+        'success' => $ok,
+        'db' => [
+            'host' => $dbHost,
+            'name' => $dbName,
+        ],
         'deleted_count' => count($results['deleted']),
         'error_count' => count($results['errors']),
         'results' => $results,
