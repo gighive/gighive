@@ -145,6 +145,13 @@
         Require user admin
     </Location>
 
+    <Location "/db/delete_media_files.php">
+        AuthType Basic
+        AuthName "GigHive Admin"
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin
+    </Location>
+
     # --- UPLOAD API: admin + uploader ---
     <Location "/api/uploads.php">
         AuthType Basic
