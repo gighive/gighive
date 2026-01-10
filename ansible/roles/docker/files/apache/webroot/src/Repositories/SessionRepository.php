@@ -163,9 +163,9 @@ JOIN session_songs seshsongs
   ON sesh.session_id = seshsongs.session_id
 JOIN songs s
   ON seshsongs.song_id = s.song_id
-LEFT JOIN song_files sf
+JOIN song_files sf
   ON s.song_id = sf.song_id
-LEFT JOIN files f
+JOIN files f
   ON sf.file_id = f.file_id
 LEFT JOIN session_musicians seshmus
   ON sesh.session_id = seshmus.session_id
@@ -211,9 +211,9 @@ JOIN session_songs seshsongs
   ON sesh.session_id = seshsongs.session_id
 JOIN songs s
   ON seshsongs.song_id = s.song_id
-LEFT JOIN song_files sf
+JOIN song_files sf
   ON s.song_id = sf.song_id
-LEFT JOIN files f
+JOIN files f
   ON sf.file_id = f.file_id
 LEFT JOIN session_musicians seshmus
   ON sesh.session_id = seshmus.session_id
