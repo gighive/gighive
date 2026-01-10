@@ -117,13 +117,25 @@ The Media Library query joins session/song data to file data. If the query uses 
 
 This is not a "null record" in the database. It is simply the result of a left-join with no matching row.
 
-### Current behavior
+### Rationale: hide no-file rows without pruning metadata
+
+Deleting a media file removes the `files` row and (via FK cascade) the corresponding `song_files` join row. It does not delete higher-level metadata such as `songs`, `sessions`, or `session_songs`.
+
+This is intentional:
+
+- **Media deletion should be scoped** to the media file and its direct associations.
+- **Session/song metadata can be valuable historical context** even if the media is removed (e.g., you may later re-upload a replacement recording).
+- A separate "prune orphan metadata" workflow can be added later if desired, but it is deliberately not coupled to media deletion.
+
+### Current behavior (how the Media Library hides deleted items)
 
 The Media Library list is intended to show only media items (rows with a file). To enforce this, the repository now includes a filter:
 
-- `f.file_id IS NOT NULL`
+- `song_files` and `files` are joined using `INNER JOIN`
 
-so songs/sessions without an attached file do not render as empty media rows.
+This makes it structurally impossible for the Media Library query to return rows where the session/song exists but the file join is missing.
+
+This approach was chosen over relying on `LEFT JOIN` + `WHERE f.file_id IS NOT NULL` because the inner-join version is more explicit and robust: it encodes the "Media Library shows only media" invariant directly into the join graph.
 
 ## Files changed / added
 
