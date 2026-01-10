@@ -358,7 +358,14 @@
             <?php $key = (string)$col['key']; ?>
             <?php if ($key === 'delete'): ?>
               <td data-col="delete">
-                <input class="delete-checkbox" type="checkbox" value="<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>" aria-label="Select file for deletion" />
+                <?php $deleteId = (int)($r['id'] ?? 0); ?>
+                <input
+                  class="delete-checkbox"
+                  type="checkbox"
+                  value="<?= htmlspecialchars((string)($deleteId > 0 ? $deleteId : ''), ENT_QUOTES) ?>"
+                  aria-label="Select file for deletion"
+                  <?= $deleteId > 0 ? '' : 'disabled' ?>
+                />
               </td>
             <?php elseif ($key === 'duration'): ?>
               <td data-col="duration" data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
@@ -694,12 +701,15 @@
       const btn = document.getElementById('deleteSelectedBtn');
       const status = document.getElementById('deleteSelectedStatus');
       const boxes = Array.from(document.querySelectorAll('.delete-checkbox'));
-      const selected = boxes.filter(cb => cb && cb.checked);
+      const selectedIds = boxes
+        .filter(cb => cb && cb.checked)
+        .map(cb => parseInt(String(cb.value), 10))
+        .filter(n => Number.isFinite(n) && n > 0);
       if(btn){
-        btn.disabled = selected.length === 0;
+        btn.disabled = selectedIds.length === 0;
       }
       if(status){
-        status.textContent = selected.length ? (String(selected.length) + ' selected') : '';
+        status.textContent = selectedIds.length ? (String(selectedIds.length) + ' selected') : '';
       }
     }
 
