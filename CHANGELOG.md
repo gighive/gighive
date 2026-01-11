@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260111.txt
-Changes: Standardize admin.php messaging
+Changes: Fix link to setup video in staging
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
@@ -13,15 +13,14 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/admin.php
-	modified:   ansible/roles/post_build_checks/tasks/main.yml
-	new file:   docs/refactor_admin_page.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
 
+ToDo: Change def mysql authN to caching_sha2_password for appuser
+ToDo: Upgrade mysql to 8.4 
+ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: Is it worthwhile to have an embed feature?
 ToDo: fix reload clears sort media library page
-ToDo: Change def mysql authN to caching_sha2_password
-ToDo: Upgrade mysql to 9 
-ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: Check azure build
 ToDo: Match cert with cloudflare, name only or something else needed?
 ToDo: database table name change to genericize songs 
@@ -40,6 +39,25 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260111.txt
+Changes: Standardize admin.php messaging
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   docs/refactor_admin_page.md
 
 *** 
 releaseNotes20260111.txt
