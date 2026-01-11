@@ -571,8 +571,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        status.innerHTML = '<div class="alert-ok">' + (data.message || 'Media tables cleared successfully!') + 
-          ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Cleared Database</a></div>';
+        status.innerHTML = renderOkBannerWithDbLink((data.message || 'Media tables cleared successfully!'), 'See Cleared Database');
         btn.textContent = 'Cleared Successfully';
         btn.style.background = '#28a745';
       } else {
@@ -706,7 +705,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
             clearInterval(__restorePollTimer);
             __restorePollTimer = null;
           }
-          status.innerHTML = '<div class="alert-ok">Restore completed successfully.</div>';
+          status.innerHTML = renderOkBannerWithDbLink('Restore completed successfully.', 'See Restored Database');
           btn.disabled = true;
           btn.textContent = 'Database Restored!';
           btn.style.background = '#28a745';
@@ -742,6 +741,16 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
 
     tick();
     __restorePollTimer = setInterval(tick, 1500);
+  }
+
+  const __dbLinkStyle = 'display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;';
+
+  function renderDbLinkButton(label) {
+    return ' <a href="/db/database.php" target="_blank" rel="noopener noreferrer" style="' + __dbLinkStyle + '">' + String(label) + '</a>';
+  }
+
+  function renderOkBannerWithDbLink(message, linkLabel) {
+    return '<div class="alert-ok">' + String(message) + renderDbLinkButton(linkLabel) + '</div>';
   }
 
   function confirmImportNormalized() {
@@ -794,8 +803,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       })
       .then(({ ok, data }) => {
         if (ok && data && data.success) {
-          status.innerHTML = '<div class="alert-ok">' + (data.message || 'Database import completed successfully.') +
-            ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Updated Database</a></div>'
+          status.innerHTML = renderOkBannerWithDbLink((data.message || 'Database import completed successfully.'), 'See Updated Database')
             + renderImportSteps(data.steps, data.table_counts);
           btn.textContent = 'Import Completed';
           btn.disabled = false;
@@ -1032,8 +1040,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       })
       .then(({ ok, data }) => {
         if (ok && data && data.success) {
-          status.innerHTML = '<div class="alert-ok">' + (data.message || 'Database import completed successfully.') +
-            ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Updated Database</a></div>'
+          status.innerHTML = renderOkBannerWithDbLink((data.message || 'Database import completed successfully.'), 'See Updated Database')
             + renderImportSteps(data.steps, data.table_counts);
           btn.textContent = 'Import Completed';
           btn.disabled = false;
@@ -2077,8 +2084,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     })
     .then(({ ok, data }) => {
       if (ok && data && data.success) {
-        scanFolderStatus.innerHTML = '<div class="alert-ok">' + (data.message || 'Database reload completed successfully.') +
-          ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Updated Database</a></div>'
+        scanFolderStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Database reload completed successfully.'), 'See Updated Database')
           + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         scanFolderBtn.textContent = 'Import Completed';
         scanFolderBtn.disabled = false;
@@ -2252,8 +2258,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     })
     .then(({ ok, data }) => {
       if (ok && data && data.success) {
-        scanFolderAddStatus.innerHTML = '<div class="alert-ok">' + (data.message || 'Add-to-database completed successfully.') +
-          ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Updated Database</a></div>'
+        scanFolderAddStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Add-to-database completed successfully.'), 'See Updated Database')
           + renderAddReport(data)
           + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
 
@@ -2452,8 +2457,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     })
     .then(({ ok, data }) => {
       if (ok && data && data.success) {
-        scanFolderAddStatus.innerHTML = '<div class="alert-ok">' + (data.message || 'Add-to-database completed successfully.') +
-          ' <a href="/db/database.php" style="display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;">See Updated Database</a></div>'
+        scanFolderAddStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Add-to-database completed successfully.'), 'See Updated Database')
           + renderAddReport(data)
           + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
 
