@@ -119,12 +119,12 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       <h3>Requirements</h3>
       <ul>
       <li>Control Machine: Tested on Ubuntu 24.04 and 22.04, so the requirements are any flavor of those versions or Pop-OS, installed on bare metal.</li>
-      <li>Target Machine: Your choice of virtualbox or Azure deployment targets for the vm and containerized environment.  These are shown in this <a href="images/architecture.png">architecture diagram</a>.</li>
+      <li>Target Machine: Your choice of virtualbox or Azure deployment targets for the vm and containerized environment.  These are shown in this <a href="https://gighive.app/images/architecture.png">architecture diagram</a>.</li>
       </ul>
 
       <h3>What comes with Gighive?</h3>
       <ul>
-      <li>Gighive includes a searchable, sortable one-page listing of media files and common attributes (date, location, people, rating, etc) stored <a href="images/databaseErd.png">in the database</a> along with an <a href="db/upload_form.php">upload utility</a>.</li> 
+      <li>Gighive includes a searchable, sortable one-page listing of media files and common attributes (date, location, people, rating, etc) stored <a href="https://gighive.app/images/databaseErd.png">in the database</a> along with an <a href="db/upload_form.php">upload utility</a>.</li> 
       <li>Common media formats for upload are supported (shown below).</li>
       <li>Please read and be informed about your responsibilities via <a href="https://gighive.app/gighive_content_policy.html">our content policy</a>.</li>
       </ul>

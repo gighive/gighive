@@ -45,7 +45,17 @@
 
 
 <div id="contact-us" style="margin-top: 10px;">
-	<font class="pageHeading"><a href="mailto:admin@stormpigs.com">CONTACT US</a></font>
+	<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+		<font class="pageHeading"><a href="mailto:admin@stormpigs.com">CONTACT US</a></font>
+
+		<font class="pageHeading">
+			<span>Powered by </span>
+			<a href="https://gighive.app" target="_blank" rel="noopener noreferrer" style="font-style: normal; text-decoration: none;">
+				<span>GigHive</span>
+				<img src="images/beelogo.png" alt="GigHive" style="height: 14px; width: auto; vertical-align: middle; margin-left: 6px;">
+			</a>
+		</font>
+	</div>
 </div>
 
 <script type="text/javascript">
