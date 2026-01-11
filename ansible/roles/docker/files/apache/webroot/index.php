@@ -52,7 +52,7 @@
 			<span>Powered by </span>
 			<a href="https://gighive.app" target="_blank" rel="noopener noreferrer" style="font-style: normal; text-decoration: none;">
 				<span>GigHive</span>
-				<img src="images/beelogo.png" alt="GigHive" style="height: 14px; width: auto; vertical-align: middle; margin-left: 6px;">
+				<img src="images/beelogo.png" alt="GigHive" style="height: 28px; width: auto; vertical-align: middle; margin-left: 6px;">
 			</a>
 		</font>
 	</div>
