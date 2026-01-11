@@ -57,65 +57,38 @@ if ($baseLogDir === false || !is_dir($baseLogDir)) {
     exit;
 }
 
-$basePrefix = rtrim($baseLogDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+$resolveRestoreFile = static function (string $dir, string $fileName): ?string {
+    $it = new DirectoryIterator($dir);
+    foreach ($it as $fileInfo) {
+        if (!$fileInfo->isFile()) {
+            continue;
+        }
+        if ($fileInfo->getFilename() !== $fileName) {
+            continue;
+        }
+        $realPath = $fileInfo->getRealPath();
+        return is_string($realPath) && $realPath !== '' ? $realPath : null;
+    }
+    return null;
+};
 
 $logFileName = 'restore-' . $jobId . '.log';
 $rcFileName = 'restore-' . $jobId . '.rc';
 $pidFileName = 'restore-' . $jobId . '.pid';
 
-$logFileCandidate = $basePrefix . $logFileName;
-$rcFileCandidate = $basePrefix . $rcFileName;
-$pidFileCandidate = $basePrefix . $pidFileName;
-
-$logFileReal = realpath($logFileCandidate);
-if ($logFileReal !== false && strncmp($logFileReal, $basePrefix, strlen($basePrefix)) !== 0) {
-    http_response_code(400);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'error' => 'Bad Request',
-        'message' => 'Invalid job_id',
-    ]);
-    exit;
-}
-
-$rcFileReal = realpath($rcFileCandidate);
-if ($rcFileReal !== false && strncmp($rcFileReal, $basePrefix, strlen($basePrefix)) !== 0) {
-    http_response_code(400);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'error' => 'Bad Request',
-        'message' => 'Invalid job_id',
-    ]);
-    exit;
-}
-
-$pidFileReal = realpath($pidFileCandidate);
-if ($pidFileReal !== false && strncmp($pidFileReal, $basePrefix, strlen($basePrefix)) !== 0) {
-    http_response_code(400);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'error' => 'Bad Request',
-        'message' => 'Invalid job_id',
-    ]);
-    exit;
-}
-
-$logFile = $logFileReal !== false ? $logFileReal : $logFileCandidate;
-$rcFile = $rcFileReal !== false ? $rcFileReal : $rcFileCandidate;
-$pidFile = $pidFileReal !== false ? $pidFileReal : $pidFileCandidate;
+$logFile = $resolveRestoreFile($baseLogDir, $logFileName);
+$rcFile = $resolveRestoreFile($baseLogDir, $rcFileName);
+$pidFile = $resolveRestoreFile($baseLogDir, $pidFileName);
 
 try {
-    if (!is_file($logFile) || !is_readable($logFile)) {
+    if (!is_string($logFile) || $logFile === '' || !is_readable($logFile)) {
         throw new RuntimeException('Log file not found for job_id.');
     }
 
     $state = 'running';
     $exitCode = null;
 
-    if (is_file($rcFile) && is_readable($rcFile)) {
+    if (is_string($rcFile) && $rcFile !== '' && is_readable($rcFile)) {
         $rawRc = trim((string)file_get_contents($rcFile));
         if (preg_match('/^-?\d+$/', $rawRc)) {
             $exitCode = (int)$rawRc;
@@ -123,7 +96,7 @@ try {
         }
     } else {
         // Best-effort running check via pid file.
-        if (is_file($pidFile) && is_readable($pidFile)) {
+        if (is_string($pidFile) && $pidFile !== '' && is_readable($pidFile)) {
             $rawPid = trim((string)file_get_contents($pidFile));
             if (preg_match('/^\d+$/', $rawPid)) {
                 $pid = (int)$rawPid;
