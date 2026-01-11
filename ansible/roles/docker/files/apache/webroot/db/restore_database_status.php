@@ -45,9 +45,67 @@ if ($logDir === '') {
     exit;
 }
 
-$logFile = rtrim($logDir, '/') . '/restore-' . $jobId . '.log';
-$rcFile = rtrim($logDir, '/') . '/restore-' . $jobId . '.rc';
-$pidFile = rtrim($logDir, '/') . '/restore-' . $jobId . '.pid';
+$baseLogDir = realpath($logDir);
+if ($baseLogDir === false || !is_dir($baseLogDir)) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Server Error',
+        'message' => 'Restore log directory is invalid or not accessible.',
+    ]);
+    exit;
+}
+
+$basePrefix = rtrim($baseLogDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+$logFileName = 'restore-' . $jobId . '.log';
+$rcFileName = 'restore-' . $jobId . '.rc';
+$pidFileName = 'restore-' . $jobId . '.pid';
+
+$logFileCandidate = $basePrefix . $logFileName;
+$rcFileCandidate = $basePrefix . $rcFileName;
+$pidFileCandidate = $basePrefix . $pidFileName;
+
+$logFileReal = realpath($logFileCandidate);
+if ($logFileReal !== false && strncmp($logFileReal, $basePrefix, strlen($basePrefix)) !== 0) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Invalid job_id',
+    ]);
+    exit;
+}
+
+$rcFileReal = realpath($rcFileCandidate);
+if ($rcFileReal !== false && strncmp($rcFileReal, $basePrefix, strlen($basePrefix)) !== 0) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Invalid job_id',
+    ]);
+    exit;
+}
+
+$pidFileReal = realpath($pidFileCandidate);
+if ($pidFileReal !== false && strncmp($pidFileReal, $basePrefix, strlen($basePrefix)) !== 0) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Invalid job_id',
+    ]);
+    exit;
+}
+
+$logFile = $logFileReal !== false ? $logFileReal : $logFileCandidate;
+$rcFile = $rcFileReal !== false ? $rcFileReal : $rcFileCandidate;
+$pidFile = $pidFileReal !== false ? $pidFileReal : $pidFileCandidate;
 
 try {
     if (!is_file($logFile) || !is_readable($logFile)) {
