@@ -4,6 +4,7 @@ Changes: Added delete media file feature for admins, updated video/thumbnail
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 sodo@pop-os:~/scripts/gighive$ git status
 On branch master
@@ -20,10 +21,10 @@ Changes to be committed:
 	new file:   docs/autoinstall_iso_build.sh
 	new file:   docs/ubuntuAutoInstallLinuxBootProcess.png
 
-ToDo: Mask pswds in video
+ToDo: fix Change this code to not construct the path from user-controlled data.
+ToDo: fix reload clears sort media library page
 ToDo: Change def mysql authN to caching_sha2_password
 ToDo: Check azure build
-ToDo: Embed video
 ToDo: Match cert with cloudflare, name only or something else needed?
 ToDo: database table name change to genericize songs 
 ToDo: investigate vids that didn't produce thumbnails 
