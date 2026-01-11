@@ -78,7 +78,7 @@
 
 - name: Pause for X seconds to let the stack settle
   pause:
-    seconds: 60 
+    seconds: 90 
     prompt: ""   # omit the “Press ENT
 
 - name: Assert htpasswd exists on host (bind-mount source)
