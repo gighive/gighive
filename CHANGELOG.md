@@ -18,8 +18,7 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/z-custommysqld.cnf
 	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
 
-ToDo: Upgrade mysql to 8.4 
-ToDo: migrate appuser to caching_sha2_password 
+ToDo: Remove mysql_native_password=ON
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: Is it worthwhile to have an embed feature?
 ToDo: fix reload clears sort media library page
