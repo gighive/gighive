@@ -1,5 +1,6 @@
 # Ignore env files and secrets
 .env
+.env.mysql
 *.env
 # Ignore Ansible/group_vars secrets files (real credentials should live only in local, untracked copies)
 *secrets.yml
