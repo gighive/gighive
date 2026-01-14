@@ -1,5 +1,5 @@
 [mysqld]
-mysql_native_password=ON
+mysql_native_password=OFF
 authentication_policy = "*"
 port = 3306
 bind-address = 0.0.0.0
