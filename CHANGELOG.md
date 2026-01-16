@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260116.txt
-Changes: Add Section 2B to admin.php for indiv file upload, fix video link on index.md, reduced file size of two images
+Changes: Add Section 2B to admin.php for indiv file upload, fix video link on index.md, reduced file size of two images, new arch.png
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
