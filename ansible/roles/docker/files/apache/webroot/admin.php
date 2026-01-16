@@ -320,7 +320,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
 
       <!-- Section 2: Clear Media Data -->
       <div class="section-divider">
-        <h2>Section 2: Clear Sample Media Data (Optional)</h2>
+        <h2>Section 2A: Clear Sample Media</h2>
         <p class="muted">
           Remove all demo content (sessions, songs, files, musicians) to make room for your own media.
           This action is <strong>irreversible</strong> and will clear all media tables.
@@ -331,6 +331,11 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
         </div>
         <div id="clearMediaStatus"></div>
         <button type="button" id="clearMediaBtn" class="danger" onclick="confirmClearMedia()">Clear All Media Data</button>
+      </div>
+
+      <div class="section-divider">
+        <h2>Section 2B: Upload Files Individually</h2>
+        <button type="button" class="danger" onclick="window.open('/db/upload_form.php', '_blank', 'noopener,noreferrer')">Upload Utility</button>
       </div>
 
       <div class="section-divider">
