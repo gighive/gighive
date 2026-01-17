@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260116.txt
-Changes: Remove gighive_apache_container variable
+Changes: Fix any file write activites to utilize timezone of container
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
@@ -13,9 +13,13 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
+	new file:   ansible/roles/docker/files/apache/overlays/gighive/favicon.ico
+	modified:   ansible/roles/docker/files/apache/webroot/db/restore_database.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_add.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_reload.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_replay.php
+	modified:   ansible/roles/docker/files/apache/webroot/write_resize_request.php
 
 ToDo: favicon on database and upload pages should change if it's gighive
 ToDo: Remove mysql_native_password=ON
@@ -40,6 +44,25 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260116.txt
+Changes: Remove gighive_apache_container variable
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
 
 *** 
 releaseNotes20260116.txt

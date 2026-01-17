@@ -115,11 +115,11 @@ try {
         $dbPass = getenv('MYSQL_PASSWORD') ?: '';
     }
 
-    if ($dbHost === '' || $dbUser === '' || $dbPass === '') {
+    if (!$dbHost || !$dbUser || !$dbPass || !$dbName) {
         throw new RuntimeException('Database connection env vars missing (DB_HOST/MYSQL_*).');
     }
 
-    $jobId = gmdate('Ymd-His') . '-' . bin2hex(random_bytes(6));
+    $jobId = date('Ymd-His') . '-' . bin2hex(random_bytes(6));
     $logFile = rtrim($logDir, '/') . '/restore-' . $jobId . '.log';
     $rcFile = rtrim($logDir, '/') . '/restore-' . $jobId . '.rc';
     $pidFile = rtrim($logDir, '/') . '/restore-' . $jobId . '.pid';
@@ -129,7 +129,7 @@ try {
         throw new RuntimeException('Restore job collision; please retry.');
     }
 
-    $header = "START " . gmdate('c') . "\n";
+    $header = "START " . date('c') . "\n";
     $header .= "Selected backup: {$filename}\n";
     $header .= "Target DB: {$dbName}\n";
     $header .= "Host: {$dbHost}:{$dbPort}\n";

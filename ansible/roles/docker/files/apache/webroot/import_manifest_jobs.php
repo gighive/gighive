@@ -101,6 +101,15 @@ try {
         }
 
         $createdAt = (string)($meta['created_at'] ?? '');
+        if ($createdAt !== '') {
+            try {
+                $dt = new DateTimeImmutable($createdAt);
+                $tz = new DateTimeZone(date_default_timezone_get());
+                $createdAt = $dt->setTimezone($tz)->format('c');
+            } catch (Throwable $e) {
+                // keep original
+            }
+        }
         $itemCount = (int)($meta['item_count'] ?? 0);
 
         $jobs[] = [
