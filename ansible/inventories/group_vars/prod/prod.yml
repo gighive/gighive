@@ -170,12 +170,12 @@ gighive_upload_video_exts:
 admin_user: admin
 viewer_user: viewer
 uploader_user: uploader
-
+ 
 # htpasswd locations, one on the host, other on the container
-gighive_apache_container: apacheWebServer
+# gighive_apache_container: "{{ apache_container_name }}"
 gighive_htpasswd_host_path: "{{ docker_dir }}/apache/externalConfigs/gighive.htpasswd"  # on the host
 gighive_htpasswd_path: /var/www/private/gighive.htpasswd                  # inside the container
-
+ 
 # resize request locations, one on the host, other on the container
 gighive_resize_requests_host_path: "{{ docker_dir }}/apache/externalConfigs/resizerequests"  # on the host
 gighive_resize_requests_path: /var/www/private/resizerequests                                # inside the container
