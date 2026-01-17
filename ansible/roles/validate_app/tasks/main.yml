@@ -3,13 +3,13 @@
 
 - name: Install ping and netcat in Apache container
   ansible.builtin.command:
-    cmd: docker exec apacheWebServer bash -c "apt update && apt install -y iputils-ping netcat-openbsd"
+    cmd: docker exec "{{ apache_container_name }}" bash -c "apt update && apt install -y iputils-ping netcat-openbsd"
   register: install_tools
   changed_when: false
 
 - name: Verify restart policy of Apache and MySQL containers
   ansible.builtin.command:
-    cmd: docker inspect -f '{% raw %}{{ .HostConfig.RestartPolicy.Name }}{% endraw %}' apacheWebServer "{{ mysql_container_name }}"
+    cmd: docker inspect -f '{% raw %}{{ .HostConfig.RestartPolicy.Name }}{% endraw %}' "{{ apache_container_name }}" "{{ mysql_container_name }}"
   register: restart_policy
   changed_when: false
 
@@ -103,7 +103,7 @@
 
 - name: Run curl smoke test inside Apache container
   ansible.builtin.shell: |
-    docker exec apacheWebServer curl -sk https://localhost/
+    docker exec "{{ apache_container_name }}" curl -sk https://localhost/
   register: curl_test
   ignore_errors: yes
 
@@ -113,7 +113,7 @@
 
 - name: Test database connectivity via health endpoint (no auth required)
   ansible.builtin.shell: |
-    docker exec apacheWebServer curl -sk https://localhost/db/health.php
+    docker exec "{{ apache_container_name }}" curl -sk https://localhost/db/health.php
   register: db_health_test
   changed_when: false
   failed_when: false
@@ -216,7 +216,7 @@
 
 - name: Read apache container timezone
   ansible.builtin.command:
-    cmd: docker exec -i apacheWebServer cat /etc/timezone
+    cmd: docker exec -i "{{ apache_container_name }}" cat /etc/timezone
   register: apache_timezone
   changed_when: false
 
@@ -224,7 +224,7 @@
   ansible.builtin.assert:
     that:
       - apache_timezone.stdout | trim == gighive_timezone
-    fail_msg: "apacheWebServer timezone is {{ apache_timezone.stdout | trim }}, expected {{ gighive_timezone }}"
+    fail_msg: "{{ apache_container_name }} timezone is {{ apache_timezone.stdout | trim }}, expected {{ gighive_timezone }}"
 
 - name: Read mysql container TZ env
   ansible.builtin.command:
