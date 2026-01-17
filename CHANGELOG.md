@@ -1,12 +1,28 @@
 *** 
 releaseNotes20260116.txt
-Changes: Fixed .env for apache and created .env.mysql.j2.  Had to adjust gighive_host for testing purposes.
+Changes: Admin sections 4/5 refactor to reduce code
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
-ToDo: jibe new mysql_database var to be in apache's .env
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	new file:   docs/admin_data_import_45.md
+	new file:   docs/refactor_admin_45_last_steps.md
+	modified:   docs/resizeRequestInstructions.md
+
+ToDo: jibe new mysql_database var to be in apache's .env (how did apache .env work without the render?)
+ToDo: favicon on database and upload pages should change if it's gighive
+ToDo: Instructions here should openn a new browser window
+ToDo: "Total size of hashed so far:"
+ToDo: What is file that gets created?  Runs for more than 200 minutes, batch them or set a limit of some king.
 ToDo: Remove mysql_native_password=ON
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: Is it worthwhile to have an embed feature?
@@ -29,6 +45,14 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260116.txt
+Changes: Fixed .env for apache and created .env.mysql.j2.  Had to adjust gighive_host for testing purposes.
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
 *** 
 releaseNotes20260116.txt
