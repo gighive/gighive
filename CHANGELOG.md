@@ -1,21 +1,12 @@
 *** 
 releaseNotes20260116.txt
-Changes: Add Section 2B to admin.php for indiv file upload, fix video link on index.md, reduced file size of two images, new arch.png
+Changes: Fixed .env for apache and created .env.mysql.j2.  Had to adjust gighive_host for testing purposes.
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
-sodo@pop-os:~/scripts/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/admin.php
-	modified:   docs/index.md
-
+ToDo: jibe new mysql_database var to be in apache's .env
 ToDo: Remove mysql_native_password=ON
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: Is it worthwhile to have an embed feature?
@@ -38,6 +29,24 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260116.txt
+Changes: Add Section 2B to admin.php for indiv file upload, fix video link on index.md, reduced file size of two images, new arch.png
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	modified:   docs/index.md
 
 *** 
 releaseNotes20260113.txt

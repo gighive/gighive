@@ -204,7 +204,7 @@ protected_paths: ['app','api','db','debug','src','vendor']
 #gighive_server_alias — what goes into the cert (CN + DNS.1)
 
 gighive_scheme: "https"
-gighive_host: "gighive"                  # can be an IP or hostname
+gighive_host: "{{ ansible_host }}"                  # can be an IP or hostname
 gighive_validate_certs: false
 gighive_hostname_for_host_header: ""     # set to "gighive" when using IP
 gighive_base_url: "{{ gighive_scheme }}://{{ gighive_host }}"
@@ -229,6 +229,7 @@ gighive_htpasswd_marker_path: "{{ gighive_htpasswd_host_path }}.seeded"
 # --- MySQL db/user ---
 mysql_database: music_db
 mysql_user: appuser
+mysql_db_host: mysqlServer
 
 # --- MySQL backup role vars ---
 mysql_backup_user: "{{ ansible_user }}"

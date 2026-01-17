@@ -77,10 +77,24 @@
     state: directory
     mode: "0755"
 
+- name: Ensure MySQL externalConfigs directory exists
+  file:
+    path: "{{ docker_dir }}/mysql/externalConfigs"
+    state: directory
+    mode: "0755"
+
 - name: Render Docker env file
   template:
-    src: templates/.env.j2
+    src: .env.j2
     dest: "{{ docker_dir }}/apache/externalConfigs/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Render MySQL env file
+  template:
+    src: .env.mysql.j2
+    dest: "{{ docker_dir }}/mysql/externalConfigs/.env.mysql"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0644'
@@ -299,6 +313,16 @@
     var: apache_info
   tags: docker
 
+- name: Assert Apache container exists and is running
+  ansible.builtin.assert:
+    that:
+      - apache_info.container is not none
+      - apache_info.container.State.Status == 'running'
+    fail_msg: >-
+      apacheWebServer container is not running or not present. Detected status:
+      {{ apache_info.container.State.Status | default('missing') }}
+  tags: docker, compose
+
 - name: Gather info on running MySQL container
   community.docker.docker_container_info:
     name: mysqlServer
@@ -309,6 +333,16 @@
   ansible.builtin.debug:
     var: mysql_info
   tags: docker
+
+- name: Assert MySQL container exists and is running
+  ansible.builtin.assert:
+    that:
+      - mysql_info.container is not none
+      - mysql_info.container.State.Status == 'running'
+    fail_msg: >-
+      mysqlServer container is not running or not present. Detected status:
+      {{ mysql_info.container.State.Status | default('missing') }}
+  tags: docker, compose
 
 - name: Show running Apache container status
   ansible.builtin.debug:
