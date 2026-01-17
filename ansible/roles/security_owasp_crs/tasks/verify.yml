@@ -1,7 +1,7 @@
 # roles/security_owasp_crs/tasks/verify.yml
-- name: Ensure apacheWebServer container is running
+- name: Ensure apache container is running
   community.docker.docker_container_info:
-    name: apacheWebServer
+    name: "{{ apache_container_name }}"
   register: cinfo
   retries: 30
   delay: 1
@@ -10,7 +10,7 @@
 
 - name: apachectl -V (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "(apachectl -V || apache2ctl -V) | egrep 'HTTPD_ROOT|SERVER_CONFIG_FILE' || true"
   register: apache_info
   changed_when: false
@@ -21,7 +21,7 @@
 
 - name: Check if ModSecurity module is loaded (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "(apachectl -M || apache2ctl -M) | grep -E '^ security2_module' || true"
   register: apache_modules
   changed_when: false
@@ -33,7 +33,7 @@
 # --- Wait for cert AND key, using your group_vars paths ---
 - name: Wait for TLS cert file (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "test -s {{ gighive_ssl_cert_file | quote }}"
   register: cert_check
   retries: 60
@@ -43,7 +43,7 @@
 
 - name: Wait for TLS key file (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "test -s {{ gighive_ssl_key_file | quote }}"
   register: key_check
   retries: 30
@@ -54,7 +54,7 @@
 # Optional: quick sanity on the generated cert
 - name: Show certificate subject (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "openssl x509 -in {{ gighive_ssl_cert_file | quote }} -noout -subject -issuer || true"
   register: cert_subject
   changed_when: false
@@ -64,7 +64,7 @@
 
 - name: Apache syntax check (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "(apachectl -t || apache2ctl -t)"
   register: apache_syntax
   changed_when: false
@@ -80,7 +80,7 @@
 
 - name: Check unicode.mapping in container
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "test -f /etc/modsecurity/unicode.mapping"
   register: unicode_map
   changed_when: false
@@ -88,7 +88,7 @@
 
 - name: Check modsecurity.conf mounted in container
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "test -f /etc/modsecurity/modsecurity.conf"
   register: modsec_conf
   changed_when: false
@@ -96,14 +96,14 @@
 
 - name: Ensure audit log file exists and perms OK (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "touch /var/log/apache2/modsec_audit.log && chown www-data:www-data /var/log/apache2/modsec_audit.log && chmod 0640 /var/log/apache2/modsec_audit.log"
   changed_when: false
   when: not ansible_check_mode
 
 - name: Read SecRuleEngine setting (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: >-
       /bin/sh -lc "awk 'BEGIN{IGNORECASE=1}
       /^[[:space:]]*SecRuleEngine[[:space:]]+/ {print tolower($2); exit}'

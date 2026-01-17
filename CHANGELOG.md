@@ -16,14 +16,14 @@ Changes to be committed:
 	modified:   ansible/inventories/group_vars/gighive/gighive.yml
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
 	modified:   ansible/inventories/group_vars/prod/prod.yml
-	renamed:    ansible/roles/docker/files/rebuildContainers.sh -> ansible/roles/docker/files/mysql/dbScripts/rebuildContainers.sh
-	renamed:    ansible/roles/docker/files/mysql/shutdownMysqlServer.sh -> ansible/roles/docker/files/mysql/dbScripts/shutdownMysqlServer.sh
-	renamed:    ansible/roles/docker/files/mysql/shutdownRemoveMysqlServer.sh -> ansible/roles/docker/files/mysql/dbScripts/shutdownRemoveMysqlServer.sh
-	deleted:    ansible/roles/docker/files/testHomePage.sh
+	renamed:    ansible/roles/docker/files/apache/diag-apache-logs.sh -> ansible/roles/docker/files/apache/webroot/tools/diag-apache-logs.sh
+	renamed:    ansible/roles/docker/files/shutdownRemoveApache.sh -> ansible/roles/docker/files/apache/webroot/tools/shutdownRemoveApache.sh
 	modified:   ansible/roles/docker/tasks/main.yml
-	modified:   ansible/roles/docker/templates/.env.j2
 	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
 	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/security_owasp_crs/handlers/main.yml
+	modified:   ansible/roles/security_owasp_crs/tasks/main.yml
+	modified:   ansible/roles/security_owasp_crs/tasks/verify.yml
 	modified:   ansible/roles/validate_app/tasks/main.yml
 
 ToDo: favicon on database and upload pages should change if it's gighive
@@ -49,6 +49,34 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260116.txt
+Changes: Standardize and split references to mysqlServer as two vars in group_vars
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	renamed:    ansible/roles/docker/files/rebuildContainers.sh -> ansible/roles/docker/files/mysql/dbScripts/rebuildContainers.sh
+	renamed:    ansible/roles/docker/files/mysql/shutdownMysqlServer.sh -> ansible/roles/docker/files/mysql/dbScripts/shutdownMysqlServer.sh
+	renamed:    ansible/roles/docker/files/mysql/shutdownRemoveMysqlServer.sh -> ansible/roles/docker/files/mysql/dbScripts/shutdownRemoveMysqlServer.sh
+	deleted:    ansible/roles/docker/files/testHomePage.sh
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/validate_app/tasks/main.yml
 
 *** 
 releaseNotes20260116.txt

@@ -223,6 +223,9 @@ apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
 gighive_htpasswd_seed_once: true
 gighive_htpasswd_marker_path: "{{ gighive_htpasswd_host_path }}.seeded"
 
+# --- Apache container ---
+apache_container_name: apacheWebServer
+
 # --- MySQL db/user ---
 mysql_database: music_db
 mysql_user: appuser

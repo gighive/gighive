@@ -3,7 +3,7 @@
 
 - name: Verify containers are running after reboot
   ansible.builtin.shell: >
-    docker ps --filter "name=apacheWebServer" --filter "name={{ mysql_container_name }}" --format '{% raw %}{{.Names}}: {{.Status}}{% endraw %}'
+    docker ps --filter "name={{ apache_container_name }}" --filter "name={{ mysql_container_name }}" --format '{% raw %}{{.Names}}: {{.Status}}{% endraw %}'
   register: container_status
   changed_when: false
 
@@ -27,7 +27,7 @@
     name: "{{ item }}"
   register: container_info
   loop:
-    - apacheWebServer
+    - "{{ apache_container_name }}"
     - "{{ mysql_container_name }}"
   ignore_errors: true
 
@@ -65,7 +65,7 @@
       NIC_State: "{{ nic_state.stdout }}"
       IP_Address: "{{ ip_address.stdout }}"
       Containers_Running: >-
-        {{ (container_info.results | selectattr('item', 'equalto', 'apacheWebServer') | map(attribute='container.State.Running') | list | first)
+        {{ (container_info.results | selectattr('item', 'equalto', apache_container_name) | map(attribute='container.State.Running') | list | first)
             | default('Container Not Found') }}
       Free_Memory_MB: "{{ mem_free.stdout }}"
       Free_Disk_Space_Root: "{{ disk_free.stdout }}"
@@ -93,13 +93,13 @@
 
 # use shell builtin 'test' via sh -lc
 - name: Check htpasswd readable inside container (root)
-  ansible.builtin.command: docker exec -i apacheWebServer sh -lc 'test -r "{{ gighive_htpasswd_path }}"'
+  ansible.builtin.command: docker exec -i "{{ apache_container_name }}" sh -lc 'test -r "{{ gighive_htpasswd_path }}"'
   register: ht_in_root
   changed_when: false
   failed_when: false
 
 - name: Check htpasswd readable inside container as www-data
-  ansible.builtin.command: docker exec -u www-data -i apacheWebServer sh -lc 'test -r "{{ gighive_htpasswd_path }}"'
+  ansible.builtin.command: docker exec -u www-data -i "{{ apache_container_name }}" sh -lc 'test -r "{{ gighive_htpasswd_path }}"'
   register: ht_in_www
   changed_when: false
   failed_when: false
@@ -107,14 +107,14 @@
 # if either check fails, show useful details without printing file contents
 - name: Show container mounts when htpasswd not visible (debug aid)
   ansible.builtin.command: >
-    docker inspect -f '{{"{{"}}range .Mounts{{"}}"}}{{"{{"}}println .Source "->" .Destination{{"}}"}}{{"{{"}}end{{"}}"}}' apacheWebServer
+    docker inspect -f '{{"{{"}}range .Mounts{{"}}"}}{{"{{"}}println .Source "->" .Destination{{"}}"}}{{"{{"}}end{{"}}"}}' "{{ apache_container_name }}"
   register: apache_mounts
   when: ht_in_root.rc != 0 or ht_in_www.rc != 0
   changed_when: false
 
 - name: Show stat/owner seen inside container (no secrets)
   ansible.builtin.command: >
-    docker exec -i apacheWebServer sh -lc
+    docker exec -i "{{ apache_container_name }}" sh -lc
     'id;
      ls -l "{{ gighive_htpasswd_path }}" || true;
      stat -c "%A %U:%G %a %u:%g %n" "{{ gighive_htpasswd_path }}" || true'
@@ -134,14 +134,14 @@
   when: ht_in_root.rc != 0 or ht_in_www.rc != 0
 
 - name: Enable Apache headers module
-  command: docker exec -i apacheWebServer a2enmod headers
+  command: docker exec -i "{{ apache_container_name }}" a2enmod headers
   register: headers_mod
   changed_when: "'enabled' in (headers_mod.stdout | default(''))"
   failed_when: headers_mod.rc not in [0]
   tags: [hardening]
 
 - name: Graceful reload Apache if headers was enabled
-  command: docker exec -i apacheWebServer apache2ctl -k graceful
+  command: docker exec -i "{{ apache_container_name }}" apache2ctl -k graceful
   when: "'enabled' in (headers_mod.stdout | default(''))"
   changed_when: false
   tags: [hardening]
@@ -187,7 +187,7 @@
 
   rescue:
     - name: Show Apache error log tail (last 100 lines)
-      command: docker exec -i apacheWebServer sh -lc 'tail -n 100 ${APACHE_LOG_DIR:-/var/log/apache2}/error.log'
+      command: docker exec -i "{{ apache_container_name }}" sh -lc 'tail -n 100 ${APACHE_LOG_DIR:-/var/log/apache2}/error.log'
       register: apache_error_tail
       changed_when: false
       failed_when: false

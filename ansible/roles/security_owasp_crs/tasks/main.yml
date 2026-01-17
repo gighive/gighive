@@ -1,7 +1,7 @@
 # Put this ABOVE the CRS toggle tasks in roles/security_owasp_crs/tasks/main.yml
 - name: Check CRS files mounted (container)
   community.docker.docker_container_exec:
-    container: apacheWebServer
+    container: "{{ apache_container_name }}"
     command: /bin/sh -lc "test -f /etc/modsecurity/crs/crs-setup.conf"
   register: crs_present
   changed_when: false

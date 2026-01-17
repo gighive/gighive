@@ -216,7 +216,7 @@
 
 - name: Stop Apache container for rebuild
   community.docker.docker_container:
-    name: apacheWebServer
+    name: "{{ apache_container_name }}"
     state: absent
   ignore_errors: true
   tags: docker, compose
@@ -304,7 +304,7 @@
 
 - name: Gather info on running Apache container
   community.docker.docker_container_info:
-    name: apacheWebServer
+    name: "{{ apache_container_name }}"
   register: apache_info
   tags: docker, compose
 
@@ -319,7 +319,7 @@
       - apache_info.container is not none
       - apache_info.container.State.Status == 'running'
     fail_msg: >-
-      apacheWebServer container is not running or not present. Detected status:
+      {{ apache_container_name }} container is not running or not present. Detected status:
       {{ apache_info.container.State.Status | default('missing') }}
   tags: docker, compose
 
