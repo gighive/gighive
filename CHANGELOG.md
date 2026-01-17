@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260116.txt
-Changes: UI wiring for recovery (Sections 4 & 5) admin page (previous jobs section)
+Changes: Standardize and split references to mysqlServer as two vars in group_vars
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
@@ -13,14 +13,19 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/admin.php
-	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_add.php
-	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php
-	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_reload.php
-	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_replay.php
-	modified:   docs/admin_data_import_45.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	renamed:    ansible/roles/docker/files/rebuildContainers.sh -> ansible/roles/docker/files/mysql/dbScripts/rebuildContainers.sh
+	renamed:    ansible/roles/docker/files/mysql/shutdownMysqlServer.sh -> ansible/roles/docker/files/mysql/dbScripts/shutdownMysqlServer.sh
+	renamed:    ansible/roles/docker/files/mysql/shutdownRemoveMysqlServer.sh -> ansible/roles/docker/files/mysql/dbScripts/shutdownRemoveMysqlServer.sh
+	deleted:    ansible/roles/docker/files/testHomePage.sh
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/validate_app/tasks/main.yml
 
-ToDo: jibe new mysql_database var to be in apache's .env (how did apache .env work without the render?)
 ToDo: favicon on database and upload pages should change if it's gighive
 ToDo: Remove mysql_native_password=ON
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
@@ -44,6 +49,28 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260116.txt
+Changes: UI wiring for recovery (Sections 4 & 5) admin page (previous jobs section)
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_add.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_reload.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_replay.php
+	modified:   docs/admin_data_import_45.md
 
 *** 
 releaseNotes20260116.txt

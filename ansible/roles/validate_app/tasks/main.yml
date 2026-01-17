@@ -9,7 +9,7 @@
 
 - name: Verify restart policy of Apache and MySQL containers
   ansible.builtin.command:
-    cmd: docker inspect -f '{% raw %}{{ .HostConfig.RestartPolicy.Name }}{% endraw %}' apacheWebServer mysqlServer
+    cmd: docker inspect -f '{% raw %}{{ .HostConfig.RestartPolicy.Name }}{% endraw %}' apacheWebServer "{{ mysql_container_name }}"
   register: restart_policy
   changed_when: false
 
@@ -32,8 +32,8 @@
       - docker
       - exec
       - -e
-      - MYSQL_PWD={{ mysql_root_password }}
-      - mysqlServer
+      - "MYSQL_PWD={{ mysql_root_password }}"
+      - "{{ mysql_container_name }}"
       - mysqladmin
       - ping
       - -h127.0.0.1
@@ -49,7 +49,7 @@
 - name: Run SQL script from external file and display output
   ansible.builtin.shell: |
     echo "Running SQL script..."
-    docker exec -i mysqlServer mysql -uroot -p{{ mysql_root_password }} -D music_db < "{{ dbscripts_dir }}/select.sql"
+    docker exec -i "{{ mysql_container_name }}" mysql -uroot -p{{ mysql_root_password }} -D music_db < "{{ dbscripts_dir }}/select.sql"
   register: sql_output
   changed_when: false
 
@@ -228,7 +228,7 @@
 
 - name: Read mysql container TZ env
   ansible.builtin.command:
-    cmd: docker exec -i mysqlServer printenv TZ
+    cmd: docker exec -i "{{ mysql_container_name }}" printenv TZ
   register: mysql_tz_env
   changed_when: false
 
@@ -236,11 +236,11 @@
   ansible.builtin.assert:
     that:
       - mysql_tz_env.stdout | trim == gighive_timezone
-    fail_msg: "mysqlServer TZ env is {{ mysql_tz_env.stdout | trim }}, expected {{ gighive_timezone }}"
+    fail_msg: "{{ mysql_container_name }} TZ env is {{ mysql_tz_env.stdout | trim }}, expected {{ gighive_timezone }}"
 
 - name: Read mysql container timezone
   ansible.builtin.command:
-    cmd: docker exec -i mysqlServer cat /etc/timezone
+    cmd: docker exec -i "{{ mysql_container_name }}" cat /etc/timezone
   register: mysql_timezone
   changed_when: false
 
@@ -248,5 +248,5 @@
   ansible.builtin.assert:
     that:
       - mysql_timezone.stdout | trim == gighive_timezone
-    fail_msg: "mysqlServer timezone is {{ mysql_timezone.stdout | trim }}, expected {{ gighive_timezone }}"
+    fail_msg: "{{ mysql_container_name }} timezone is {{ mysql_timezone.stdout | trim }}, expected {{ gighive_timezone }}"
 

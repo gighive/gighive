@@ -223,7 +223,7 @@
 
 - name: Stop MySQL container for rebuild (when requested)
   community.docker.docker_container:
-    name: mysqlServer
+    name: "{{ mysql_container_name }}"
     state: absent
   when: (rebuild_mysql | default(false)) or (rebuild_mysql_data | default(false)) or (docker_compose_template.changed | default(false))
   ignore_errors: true
@@ -325,7 +325,7 @@
 
 - name: Gather info on running MySQL container
   community.docker.docker_container_info:
-    name: mysqlServer
+    name: "{{ mysql_container_name }}"
   register: mysql_info
   tags: docker, compose
 
@@ -340,7 +340,7 @@
       - mysql_info.container is not none
       - mysql_info.container.State.Status == 'running'
     fail_msg: >-
-      mysqlServer container is not running or not present. Detected status:
+      {{ mysql_container_name }} container is not running or not present. Detected status:
       {{ mysql_info.container.State.Status | default('missing') }}
   tags: docker, compose
 
