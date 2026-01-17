@@ -2,7 +2,7 @@
 title: Readme
 layout: default
 ---
-# GigHive Music and Video Library 
+# GigHive Music and Video Library Setup
 
 GigHive is an **open-source deployment framework** for hosting your own media library, a band’s library or fan videos, or even videos uploaded by guests from events like a wedding.  There are two pieces to Gighive:
 - A pre-built web-accessible media library waiting to be populated.  This is the server piece. Gighive uses Ansible and Terraform to build a vm and on top, a fast Apache server and MySQL database. It includes a few audio and video clips donated from one of our other users as a sample.
