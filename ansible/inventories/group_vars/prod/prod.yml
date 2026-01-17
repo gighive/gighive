@@ -227,6 +227,7 @@ gighive_htpasswd_marker_path: "{{ gighive_htpasswd_host_path }}.seeded"
 mysql_database: music_db
 mysql_user: appuser
 mysql_db_host: mysqlServer
+mysql_container_name: "{{ mysql_db_host }}"
 
 # --- MySQL backup role vars ---
 mysql_backup_user: "{{ ansible_user }}"

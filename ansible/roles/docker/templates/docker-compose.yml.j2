@@ -43,9 +43,9 @@ services:
       - "{{ docker_dir }}/apache/externalConfigs/security2.conf:/etc/apache2/mods-available/security2.conf:ro"
     entrypoint: ["/entrypointapache.sh"]
 
-  mysqlServer:
+  {{ mysql_container_name }}:
     image: mysql:8.4
-    container_name: mysqlServer
+    container_name: "{{ mysql_container_name }}"
     restart: unless-stopped
     ports:
       - "3306:3306"

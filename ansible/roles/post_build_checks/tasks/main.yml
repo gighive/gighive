@@ -3,7 +3,7 @@
 
 - name: Verify containers are running after reboot
   ansible.builtin.shell: >
-    docker ps --filter "name=apacheWebServer" --filter "name=mysqlServer" --format '{% raw %}{{.Names}}: {{.Status}}{% endraw %}'
+    docker ps --filter "name=apacheWebServer" --filter "name={{ mysql_container_name }}" --format '{% raw %}{{.Names}}: {{.Status}}{% endraw %}'
   register: container_status
   changed_when: false
 
@@ -28,7 +28,7 @@
   register: container_info
   loop:
     - apacheWebServer
-    - mysqlServer
+    - "{{ mysql_container_name }}"
   ignore_errors: true
 
 - name: Fail if any container isn’t running
