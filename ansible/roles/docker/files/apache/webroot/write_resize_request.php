@@ -86,7 +86,7 @@ try {
         'version' => 1,
         'inventory_host' => $inventoryHost,
         'disk_size_mb' => $diskSizeMb,
-        'requested_at' => gmdate('c'),
+        'requested_at' => date('c'),
         'requested_by' => $user,
     ];
 

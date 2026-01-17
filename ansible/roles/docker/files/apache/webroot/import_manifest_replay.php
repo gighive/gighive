@@ -151,7 +151,7 @@ if (!flock($lockFp, LOCK_EX | LOCK_NB)) {
     exit;
 }
 
-$jobId = gmdate('Ymd-His') . '-' . bin2hex(random_bytes(6));
+$jobId = date('Ymd-His') . '-' . bin2hex(random_bytes(6));
 $jobDir = $jobRoot . '/' . $jobId;
 
 $steps = [];
@@ -242,7 +242,7 @@ try {
     $metaOut = [
         'job_type' => 'manifest_import',
         'mode' => $mode,
-        'created_at' => gmdate('c'),
+        'created_at' => date('c'),
         'item_count' => count($items),
         'source_job_id' => $sourceJobId,
     ];

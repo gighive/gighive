@@ -158,7 +158,7 @@ try {
 
     $finishStep(0, 'ok', 'Request received');
 
-    $jobId = gmdate('Ymd-His') . '-' . bin2hex(random_bytes(6));
+    $jobId = date('Ymd-His') . '-' . bin2hex(random_bytes(6));
     $jobDir = $jobRoot . '/' . $jobId;
     if (!is_dir($jobRoot) && !@mkdir($jobRoot, 0775, true)) {
         throw new RuntimeException('Failed to create import root directory');
@@ -169,7 +169,7 @@ try {
     $metaOut = [
         'job_type' => 'manifest_import',
         'mode' => 'add',
-        'created_at' => gmdate('c'),
+        'created_at' => date('c'),
         'item_count' => is_array($payload['items'] ?? null) ? count((array)$payload['items']) : 0,
     ];
     if (@file_put_contents($jobDir . '/meta.json', json_encode($metaOut, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX) === false) {
