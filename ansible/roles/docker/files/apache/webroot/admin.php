@@ -1437,7 +1437,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     html += '<div class="muted">Files selected: ' + (info.totalCount ?? 0) + '</div>';
     const supportedDetails = extCountsDetailsHtml(info.supportedExtCounts, info.supportedCount);
     if ((info.supportedCount ?? 0) === 0) {
-      html += '<div class="muted"><strong>Supported media files: 0 <span style="margin-left:.5rem">&lt; NO FILES WILL BE UPLOADED</span></strong></div>';
+      html += '<div class="muted" style="color:#dc2626"><strong>SCAN FOLDER RESULT: Supported media files: 0 <span style="margin-left:.5rem">&lt; NO FILES WILL BE UPLOADED</span></strong></div>';
     } else {
       html += '<div class="muted">Supported media files: ' + (info.supportedCount ?? 0) + supportedDetails + '</div>';
     }
@@ -1603,6 +1603,221 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       }
     }
     return '';
+  }
+
+  function supportedMediaFilesFromFileList(files) {
+    const list = Array.isArray(files) ? files : [];
+    const supported = [];
+    for (const f of list) {
+      const sizeBytes = Number(f && f.size) || 0;
+      if (sizeBytes === 0) continue;
+      const ext = fileExtLower(f.name);
+      if (!MEDIA_EXTS.has(ext)) continue;
+      const fileType = inferFileTypeFromName(f.name);
+      if (!fileType) continue;
+      supported.push({ file: f, fileType, relpath: filePathForImport(f) });
+    }
+    supported.sort((a, b) => _relpathCollator.compare(String(a.relpath || ''), String(b.relpath || '')));
+    return supported;
+  }
+
+  function manifestItemForFile(file, relpath, fileType, eventDate, checksum) {
+    return {
+      file_name: file.name,
+      source_relpath: relpath,
+      file_type: fileType,
+      event_date: eventDate,
+      size_bytes: Number(file.size) || 0,
+      checksum_sha256: checksum
+    };
+  }
+
+  async function postManifest(endpoint, items) {
+    const response = await fetch(String(endpoint || ''), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        org_name: 'default',
+        event_type: 'band',
+        items
+      })
+    });
+
+    const data = await response.json().catch(() => null);
+    return { ok: response.ok, status: response.status, data };
+  }
+
+  async function hashSupportedFilesToItems(opts) {
+    const supported = Array.isArray(opts && opts.supported) ? opts.supported : [];
+    const statusEl = opts && opts.statusEl;
+    const getCancelRequested = (opts && typeof opts.getCancelRequested === 'function') ? opts.getCancelRequested : (() => false);
+    const getAbortController = (opts && typeof opts.getAbortController === 'function') ? opts.getAbortController : (() => null);
+    const getRunStartedAt = (opts && typeof opts.getRunStartedAt === 'function') ? opts.getRunStartedAt : (() => 0);
+    const getFolderKeyForCache = (opts && typeof opts.getFolderKeyForCache === 'function') ? opts.getFolderKeyForCache : (() => '');
+
+    const items = [];
+    let cachedCount = 0;
+    let hashedCount = 0;
+    let hashedBytes = 0;
+    let lastUiProgressAt = 0;
+    const totalBytesAll = supported.reduce((sum, x) => sum + (Number(x && x.file && x.file.size) || 0), 0);
+    let bytesDonePrevFiles = 0;
+    let currentFileBytesDone = 0;
+    let _etaSmoothedBytesPerMs = 0;
+
+    for (let i = 0; i < supported.length; i++) {
+      const { file, fileType, relpath } = supported[i];
+      if (getCancelRequested()) {
+        break;
+      }
+      const eventDate = deriveEventDateForFile(file);
+      const sizeBytes = Number(file.size) || 0;
+      const lastMod = Number(file.lastModified) || 0;
+      currentFileBytesDone = 0;
+
+      let checksum = null;
+      const cacheKey = getFolderKeyForCache();
+      if (cacheKey) {
+        checksum = await getCachedSha256(cacheKey, relpath, sizeBytes, lastMod);
+      }
+
+      if (checksum) {
+        cachedCount++;
+        bytesDonePrevFiles += sizeBytes;
+      } else {
+        const elapsed = formatElapsed(Date.now() - getRunStartedAt());
+        if (statusEl) {
+          statusEl.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed + ')</div>'
+            + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>';
+        }
+
+        try {
+          const abortController = getAbortController();
+          checksum = await sha256HexForFileAbortable(file, abortController ? abortController.signal : null, (bytesDone, bytesTotal) => {
+            const now = Date.now();
+            if (now - lastUiProgressAt < 250) return;
+            lastUiProgressAt = now;
+
+            const pct = (bytesTotal > 0) ? Math.min(100, Math.floor((bytesDone / bytesTotal) * 100)) : 0;
+            currentFileBytesDone = Number(bytesDone) || 0;
+            const elapsedMs = now - getRunStartedAt();
+            const elapsed2 = formatElapsed(elapsedMs);
+
+            const bytesDoneSoFar = bytesDonePrevFiles + currentFileBytesDone;
+            let etaText = 'ETA: …';
+            if (elapsedMs > 10000 && bytesDoneSoFar > (64 * 1024 * 1024) && totalBytesAll > 0) {
+              const instantBytesPerMs = bytesDoneSoFar / Math.max(1, elapsedMs);
+              _etaSmoothedBytesPerMs = _etaSmoothedBytesPerMs > 0
+                ? (_etaSmoothedBytesPerMs * 0.85 + instantBytesPerMs * 0.15)
+                : instantBytesPerMs;
+              const remainingBytes = Math.max(0, totalBytesAll - bytesDoneSoFar);
+              const etaMs = _etaSmoothedBytesPerMs > 0 ? (remainingBytes / _etaSmoothedBytesPerMs) : 0;
+              etaText = 'ETA: ' + formatElapsed(etaMs);
+            }
+
+            if (statusEl) {
+              statusEl.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed2 + ', ' + etaText + ')</div>'
+                + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>'
+                + '<div class="muted" style="margin-top:.25rem">File progress: ' + pct + '% (' + formatBytes(bytesDone) + ' / ' + formatBytes(bytesTotal) + ')</div>';
+            }
+          });
+        } catch (e) {
+          if (getCancelRequested()) {
+            break;
+          }
+          if (e && e.name === 'AbortError') {
+            break;
+          }
+          throw e;
+        }
+
+        hashedCount++;
+        hashedBytes += sizeBytes;
+        bytesDonePrevFiles += sizeBytes;
+        if (cacheKey && checksum) {
+          try { await putCachedSha256(cacheKey, relpath, sizeBytes, lastMod, checksum); } catch (e) { /* ignore cache write failures */ }
+        }
+      }
+
+      items.push(manifestItemForFile(file, relpath, fileType, eventDate, checksum));
+    }
+
+    return items;
+  }
+
+  async function runFolderManifestImport(opts) {
+    const files = Array.isArray(opts && opts.files) ? opts.files : [];
+    const statusEl = opts && opts.statusEl;
+    const setUiState = (opts && typeof opts.setUiState === 'function') ? opts.setUiState : null;
+    const confirmText = String((opts && opts.confirmText) || '');
+    const emptyErrorHtml = String((opts && opts.emptyErrorHtml) || '');
+    const stopRequestedHtml = (opts && opts.stopRequestedHtml) || '';
+    const uploadingHtml = String((opts && opts.uploadingHtml) || '');
+    const endpoint = String((opts && opts.endpoint) || '');
+    const getCancelRequested = (opts && typeof opts.getCancelRequested === 'function') ? opts.getCancelRequested : (() => false);
+    const setAbortController = (opts && typeof opts.setAbortController === 'function') ? opts.setAbortController : (() => {});
+    const getAbortController = (opts && typeof opts.getAbortController === 'function') ? opts.getAbortController : (() => null);
+    const setRunStartedAt = (opts && typeof opts.setRunStartedAt === 'function') ? opts.setRunStartedAt : (() => {});
+    const getRunStartedAt = (opts && typeof opts.getRunStartedAt === 'function') ? opts.getRunStartedAt : (() => 0);
+    const folderKey = String((opts && opts.folderKey) || '');
+    const getFolderKeyForCache = (opts && typeof opts.getFolderKeyForCache === 'function') ? opts.getFolderKeyForCache : (() => folderKey);
+    const onSuccess = (opts && typeof opts.onSuccess === 'function') ? opts.onSuccess : null;
+    const onError = (opts && typeof opts.onError === 'function') ? opts.onError : null;
+
+    if (!files.length) {
+      if (statusEl) statusEl.innerHTML = '<div class="alert-err">Please select a folder with supported media files first.</div>';
+      return;
+    }
+    if (confirmText && !confirm(confirmText)) {
+      return;
+    }
+
+    const supported = supportedMediaFilesFromFileList(files);
+    if (!supported.length) {
+      if (statusEl) statusEl.innerHTML = '<div class="alert-err">No supported media files found in selected folder.</div>';
+      return;
+    }
+
+    setAbortController(new AbortController());
+    setRunStartedAt(Date.now());
+    if (setUiState) setUiState('hashing', '<div class="muted">Starting hashing…</div>');
+
+    const items = await hashSupportedFilesToItems({
+      supported,
+      statusEl,
+      getCancelRequested,
+      getAbortController,
+      getRunStartedAt,
+      getFolderKeyForCache
+    });
+
+    if (getCancelRequested()) {
+      if (setUiState) {
+        const stopHtml = (typeof stopRequestedHtml === 'function')
+          ? String(stopRequestedHtml(items.length) || '')
+          : String(stopRequestedHtml || '');
+        setUiState('uploading', stopHtml || uploadingHtml || '<div class="muted">Uploading manifest to server…</div>');
+      }
+    } else {
+      if (setUiState) setUiState('uploading', uploadingHtml || '<div class="muted">Uploading manifest to server…</div>');
+    }
+
+    if (!items.length) {
+      if (setUiState) setUiState('idle', emptyErrorHtml || '<div class="alert-err">No files were hashed. Nothing to import.</div>');
+      return;
+    }
+
+    postManifest(endpoint, items)
+    .then(({ ok, data }) => {
+      if (ok && data && data.success) {
+        if (onSuccess) onSuccess(data);
+      } else {
+        if (onError) onError(data);
+      }
+    })
+    .catch(error => {
+      if (onError) onError({ message: 'Network error: ' + error.message });
+    });
   }
 
   if (mediaFolderInput) {
@@ -1951,144 +2166,28 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       return;
     }
 
-    if (!confirm('Are you sure you want to scan this folder and reload the database?\n\nThis will permanently delete and replace ALL media data (sessions/songs/files/musicians/genres/styles).\n\nHashing (SHA-256) is required for a safe reload and may take time for large folders.\n\nThis action CANNOT be undone!')) {
-      return;
-    }
-
-    const files = mediaFolderInput.files ? Array.from(mediaFolderInput.files) : [];
-    const supported = [];
-    for (const f of files) {
-      const sizeBytes = Number(f && f.size) || 0;
-      if (sizeBytes === 0) continue;
-      const ext = fileExtLower(f.name);
-      if (!MEDIA_EXTS.has(ext)) continue;
-      const fileType = inferFileTypeFromName(f.name);
-      if (!fileType) continue;
-      supported.push({ file: f, fileType, relpath: filePathForImport(f) });
-    }
-
-    supported.sort((a, b) => _relpathCollator.compare(String(a.relpath || ''), String(b.relpath || '')));
-
-    if (!supported.length) {
-      scanFolderStatus.innerHTML = '<div class="alert-err">No supported media files found in selected folder.</div>';
-      return;
-    }
-
     _scanFolderImportCancelRequested = false;
-    _scanFolderImportAbortController = new AbortController();
-    _scanFolderImportRunStartedAt = Date.now();
-
+    const files = mediaFolderInput.files ? Array.from(mediaFolderInput.files) : [];
     const folderKey = folderKeyFromFiles(files);
     _scanFolderImportFolderKey = folderKey;
-    setScanFolderImportUiState('hashing', '<div class="muted">Starting hashing…</div>');
 
-    const items = [];
-    let cachedCount = 0;
-    let hashedCount = 0;
-    let hashedBytes = 0;
-    let lastUiProgressAt = 0;
-    const totalBytesAll = supported.reduce((sum, x) => sum + (Number(x && x.file && x.file.size) || 0), 0);
-    let bytesDonePrevFiles = 0;
-    let currentFileBytesDone = 0;
-    const runStartedAt = _scanFolderImportRunStartedAt;
-    let _etaSmoothedBytesPerMs = 0;
-
-    for (let i = 0; i < supported.length; i++) {
-      const { file, fileType, relpath } = supported[i];
-      if (_scanFolderImportCancelRequested) {
-        break;
-      }
-      const eventDate = deriveEventDateForFile(file);
-      const sizeBytes = Number(file.size) || 0;
-      const lastMod = Number(file.lastModified) || 0;
-      currentFileBytesDone = 0;
-
-      let checksum = null;
-      if (folderKey) {
-        checksum = await getCachedSha256(folderKey, relpath, sizeBytes, lastMod);
-      }
-      if (checksum) {
-        cachedCount++;
-        bytesDonePrevFiles += sizeBytes;
-      } else {
-        const elapsed = formatElapsed(Date.now() - runStartedAt);
-        scanFolderStatus.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed + ')</div>'
-          + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>';
-
-        try {
-          checksum = await sha256HexForFileAbortable(file, _scanFolderImportAbortController.signal, (bytesDone, bytesTotal) => {
-          const now = Date.now();
-          if (now - lastUiProgressAt < 250) return;
-          lastUiProgressAt = now;
-
-          const pct = (bytesTotal > 0) ? Math.min(100, Math.floor((bytesDone / bytesTotal) * 100)) : 0;
-          currentFileBytesDone = Number(bytesDone) || 0;
-          const elapsedMs = now - runStartedAt;
-          const elapsed2 = formatElapsed(elapsedMs);
-
-          const bytesDoneSoFar = bytesDonePrevFiles + currentFileBytesDone;
-          let etaText = 'ETA: …';
-          if (elapsedMs > 10000 && bytesDoneSoFar > (64 * 1024 * 1024) && totalBytesAll > 0) {
-            const instantBytesPerMs = bytesDoneSoFar / Math.max(1, elapsedMs);
-            _etaSmoothedBytesPerMs = _etaSmoothedBytesPerMs > 0
-              ? (_etaSmoothedBytesPerMs * 0.85 + instantBytesPerMs * 0.15)
-              : instantBytesPerMs;
-            const remainingBytes = Math.max(0, totalBytesAll - bytesDoneSoFar);
-            const etaMs = _etaSmoothedBytesPerMs > 0 ? (remainingBytes / _etaSmoothedBytesPerMs) : 0;
-            etaText = 'ETA: ' + formatElapsed(etaMs);
-          }
-
-          scanFolderStatus.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed2 + ', ' + etaText + ')</div>'
-            + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>'
-            + '<div class="muted" style="margin-top:.25rem">File progress: ' + pct + '% (' + formatBytes(bytesDone) + ' / ' + formatBytes(bytesTotal) + ')</div>';
-          });
-        } catch (e) {
-          if (_scanFolderImportCancelRequested) {
-            break;
-          }
-          throw e;
-        }
-
-        hashedCount++;
-        hashedBytes += sizeBytes;
-        bytesDonePrevFiles += sizeBytes;
-        if (folderKey && checksum) {
-          try { await putCachedSha256(folderKey, relpath, sizeBytes, lastMod, checksum); } catch (e) { /* ignore cache write failures */ }
-        }
-      }
-
-      items.push({
-        file_name: file.name,
-        source_relpath: relpath,
-        file_type: fileType,
-        event_date: eventDate,
-        size_bytes: Number(file.size) || 0,
-        checksum_sha256: checksum
-      });
-    }
-
-    if (!items.length) {
-      setScanFolderImportUiState('idle', '<div class="alert-err">No files were hashed. Nothing to reload.</div>');
-      return;
-    }
-
-    setScanFolderImportUiState('uploading', '<div class="muted">Uploading manifest to server…</div>');
-
-    fetch('import_manifest_reload.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        org_name: 'default',
-        event_type: 'band',
-        items
-      })
-    })
-    .then(async response => {
-      const data = await response.json().catch(() => null);
-      return { ok: response.ok, status: response.status, data };
-    })
-    .then(({ ok, data }) => {
-      if (ok && data && data.success) {
+    await runFolderManifestImport({
+      files,
+      folderKey,
+      statusEl: scanFolderStatus,
+      setUiState: setScanFolderImportUiState,
+      confirmText: 'Are you sure you want to scan this folder and reload the database?\n\nThis will permanently delete and replace ALL media data (sessions/songs/files/musicians/genres/styles).\n\nHashing (SHA-256) is required for a safe reload and may take time for large folders.\n\nThis action CANNOT be undone!',
+      emptyErrorHtml: '<div class="alert-err">No files were hashed. Nothing to reload.</div>',
+      uploadingHtml: '<div class="muted">Uploading manifest to server…</div>',
+      stopRequestedHtml: '<div class="muted">Stop requested. Reloading DB with whatever has been hashed so far…</div>',
+      endpoint: 'import_manifest_reload.php',
+      getCancelRequested: () => _scanFolderImportCancelRequested,
+      setAbortController: (ac) => { _scanFolderImportAbortController = ac; },
+      getAbortController: () => _scanFolderImportAbortController,
+      setRunStartedAt: (t) => { _scanFolderImportRunStartedAt = t; },
+      getRunStartedAt: () => _scanFolderImportRunStartedAt,
+      getFolderKeyForCache: () => _scanFolderImportFolderKey,
+      onSuccess: (data) => {
         scanFolderStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Database reload completed successfully.'), 'See Updated Database')
           + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         scanFolderBtn.textContent = 'Import Completed';
@@ -2109,194 +2208,13 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
           clearScanFolderCacheBtn.disabled = false;
           clearScanFolderCacheBtn.textContent = 'Clear cached hashes for this folder';
         }
-      } else {
+      },
+      onError: (data) => {
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
         scanFolderStatus.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
           + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
       }
-    })
-    .catch(error => {
-      scanFolderStatus.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
-      setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
-    });
-  }
-
-  async function confirmScanFolderAdd() {
-    if (!(mediaFolderAddInput && mediaFolderAddInput.files && mediaFolderAddInput.files.length)) {
-      scanFolderAddStatus.innerHTML = '<div class="alert-err">Please select a folder with supported media files first.</div>';
-      return;
-    }
-
-    if (!confirm('Are you sure you want to scan this folder and add items to the database?\n\nThis will NOT truncate existing media tables.\n\nHashing (SHA-256) is required for idempotency and may take time for large folders.')) {
-      return;
-    }
-
-    const files = mediaFolderAddInput.files ? Array.from(mediaFolderAddInput.files) : [];
-    const supported = [];
-    for (const f of files) {
-      const sizeBytes = Number(f && f.size) || 0;
-      if (sizeBytes === 0) continue;
-      const ext = fileExtLower(f.name);
-      if (!MEDIA_EXTS.has(ext)) continue;
-      const fileType = inferFileTypeFromName(f.name);
-      if (!fileType) continue;
-      supported.push({ file: f, fileType, relpath: filePathForImport(f) });
-    }
-
-    supported.sort((a, b) => _relpathCollator.compare(String(a.relpath || ''), String(b.relpath || '')));
-
-    if (!supported.length) {
-      scanFolderAddStatus.innerHTML = '<div class="alert-err">No supported media files found in selected folder.</div>';
-      return;
-    }
-
-    _scanFolderAddCancelRequested = false;
-    _scanFolderAddAbortController = new AbortController();
-    _scanFolderAddRunStartedAt = Date.now();
-    setScanFolderAddUiState('hashing', '<div class="muted">Starting hashing…</div>');
-
-    const items = [];
-    let cachedCount = 0;
-    let hashedCount = 0;
-    let hashedBytes = 0;
-    let lastUiProgressAt = 0;
-    const totalBytesAll = supported.reduce((sum, x) => sum + (Number(x && x.file && x.file.size) || 0), 0);
-    let bytesDonePrevFiles = 0;
-    let currentFileBytesDone = 0;
-    let _etaSmoothedBytesPerMs = 0;
-    for (let i = 0; i < supported.length; i++) {
-      const { file, fileType, relpath } = supported[i];
-      if (_scanFolderAddCancelRequested) {
-        break;
-      }
-      const eventDate = deriveEventDateForFile(file);
-      const sizeBytes = Number(file.size) || 0;
-      const lastMod = Number(file.lastModified) || 0;
-      currentFileBytesDone = 0;
-
-      let checksum = null;
-      if (_scanFolderAddFolderKey) {
-        checksum = await getCachedSha256(_scanFolderAddFolderKey, relpath, sizeBytes, lastMod);
-      }
-      if (checksum) {
-        cachedCount++;
-        bytesDonePrevFiles += sizeBytes;
-      } else {
-        const elapsed = formatElapsed(Date.now() - _scanFolderAddRunStartedAt);
-        scanFolderAddStatus.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed + ')</div>'
-          + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>';
-        try {
-          checksum = await sha256HexForFileAbortable(file, _scanFolderAddAbortController.signal, (bytesDone, bytesTotal) => {
-            const now = Date.now();
-            if (now - lastUiProgressAt < 250) return;
-            lastUiProgressAt = now;
-            const pct = (bytesTotal > 0) ? Math.min(100, Math.floor((bytesDone / bytesTotal) * 100)) : 0;
-            currentFileBytesDone = Number(bytesDone) || 0;
-            const elapsedMs = now - _scanFolderAddRunStartedAt;
-            const elapsed2 = formatElapsed(elapsedMs);
-
-            const bytesDoneSoFar = bytesDonePrevFiles + currentFileBytesDone;
-            let etaText = 'ETA: …';
-            if (elapsedMs > 10000 && bytesDoneSoFar > (64 * 1024 * 1024) && totalBytesAll > 0) {
-              const instantBytesPerMs = bytesDoneSoFar / Math.max(1, elapsedMs);
-              _etaSmoothedBytesPerMs = _etaSmoothedBytesPerMs > 0
-                ? (_etaSmoothedBytesPerMs * 0.85 + instantBytesPerMs * 0.15)
-                : instantBytesPerMs;
-              const remainingBytes = Math.max(0, totalBytesAll - bytesDoneSoFar);
-              const etaMs = _etaSmoothedBytesPerMs > 0 ? (remainingBytes / _etaSmoothedBytesPerMs) : 0;
-              etaText = 'ETA: ' + formatElapsed(etaMs);
-            }
-
-            scanFolderAddStatus.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed2 + ', ' + etaText + ')</div>'
-              + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>'
-              + '<div class="muted" style="margin-top:.25rem">File progress: ' + pct + '% (' + formatBytes(bytesDone) + ' / ' + formatBytes(bytesTotal) + ')</div>';
-          });
-          hashedCount++;
-          hashedBytes += sizeBytes;
-        } catch (e) {
-          if (e && e.name === 'AbortError') {
-            _scanFolderAddCancelRequested = true;
-            break;
-          }
-          throw e;
-        }
-        bytesDonePrevFiles += sizeBytes;
-        if (_scanFolderAddFolderKey && checksum) {
-          try { await putCachedSha256(_scanFolderAddFolderKey, relpath, sizeBytes, lastMod, checksum); } catch (e) { /* ignore cache write failures */ }
-        }
-      }
-      items.push({
-        file_name: file.name,
-        source_relpath: relpath,
-        file_type: fileType,
-        event_date: eventDate,
-        size_bytes: Number(file.size) || 0,
-        checksum_sha256: checksum
-      });
-    }
-
-    if (_scanFolderAddCancelRequested) {
-      setScanFolderAddUiState('uploading', '<div class="muted">Stopped. Uploading ' + items.length + ' hashed item(s) to server…</div>');
-    } else {
-      setScanFolderAddUiState('uploading', '<div class="muted">Uploading manifest to server…</div>');
-    }
-
-    if (!items.length) {
-      scanFolderAddStatus.innerHTML = '<div class="alert-err">Stopped before any files finished hashing. Nothing to import.</div>';
-      setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
-      return;
-    }
-
-    fetch('import_manifest_add.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        org_name: 'default',
-        event_type: 'band',
-        items
-      })
-    })
-    .then(async response => {
-      const data = await response.json().catch(() => null);
-      return { ok: response.ok, status: response.status, data };
-    })
-    .then(({ ok, data }) => {
-      if (ok && data && data.success) {
-        scanFolderAddStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Add-to-database completed successfully.'), 'See Updated Database')
-          + renderAddReport(data)
-          + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
-
-        _scanFolderAddRunState = 'idle';
-        _scanFolderAddCancelRequested = false;
-        _scanFolderAddAbortController = null;
-
-        scanFolderAddBtn.textContent = 'Add Completed';
-        scanFolderAddBtn.classList.remove('danger');
-        scanFolderAddBtn.style.background = '#28a745';
-        scanFolderAddBtn.style.borderColor = '#28a745';
-        scanFolderAddBtn.style.color = '#ffffff';
-        scanFolderAddBtn.style.pointerEvents = 'none';
-        scanFolderAddBtn.style.cursor = 'default';
-
-        if (stopScanFolderAddBtn) {
-          stopScanFolderAddBtn.disabled = true;
-          stopScanFolderAddBtn.textContent = 'Stop hashing and import hashed';
-        }
-        if (clearScanFolderAddCacheBtn) {
-          clearScanFolderAddCacheBtn.disabled = false;
-          clearScanFolderAddCacheBtn.textContent = 'Clear cached hashes for this folder';
-        }
-      } else {
-        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
-        scanFolderAddStatus.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
-          + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
-        setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
-      }
-    })
-    .catch(error => {
-      scanFolderAddStatus.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
-      setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
     });
   }
 
@@ -2327,141 +2245,26 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       return;
     }
 
-    if (!confirm('Are you sure you want to scan this folder and add items to the database?\n\nThis will NOT truncate existing media tables.\n\nHashing (SHA-256) is required for idempotency and may take time for large folders.')) {
-      return;
-    }
-
-    const files = _scanFolderAddState.fileList;
-    const supported = [];
-    for (const f of files) {
-      const sizeBytes = Number(f && f.size) || 0;
-      if (sizeBytes === 0) continue;
-      const ext = fileExtLower(f.name);
-      if (!MEDIA_EXTS.has(ext)) continue;
-      const fileType = inferFileTypeFromName(f.name);
-      if (!fileType) continue;
-      supported.push({ file: f, fileType, relpath: filePathForImport(f) });
-    }
-
-    supported.sort((a, b) => _relpathCollator.compare(String(a.relpath || ''), String(b.relpath || '')));
-
-    if (!supported.length) {
-      scanFolderAddStatus.innerHTML = '<div class="alert-err">No supported media files found in selected folder.</div>';
-      return;
-    }
-
     _scanFolderAddCancelRequested = false;
-    _scanFolderAddAbortController = new AbortController();
-    _scanFolderAddRunStartedAt = Date.now();
-    setScanFolderAddUiState('hashing', '<div class="muted">Starting hashing…</div>');
+    const files = _scanFolderAddState.fileList;
 
-    const items = [];
-    let cachedCount = 0;
-    let hashedCount = 0;
-    let hashedBytes = 0;
-    let lastUiProgressAt = 0;
-    const totalBytesAll = supported.reduce((sum, x) => sum + (Number(x && x.file && x.file.size) || 0), 0);
-    let bytesDonePrevFiles = 0;
-    let currentFileBytesDone = 0;
-    let _etaSmoothedBytesPerMs = 0;
-    for (let i = 0; i < supported.length; i++) {
-      const { file, fileType, relpath } = supported[i];
-      if (_scanFolderAddCancelRequested) {
-        break;
-      }
-      const eventDate = deriveEventDateForFile(file);
-      const sizeBytes = Number(file.size) || 0;
-      const lastMod = Number(file.lastModified) || 0;
-      currentFileBytesDone = 0;
-
-      let checksum = null;
-      if (_scanFolderAddFolderKey) {
-        checksum = await getCachedSha256(_scanFolderAddFolderKey, relpath, sizeBytes, lastMod);
-      }
-      if (checksum) {
-        cachedCount++;
-        bytesDonePrevFiles += sizeBytes;
-      } else {
-        const elapsed = formatElapsed(Date.now() - _scanFolderAddRunStartedAt);
-        scanFolderAddStatus.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed + ')</div>'
-          + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>';
-        try {
-          checksum = await sha256HexForFileAbortable(file, _scanFolderAddAbortController.signal, (bytesDone, bytesTotal) => {
-            const now = Date.now();
-            if (now - lastUiProgressAt < 250) return;
-            lastUiProgressAt = now;
-            const pct = (bytesTotal > 0) ? Math.min(100, Math.floor((bytesDone / bytesTotal) * 100)) : 0;
-            currentFileBytesDone = Number(bytesDone) || 0;
-            const elapsedMs = now - _scanFolderAddRunStartedAt;
-            const elapsed2 = formatElapsed(elapsedMs);
-
-            const bytesDoneSoFar = bytesDonePrevFiles + currentFileBytesDone;
-            let etaText = 'ETA: …';
-            if (elapsedMs > 10000 && bytesDoneSoFar > (64 * 1024 * 1024) && totalBytesAll > 0) {
-              const instantBytesPerMs = bytesDoneSoFar / Math.max(1, elapsedMs);
-              _etaSmoothedBytesPerMs = _etaSmoothedBytesPerMs > 0
-                ? (_etaSmoothedBytesPerMs * 0.85 + instantBytesPerMs * 0.15)
-                : instantBytesPerMs;
-              const remainingBytes = Math.max(0, totalBytesAll - bytesDoneSoFar);
-              const etaMs = _etaSmoothedBytesPerMs > 0 ? (remainingBytes / _etaSmoothedBytesPerMs) : 0;
-              etaText = 'ETA: ' + formatElapsed(etaMs);
-            }
-
-            scanFolderAddStatus.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed2 + ', ' + etaText + ')</div>'
-              + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>'
-              + '<div class="muted" style="margin-top:.25rem">File progress: ' + pct + '% (' + formatBytes(bytesDone) + ' / ' + formatBytes(bytesTotal) + ')</div>';
-          });
-          hashedCount++;
-          hashedBytes += sizeBytes;
-        } catch (e) {
-          if (e && e.name === 'AbortError') {
-            _scanFolderAddCancelRequested = true;
-            break;
-          }
-          throw e;
-        }
-        bytesDonePrevFiles += sizeBytes;
-        if (_scanFolderAddFolderKey && checksum) {
-          try { await putCachedSha256(_scanFolderAddFolderKey, relpath, sizeBytes, lastMod, checksum); } catch (e) { /* ignore cache write failures */ }
-        }
-      }
-      items.push({
-        file_name: file.name,
-        source_relpath: relpath,
-        file_type: fileType,
-        event_date: eventDate,
-        size_bytes: Number(file.size) || 0,
-        checksum_sha256: checksum
-      });
-    }
-
-    if (_scanFolderAddCancelRequested) {
-      setScanFolderAddUiState('uploading', '<div class="muted">Stopped. Uploading ' + items.length + ' hashed item(s) to server…</div>');
-    } else {
-      setScanFolderAddUiState('uploading', '<div class="muted">Uploading manifest to server…</div>');
-    }
-
-    if (!items.length) {
-      scanFolderAddStatus.innerHTML = '<div class="alert-err">Stopped before any files finished hashing. Nothing to import.</div>';
-      setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
-      return;
-    }
-
-    fetch('import_manifest_add.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        org_name: 'default',
-        event_type: 'band',
-        items
-      })
-    })
-    .then(async response => {
-      const data = await response.json().catch(() => null);
-      return { ok: response.ok, status: response.status, data };
-    })
-    .then(({ ok, data }) => {
-      if (ok && data && data.success) {
+    await runFolderManifestImport({
+      files,
+      folderKey: _scanFolderAddFolderKey,
+      statusEl: scanFolderAddStatus,
+      setUiState: setScanFolderAddUiState,
+      confirmText: 'Are you sure you want to scan this folder and add items to the database?\n\nThis will NOT truncate existing media tables.\n\nHashing (SHA-256) is required for idempotency and may take time for large folders.',
+      emptyErrorHtml: '<div class="alert-err">Stopped before any files finished hashing. Nothing to import.</div>',
+      uploadingHtml: '<div class="muted">Uploading manifest to server…</div>',
+      stopRequestedHtml: (n) => '<div class="muted">Stopped. Uploading ' + String(Number(n) || 0) + ' hashed item(s) to server…</div>',
+      endpoint: 'import_manifest_add.php',
+      getCancelRequested: () => _scanFolderAddCancelRequested,
+      setAbortController: (ac) => { _scanFolderAddAbortController = ac; },
+      getAbortController: () => _scanFolderAddAbortController,
+      setRunStartedAt: (t) => { _scanFolderAddRunStartedAt = t; },
+      getRunStartedAt: () => _scanFolderAddRunStartedAt,
+      getFolderKeyForCache: () => _scanFolderAddFolderKey,
+      onSuccess: (data) => {
         scanFolderAddStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Add-to-database completed successfully.'), 'See Updated Database')
           + renderAddReport(data)
           + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
@@ -2486,16 +2289,13 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
           clearScanFolderAddCacheBtn.disabled = false;
           clearScanFolderAddCacheBtn.textContent = 'Clear cached hashes for this folder';
         }
-      } else {
+      },
+      onError: (data) => {
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
         scanFolderAddStatus.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
           + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
       }
-    })
-    .catch(error => {
-      scanFolderAddStatus.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
-      setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
     });
   }
   </script>

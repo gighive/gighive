@@ -6,7 +6,8 @@
 2) From the Ansible controller machine, run a dry-run to confirm what would happen:
 
 ```bash
-$GIGHIVE_HOME/ansible/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml --request-host gighive2 --latest --dry-run
+cd $GIGHIVE_HOME
+./ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml --request-host gighive2 --latest --dry-run
 ```
 
 You'll get output that looks like this:
@@ -40,7 +41,8 @@ sr0      11:0    1  368K  0 rom
 3) If the dry-run output looks correct, run the real resize:
 
 ```bash
-$GIGHIVE_HOME/ansible/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml --request-host gighive2 --latest
+cd $GIGHIVE_HOME
+./ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml --request-host gighive2 --latest
 ```
 
 At the end of the Ansible script run, you'll get output that looks like this showing the resized partition and filesystem.  Note that the size of the virtual disc (normally sda) should be increased to the size you specified and you'll have more available disk:
