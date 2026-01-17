@@ -32,6 +32,128 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+$jobRoot = '/var/www/private/import_jobs';
+$lockPath = '/var/www/private/import_database.lock';
+
+$raw = file_get_contents('php://input');
+$data = json_decode($raw ?: '', true);
+if (!is_array($data)) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Invalid JSON body',
+    ]);
+    exit;
+}
+
+$sourceJobId = isset($data['job_id']) ? trim((string)$data['job_id']) : '';
+if ($sourceJobId === '' || !preg_match('/^[0-9]{8}-[0-9]{6}-[a-f0-9]{12}$/', $sourceJobId)) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Invalid job_id',
+    ]);
+    exit;
+}
+
+$sourceDir = $jobRoot . '/' . $sourceJobId;
+$metaPath = $sourceDir . '/meta.json';
+$manifestPath = $sourceDir . '/manifest.json';
+
+if (!is_file($metaPath) || !is_readable($metaPath) || !is_file($manifestPath) || !is_readable($manifestPath)) {
+    http_response_code(404);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Not Found',
+        'message' => 'Saved manifest job not found or missing files',
+    ]);
+    exit;
+}
+
+$metaRaw = file_get_contents($metaPath);
+$meta = json_decode($metaRaw ?: '', true);
+if (!is_array($meta) || ($meta['job_type'] ?? '') !== 'manifest_import') {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Invalid job metadata',
+    ]);
+    exit;
+}
+
+$mode = (string)($meta['mode'] ?? '');
+if (!in_array($mode, ['add', 'reload'], true)) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Saved job mode is invalid',
+    ]);
+    exit;
+}
+
+$payloadRaw = file_get_contents($manifestPath);
+$payload = json_decode($payloadRaw ?: '', true);
+if (!is_array($payload)) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Server Error',
+        'message' => 'Saved manifest.json is invalid',
+    ]);
+    exit;
+}
+
+$orgName = trim((string)($payload['org_name'] ?? 'default'));
+$eventType = trim((string)($payload['event_type'] ?? 'band'));
+$items = $payload['items'] ?? null;
+if (!is_array($items) || !$items) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Saved manifest contains no items',
+    ]);
+    exit;
+}
+
+$lockFp = @fopen($lockPath, 'c');
+if (!$lockFp) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Server Error',
+        'message' => 'Failed to create lock file',
+    ]);
+    exit;
+}
+
+if (!flock($lockFp, LOCK_EX | LOCK_NB)) {
+    http_response_code(409);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Conflict',
+        'message' => 'An import is already running. Please wait for it to finish.',
+    ]);
+    fclose($lockFp);
+    exit;
+}
+
+$jobId = gmdate('Ymd-His') . '-' . bin2hex(random_bytes(6));
+$jobDir = $jobRoot . '/' . $jobId;
+
 $steps = [];
 $stepIndex = 0;
 $startStep = function(string $name) use (&$steps, &$stepIndex): void {
@@ -48,45 +170,9 @@ $finishStep = function(int $i, string $status, string $message = '') use (&$step
     $steps[$i]['message'] = $message;
 };
 
-$startStep('Upload received');
-$startStep('Validate request');
-$startStep('Upsert sessions');
-$startStep('Insert files (dedupe by checksum_sha256)');
-$startStep('Link labels (songs)');
-
-$lockPath = '/var/www/private/import_database.lock';
-$jobRoot = '/var/www/private/import_jobs';
-$jobId = '';
-$jobDir = '';
-$lockFp = @fopen($lockPath, 'c');
-if (!$lockFp) {
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'error' => 'Server Error',
-        'message' => 'Failed to create lock file',
-        'steps' => $steps,
-    ]);
-    exit;
-}
-
-if (!flock($lockFp, LOCK_EX | LOCK_NB)) {
-    http_response_code(409);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'error' => 'Conflict',
-        'message' => 'An import is already running. Please wait for it to finish.',
-        'steps' => $steps,
-    ]);
-    fclose($lockFp);
-    exit;
-}
-
-$ensureSession = function(PDO $pdo, string $eventDate, string $orgName, string $eventType): int {
+$ensureSession = function(PDO $pdo, string $eventDate, string $orgName2, string $eventType2): int {
     $stmt = $pdo->prepare('SELECT session_id FROM sessions WHERE date = :d AND org_name = :o LIMIT 1');
-    $stmt->execute([':d' => $eventDate, ':o' => $orgName]);
+    $stmt->execute([':d' => $eventDate, ':o' => $orgName2]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row && isset($row['session_id'])) {
         return (int)$row['session_id'];
@@ -94,12 +180,12 @@ $ensureSession = function(PDO $pdo, string $eventDate, string $orgName, string $
 
     $sql = 'INSERT INTO sessions (title, date, event_type, org_name) VALUES (:title, :date, :etype, :org)';
     $stmt = $pdo->prepare($sql);
-    $title = $orgName . ' ' . $eventDate;
+    $title = $orgName2 . ' ' . $eventDate;
     $stmt->execute([
         ':title' => $title,
         ':date' => $eventDate,
-        ':etype' => $eventType !== '' ? $eventType : null,
-        ':org' => $orgName,
+        ':etype' => $eventType2 !== '' ? $eventType2 : null,
+        ':org' => $orgName2,
     ]);
     return (int)$pdo->lastInsertId();
 };
@@ -146,47 +232,48 @@ $basenameNoExt = function(string $pathOrName): string {
 };
 
 try {
-    $raw = file_get_contents('php://input');
-    if (!is_string($raw) || trim($raw) === '') {
-        throw new RuntimeException('Missing request body');
-    }
-
-    $payload = json_decode($raw, true);
-    if (!is_array($payload)) {
-        throw new RuntimeException('Invalid JSON');
-    }
-
-    $finishStep(0, 'ok', 'Request received');
-
-    $jobId = gmdate('Ymd-His') . '-' . bin2hex(random_bytes(6));
-    $jobDir = $jobRoot . '/' . $jobId;
     if (!is_dir($jobRoot) && !@mkdir($jobRoot, 0775, true)) {
         throw new RuntimeException('Failed to create import root directory');
     }
     if (!@mkdir($jobDir, 0775, true)) {
         throw new RuntimeException('Failed to create job directory');
     }
+
     $metaOut = [
         'job_type' => 'manifest_import',
-        'mode' => 'add',
+        'mode' => $mode,
         'created_at' => gmdate('c'),
-        'item_count' => is_array($payload['items'] ?? null) ? count((array)$payload['items']) : 0,
+        'item_count' => count($items),
+        'source_job_id' => $sourceJobId,
     ];
     if (@file_put_contents($jobDir . '/meta.json', json_encode($metaOut, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX) === false) {
         throw new RuntimeException('Failed to write meta.json');
     }
     @chmod($jobDir . '/meta.json', 0640);
+
     if (@file_put_contents($jobDir . '/manifest.json', json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX) === false) {
         throw new RuntimeException('Failed to write manifest.json');
     }
     @chmod($jobDir . '/manifest.json', 0640);
 
-    $orgName = trim((string)($payload['org_name'] ?? 'default'));
-    $eventType = trim((string)($payload['event_type'] ?? 'band'));
-    $items = $payload['items'] ?? null;
-    if (!is_array($items) || !$items) {
-        throw new RuntimeException('Missing or empty items array');
+    if ($mode === 'add') {
+        $startStep('Upload received');
+        $startStep('Validate request');
+        $startStep('Upsert sessions');
+        $startStep('Insert files (dedupe by checksum_sha256)');
+        $startStep('Link labels (songs)');
+    } else {
+        $startStep('Upload received');
+        $startStep('Validate request');
+        $startStep('Truncate tables');
+        $startStep('Seed genres/styles');
+        $startStep('Upsert sessions');
+        $startStep('Insert files (dedupe by checksum_sha256)');
+        $startStep('Link labels (songs)');
     }
+
+    $finishStep(0, 'ok', 'Replay request loaded');
+    $finishStep(1, 'ok', 'Loaded ' . count($items) . ' item(s) from saved manifest');
 
     $validated = [];
     foreach ($items as $i => $it) {
@@ -232,9 +319,36 @@ try {
         ];
     }
 
-    $finishStep(1, 'ok', 'Validated ' . count($validated) . ' item(s)');
-
     $pdo = Database::createFromEnv();
+
+    if ($mode === 'reload') {
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        $pdo->exec('TRUNCATE TABLE session_musicians');
+        $pdo->exec('TRUNCATE TABLE session_songs');
+        $pdo->exec('TRUNCATE TABLE song_files');
+        $pdo->exec('TRUNCATE TABLE files');
+        $pdo->exec('TRUNCATE TABLE songs');
+        $pdo->exec('TRUNCATE TABLE sessions');
+        $pdo->exec('TRUNCATE TABLE musicians');
+        $pdo->exec('TRUNCATE TABLE genres');
+        $pdo->exec('TRUNCATE TABLE styles');
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+
+        $finishStep(2, 'ok', 'Tables truncated');
+
+        $pdo->exec("INSERT IGNORE INTO genres (name) VALUES
+('Rock'),('Jazz'),('Blues'),('Funk'),('Hip-Hop'),
+('Classical'),('Metal'),('Pop'),('Folk'),
+('Electronic'),('Reggae'),('Country'),
+('Latin'),('R&B'),('Alternative'),('Experimental');");
+
+        $pdo->exec("INSERT IGNORE INTO styles (name) VALUES
+('Acoustic'),('Electric'),('Fusion'),('Improvised'),
+('Progressive'),('Psychedelic'),('Hard'),
+('Soft'),('Instrumental'),('Vocal');");
+
+        $finishStep(3, 'ok', 'Seeded genres/styles');
+    }
 
     $sessionsByKey = [];
     foreach ($validated as $it) {
@@ -243,19 +357,37 @@ try {
             $sessionsByKey[$key] = $ensureSession($pdo, $it['event_date'], $orgName, $eventType);
         }
     }
-    $finishStep(2, 'ok', 'Sessions ensured: ' . count($sessionsByKey));
+
+    $sessionsStep = ($mode === 'add') ? 2 : 4;
+    $finishStep($sessionsStep, 'ok', 'Sessions ensured: ' . count($sessionsByKey));
 
     $inserted = 0;
     $duplicates = 0;
     $duplicateSamples = [];
+    $seen = [];
 
     $insertSql = 'INSERT INTO files (file_name, source_relpath, file_type, session_id, seq, size_bytes, checksum_sha256)'
         . ' VALUES (:file_name, :source_relpath, :file_type, :session_id, :seq, :size_bytes, :checksum)';
     $insertStmt = $pdo->prepare($insertSql);
 
-    $findByChecksumStmt = $pdo->prepare('SELECT file_id FROM files WHERE checksum_sha256 = :c LIMIT 1');
-
     foreach ($validated as $it) {
+        $checksum = $it['checksum_sha256'];
+
+        if ($mode === 'reload') {
+            if (isset($seen[$checksum])) {
+                $duplicates++;
+                if (count($duplicateSamples) < 25) {
+                    $duplicateSamples[] = [
+                        'file_name' => $it['file_name'],
+                        'source_relpath' => $it['source_relpath'],
+                        'checksum_sha256' => $checksum,
+                    ];
+                }
+                continue;
+            }
+            $seen[$checksum] = true;
+        }
+
         $sessionId = $sessionsByKey[$it['event_date'] . '|' . $orgName];
 
         try {
@@ -267,7 +399,7 @@ try {
                 ':session_id' => $sessionId,
                 ':seq' => $seq,
                 ':size_bytes' => $it['size_bytes'],
-                ':checksum' => $it['checksum_sha256'],
+                ':checksum' => $checksum,
             ]);
 
             $fileId = (int)$pdo->lastInsertId();
@@ -283,14 +415,13 @@ try {
             }
 
         } catch (PDOException $e) {
-            // 23000 is the SQLSTATE for integrity constraint violation (includes UNIQUE)
             if (($e->getCode() ?? '') === '23000') {
                 $duplicates++;
                 if (count($duplicateSamples) < 25) {
                     $duplicateSamples[] = [
                         'file_name' => $it['file_name'],
                         'source_relpath' => $it['source_relpath'],
-                        'checksum_sha256' => $it['checksum_sha256'],
+                        'checksum_sha256' => $checksum,
                     ];
                 }
                 continue;
@@ -299,22 +430,43 @@ try {
         }
     }
 
-    $finishStep(3, 'ok', 'Inserted: ' . $inserted . ', duplicates skipped: ' . $duplicates);
-    $finishStep(4, 'ok', 'Label links created for newly inserted files');
+    $insertStep = ($mode === 'add') ? 3 : 5;
+    $linkStep = ($mode === 'add') ? 4 : 6;
+    $finishStep($insertStep, 'ok', 'Inserted: ' . $inserted . ', duplicates skipped: ' . $duplicates);
+    $finishStep($linkStep, 'ok', 'Label links created for newly inserted files');
+
+    $tableCounts = [];
+    if ($mode === 'reload') {
+        try {
+            $tableCounts = [
+                'sessions' => (int)$pdo->query('SELECT COUNT(*) FROM sessions')->fetchColumn(),
+                'musicians' => (int)$pdo->query('SELECT COUNT(*) FROM musicians')->fetchColumn(),
+                'songs' => (int)$pdo->query('SELECT COUNT(*) FROM songs')->fetchColumn(),
+                'files' => (int)$pdo->query('SELECT COUNT(*) FROM files')->fetchColumn(),
+                'session_musicians' => (int)$pdo->query('SELECT COUNT(*) FROM session_musicians')->fetchColumn(),
+                'session_songs' => (int)$pdo->query('SELECT COUNT(*) FROM session_songs')->fetchColumn(),
+                'song_files' => (int)$pdo->query('SELECT COUNT(*) FROM song_files')->fetchColumn(),
+            ];
+        } catch (Throwable $e) {
+            $tableCounts = [];
+        }
+    }
 
     $resultOut = [
         'success' => true,
         'job_id' => $jobId,
-        'message' => 'Add-to-database completed successfully.',
+        'source_job_id' => $sourceJobId,
+        'mode' => $mode,
+        'message' => ($mode === 'add') ? 'Replay add-to-database completed successfully.' : 'Replay database reload completed successfully.',
         'inserted_count' => $inserted,
         'duplicate_count' => $duplicates,
         'duplicates' => $duplicateSamples,
         'steps' => $steps,
+        'table_counts' => $tableCounts,
     ];
-    if ($jobDir !== '' && is_dir($jobDir)) {
-        @file_put_contents($jobDir . '/result.json', json_encode($resultOut, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
-        @chmod($jobDir . '/result.json', 0640);
-    }
+
+    @file_put_contents($jobDir . '/result.json', json_encode($resultOut, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    @chmod($jobDir . '/result.json', 0640);
 
     http_response_code(200);
     header('Content-Type: application/json');
@@ -334,12 +486,15 @@ try {
 
     $resultOut = [
         'success' => false,
-        'job_id' => $jobId !== '' ? $jobId : null,
-        'error' => 'Import failed',
+        'job_id' => $jobId,
+        'source_job_id' => $sourceJobId,
+        'mode' => $mode,
+        'error' => 'Replay failed',
         'message' => $e->getMessage(),
         'steps' => $steps,
     ];
-    if ($jobDir !== '' && is_dir($jobDir)) {
+
+    if (isset($jobDir) && is_string($jobDir) && $jobDir !== '' && is_dir($jobDir)) {
         @file_put_contents($jobDir . '/result.json', json_encode($resultOut, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
         @chmod($jobDir . '/result.json', 0640);
     }

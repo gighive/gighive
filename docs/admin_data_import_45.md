@@ -103,16 +103,39 @@ Response reporting:
 
 ## Where the manifest is stored (directory/path)
 
-The manifest is **not written to disk on the server** by Section 4 or Section 5.
+Historically, the manifest was only sent in the HTTP request body and not persisted.
+Sections 4/5 now persist each uploaded manifest on the server as a “job” so you can recover after failures.
 
 - The client sends the manifest in the HTTP request body.
 - The server reads it with:
   - `file_get_contents('php://input')`
 
-The only server-side file created/used by these endpoints is a **lock file**:
+Server-side job storage:
+- `/var/www/private/import_jobs/<job_id>/`
+  - `manifest.json` (the original uploaded manifest)
+  - `meta.json` (mode, timestamps, request metadata)
+  - `result.json` (success/error + summary/steps from the run)
+
+The endpoints also use a **lock file**:
 - `/var/www/private/import_database.lock`
 
 That lock file is not the manifest; it only prevents two imports from running at the same time.
+
+## Manifest job persistence + recovery (new)
+
+Endpoints added for recovery:
+- `ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php`
+  - Lists recent jobs (by `mode=reload` or `mode=add`) for the Admin UI recovery panel
+- `ansible/roles/docker/files/apache/webroot/import_manifest_replay.php`
+  - Replays a saved job by `job_id` (runs the same import logic again using the saved `manifest.json`)
+
+Response change:
+- `import_manifest_reload.php` and `import_manifest_add.php` now include `job_id` in their JSON responses (success or failure) so you can identify the saved job to replay.
+
+Admin UI change:
+- Section 4 and Section 5 show:
+  - an always-visible “last job” status line
+  - a collapsed “Previous Jobs (Recovery)” panel that lists saved jobs and lets you replay them
 
 ## Hash cache behavior
 
