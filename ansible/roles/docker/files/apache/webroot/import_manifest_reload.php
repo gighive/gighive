@@ -57,6 +57,9 @@ $startStep('Insert files (dedupe by checksum_sha256)');
 $startStep('Link labels (songs)');
 
 $lockPath = '/var/www/private/import_database.lock';
+$jobRoot = '/var/www/private/import_jobs';
+$jobId = '';
+$jobDir = '';
 $lockFp = @fopen($lockPath, 'c');
 if (!$lockFp) {
     http_response_code(500);
@@ -156,6 +159,29 @@ try {
     }
 
     $finishStep(0, 'ok', 'Request received');
+
+    $jobId = gmdate('Ymd-His') . '-' . bin2hex(random_bytes(6));
+    $jobDir = $jobRoot . '/' . $jobId;
+    if (!is_dir($jobRoot) && !@mkdir($jobRoot, 0775, true)) {
+        throw new RuntimeException('Failed to create import root directory');
+    }
+    if (!@mkdir($jobDir, 0775, true)) {
+        throw new RuntimeException('Failed to create job directory');
+    }
+    $metaOut = [
+        'job_type' => 'manifest_import',
+        'mode' => 'reload',
+        'created_at' => gmdate('c'),
+        'item_count' => is_array($payload['items'] ?? null) ? count((array)$payload['items']) : 0,
+    ];
+    if (@file_put_contents($jobDir . '/meta.json', json_encode($metaOut, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX) === false) {
+        throw new RuntimeException('Failed to write meta.json');
+    }
+    @chmod($jobDir . '/meta.json', 0640);
+    if (@file_put_contents($jobDir . '/manifest.json', json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX) === false) {
+        throw new RuntimeException('Failed to write manifest.json');
+    }
+    @chmod($jobDir . '/manifest.json', 0640);
 
     $orgName = trim((string)($payload['org_name'] ?? 'default'));
     $eventType = trim((string)($payload['event_type'] ?? 'band'));
@@ -332,17 +358,24 @@ try {
         $tableCounts = [];
     }
 
-    http_response_code(200);
-    header('Content-Type: application/json');
-    echo json_encode([
+    $resultOut = [
         'success' => true,
+        'job_id' => $jobId,
         'message' => 'Database reload completed successfully.',
         'inserted_count' => $inserted,
         'duplicate_count' => $duplicates,
         'duplicates' => $duplicateSamples,
         'steps' => $steps,
         'table_counts' => $tableCounts,
-    ]);
+    ];
+    if ($jobDir !== '' && is_dir($jobDir)) {
+        @file_put_contents($jobDir . '/result.json', json_encode($resultOut, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        @chmod($jobDir . '/result.json', 0640);
+    }
+
+    http_response_code(200);
+    header('Content-Type: application/json');
+    echo json_encode($resultOut);
 
 } catch (Throwable $e) {
     $failedAt = null;
@@ -356,14 +389,21 @@ try {
         $finishStep($failedAt, 'error', $e->getMessage());
     }
 
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode([
+    $resultOut = [
         'success' => false,
+        'job_id' => $jobId !== '' ? $jobId : null,
         'error' => 'Import failed',
         'message' => $e->getMessage(),
         'steps' => $steps,
-    ]);
+    ];
+    if ($jobDir !== '' && is_dir($jobDir)) {
+        @file_put_contents($jobDir . '/result.json', json_encode($resultOut, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        @chmod($jobDir . '/result.json', 0640);
+    }
+
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode($resultOut);
 
 } finally {
     flock($lockFp, LOCK_UN);

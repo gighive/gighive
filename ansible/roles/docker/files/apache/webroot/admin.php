@@ -380,6 +380,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
 
       <div class="section-divider">
         <h2>Section 4: Choose a Folder to Scan &amp; Refresh the Database (destructive)</h2>
+        <div id="scanFolderImportLastJob" class="muted" style="margin:.25rem 0 .75rem 0"></div>
         <p class="muted">
           STEP 1: Select a folder on this computer to scan for media files and generate an import-ready CSV.
           This action is <strong>irreversible</strong> and will truncate all media tables before loading.
@@ -407,10 +408,25 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
         <button type="button" id="scanFolderBtn" class="danger" onclick="confirmScanFolderImport()" disabled>Scan Folder and Update DB</button>
         <button type="button" id="stopScanFolderBtn" class="danger" onclick="stopScanFolderImport()" disabled>Stop hashing and reload DB with hashed files</button>
         <button type="button" id="clearScanFolderCacheBtn" class="danger" onclick="clearScanFolderImportCache()" disabled>Clear cached hashes for this folder</button>
+
+        <details id="scanFolderImportJobsDetails" style="margin-top:1rem">
+          <summary class="muted" style="cursor:pointer">Previous Jobs (Recovery) <span id="scanFolderImportJobsBadge" class="muted"></span></summary>
+          <div style="margin-top:.75rem">
+            <div class="row">
+              <label for="scanFolderImportJobsSelect">Saved loads (most recent first)</label>
+              <select id="scanFolderImportJobsSelect" name="scanFolderImportJobsSelect" style="width:100%;padding:.7rem;border-radius:10px;border:1px solid #33427a;background:#0e1530;color:#e9eef7;">
+                <option value="" selected disabled>Loading…</option>
+              </select>
+            </div>
+            <div id="scanFolderImportReplayStatus"></div>
+            <button type="button" id="scanFolderImportReplayBtn" class="danger" onclick="replayManifestJob('reload')" disabled>Retry Load</button>
+          </div>
+        </details>
       </div>
 
       <div class="section-divider">
         <h2>Section 5: Choose a Folder to Scan &amp; Add to the Database (non-destructive)</h2>
+        <div id="scanFolderAddLastJob" class="muted" style="margin:.25rem 0 .75rem 0"></div>
         <p class="muted">
           STEP 1: Select a folder on this computer to scan for media files and <strong>add</strong> them to the existing database.
           This action does <strong>not</strong> truncate media tables.
@@ -434,6 +450,20 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
         <button type="button" id="scanFolderAddBtn" class="danger" onclick="confirmScanFolderAdd()" disabled>Scan Folder and Add to DB</button>
         <button type="button" id="stopScanFolderAddBtn" class="danger" onclick="stopScanFolderAdd()" disabled>Stop hashing and import hashed</button>
         <button type="button" id="clearScanFolderAddCacheBtn" class="danger" onclick="clearScanFolderAddCache()" disabled>Clear cached hashes for this folder</button>
+
+        <details id="scanFolderAddJobsDetails" style="margin-top:1rem">
+          <summary class="muted" style="cursor:pointer">Previous Jobs (Recovery) <span id="scanFolderAddJobsBadge" class="muted"></span></summary>
+          <div style="margin-top:.75rem">
+            <div class="row">
+              <label for="scanFolderAddJobsSelect">Saved adds (most recent first)</label>
+              <select id="scanFolderAddJobsSelect" name="scanFolderAddJobsSelect" style="width:100%;padding:.7rem;border-radius:10px;border:1px solid #33427a;background:#0e1530;color:#e9eef7;">
+                <option value="" selected disabled>Loading…</option>
+              </select>
+            </div>
+            <div id="scanFolderAddReplayStatus"></div>
+            <button type="button" id="scanFolderAddReplayBtn" class="danger" onclick="replayManifestJob('add')" disabled>Pick up where you left off (re-run with dedupe)</button>
+          </div>
+        </details>
       </div>
 
       <div class="section-divider">
@@ -553,6 +583,176 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       btn.textContent = 'Write Resize Request';
       btn.disabled = false;
     });
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c] || c));
+  }
+
+  function renderLastJobLine(job, mode) {
+    if (!job) {
+      return '<div class="muted">Status: No jobs run yet.</div>';
+    }
+    const st = String(job.state || 'unknown').toUpperCase();
+    const id = String(job.job_id || '');
+    const msg = String(job.message || '');
+    const itemCount = Number(job.item_count || 0);
+    const label = (mode === 'reload') ? 'Load' : 'Add';
+    if (st === 'ERROR') {
+      return '<div class="muted" style="color:#dc2626"><strong>Status: Last ' + label + ' job: ' + escapeHtml(id) + ' | State: ERROR</strong></div>'
+        + (msg ? ('<div class="muted" style="color:#dc2626">Message: ' + escapeHtml(msg) + '</div>') : '')
+        + '<div class="muted">Action: Expand “Previous Jobs (Recovery)” to retry from saved manifest.</div>';
+    }
+    if (st === 'OK') {
+      return '<div class="muted">Status: Last ' + label + ' job: ' + escapeHtml(id) + ' | State: OK' + (itemCount ? (' | Items: ' + itemCount) : '') + '</div>';
+    }
+    return '<div class="muted">Status: Last ' + label + ' job: ' + escapeHtml(id) + ' | State: ' + escapeHtml(st) + '</div>';
+  }
+
+  function setLastJobUi(mode, job) {
+    const el = (mode === 'reload') ? document.getElementById('scanFolderImportLastJob') : document.getElementById('scanFolderAddLastJob');
+    if (!el) return;
+    el.innerHTML = renderLastJobLine(job, mode);
+  }
+
+  function setJobsBadge(mode, jobs) {
+    const badge = (mode === 'reload') ? document.getElementById('scanFolderImportJobsBadge') : document.getElementById('scanFolderAddJobsBadge');
+    if (!badge) return;
+    const list = Array.isArray(jobs) ? jobs : [];
+    const failed = list.filter(j => String((j && j.state) || '').toLowerCase() === 'error').length;
+    const total = list.length;
+    if (!total) {
+      badge.textContent = '';
+      return;
+    }
+    badge.textContent = failed ? ('(' + failed + ' failed, ' + total + ' total)') : ('(' + total + ' total)');
+  }
+
+  function populateJobsSelect(mode, jobs) {
+    const sel = (mode === 'reload') ? document.getElementById('scanFolderImportJobsSelect') : document.getElementById('scanFolderAddJobsSelect');
+    const btn = (mode === 'reload') ? document.getElementById('scanFolderImportReplayBtn') : document.getElementById('scanFolderAddReplayBtn');
+    if (!sel) return;
+
+    const list = Array.isArray(jobs) ? jobs : [];
+    sel.innerHTML = '';
+    if (!list.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.disabled = true;
+      opt.selected = true;
+      opt.textContent = 'No saved jobs yet';
+      sel.appendChild(opt);
+      if (btn) btn.disabled = true;
+      return;
+    }
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    placeholder.textContent = 'Select a job…';
+    sel.appendChild(placeholder);
+
+    for (const j of list) {
+      const id = String((j && j.job_id) || '');
+      const st = String((j && j.state) || 'unknown').toUpperCase();
+      const count = Number((j && j.item_count) || 0);
+      const created = String((j && j.created_at) || '');
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = id + '  ' + st + (count ? ('  ' + count + ' items') : '') + (created ? ('  ' + created) : '');
+      sel.appendChild(opt);
+    }
+
+    sel.addEventListener('change', () => {
+      if (btn) btn.disabled = !(sel && sel.value);
+    }, { once: true });
+  }
+
+  async function loadManifestJobs(mode) {
+    const url = 'import_manifest_jobs.php?mode=' + encodeURIComponent(String(mode || '')) + '&limit=25';
+    const resp = await fetch(url, { method: 'GET' });
+    const data = await resp.json().catch(() => null);
+    if (!(resp.ok && data && data.success && Array.isArray(data.jobs))) {
+      return { ok: false, jobs: [] };
+    }
+    return { ok: true, jobs: data.jobs };
+  }
+
+  async function refreshManifestJobsUi() {
+    try {
+      const reload = await loadManifestJobs('reload');
+      const add = await loadManifestJobs('add');
+
+      setJobsBadge('reload', reload.jobs);
+      setJobsBadge('add', add.jobs);
+
+      populateJobsSelect('reload', reload.jobs);
+      populateJobsSelect('add', add.jobs);
+
+      setLastJobUi('reload', (reload.jobs && reload.jobs.length) ? reload.jobs[0] : null);
+      setLastJobUi('add', (add.jobs && add.jobs.length) ? add.jobs[0] : null);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  async function replayManifestJob(mode) {
+    const sel = (mode === 'reload') ? document.getElementById('scanFolderImportJobsSelect') : document.getElementById('scanFolderAddJobsSelect');
+    const status = (mode === 'reload') ? document.getElementById('scanFolderImportReplayStatus') : document.getElementById('scanFolderAddReplayStatus');
+    const btn = (mode === 'reload') ? document.getElementById('scanFolderImportReplayBtn') : document.getElementById('scanFolderAddReplayBtn');
+
+    const jobId = sel && sel.value ? String(sel.value).trim() : '';
+    if (!jobId) {
+      if (status) status.innerHTML = '<div class="alert-err">Please select a job first.</div>';
+      return;
+    }
+
+    const confirmText = (mode === 'reload')
+      ? 'Retry Load from saved manifest?\n\nThis will TRUNCATE and rebuild the database.'
+      : 'Pick up where you left off?\n\nThis will re-run the add import; already-imported items will be skipped by SHA-256.';
+
+    if (!confirm(confirmText + '\n\nJob: ' + jobId)) {
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Replaying…';
+    }
+    if (status) status.innerHTML = '<div class="muted">Replaying job…</div>';
+
+    try {
+      const resp = await fetch('import_manifest_replay.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId })
+      });
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && data && data.success) {
+        const msg = (data.message || 'Replay completed successfully.');
+        const jid = data.job_id ? ('<div class="muted">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
+        if (mode === 'reload') {
+          if (status) status.innerHTML = '<div class="alert-ok">' + escapeHtml(String(msg)) + jid + '</div>'
+            + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
+        } else {
+          if (status) status.innerHTML = '<div class="alert-ok">' + escapeHtml(String(msg)) + jid + '</div>'
+            + renderAddReport(data)
+            + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
+        }
+      } else {
+        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+        if (status) status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
+          + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
+      }
+    } catch (e) {
+      if (status) status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(String((e && e.message) ? e.message : e)) + '</div>';
+    } finally {
+      if (btn) {
+        btn.textContent = (mode === 'reload') ? 'Retry Load' : 'Pick up where you left off (re-run with dedupe)';
+        btn.disabled = !(sel && sel.value);
+      }
+      refreshManifestJobsUi();
+    }
   }
 
   function confirmClearMedia() {
@@ -1687,7 +1887,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       } else {
         const elapsed = formatElapsed(Date.now() - getRunStartedAt());
         if (statusEl) {
-          statusEl.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed + ')</div>'
+          statusEl.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', total size of hashed so far: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed + ')</div>'
             + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>';
         }
 
@@ -1716,7 +1916,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
             }
 
             if (statusEl) {
-              statusEl.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', size of hashed: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed2 + ', ' + etaText + ')</div>'
+              statusEl.innerHTML = '<div class="muted">Hashing ' + (i + 1) + ' / ' + supported.length + '… (cached: ' + cachedCount + ', hashed: ' + hashedCount + ', total size of hashed so far: ' + formatBytes(hashedBytes) + ', elapsed: ' + elapsed2 + ', ' + etaText + ')</div>'
                 + '<div class="muted" style="margin-top:.25rem">Current file: ' + String(relpath || file.name).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + ' (' + formatBytes(sizeBytes) + ')</div>'
                 + '<div class="muted" style="margin-top:.25rem">File progress: ' + pct + '% (' + formatBytes(bytesDone) + ' / ' + formatBytes(bytesTotal) + ')</div>';
             }
@@ -2188,7 +2388,9 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       getRunStartedAt: () => _scanFolderImportRunStartedAt,
       getFolderKeyForCache: () => _scanFolderImportFolderKey,
       onSuccess: (data) => {
+        const jid = (data && data.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
         scanFolderStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Database reload completed successfully.'), 'See Updated Database')
+          + jid
           + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         scanFolderBtn.textContent = 'Import Completed';
         scanFolderBtn.disabled = false;
@@ -2211,7 +2413,9 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       },
       onError: (data) => {
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+        const jid = (data && data.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
         scanFolderStatus.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+          + jid
           + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
       }
@@ -2265,7 +2469,9 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       getRunStartedAt: () => _scanFolderAddRunStartedAt,
       getFolderKeyForCache: () => _scanFolderAddFolderKey,
       onSuccess: (data) => {
+        const jid = (data && data.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
         scanFolderAddStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Add-to-database completed successfully.'), 'See Updated Database')
+          + jid
           + renderAddReport(data)
           + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
 
@@ -2292,12 +2498,18 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       },
       onError: (data) => {
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+        const jid = (data && data.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
         scanFolderAddStatus.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+          + jid
           + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
       }
     });
   }
+
+  window.addEventListener('load', () => {
+    refreshManifestJobsUi();
+  });
   </script>
 </body>
 </html>
