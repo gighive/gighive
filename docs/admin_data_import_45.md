@@ -2,6 +2,83 @@
 
 This document explains how to use **Section 4** and **Section 5** on `admin.php` to import media metadata into the GigHive database.
 
+## Two-step process (important)
+
+Getting media fully “into GigHive” is a two-step workflow:
+
+1. **STEP 1 (Admin Sections 4/5):** Select a folder on this computer, scan for supported media files, compute SHA-256 hashes, and import the **metadata + hashes** into the database.
+2. **STEP 2 (Upload actual files):** After STEP 1, upload/copy the actual media files to the GigHive server using `upload_media_by_hash.py` from the same source folder.
+
+STEP 2 prerequisites:
+
+- `python3`
+- `mysql-client` (provides the MySQL CLI used by the script)
+- Python package `PyYAML`
+
+Example install (Ubuntu/Debian):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y mysql-client python3-pip
+python3 -m pip install --user PyYAML
+```
+
+### STEP 2 command examples
+
+Run these commands from (or referencing) the same source folder you selected in STEP 1.
+
+Option A: password via environment variable (recommended vs putting the password on the command line)
+
+```bash
+export MYSQL_PASSWORD='[password]'
+python3 ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py \
+  --source-root "$HOME/videos/projects" \
+  --ssh-target ubuntu@gighive \
+  --db-host gighive \
+  --db-user appuser \
+  --db-name music_db
+```
+
+Option B: inline `MYSQL_PASSWORD` (one-liner)
+
+```bash
+MYSQL_PASSWORD='[password]' python3 ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py \
+  --source-root "$HOME/videos/projects" \
+  --ssh-target ubuntu@gighive \
+  --db-host gighive \
+  --db-user appuser \
+  --db-name music_db
+```
+
+Option C: MySQL login stored in a local client config (no env var)
+
+1. Create `~/.my.cnf`:
+
+```ini
+[client]
+user=appuser
+password=[password]
+host=gighive
+database=music_db
+```
+
+2. Lock down permissions:
+
+```bash
+chmod 600 ~/.my.cnf
+```
+
+3. Run the uploader without `MYSQL_PASSWORD` (the script will use the MySQL client defaults):
+
+```bash
+python3 ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py \
+  --source-root "$HOME/videos/projects" \
+  --ssh-target ubuntu@gighive \
+  --db-host gighive \
+  --db-user appuser \
+  --db-name music_db
+```
+
 ## How to use Sections 4/5 (high level)
 
 ### What Sections 4/5 do
