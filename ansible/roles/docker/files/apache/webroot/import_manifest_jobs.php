@@ -54,11 +54,19 @@ try {
             'success' => true,
             'mode' => $mode,
             'jobs' => [],
+            'last_job' => null,
+            'counts' => [
+                'total' => 0,
+                'ok' => 0,
+                'error' => 0,
+                'unknown' => 0,
+                'waiting' => 0,
+            ],
         ]);
         exit;
     }
 
-    $jobs = [];
+    $allJobs = [];
     $it = new DirectoryIterator($jobRoot);
     foreach ($it as $fi) {
         if (!$fi->isDir() || $fi->isDot()) {
@@ -112,7 +120,7 @@ try {
         }
         $itemCount = (int)($meta['item_count'] ?? 0);
 
-        $jobs[] = [
+        $allJobs[] = [
             'job_id' => $jobId,
             'mode' => $mode,
             'created_at' => $createdAt,
@@ -122,10 +130,31 @@ try {
         ];
     }
 
-    usort($jobs, static function ($a, $b) {
+    usort($allJobs, static function ($a, $b) {
         return strcmp((string)($b['job_id'] ?? ''), (string)($a['job_id'] ?? ''));
     });
 
+    $counts = [
+        'total' => count($allJobs),
+        'ok' => 0,
+        'error' => 0,
+        'unknown' => 0,
+        'waiting' => 0,
+    ];
+    foreach ($allJobs as $j) {
+        $st = (string)($j['state'] ?? 'unknown');
+        if ($st === 'ok') $counts['ok']++;
+        else if ($st === 'error') $counts['error']++;
+        else $counts['unknown']++;
+    }
+    $counts['waiting'] = $counts['error'] + $counts['unknown'];
+
+    $lastJob = $allJobs ? $allJobs[0] : null;
+
+    // For the Recovery UI, return only jobs that are not ok (error/unknown).
+    $jobs = array_values(array_filter($allJobs, static function ($j) {
+        return (string)($j['state'] ?? 'unknown') !== 'ok';
+    }));
     $jobs = array_slice($jobs, 0, $limit);
 
     http_response_code(200);
@@ -134,6 +163,8 @@ try {
         'success' => true,
         'mode' => $mode,
         'jobs' => $jobs,
+        'last_job' => $lastJob,
+        'counts' => $counts,
     ]);
 
 } catch (Throwable $e) {

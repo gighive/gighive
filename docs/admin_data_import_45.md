@@ -1,151 +1,95 @@
-# Admin UI: Data Import via Sections 4 and 5
+# Admin UI: Data Import (Sections 4 & 5)
 
-This note documents how **Section 4** and **Section 5** on `admin.php` work for importing media metadata into the GigHive database.
+This document explains how to use **Section 4** and **Section 5** on `admin.php` to import media metadata into the GigHive database.
 
-Source file:
-- `ansible/roles/docker/files/apache/webroot/admin.php`
+## How to use Sections 4/5 (high level)
 
-Related endpoints:
-- `ansible/roles/docker/files/apache/webroot/import_manifest_reload.php`
-- `ansible/roles/docker/files/apache/webroot/import_manifest_add.php`
-
-## High-level idea
+### What Sections 4/5 do
 
 Both sections:
-- Let you pick a **local folder** in the browser.
-- Filter to “supported” media files.
-- Compute **SHA-256** checksums **in the browser**.
-- POST a JSON “manifest” (metadata + checksum) to the server.
-- The server validates the request and imports metadata into MySQL.
 
-The key difference:
-- **Section 4**: destructive **reload** (truncates/rebuilds media tables).
-- **Section 5**: non-destructive **add** (keeps existing media tables; inserts new + skips duplicates).
+- Let you pick a folder on your local machine in the browser.
+- Filter to supported media files.
+- Compute **SHA-256 checksums in the browser**.
+- Upload a JSON “manifest” (metadata + checksums) to the server.
+- The server imports metadata into MySQL.
 
-## What the “manifest” is
+The difference:
 
-In both Section 4 and Section 5, the client builds a JSON payload containing:
-- `org_name` (hard-coded in the JS payload as `'default'`)
-- `event_type` (hard-coded as `'band'`)
-- `items`: array of objects, one per media file
+- **Section 4 (Reload / destructive)**: truncates and rebuilds media tables.
+- **Section 5 (Add / non-destructive)**: keeps existing tables; inserts new files; duplicates are skipped.
 
-Each `items[]` entry includes:
-- `file_name`
-- `source_relpath`
-- `file_type` (e.g. `audio` or `video`)
-- `event_date` (derived from file naming/structure logic)
-- `size_bytes`
-- `checksum_sha256` (SHA-256 hex)
+### Typical workflow
 
-## Section 4: Folder scan + refresh DB (destructive)
+1. In **Section 4** or **Section 5**, click **Browse…** and choose your media folder.
+2. Click the main action button:
+   - Section 4: **Scan Folder and Update DB**
+   - Section 5: **Scan Folder and Add to DB**
+3. Wait for hashing to finish (this can take a while for large folders).
+4. After hashing completes, the browser uploads the manifest and the server starts a background DB import.
+5. When the DB import finishes, the UI shows a final **OK** or **Error** result.
 
-UI elements:
-- Folder input: `#media_folder` (`webkitdirectory`, `multiple`)
-- Buttons:
-  - “Scan Folder and Update DB”
-  - “Stop hashing and reload DB with hashed files”
-  - “Clear cached hashes for this folder”
+### What the status and progress mean
 
-Client-side flow (`confirmScanFolderImport()`):
-1. **Collect files** from the selected folder.
-2. **Filter** files:
-   - Excludes zero-byte files.
-   - Keeps only files with an extension in `MEDIA_EXTS`.
-   - Requires a recognized `file_type` via `inferFileTypeFromName(...)`.
-3. **Hash** each supported file:
-   - Uses SHA-256.
-   - Shows progress, elapsed time, and ETA.
-   - Supports “Stop” via `AbortController`.
-4. Builds the `items[]` manifest entries.
-5. POSTs JSON to:
-   - `import_manifest_reload.php`
+- **Status line (top of section)**
+  - Shows the latest completed job for that section (e.g. last Reload job).
+- **Job header while running**
+  - Shows `Job <job_id>: queued/running/...` and an elapsed time counter.
+- **Progress steps**
+  - Each step shows `OK`, `PENDING`, or `ERROR`.
+  - For long steps like **Insert files**, you may see a progress meter (processed/total).
 
-Server-side effect (`import_manifest_reload.php`):
-- Validates the JSON body.
-- Uses a lock to prevent concurrent imports.
-- **Truncates media tables** (sessions/songs/files/etc.).
-- Seeds `genres` and `styles`.
-- Upserts sessions.
-- Inserts files, deduping by `checksum_sha256`.
-- Creates/links song labels based on file name.
+### Canceling a DB import
 
-## Section 5: Folder scan + add to DB (non-destructive)
+- While a DB import is running, the button changes to **Cancel DB import**.
+- Clicking it submits a cancellation request and the UI shows a confirmation message.
+- Cancellation is cooperative: the worker stops at the next safe checkpoint.
 
-UI elements:
-- Folder input: `#media_folder_add` (`webkitdirectory`, `multiple`)
-- Buttons:
-  - “Scan Folder and Add to DB”
-  - “Stop hashing and import hashed”
-  - “Clear cached hashes for this folder”
+### Recovery / Replay (when something failed)
 
-Client-side flow:
-- Same shape as Section 4:
-  - collect files
-  - filter supported files
-  - hash (SHA-256) client-side
-  - POST manifest
-- POSTs JSON to:
-  - `import_manifest_add.php`
+- Expand **Previous Jobs (Recovery)**.
+- This list is intentionally focused on jobs that are **not OK** (failed or incomplete).
+- Select a job and click **Replay** to re-run it from the saved manifest.
 
-Server-side effect (`import_manifest_add.php`):
-- Validates the JSON body.
-- Uses the same lock to prevent concurrent imports.
-- **Does not truncate tables**.
-- Ensures sessions exist.
-- Inserts files and handles duplicates (based on DB constraints / checksum checks).
-- Creates/links song labels based on file name.
+### After metadata import: uploading the actual media files
 
-Response reporting:
-- The UI renders an “Add-to-DB summary” using fields like:
-  - `inserted_count`
-  - `duplicate_count`
-  - optional `duplicates` sample list
+Sections 4/5 import **metadata + hashes**. After the DB import, upload/copy media to the server using the `upload_media_by_hash.py` tool referenced in the UI.
 
-## Where the manifest is stored (directory/path)
+## Architecture & implementation notes
 
-Historically, the manifest was only sent in the HTTP request body and not persisted.
-Sections 4/5 now persist each uploaded manifest on the server as a “job” so you can recover after failures.
+### Manifest and hashing
 
-- The client sends the manifest in the HTTP request body.
-- The server reads it with:
-  - `file_get_contents('php://input')`
+- The browser computes SHA-256 for supported files and builds a JSON manifest.
+- Each manifest item includes (at minimum):
+  - `file_name`, `source_relpath`, `file_type`, `event_date`, `size_bytes`, `checksum_sha256`.
+- Hashes are cached client-side (browser storage). **Clear cached hashes** resets that client-side cache.
 
-Server-side job storage:
-- `/var/www/private/import_jobs/<job_id>/`
-  - `manifest.json` (the original uploaded manifest)
-  - `meta.json` (mode, timestamps, request metadata)
-  - `result.json` (success/error + summary/steps from the run)
+### Async job model
 
-The endpoints also use a **lock file**:
-- `/var/www/private/import_database.lock`
+- Imports are persisted as jobs under:
+  - `/var/www/private/import_jobs/<job_id>/`
+    - `meta.json` (job type/mode/timestamps)
+    - `manifest.json` (the uploaded manifest)
+    - `status.json` (live status for polling)
+    - `result.json` (final output)
+- A background worker performs the DB work and updates `status.json` during processing.
 
-That lock file is not the manifest; it only prevents two imports from running at the same time.
+### Concurrency control
 
-## Manifest job persistence + recovery (new)
+- A database lock file prevents concurrent imports:
+  - `/var/www/private/import_database.lock`
+- A worker lock directory ensures only one worker runs at a time:
+  - `/var/www/private/import_worker.lock`
 
-Endpoints added for recovery:
-- `ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php`
-  - Lists recent jobs (by `mode=reload` or `mode=add`) for the Admin UI recovery panel
-- `ansible/roles/docker/files/apache/webroot/import_manifest_replay.php`
-  - Replays a saved job by `job_id` (runs the same import logic again using the saved `manifest.json`)
+### Polling and caching
 
-Response change:
-- `import_manifest_reload.php` and `import_manifest_add.php` now include `job_id` in their JSON responses (success or failure) so you can identify the saved job to replay.
+- The UI polls `import_manifest_status.php?job_id=...` to show live status.
+- `import_manifest_*.php` endpoints are configured to be **no-store/no-cache** to prevent stale “queued” responses.
 
-Admin UI change:
-- Section 4 and Section 5 show:
-  - an always-visible “last job” status line
-  - a collapsed “Previous Jobs (Recovery)” panel that lists saved jobs and lets you replay them
+### Recovery endpoints
 
-## Hash cache behavior
+- `import_manifest_jobs.php`
+  - Returns `last_job` and a Recovery list (typically error/unknown only).
+- `import_manifest_replay.php`
+  - Starts an async replay job from a previously saved `manifest.json`.
 
-The hashing cache referenced by the UI (“Clear cached hashes for this folder”) is implemented client-side in the browser via helper functions (e.g. `getCachedSha256`, `putCachedSha256`, `clearCachedSha256ForFolder`). This is separate from any server filesystem path.
-
-## Relationship to `upload_media_by_hash.py`
-
-Sections 4/5 primarily import **metadata + checksums** into MySQL.
-
-The UI then points you at:
-- `ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py`
-
-That script is used to upload/copy the **actual media files** to the server keyed by hash (so the DB rows and server-side file storage can line up).

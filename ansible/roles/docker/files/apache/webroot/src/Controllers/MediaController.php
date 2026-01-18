@@ -334,6 +334,7 @@ final class MediaController
         $page = self::getPageFromRequest();
         $pageCount = 1;
         $paginationEnabled = $totalRows >= $threshold;
+        $offset = 0;
 
         if ($paginationEnabled) {
             $pageCount = (int)max(1, (int)ceil($totalRows / $pageSize));
@@ -366,7 +367,7 @@ final class MediaController
             $targetDate = '';
         }
 
-        $counter = 1;
+        $counter = $paginationEnabled ? ($offset + 1) : 1;
         $viewRows = [];
         foreach ($rows as $row) {
             $id        = isset($row['id']) ? (string)$row['id'] : '';
@@ -461,6 +462,7 @@ final class MediaController
         $page = self::getPageFromRequest();
         $pageCount = 1;
         $paginationEnabled = $totalRows >= $threshold;
+        $offset = 0;
 
         if ($paginationEnabled) {
             $pageCount = (int)max(1, (int)ceil($totalRows / $pageSize));
@@ -482,7 +484,7 @@ final class MediaController
             }
         }
 
-        $counter = 1;
+        $counter = $paginationEnabled ? ($offset + 1) : 1;
         $entries = [];
         foreach ($rows as $row) {
             $id        = isset($row['id']) ? (int)$row['id'] : 0;
