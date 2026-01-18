@@ -396,11 +396,11 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
           <div style="margin-top:.5rem">STEP 2: After you create the hashes for the files, you will need to upload them to the Gighive server.<br>Use the following command from the source folder you selected in Step 1 (mine was "~/videos/projects"). Note that you'll need mysql-client and PyYAML installed to run this script.:<br><pre class="cmdline">sodo@pop-os:~/videos/projects$ MYSQL_PASSWORD='[password]' python3 ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py  --source-root /videos/projects   --ssh-target ubuntu@gighive   --db-host gighive   --db-user appuser   --db-name music_db</pre></div>
           <div>- <a href="https://gighive.app/uploadMediaByHash.html" target="_blank" rel="noopener noreferrer">More info here</a></div>
         </div>
-        <div class="warning-box">
+        <div class="alert" style="margin-top:1rem">
           <strong>⚠️ Warning:</strong> This will truncate and rebuild the media tables. Make sure you have a database backup if you want to keep existing data.
         </div>
         <div class="row">
-          <label for="media_folder">Select folder</label>
+          <label id="scanFolderImportSourceLabel" for="media_folder">Please select a folder for upload:</label>
           <input type="file" id="media_folder" name="media_folder" webkitdirectory directory multiple />
         </div>
         <div id="scanFolderPreview"></div>
@@ -444,7 +444,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
         <div id="scanFolderAddPreview"></div>
         <div id="scanFolderAddStatus"></div>
         <div class="row" style="margin-top:.75rem">
-          <label class="muted" style="display:block;margin-bottom:.35rem">Source root (chosen folder):</label>
+          <label id="scanFolderAddSourceLabel" style="display:block;margin-bottom:.35rem">Please select a folder for upload:</label>
           <input type="file" id="media_folder_add" name="media_folder_add" webkitdirectory directory multiple />
         </div>
         <button type="button" id="scanFolderAddBtn" class="danger" onclick="confirmScanFolderAdd()" disabled>Scan Folder and Add to DB</button>
@@ -585,6 +585,98 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     });
   }
 
+  async function pollManifestJob(jobId, mode, opts) {
+    const statusEl = opts && opts.statusEl;
+    const setUiState = (opts && typeof opts.setUiState === 'function') ? opts.setUiState : null;
+    const onDone = (opts && typeof opts.onDone === 'function') ? opts.onDone : null;
+    const cancelBtn = opts && opts.cancelBtn;
+    const startedAt = Date.now();
+
+    const renderPollingHeader = (state, message) => {
+      const elapsed = formatElapsed(Date.now() - startedAt);
+      const s = escapeHtml(String(state || ''));
+      const m = escapeHtml(String(message || ''));
+      return '<div class="muted">Job ' + escapeHtml(String(jobId)) + ': ' + s + (m ? (' — ' + m) : '') + ' (elapsed: ' + elapsed + ')</div>';
+    };
+
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return;
+      try {
+        const resp = await fetch(
+          'import_manifest_status.php?job_id=' + encodeURIComponent(String(jobId)) + '&_t=' + String(Date.now()),
+          { method: 'GET', cache: 'no-store' }
+        );
+        const data = await resp.json().catch(() => null);
+        const state = (data && data.state) ? String(data.state) : 'queued';
+        const steps = (data && data.steps) ? data.steps : null;
+        const result = (data && data.result) ? data.result : null;
+
+        if (statusEl) {
+          const head = renderPollingHeader(state, data && data.message ? data.message : '');
+          const stepsHtml = steps ? renderImportSteps(steps, (result && result.table_counts) ? result.table_counts : (data && data.table_counts ? data.table_counts : null), jobId) : '';
+          statusEl.innerHTML = head + stepsHtml;
+        }
+
+        if (state === 'ok' || state === 'error' || state === 'canceled') {
+          stopped = true;
+          if (onDone) onDone({ state, result, data });
+          return;
+        }
+      } catch (e) {
+        if (statusEl) {
+          statusEl.innerHTML = '<div class="alert-err">Network error while polling job status: ' + escapeHtml(String((e && e.message) ? e.message : e)) + '</div>';
+        }
+      }
+
+      const elapsedMs = Date.now() - startedAt;
+      const delay = elapsedMs < 15000 ? 1000 : 2500;
+      setTimeout(tick, delay);
+    };
+
+    if (setUiState) setUiState('uploading', '<div class="muted">Upload finished. Job queued. Polling status…</div>');
+
+    if (cancelBtn) {
+      cancelBtn.disabled = false;
+      cancelBtn.classList.add('danger');
+      if (mode === 'reload') {
+        cancelBtn.textContent = 'Cancel DB import (DB may be incomplete)';
+      } else {
+        cancelBtn.textContent = 'Cancel DB import';
+      }
+      cancelBtn.onclick = () => requestCancelManifestJob(jobId, mode, { statusEl });
+    }
+
+    tick();
+  }
+
+  async function requestCancelManifestJob(jobId, mode, opts) {
+    const statusEl = opts && opts.statusEl;
+    const jid = String(jobId || '').trim();
+    if (!jid) return;
+
+    if (mode === 'reload') {
+      const ok = confirm('Cancel this reload job?\n\nThe database may be left incomplete and you may need to run reload again to fix it.');
+      if (!ok) return;
+    }
+
+    try {
+      if (statusEl) {
+        statusEl.innerHTML = '<div class="alert-err">User cancellation request submitted… please wait.</div>'
+          + '<div class="muted" style="color:#dc2626"><strong>Job: ' + escapeHtml(jid) + '</strong></div>'
+          + (statusEl.innerHTML || '');
+      }
+      const resp = await fetch('import_manifest_cancel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jid })
+      });
+      await resp.json().catch(() => null);
+    } catch (e) {
+      if (statusEl) statusEl.innerHTML = '<div class="alert-err">Error requesting cancel: ' + escapeHtml(String((e && e.message) ? e.message : e)) + '</div>';
+    }
+  }
+
   function escapeHtml(s) {
     return String(s || '').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c] || c));
   }
@@ -615,17 +707,49 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     el.innerHTML = renderLastJobLine(job, mode);
   }
 
-  function setJobsBadge(mode, jobs) {
+  function setJobsSummary(mode, waitingCount) {
+    const details = (mode === 'reload')
+      ? document.getElementById('scanFolderImportJobsDetails')
+      : document.getElementById('scanFolderAddJobsDetails');
+    if (!details) return;
+    const summary = details.querySelector('summary');
+    if (!summary) return;
+
+    const warningText = 'THERE ARE PREVIOUS, UNCOMPLETED JOBS WAITING FOR YOU TO RUN';
+    const normalText = 'Previous Jobs (Recovery)';
+    const wantText = (Number(waitingCount) || 0) > 0 ? warningText : normalText;
+    const wantColor = (Number(waitingCount) || 0) > 0 ? '#dc2626' : '';
+
+    // Preserve the existing badge span inside the summary.
+    let textNode = null;
+    for (const n of summary.childNodes) {
+      if (n && n.nodeType === 3) { textNode = n; break; }
+    }
+    if (!textNode) {
+      textNode = document.createTextNode('');
+      summary.insertBefore(textNode, summary.firstChild);
+    }
+    textNode.nodeValue = wantText + ' ';
+    summary.style.color = wantColor;
+  }
+
+  function setJobsBadge(mode, jobs, counts) {
     const badge = (mode === 'reload') ? document.getElementById('scanFolderImportJobsBadge') : document.getElementById('scanFolderAddJobsBadge');
     if (!badge) return;
     const list = Array.isArray(jobs) ? jobs : [];
     const failed = list.filter(j => String((j && j.state) || '').toLowerCase() === 'error').length;
-    const total = list.length;
-    if (!total) {
+    const notCompleted = list.filter(j => String((j && j.state) || '').toLowerCase() === 'unknown').length;
+    const waiting = Number(counts && counts.waiting) || list.length;
+    if (!waiting) {
       badge.textContent = '';
       return;
     }
-    badge.textContent = failed ? ('(' + failed + ' failed, ' + total + ' total)') : ('(' + total + ' total)');
+
+    const parts = [];
+    parts.push('WAITING: ' + waiting);
+    if (failed) parts.push('FAILED: ' + failed);
+    if (notCompleted) parts.push('NOT COMPLETED: ' + notCompleted);
+    badge.textContent = '(' + parts.join(' | ') + ')';
   }
 
   function populateJobsSelect(mode, jobs) {
@@ -654,7 +778,8 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
 
     for (const j of list) {
       const id = String((j && j.job_id) || '');
-      const st = String((j && j.state) || 'unknown').toUpperCase();
+      const raw = String((j && j.state) || 'unknown').toLowerCase();
+      const st = raw === 'error' ? 'FAILED' : (raw === 'unknown' ? 'NOT COMPLETED' : raw.toUpperCase());
       const count = Number((j && j.item_count) || 0);
       const created = String((j && j.created_at) || '');
       const opt = document.createElement('option');
@@ -673,9 +798,14 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     const resp = await fetch(url, { method: 'GET' });
     const data = await resp.json().catch(() => null);
     if (!(resp.ok && data && data.success && Array.isArray(data.jobs))) {
-      return { ok: false, jobs: [] };
+      return { ok: false, jobs: [], last_job: null, counts: null };
     }
-    return { ok: true, jobs: data.jobs };
+    return {
+      ok: true,
+      jobs: data.jobs,
+      last_job: (data && data.last_job) ? data.last_job : null,
+      counts: (data && data.counts) ? data.counts : null,
+    };
   }
 
   async function refreshManifestJobsUi() {
@@ -683,14 +813,17 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       const reload = await loadManifestJobs('reload');
       const add = await loadManifestJobs('add');
 
-      setJobsBadge('reload', reload.jobs);
-      setJobsBadge('add', add.jobs);
+      setJobsSummary('reload', reload && reload.counts ? reload.counts.waiting : (reload.jobs ? reload.jobs.length : 0));
+      setJobsSummary('add', add && add.counts ? add.counts.waiting : (add.jobs ? add.jobs.length : 0));
+
+      setJobsBadge('reload', reload.jobs, reload.counts);
+      setJobsBadge('add', add.jobs, add.counts);
 
       populateJobsSelect('reload', reload.jobs);
       populateJobsSelect('add', add.jobs);
 
-      setLastJobUi('reload', (reload.jobs && reload.jobs.length) ? reload.jobs[0] : null);
-      setLastJobUi('add', (add.jobs && add.jobs.length) ? add.jobs[0] : null);
+      setLastJobUi('reload', reload && reload.last_job ? reload.last_job : null);
+      setLastJobUi('add', add && add.last_job ? add.last_job : null);
     } catch (e) {
       // ignore
     }
@@ -728,25 +861,65 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
         body: JSON.stringify({ job_id: jobId })
       });
       const data = await resp.json().catch(() => null);
-      if (resp.ok && data && data.success) {
-        const msg = (data.message || 'Replay completed successfully.');
-        const jid = data.job_id ? ('<div class="muted">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
-        if (mode === 'reload') {
-          if (status) status.innerHTML = '<div class="alert-ok">' + escapeHtml(String(msg)) + jid + '</div>'
-            + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
-        } else {
-          if (status) status.innerHTML = '<div class="alert-ok">' + escapeHtml(String(msg)) + jid + '</div>'
-            + renderAddReport(data)
-            + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
-        }
+
+      const startPolling = (newJobId) => {
+        const jidLine = '<div class="muted" style="margin-top:.25rem">Replay started. Job: ' + escapeHtml(String(newJobId)) + '</div>';
+        if (status) status.innerHTML = jidLine;
+        pollManifestJob(String(newJobId), mode, {
+          statusEl: status,
+          setUiState: null,
+          cancelBtn: null,
+          onDone: ({ state, result, data: latest }) => {
+            const final = result || latest;
+            if (state === 'canceled') {
+              const jid2 = (final && final.job_id) ? ('<div class="muted">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              if (status) status.innerHTML = '<div class="alert-err">Canceled by user.</div>'
+                + jid2
+                + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+            } else if (state === 'ok' && final && final.success) {
+              const msg = (final.message || 'Replay completed successfully.');
+              const jid2 = final.job_id ? ('<div class="muted">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              if (mode === 'reload') {
+                if (status) status.innerHTML = '<div class="alert-ok">' + escapeHtml(String(msg)) + jid2 + '</div>'
+                  + (final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              } else {
+                if (status) status.innerHTML = '<div class="alert-ok">' + escapeHtml(String(msg)) + jid2 + '</div>'
+                  + renderAddReport(final)
+                  + (final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              }
+            } else {
+              const msg = (final && (final.message || final.error)) ? (final.message || final.error) : 'Unknown error occurred';
+              const jid2 = (final && final.job_id) ? ('<div class="muted">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              if (status) status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
+                + jid2
+                + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+            }
+
+            if (btn) {
+              btn.textContent = (mode === 'reload') ? 'Retry Load' : 'Pick up where you left off (re-run with dedupe)';
+              btn.disabled = !(sel && sel.value);
+            }
+            refreshManifestJobsUi();
+          }
+        });
+      };
+
+      if (resp.ok && data && data.success && data.job_id) {
+        startPolling(String(data.job_id));
+      } else if (resp.status === 409 && data && data.job_id) {
+        if (status) status.innerHTML = '<div class="muted" style="color:#dc2626"><strong>Job ' + escapeHtml(String(data.job_id)) + ' is already running… switching to status polling.</strong></div>';
+        startPolling(String(data.job_id));
       } else {
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
-        if (status) status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
-          + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
+        if (status) status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>';
+        if (btn) {
+          btn.textContent = (mode === 'reload') ? 'Retry Load' : 'Pick up where you left off (re-run with dedupe)';
+          btn.disabled = !(sel && sel.value);
+        }
+        refreshManifestJobsUi();
       }
     } catch (e) {
       if (status) status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(String((e && e.message) ? e.message : e)) + '</div>';
-    } finally {
       if (btn) {
         btn.textContent = (mode === 'reload') ? 'Retry Load' : 'Pick up where you left off (re-run with dedupe)';
         btn.disabled = !(sel && sel.value);
@@ -1038,6 +1211,8 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
   function renderImportSteps(steps, tableCounts) {
     if (!Array.isArray(steps)) return '';
     const counts = (tableCounts && typeof tableCounts === 'object') ? tableCounts : null;
+    const jobId = arguments.length >= 3 ? arguments[2] : null;
+    const now = Date.now();
     const stepToTable = {
       'Load sessions': 'sessions',
       'Load musicians': 'musicians',
@@ -1052,6 +1227,47 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       const status = s.status || 'pending';
       const name = s.name || '';
       let msg = s.message || '';
+
+      const progress = (s && typeof s === 'object' && s.progress && typeof s.progress === 'object') ? s.progress : null;
+      const processed = progress ? Number(progress.processed) : NaN;
+      const total = progress ? Number(progress.total) : NaN;
+      const hasProgress = Number.isFinite(processed) && Number.isFinite(total) && total > 0;
+      const pct = hasProgress ? Math.max(0, Math.min(100, Math.round((processed / total) * 100))) : 0;
+
+      let etaText = '';
+      if (hasProgress && jobId && processed > 0 && processed < total) {
+        const stepId = (s && typeof s === 'object' && (s.index !== undefined && s.index !== null)) ? String(s.index) : name;
+        const key = String(jobId) + ':' + String(stepId);
+        if (!window.__manifestProgressEta) window.__manifestProgressEta = {};
+        const m = window.__manifestProgressEta;
+        if (!m[key]) {
+          m[key] = { firstAt: now, firstProcessed: processed };
+        }
+        const firstAt = Number(m[key].firstAt);
+        const firstProcessed = Number(m[key].firstProcessed);
+        const dp = processed - firstProcessed;
+        const dtMs = now - firstAt;
+        if (dp > 0 && dtMs > 1000) {
+          const ratePerMs = dp / dtMs;
+          if (ratePerMs > 0) {
+            const remaining = total - processed;
+            const etaMs = remaining / ratePerMs;
+            if (Number.isFinite(etaMs) && etaMs > 0) {
+              etaText = ', ETA ' + formatElapsed(etaMs);
+            }
+          }
+        }
+      }
+      const progressHtml = hasProgress
+        ? (
+          '<div style="margin-left:72px;margin-top:.35rem">'
+          + '<div class="muted" style="margin-bottom:.2rem">' + processed + ' / ' + total + ' (' + pct + '%' + etaText + ')</div>'
+          + '<div style="height:10px;border:1px solid #1d2a55;border-radius:999px;overflow:hidden;background:#0e1530">'
+          + '<div style="height:10px;width:' + pct + '%;background:#22c55e"></div>'
+          + '</div>'
+          + '</div>'
+        )
+        : '';
       const tableKey = counts && Object.prototype.hasOwnProperty.call(stepToTable, name) ? stepToTable[name] : null;
       if (tableKey && counts && Object.prototype.hasOwnProperty.call(counts, tableKey)) {
         const v = Number(counts[tableKey]);
@@ -1064,6 +1280,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
         + '<span style="display:inline-block;min-width:72px;color:' + color + '">' + status.toUpperCase() + '</span>'
         + '<span>' + name + '</span>'
         + (msg ? '<div class="muted" style="margin-left:72px;white-space:pre-wrap">' + msg.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>' : '')
+        + progressHtml
         + '</div>';
     }
     html += '</div>';
@@ -1692,6 +1909,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
   let _scanFolderAddRunStartedAt = 0;
 
   const mediaFolderInput = document.getElementById('media_folder');
+  const scanFolderImportSourceLabel = document.getElementById('scanFolderImportSourceLabel');
   const scanFolderPreview = document.getElementById('scanFolderPreview');
   const scanFolderStatus = document.getElementById('scanFolderStatus');
   const scanFolderBtn = document.getElementById('scanFolderBtn');
@@ -1699,6 +1917,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
   const clearScanFolderCacheBtn = document.getElementById('clearScanFolderCacheBtn');
 
   const mediaFolderAddInput = document.getElementById('media_folder_add');
+  const scanFolderAddSourceLabel = document.getElementById('scanFolderAddSourceLabel');
   const scanFolderAddPreview = document.getElementById('scanFolderAddPreview');
   const scanFolderAddStatus = document.getElementById('scanFolderAddStatus');
   const scanFolderAddBtn = document.getElementById('scanFolderAddBtn');
@@ -1707,6 +1926,20 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
 
   const HASH_CACHE_DB_NAME = 'gighive_hash_cache_v1';
   const HASH_CACHE_STORE = 'hashes';
+
+  function setFolderChosenLabel(labelEl, folderKey, defaultText, actionText) {
+    if (!labelEl) return;
+    const folderName = String((folderKey || '').split('/')[0] || '');
+    if (folderName) {
+      labelEl.textContent = 'Source folder chosen: ' + folderName + ',  ' + String(actionText || '').trim();
+      labelEl.classList.remove('muted');
+      labelEl.style.color = '#ffffff';
+    } else {
+      labelEl.textContent = String(defaultText || '');
+      labelEl.classList.remove('muted');
+      labelEl.style.color = '';
+    }
+  }
 
   function openHashCacheDb() {
     return new Promise((resolve, reject) => {
@@ -1832,19 +2065,107 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     };
   }
 
-  async function postManifest(endpoint, items) {
-    const response = await fetch(String(endpoint || ''), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        org_name: 'default',
-        event_type: 'band',
-        items
-      })
-    });
+  function postManifest(endpoint, items, opts) {
+    const url = String(endpoint || '');
+    const statusEl = opts && opts.statusEl;
+    const uploadStartedAt = Number(opts && opts.uploadStartedAt) || Date.now();
+    const baseHtml = String((opts && opts.baseHtml) || '<div class="muted">Uploading manifest to server…</div>');
 
-    const data = await response.json().catch(() => null);
-    return { ok: response.ok, status: response.status, data };
+    const bodyObj = {
+      org_name: 'default',
+      event_type: 'band',
+      items
+    };
+    const bodyJson = JSON.stringify(bodyObj);
+    const approxTotalBytes = (() => {
+      try {
+        if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(bodyJson).length;
+      } catch (e) {}
+      try {
+        return bodyJson.length;
+      } catch (e) {}
+      return 0;
+    })();
+
+    const renderUploadHtml = (pct, loaded, total, extraLine) => {
+      const haveTotal = Number.isFinite(total) && total > 0;
+      const p = haveTotal ? Math.max(0, Math.min(100, Math.floor(pct))) : 0;
+      const bar = haveTotal
+        ? ('<div style="margin-top:.35rem;height:8px;border-radius:6px;border:1px solid #1d2a55;background:#0e1530;overflow:hidden">'
+            + '<div style="height:8px;width:' + String(p) + '%;background:#28a745"></div>'
+          + '</div>')
+        : '';
+      const line = haveTotal
+        ? ('<div class="muted" style="margin-top:.25rem">Upload progress: ' + p + '% (' + formatBytes(loaded) + ' / ' + formatBytes(total) + ')</div>')
+        : ('<div class="muted" style="margin-top:.25rem">Uploading manifest… (' + formatBytes(loaded) + ')</div>');
+      return baseHtml + bar + line + (extraLine ? ('<div class="muted" style="margin-top:.25rem">' + extraLine + '</div>') : '');
+    };
+
+    const renderWaitingHtml = (elapsed) => {
+      const bar = '<div style="margin-top:.35rem;height:8px;border-radius:6px;border:1px solid #1d2a55;background:#0e1530;overflow:hidden">'
+        + '<div style="height:8px;width:100%;background:#28a745;opacity:.65"></div>'
+        + '</div>';
+      return baseHtml + bar
+        + '<div class="muted" style="margin-top:.25rem">Upload finished sending. Waiting for server response… (elapsed: ' + escapeHtml(elapsed) + ')</div>';
+    };
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+
+      let waitingTimer = null;
+      const stopWaitingTimer = () => {
+        if (waitingTimer) {
+          clearInterval(waitingTimer);
+          waitingTimer = null;
+        }
+      };
+
+      if (xhr.upload) {
+        xhr.upload.onprogress = (e) => {
+          if (!statusEl) return;
+          const loaded = Number(e && e.loaded) || 0;
+          const total = (e && e.lengthComputable) ? (Number(e.total) || 0) : (approxTotalBytes || 0);
+          const pct = total > 0 ? ((loaded / total) * 100) : 0;
+          const elapsed = formatElapsed(Date.now() - uploadStartedAt);
+          statusEl.innerHTML = renderUploadHtml(pct, loaded, total, 'Upload elapsed: ' + elapsed);
+        };
+        xhr.upload.onload = () => {
+          if (!statusEl) return;
+          const elapsed = formatElapsed(Date.now() - uploadStartedAt);
+          statusEl.innerHTML = renderWaitingHtml(elapsed);
+          stopWaitingTimer();
+          waitingTimer = setInterval(() => {
+            if (!statusEl) return;
+            const e2 = formatElapsed(Date.now() - uploadStartedAt);
+            statusEl.innerHTML = renderWaitingHtml(e2);
+          }, 500);
+        };
+      }
+
+      xhr.onerror = () => {
+        stopWaitingTimer();
+        reject(new Error('Network error'));
+      };
+      xhr.onabort = () => {
+        stopWaitingTimer();
+        reject(new Error('Request aborted'));
+      };
+      xhr.onload = () => {
+        stopWaitingTimer();
+        let data = null;
+        try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (e) {}
+        resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data });
+      };
+
+      try {
+        xhr.send(bodyJson);
+      } catch (e) {
+        stopWaitingTimer();
+        reject(e);
+      }
+    });
   }
 
   async function hashSupportedFilesToItems(opts) {
@@ -2007,16 +2328,20 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       return;
     }
 
-    postManifest(endpoint, items)
-    .then(({ ok, data }) => {
+    postManifest(endpoint, items, {
+      statusEl,
+      uploadStartedAt: Date.now(),
+      baseHtml: uploadingHtml || '<div class="muted">Uploading manifest to server…</div>'
+    })
+    .then(({ ok, data, status }) => {
       if (ok && data && data.success) {
-        if (onSuccess) onSuccess(data);
+        if (onSuccess) onSuccess(data, status);
       } else {
-        if (onError) onError(data);
+        if (onError) onError(data, status);
       }
     })
     .catch(error => {
-      if (onError) onError({ message: 'Network error: ' + error.message });
+      if (onError) onError({ message: 'Network error: ' + error.message }, 0);
     });
   }
 
@@ -2031,6 +2356,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       };
       scanFolderPreview.innerHTML = renderScanPreview(_scanFolderState);
       _scanFolderImportFolderKey = folderKeyFromFiles(list);
+      setFolderChosenLabel(scanFolderImportSourceLabel, _scanFolderImportFolderKey, 'Please select a folder for upload:', 'please click Scan Folder and Update DB');
       setScanFolderImportUiState('idle', '');
     });
   }
@@ -2289,6 +2615,11 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
         fileList: list
       };
       _scanFolderAddFolderKey = folderKeyFromFiles(list);
+
+      if (scanFolderAddSourceLabel) {
+        setFolderChosenLabel(scanFolderAddSourceLabel, _scanFolderAddFolderKey, 'Please select a folder for upload:', 'please click Scan Folder and Add to DB');
+      }
+
       scanFolderAddPreview.innerHTML = renderScanPreview(_scanFolderAddState);
       setScanFolderAddUiState('idle', '');
     });
@@ -2380,41 +2711,123 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       emptyErrorHtml: '<div class="alert-err">No files were hashed. Nothing to reload.</div>',
       uploadingHtml: '<div class="muted">Uploading manifest to server…</div>',
       stopRequestedHtml: '<div class="muted">Stop requested. Reloading DB with whatever has been hashed so far…</div>',
-      endpoint: 'import_manifest_reload.php',
+      endpoint: 'import_manifest_reload_async.php',
       getCancelRequested: () => _scanFolderImportCancelRequested,
       setAbortController: (ac) => { _scanFolderImportAbortController = ac; },
       getAbortController: () => _scanFolderImportAbortController,
       setRunStartedAt: (t) => { _scanFolderImportRunStartedAt = t; },
       getRunStartedAt: () => _scanFolderImportRunStartedAt,
       getFolderKeyForCache: () => _scanFolderImportFolderKey,
-      onSuccess: (data) => {
-        const jid = (data && data.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
-        scanFolderStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Database reload completed successfully.'), 'See Updated Database')
-          + jid
-          + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
-        scanFolderBtn.textContent = 'Import Completed';
-        scanFolderBtn.disabled = false;
-        scanFolderBtn.removeAttribute('onclick');
-        scanFolderBtn.classList.remove('danger');
-        scanFolderBtn.style.background = '#28a745';
-        scanFolderBtn.style.borderColor = '#28a745';
-        scanFolderBtn.style.color = '#ffffff';
-        scanFolderBtn.style.pointerEvents = 'none';
-        scanFolderBtn.style.cursor = 'default';
+      onSuccess: (data, httpStatus) => {
+        const jobId = (data && data.job_id) ? String(data.job_id) : '';
+        if (!jobId) {
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Missing job_id from server';
+          scanFolderStatus.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>';
+          setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
+          return;
+        }
 
-        if (stopScanFolderBtn) {
-          stopScanFolderBtn.disabled = true;
-          stopScanFolderBtn.textContent = 'Stop hashing and reload DB with hashed files';
-        }
-        if (clearScanFolderCacheBtn) {
-          clearScanFolderCacheBtn.disabled = false;
-          clearScanFolderCacheBtn.textContent = 'Clear cached hashes for this folder';
-        }
+        pollManifestJob(jobId, 'reload', {
+          statusEl: scanFolderStatus,
+          setUiState: setScanFolderImportUiState,
+          cancelBtn: stopScanFolderBtn,
+          onDone: ({ state, result, data: latest }) => {
+            const final = result || latest;
+            if (state === 'canceled') {
+              const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              scanFolderStatus.innerHTML = '<div class="alert-err">Canceled by user.</div>'
+                + jid
+                + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
+              if (scanFolderBtn) scanFolderBtn.disabled = false;
+              if (stopScanFolderBtn) {
+                stopScanFolderBtn.disabled = true;
+                stopScanFolderBtn.textContent = 'Stop hashing and reload DB with hashed files';
+                stopScanFolderBtn.onclick = stopScanFolderImport;
+              }
+              if (clearScanFolderCacheBtn) {
+                clearScanFolderCacheBtn.disabled = false;
+                clearScanFolderCacheBtn.textContent = 'Clear cached hashes for this folder';
+              }
+            } else if (state === 'ok' && final && final.success) {
+              const jid = final.job_id ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              scanFolderStatus.innerHTML = renderOkBannerWithDbLink((final.message || 'Database reload completed successfully.'), 'See Updated Database')
+                + jid
+                + (final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              scanFolderBtn.textContent = 'Import Completed';
+              scanFolderBtn.disabled = false;
+              scanFolderBtn.removeAttribute('onclick');
+              scanFolderBtn.classList.remove('danger');
+              scanFolderBtn.style.background = '#28a745';
+              scanFolderBtn.style.borderColor = '#28a745';
+              scanFolderBtn.style.color = '#ffffff';
+              scanFolderBtn.style.pointerEvents = 'none';
+              scanFolderBtn.style.cursor = 'default';
+
+              if (stopScanFolderBtn) {
+                stopScanFolderBtn.disabled = true;
+                stopScanFolderBtn.textContent = 'Stop hashing and reload DB with hashed files';
+                stopScanFolderBtn.onclick = stopScanFolderImport;
+              }
+              if (clearScanFolderCacheBtn) {
+                clearScanFolderCacheBtn.disabled = false;
+                clearScanFolderCacheBtn.textContent = 'Clear cached hashes for this folder';
+              }
+            } else {
+              const msg = (final && (final.message || final.error)) ? (final.message || final.error) : 'Unknown error occurred';
+              const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              scanFolderStatus.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
+                + jid
+                + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
+            }
+            refreshManifestJobsUi();
+          }
+        });
       },
-      onError: (data) => {
+      onError: (data, httpStatus) => {
+        if (httpStatus === 409 && data && data.job_id) {
+          const jobId = String(data.job_id);
+          scanFolderStatus.innerHTML = '<div class="muted" style="color:#dc2626"><strong>Job ' + escapeHtml(jobId) + ' is already running… switching to status polling.</strong></div>';
+          pollManifestJob(jobId, 'reload', {
+            statusEl: scanFolderStatus,
+            setUiState: setScanFolderImportUiState,
+            cancelBtn: stopScanFolderBtn,
+            onDone: ({ state, result, data: latest }) => {
+              const final = result || latest;
+              if (state === 'canceled') {
+                const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+                scanFolderStatus.innerHTML = '<div class="alert-err">Canceled by user.</div>'
+                  + jid
+                  + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+                setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
+                if (stopScanFolderBtn) {
+                  stopScanFolderBtn.disabled = true;
+                  stopScanFolderBtn.textContent = 'Stop hashing and reload DB with hashed files';
+                  stopScanFolderBtn.onclick = stopScanFolderImport;
+                }
+              } else if (state === 'ok' && final && final.success) {
+                const jid = final.job_id ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+                scanFolderStatus.innerHTML = renderOkBannerWithDbLink((final.message || 'Database reload completed successfully.'), 'See Updated Database')
+                  + jid
+                  + (final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              } else {
+                const msg = (final && (final.message || final.error)) ? (final.message || final.error) : 'Unknown error occurred';
+                const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+                scanFolderStatus.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
+                  + jid
+                  + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+                setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
+              }
+              refreshManifestJobsUi();
+            }
+          });
+          return;
+        }
+
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
         const jid = (data && data.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
-        scanFolderStatus.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+        scanFolderStatus.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
           + jid
           + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         setScanFolderImportUiState('idle', scanFolderStatus.innerHTML);
@@ -2461,45 +2874,127 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       emptyErrorHtml: '<div class="alert-err">Stopped before any files finished hashing. Nothing to import.</div>',
       uploadingHtml: '<div class="muted">Uploading manifest to server…</div>',
       stopRequestedHtml: (n) => '<div class="muted">Stopped. Uploading ' + String(Number(n) || 0) + ' hashed item(s) to server…</div>',
-      endpoint: 'import_manifest_add.php',
+      endpoint: 'import_manifest_add_async.php',
       getCancelRequested: () => _scanFolderAddCancelRequested,
       setAbortController: (ac) => { _scanFolderAddAbortController = ac; },
       getAbortController: () => _scanFolderAddAbortController,
       setRunStartedAt: (t) => { _scanFolderAddRunStartedAt = t; },
       getRunStartedAt: () => _scanFolderAddRunStartedAt,
       getFolderKeyForCache: () => _scanFolderAddFolderKey,
-      onSuccess: (data) => {
-        const jid = (data && data.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
-        scanFolderAddStatus.innerHTML = renderOkBannerWithDbLink((data.message || 'Add-to-database completed successfully.'), 'See Updated Database')
-          + jid
-          + renderAddReport(data)
-          + (data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
-
-        _scanFolderAddRunState = 'idle';
-        _scanFolderAddCancelRequested = false;
-        _scanFolderAddAbortController = null;
-
-        scanFolderAddBtn.textContent = 'Add Completed';
-        scanFolderAddBtn.classList.remove('danger');
-        scanFolderAddBtn.style.background = '#28a745';
-        scanFolderAddBtn.style.borderColor = '#28a745';
-        scanFolderAddBtn.style.color = '#ffffff';
-        scanFolderAddBtn.style.pointerEvents = 'none';
-        scanFolderAddBtn.style.cursor = 'default';
-
-        if (stopScanFolderAddBtn) {
-          stopScanFolderAddBtn.disabled = true;
-          stopScanFolderAddBtn.textContent = 'Stop hashing and import hashed';
+      onSuccess: (data, httpStatus) => {
+        const jobId = (data && data.job_id) ? String(data.job_id) : '';
+        if (!jobId) {
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Missing job_id from server';
+          scanFolderAddStatus.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>';
+          setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
+          return;
         }
-        if (clearScanFolderAddCacheBtn) {
-          clearScanFolderAddCacheBtn.disabled = false;
-          clearScanFolderAddCacheBtn.textContent = 'Clear cached hashes for this folder';
-        }
+
+        pollManifestJob(jobId, 'add', {
+          statusEl: scanFolderAddStatus,
+          setUiState: setScanFolderAddUiState,
+          cancelBtn: stopScanFolderAddBtn,
+          onDone: ({ state, result, data: latest }) => {
+            const final = result || latest;
+            if (state === 'canceled') {
+              const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              scanFolderAddStatus.innerHTML = '<div class="alert-err">Canceled by user.</div>'
+                + jid
+                + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
+              if (stopScanFolderAddBtn) {
+                stopScanFolderAddBtn.disabled = true;
+                stopScanFolderAddBtn.textContent = 'Stop hashing and import hashed';
+                stopScanFolderAddBtn.onclick = stopScanFolderAdd;
+              }
+              if (clearScanFolderAddCacheBtn) {
+                clearScanFolderAddCacheBtn.disabled = false;
+                clearScanFolderAddCacheBtn.textContent = 'Clear cached hashes for this folder';
+              }
+            } else if (state === 'ok' && final && final.success) {
+              const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              scanFolderAddStatus.innerHTML = renderOkBannerWithDbLink((final.message || 'Add-to-database completed successfully.'), 'See Updated Database')
+                + jid
+                + renderAddReport(final)
+                + (final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+
+              _scanFolderAddRunState = 'idle';
+              _scanFolderAddCancelRequested = false;
+              _scanFolderAddAbortController = null;
+
+              scanFolderAddBtn.textContent = 'Add Completed';
+              scanFolderAddBtn.classList.remove('danger');
+              scanFolderAddBtn.style.background = '#28a745';
+              scanFolderAddBtn.style.borderColor = '#28a745';
+              scanFolderAddBtn.style.color = '#ffffff';
+              scanFolderAddBtn.style.pointerEvents = 'none';
+              scanFolderAddBtn.style.cursor = 'default';
+
+              if (stopScanFolderAddBtn) {
+                stopScanFolderAddBtn.disabled = true;
+                stopScanFolderAddBtn.textContent = 'Stop hashing and import hashed';
+                stopScanFolderAddBtn.onclick = stopScanFolderAdd;
+              }
+              if (clearScanFolderAddCacheBtn) {
+                clearScanFolderAddCacheBtn.disabled = false;
+                clearScanFolderAddCacheBtn.textContent = 'Clear cached hashes for this folder';
+              }
+            } else {
+              const msg = (final && (final.message || final.error)) ? (final.message || final.error) : 'Unknown error occurred';
+              const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+              scanFolderAddStatus.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
+                + jid
+                + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
+            }
+            refreshManifestJobsUi();
+          }
+        });
       },
-      onError: (data) => {
+      onError: (data, httpStatus) => {
+        if (httpStatus === 409 && data && data.job_id) {
+          const jobId = String(data.job_id);
+          scanFolderAddStatus.innerHTML = '<div class="muted" style="color:#dc2626"><strong>Job ' + escapeHtml(jobId) + ' is already running… switching to status polling.</strong></div>';
+          pollManifestJob(jobId, 'add', {
+            statusEl: scanFolderAddStatus,
+            setUiState: setScanFolderAddUiState,
+            cancelBtn: stopScanFolderAddBtn,
+            onDone: ({ state, result, data: latest }) => {
+              const final = result || latest;
+              if (state === 'canceled') {
+                const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+                scanFolderAddStatus.innerHTML = '<div class="alert-err">Canceled by user.</div>'
+                  + jid
+                  + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+                setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
+                if (stopScanFolderAddBtn) {
+                  stopScanFolderAddBtn.disabled = true;
+                  stopScanFolderAddBtn.textContent = 'Stop hashing and import hashed';
+                  stopScanFolderAddBtn.onclick = stopScanFolderAdd;
+                }
+              } else if (state === 'ok' && final && final.success) {
+                const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+                scanFolderAddStatus.innerHTML = renderOkBannerWithDbLink((final.message || 'Add-to-database completed successfully.'), 'See Updated Database')
+                  + jid
+                  + renderAddReport(final)
+                  + (final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+              } else {
+                const msg = (final && (final.message || final.error)) ? (final.message || final.error) : 'Unknown error occurred';
+                const jid = (final && final.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(final.job_id)) + '</div>') : '';
+                scanFolderAddStatus.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
+                  + jid
+                  + (final && final.steps ? renderImportSteps(final.steps, final.table_counts) : '');
+                setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);
+              }
+              refreshManifestJobsUi();
+            }
+          });
+          return;
+        }
+
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
         const jid = (data && data.job_id) ? ('<div class="muted" style="margin-top:.25rem">Job: ' + escapeHtml(String(data.job_id)) + '</div>') : '';
-        scanFolderAddStatus.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+        scanFolderAddStatus.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(String(msg)) + '</div>'
           + jid
           + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
         setScanFolderAddUiState('idle', scanFolderAddStatus.innerHTML);

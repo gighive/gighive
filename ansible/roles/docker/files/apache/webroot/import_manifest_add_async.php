@@ -45,6 +45,7 @@ if (is_dir($workerLockDir)) {
 }
 
 if (!@mkdir($workerLockDir, 0775, false)) {
+    // Race: someone else started.
     http_response_code(409);
     header('Content-Type: application/json');
     echo json_encode([
@@ -57,51 +58,18 @@ if (!@mkdir($workerLockDir, 0775, false)) {
 
 try {
     $raw = file_get_contents('php://input');
-    $data = json_decode($raw ?: '', true);
-    if (!is_array($data)) {
-        throw new RuntimeException('Invalid JSON body');
+    if (!is_string($raw) || trim($raw) === '') {
+        throw new RuntimeException('Missing request body');
     }
-
-    $sourceJobId = isset($data['job_id']) ? trim((string)$data['job_id']) : '';
-    if ($sourceJobId === '' || !preg_match('/^[0-9]{8}-[0-9]{6}-[a-f0-9]{12}$/', $sourceJobId)) {
-        throw new RuntimeException('Invalid job_id');
-    }
-
-    [, $sourceDir] = gighive_manifest_job_paths($sourceJobId);
-    $metaPath = $sourceDir . '/meta.json';
-    $manifestPath = $sourceDir . '/manifest.json';
-
-    if (!is_file($metaPath) || !is_readable($metaPath) || !is_file($manifestPath) || !is_readable($manifestPath)) {
-        http_response_code(404);
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => false,
-            'error' => 'Not Found',
-            'message' => 'Saved manifest job not found or missing files',
-        ]);
-        exit;
-    }
-
-    $metaRaw = file_get_contents($metaPath);
-    $meta = json_decode($metaRaw ?: '', true);
-    if (!is_array($meta) || ($meta['job_type'] ?? '') !== 'manifest_import') {
-        throw new RuntimeException('Invalid job metadata');
-    }
-
-    $mode = (string)($meta['mode'] ?? '');
-    if (!in_array($mode, ['add', 'reload'], true)) {
-        throw new RuntimeException('Saved job mode is invalid');
-    }
-
-    $payloadRaw = file_get_contents($manifestPath);
-    $payload = json_decode($payloadRaw ?: '', true);
+    $payload = json_decode($raw, true);
     if (!is_array($payload)) {
-        throw new RuntimeException('Saved manifest.json is invalid');
+        throw new RuntimeException('Invalid JSON');
     }
 
+    // Quick validation to fail fast (full validation happens in worker too).
     $items = $payload['items'] ?? null;
     if (!is_array($items) || !$items) {
-        throw new RuntimeException('Saved manifest contains no items');
+        throw new RuntimeException('Missing or empty items array');
     }
 
     $jobId = gighive_manifest_job_id();
@@ -119,16 +87,15 @@ try {
 
     $metaOut = [
         'job_type' => 'manifest_import',
-        'mode' => $mode,
+        'mode' => 'add',
         'created_at' => date('c'),
         'item_count' => count($items),
-        'source_job_id' => $sourceJobId,
     ];
 
     gighive_manifest_write_json($jobDir . '/meta.json', $metaOut, 0640);
     gighive_manifest_write_json($jobDir . '/manifest.json', $payload, 0640);
 
-    $steps = gighive_manifest_init_steps($mode);
+    $steps = gighive_manifest_init_steps('add');
     $statusOut = [
         'success' => true,
         'job_id' => $jobId,
@@ -149,13 +116,12 @@ try {
     echo json_encode([
         'success' => true,
         'job_id' => $jobId,
-        'source_job_id' => $sourceJobId,
-        'mode' => $mode,
         'state' => 'queued',
-        'message' => 'Replay started',
+        'message' => 'Import started',
     ]);
 
 } catch (Throwable $e) {
+    // Release lock on failure.
     @unlink($workerLockDir . '/job_id');
     @unlink($workerLockDir . '/started_at');
     @rmdir($workerLockDir);

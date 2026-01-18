@@ -29,8 +29,16 @@ IncludeOptional sites-enabled/*.conf
     <FilesMatch "\.(mp3|mp4|mov|au|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|otf|eot)$">
         Header set Cache-Control "public, max-age=604800, immutable"
     </FilesMatch>
-    <FilesMatch "\.(php|html|css|js|json|xml)$">
+    <FilesMatch "^(?!import_manifest_).*\.(php|html|css|js|json|xml)$">
         Header set Cache-Control "public, max-age=86400"
+    </FilesMatch>
+    <FilesMatch "^import_manifest_.*\.php$">
+        Header always unset Cache-Control
+        Header always unset Pragma
+        Header always unset Expires
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
     </FilesMatch>
     <FilesMatch ".*">
         Header always set Server "Gighive"
@@ -59,7 +67,7 @@ IncludeOptional sites-enabled/*.conf
     CacheDefaultExpire 3600
     CacheMaxExpire 86400
     CacheLastModifiedFactor 0.1
-    CacheIgnoreCacheControl On
+    CacheIgnoreCacheControl Off
 </IfModule>
 
 # Configure PHP-FPM proxy handling

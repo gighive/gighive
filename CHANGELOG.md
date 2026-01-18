@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260116.txt
-Changes: Fix any file write activites to utilize timezone of container
+Changes: Implemented async, recoverable manifest import pipeline for Admin Sections 4/5 with background workers, live polling UI, cancel/replay support, progress/ETA reporting, and no-cache hardening, plus updated documentation.
 
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
@@ -13,17 +13,26 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   ansible/roles/docker/files/apache/overlays/gighive/favicon.ico
-	modified:   ansible/roles/docker/files/apache/webroot/db/restore_database.php
-	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_add.php
+	deleted:    ansible/roles/base/tasks/main.yml.beforeOwnershipChangeToWww
+	deleted:    ansible/roles/base/tasks/main.yml.beforeReorder
+	deleted:    ansible/roles/base/tasks/main.yml.fixUbuntu
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_add_async.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_cancel.php
 	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php
-	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_reload.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_lib.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_reload_async.php
 	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_replay.php
-	modified:   ansible/roles/docker/files/apache/webroot/write_resize_request.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_status.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_worker.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/templates/apache2.conf.j2
+	modified:   docs/admin_data_import_45.md
+	new file:   docs/new_async_upload_process.sh
 
-ToDo: favicon on database and upload pages should change if it's gighive
-ToDo: Remove mysql_native_password=ON
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+ToDo: implement a cddb
+ToDo: Remove mysql_native_password=ON
 ToDo: Is it worthwhile to have an embed feature?
 ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 ToDo: fix reload clears sort media library page
@@ -44,6 +53,29 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260116.txt
+Changes: Fix any file write activites to utilize timezone of container
+
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/overlays/gighive/favicon.ico
+	modified:   ansible/roles/docker/files/apache/webroot/db/restore_database.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_add.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_reload.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_replay.php
+	modified:   ansible/roles/docker/files/apache/webroot/write_resize_request.php
 
 *** 
 releaseNotes20260116.txt
