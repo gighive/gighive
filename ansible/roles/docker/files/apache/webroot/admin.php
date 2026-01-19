@@ -381,20 +381,11 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       <div class="section-divider">
         <h2>Section 4: Choose a Folder to Scan &amp; Refresh the Database (destructive)</h2>
         <div id="scanFolderImportLastJob" class="muted" style="margin:.25rem 0 .75rem 0"></div>
-        <p class="muted">
-          STEP 1: Select a folder on this computer to scan for media files and generate an import-ready CSV.
-          This action is <strong>irreversible</strong> and will truncate all media tables before loading.
-          The users table will be preserved.
-        </p>
-        <p class="muted">
-          Notes:
-        </p>
+        <p class="muted">Getting media fully “into GigHive” is a two-step workflow:</p>
         <div class="muted" style="margin-top:-.5rem">
-          <div>- Hashing (SHA-256) is mandatory for an idempotent “add to database” workflow and long-term media library viability.</div>
-          <div>- Hashing may take time for large folders (especially video). The UI will show progress while processing.</div>
-          <div>- Chrome/Chromium is the recommended browser for best folder scanning support.</div>
-          <div style="margin-top:.5rem">STEP 2: After you create the hashes for the files, you will need to upload them to the Gighive server.<br>Use the following command from the source folder you selected in Step 1 (mine was "~/videos/projects"). Note that you'll need mysql-client and PyYAML installed to run this script.:<br><pre class="cmdline">sodo@pop-os:~/videos/projects$ MYSQL_PASSWORD='[password]' python3 ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py  --source-root /videos/projects   --ssh-target ubuntu@gighive   --db-host gighive   --db-user appuser   --db-name music_db</pre></div>
-          <div>- <a href="https://gighive.app/uploadMediaByHash.html" target="_blank" rel="noopener noreferrer">More info here</a></div>
+          <div>1. <strong>STEP 1 (Admin Sections 4/5):</strong> Select a folder on this computer, scan for supported media files, compute SHA-256 hashes, and import the <strong>metadata + hashes</strong> into the database.</div>
+          <div style="margin-top:.5rem">2. <strong>STEP 2 (Upload actual files):</strong> After STEP 1, upload/copy the actual media files to the GigHive server using <code>upload_media_by_hash.py</code> from the same source folder.</div>
+          <div style="margin-top:.5rem">Here is a link to <a href="https://gighive.app/admin_data_import_45.html" target="_blank" rel="noopener noreferrer">more detailed information</a>.</div>
         </div>
         <div class="alert" style="margin-top:1rem">
           <strong>⚠️ Warning:</strong> This will truncate and rebuild the media tables. Make sure you have a database backup if you want to keep existing data.
@@ -427,19 +418,11 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       <div class="section-divider">
         <h2>Section 5: Choose a Folder to Scan &amp; Add to the Database (non-destructive)</h2>
         <div id="scanFolderAddLastJob" class="muted" style="margin:.25rem 0 .75rem 0"></div>
-        <p class="muted">
-          STEP 1: Select a folder on this computer to scan for media files and <strong>add</strong> them to the existing database.
-          This action does <strong>not</strong> truncate media tables.
-        </p>
-        <p class="muted">
-          Notes:
-        </p>
+        <p class="muted">Getting media fully “into GigHive” is a two-step workflow:</p>
         <div class="muted" style="margin-top:-.5rem">
-          <div>- Hashing (SHA-256) is mandatory for idempotency and long-term media library viability.</div>
-          <div>- Hashing may take time for large folders (especially video). The UI will show progress while processing.</div>
-          <div>- Chrome/Chromium is the recommended browser for best folder scanning support.</div>
-          <div style="margin-top:.5rem">STEP 2: After you create the hashes for the files, you will need to upload them to the Gighive server.<br>Use the following command from the source folder you selected in Step 1 (mine was "~/videos/projects"). Note that you'll need mysql-client and PyYAML installed to run this script.:<br><pre class="cmdline">sodo@pop-os:~/videos/projects$ MYSQL_PASSWORD='[password]' python3 ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py  --source-root /videos/projects   --ssh-target ubuntu@gighive   --db-host gighive   --db-user appuser   --db-name music_db</pre></div>
-          <div>- <a href="https://gighive.app/uploadMediaByHash.html" target="_blank" rel="noopener noreferrer">More info here</a></div>
+          <div>1. <strong>STEP 1 (Admin Sections 4/5):</strong> Select a folder on this computer, scan for supported media files, compute SHA-256 hashes, and import the <strong>metadata + hashes</strong> into the database.</div>
+          <div style="margin-top:.5rem">2. <strong>STEP 2 (Upload actual files):</strong> After STEP 1, upload/copy the actual media files to the GigHive server using <code>upload_media_by_hash.py</code> from the same source folder.</div>
+          <div style="margin-top:.5rem">Here is a link to <a href="https://gighive.app/admin_data_import_45.html" target="_blank" rel="noopener noreferrer">more detailed information</a>.</div>
         </div>
         <div id="scanFolderAddPreview"></div>
         <div id="scanFolderAddStatus"></div>

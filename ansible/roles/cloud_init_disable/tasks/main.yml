@@ -83,7 +83,61 @@
   ansible.builtin.set_fact:
     _nic_name: "{{ nic_name | default(ansible_facts.default_ipv4.interface | default('eth0')) }}"
 
-# Prefer provided primary_mac; else MAC from gathered facts for _nic_name; else empty
+- name: Ensure ethtool is installed
+  become: yes
+  ansible.builtin.apt:
+    name: ethtool
+    state: present
+    update_cache: yes
+
+- name: Install virtio offloads disable systemd unit template
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/virtio-offloads-disable@.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Disable virtio net offloads (TSO/GSO/GRO) for stability (%i)
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/ethtool -K %i tso off gso off gro off
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable and start virtio offloads disable service for {{ _nic_name }}
+  become: yes
+  ansible.builtin.systemd:
+    name: "virtio-offloads-disable@{{ _nic_name }}.service"
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Read offload settings for {{ _nic_name }}
+  become: yes
+  ansible.builtin.command: "ethtool -k {{ _nic_name }}"
+  register: offload_check
+  changed_when: false
+
+- name: Fail if required offloads are not disabled for {{ _nic_name }}
+  ansible.builtin.assert:
+    that:
+      - offload_check.stdout is search('(?m)^tcp-segmentation-offload:\\s+off( \\[fixed\\])?$')
+      - offload_check.stdout is search('(?m)^generic-segmentation-offload:\\s+off( \\[fixed\\])?$')
+      - offload_check.stdout is search('(?m)^generic-receive-offload:\\s+off( \\[fixed\\])?$')
+    fail_msg: |
+      Offload disable verification failed for interface {{ _nic_name }}.
+      Expected:
+        tcp-segmentation-offload: off
+        generic-segmentation-offload: off
+        generic-receive-offload: off
+      Got:
+      {{ offload_check.stdout }}
+
 - name: Derive NIC MAC
   ansible.builtin.set_fact:
     _primary_mac: "{{ primary_mac | default( (ansible_facts[_nic_name].macaddress | default('')) ) }}"

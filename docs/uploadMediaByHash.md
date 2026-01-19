@@ -10,6 +10,19 @@ Note: the canonical script path in this repo is:
 
 Purpose of the script is to copy files from your local media library to the GigHive host **by checksum** (the destination filename is `{sha256}.{ext}`), using rows already present in the GigHive database.
 
+## What the uploader relies on
+
+From the script:
+
+- It queries the DB table `files`:
+  - `SELECT checksum_sha256, file_type, source_relpath FROM files ...`
+- It uses:
+  - `checksum_sha256` to name the destination file (hash-based storage).
+  - `source_relpath` to find the file locally under `--source-root` (with a few fallback path rules).
+  - `file_type` to decide the audio vs video destination directory.
+- After copying, it runs `ffprobe` remotely and then updates the DB:
+  - `UPDATE files SET duration_seconds=..., media_info=..., media_info_tool=... WHERE checksum_sha256=...;`
+
 ## What this script does
 
 - Reads rows from the `files` table where `checksum_sha256` and `source_relpath` are present.
