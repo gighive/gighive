@@ -180,6 +180,18 @@
     # ------------------------------------------------------
     # Extra safety: never serve these sensitive files
     # ------------------------------------------------------
+ 
+     <IfModule mod_mime.c>
+         AddType video/mp2t .m2t .ts
+     </IfModule>
+ 
+     <IfModule mod_headers.c>
+         <FilesMatch "\.(m2t|ts)$">
+             Header set Content-Disposition "attachment"
+             Header set X-Content-Type-Options "nosniff"
+         </FilesMatch>
+     </IfModule>
+ 
     <FilesMatch "^(composer\.(json|lock)|config\.php)$">
         Require all denied
     </FilesMatch>

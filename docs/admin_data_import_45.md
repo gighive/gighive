@@ -105,6 +105,9 @@ The difference:
 3. Wait for hashing to finish (this can take a while for large folders).
 4. After hashing completes, the browser uploads the manifest and the server starts a background DB import.
 5. When the DB import finishes, the UI shows a final **OK** or **Error** result.
+6. If the DB import is **OK**, upload/copy the actual media files to the GigHive server using `upload_media_by_hash.py` (from the same source folder you scanned in Step 1).
+7. Wait for the uploader to complete.
+8. Verify in the UI that the media is available (the database rows from Step 1 will now have corresponding files on the server).
 
 ### What the status and progress mean
 
