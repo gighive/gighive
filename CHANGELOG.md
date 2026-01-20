@@ -1,26 +1,11 @@
 *** 
 releaseNotes20260119.txt
-Changes: Ethtool update after load test revealed some weakness in network stack, .m2t/.ts mime type change, doc updates
+Changes: Add search filters | & ! on db/database.php
 
 Last run (lab: run from lab): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (prod: run from dev): ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision
-
-sodo@pop-os:~/scripts/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/cloud_init_disable/tasks/main.yml
-	deleted:    ansible/roles/cloud_init_disable/tasks/main.yml.bak2
-	modified:   ansible/roles/docker/files/apache/webroot/admin.php
-	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
-	modified:   docs/admin_data_import_45.md
-	new file:   docs/observability_testing_2026019.md
-	modified:   docs/uploadMediaByHash.md
 
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: integrate with cddb
@@ -45,6 +30,28 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260119.txt
+Changes: Ethtool update after load test revealed some weakness in network stack, .m2t/.ts mime type change, doc updates
+
+Last run (lab: run from lab): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/cloud_init_disable/tasks/main.yml
+	deleted:    ansible/roles/cloud_init_disable/tasks/main.yml.bak2
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   docs/admin_data_import_45.md
+	new file:   docs/observability_testing_2026019.md
+	modified:   docs/uploadMediaByHash.md
 
 *** 
 

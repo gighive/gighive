@@ -199,7 +199,10 @@
    ?>
    <div class="header-top header-block">
      <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?>. v1.0 view</div>
-     <div class="home-link"><a href="/index.php">Return to Home Page</a></div>
+     <div class="home-link">
+       <a href="/index.php">Return to Home Page</a><br>
+       <a href="database.php" id="resetViewLink">Reset to Default View</a>
+     </div>
    </div>
   <h1 id="all" class="header-block">Media Library</h1>
 
@@ -220,6 +223,7 @@
           ['key' => 'duration', 'label' => 'Duration', 'title' => 'Duration', 'search' => 'duration_seconds'],
           ['key' => 'media_info', 'label' => 'Media File Info', 'title' => 'Media File Info', 'search' => 'media_info'],
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
+          ['key' => 'checksum_sha256', 'label' => 'SHA256', 'title' => 'SHA256', 'search' => null],
       ]
       : [
           ['key' => 'idx', 'label' => '#', 'title' => '#', 'search' => null],
@@ -236,6 +240,7 @@
           ['key' => 'duration', 'label' => 'Duration', 'title' => 'Duration', 'search' => 'duration_seconds'],
           ['key' => 'media_info', 'label' => 'Media File Info', 'title' => 'Media File Info', 'search' => 'media_info'],
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
+          ['key' => 'checksum_sha256', 'label' => 'SHA256', 'title' => 'SHA256', 'search' => null],
       ];
 
   if ($isAdmin) {
@@ -264,7 +269,9 @@
   ?>
 
   <div class="header-block" style="margin-bottom:0.5rem;white-space:nowrap;max-width:none;">
-    Search will only take place after you fill in one or more fields and hit Enter.  Column widths adjustable.  X removes column.  Checkbox minimizes column width.  Clicking on label in header sorts column.  CTRL-R refreshes page to default view.
+    Search will only take place after you fill in one or more fields and hit Enter.  Column widths adjustable.  X removes column.  Checkbox minimizes column width.  Clicking on label in header sorts column.  Use Reset to Default View to clear layout and filters.
+    <br>
+    | or & or ! allowed in search textboxes.  Pipe symbol means OR, ampersand means AND, ! means NOT.  You can combine these, but the ! takes precedence.  Precedence rule is ! > & > |.  Example: ".mp4&water&!ultra&!source"
   </div>
   <?php if ($isAdmin): ?>
     <div class="header-block" style="margin-bottom:0.5rem;max-width:none;">
@@ -278,6 +285,21 @@
     </div>
   <?php else: ?>
     <div id="searchStatus" class="header-block"></div>
+  <?php endif; ?>
+
+  <?php if (!empty($searchErrors) && is_array($searchErrors)): ?>
+    <div class="header-block" style="border:1px solid #dc2626;">
+      <?php foreach ($searchErrors as $msg): ?>
+        <div><?= htmlspecialchars((string)$msg, ENT_QUOTES) ?></div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+  <?php if (!empty($searchWarnings) && is_array($searchWarnings)): ?>
+    <div class="header-block" style="border:1px solid #eab308;">
+      <?php foreach ($searchWarnings as $msg): ?>
+        <div><?= htmlspecialchars((string)$msg, ENT_QUOTES) ?></div>
+      <?php endforeach; ?>
+    </div>
   <?php endif; ?>
 
   <?php if (!empty($pagination['enabled'])): ?>
@@ -435,6 +457,8 @@
                     $value = (string)($r['sourceRelpath'] ?? '');
                 } elseif ($key === 'musicians') {
                     $value = (string)($r['crew'] ?? '');
+                } elseif ($key === 'checksum_sha256') {
+                    $value = (string)($r['checksumSha256'] ?? '');
                 }
               ?>
               <td data-col="<?= htmlspecialchars($key, ENT_QUOTES) ?>"><?= htmlspecialchars($value, ENT_QUOTES) ?></td>
@@ -479,6 +503,171 @@
     const targetDate = <?= isset($targetDate) && $targetDate !== null ? json_encode($targetDate) : 'null' ?>;
     const targetOrg  = <?= isset($targetOrg)  && $targetOrg  !== null ? json_encode($targetOrg)  : 'null' ?>;
     const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
+    const basicUser = <?= json_encode($user) ?>;
+    const viewMode = <?= $isGighive ? json_encode('gighive') : json_encode('defaultcodebase') ?>;
+
+    function getOrCreateClientId(){
+      const key = 'gighive_client_id';
+      try{
+        let v = localStorage.getItem(key);
+        if(v && String(v).trim() !== ''){return String(v);}
+        if(typeof crypto !== 'undefined' && crypto && typeof crypto.randomUUID === 'function'){
+          v = crypto.randomUUID();
+        }else{
+          v = 'c_' + Math.random().toString(16).slice(2) + '_' + Date.now().toString(16);
+        }
+        localStorage.setItem(key, v);
+        return v;
+      }catch(e){
+        if(typeof crypto !== 'undefined' && crypto && typeof crypto.randomUUID === 'function'){
+          return crypto.randomUUID();
+        }
+        return 'c_' + Math.random().toString(16).slice(2) + '_' + Date.now().toString(16);
+      }
+    }
+
+    function getViewStateKey(){
+      const clientId = getOrCreateClientId();
+      return 'gighive_db_view_state:v1:' + String(viewMode) + ':' + String(basicUser) + ':' + String(clientId);
+    }
+
+    function readViewState(){
+      try{
+        const raw = localStorage.getItem(getViewStateKey());
+        if(!raw){return null;}
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed : null;
+      }catch(e){
+        return null;
+      }
+    }
+
+    function writeViewState(next){
+      try{
+        localStorage.setItem(getViewStateKey(), JSON.stringify(next));
+      }catch(e){
+      }
+    }
+
+    function updateViewState(mutator){
+      const current = readViewState() ?? {};
+      const next = mutator(current) ?? current;
+      writeViewState(next);
+      return next;
+    }
+
+    function getColKeyByIndex(table, colIndex){
+      const th = table?.tHead?.rows?.[0]?.cells?.[colIndex];
+      const key = th?.dataset?.col;
+      return (typeof key === 'string' && key !== '') ? key : '';
+    }
+
+    function getIndexByColKey(table, colKey){
+      const headRow = table?.tHead?.rows?.[0];
+      if(!headRow){return -1;}
+      const ths = Array.from(headRow.cells);
+      return ths.findIndex(th => (th?.dataset?.col ?? '') === colKey);
+    }
+
+    function snapshotWidths(table){
+      const out = {};
+      const headRow = table?.tHead?.rows?.[0];
+      if(!headRow){return out;}
+      Array.from(headRow.cells).forEach((th)=>{
+        const colKey = th?.dataset?.col ?? '';
+        if(!colKey){return;}
+        if(th.classList.contains('col-collapsed') && th.dataset && th.dataset.prevWidth){
+          out[colKey] = String(th.dataset.prevWidth);
+        }else{
+          const w = (th.style && th.style.width) ? String(th.style.width) : '';
+          if(w !== ''){out[colKey] = w;}
+        }
+      });
+      return out;
+    }
+
+    function persistWidths(table){
+      updateViewState((s)=>{
+        s.widthsByColKey = snapshotWidths(table);
+        return s;
+      });
+    }
+
+    function persistHidden(table){
+      const headRow = table?.tHead?.rows?.[0];
+      if(!headRow){return;}
+      const hidden = [];
+      Array.from(headRow.cells).forEach((th)=>{
+        const colKey = th?.dataset?.col ?? '';
+        if(!colKey){return;}
+        if(th.classList.contains('col-hidden')){hidden.push(colKey);}
+      });
+      updateViewState((s)=>{ s.hiddenColKeys = hidden; return s; });
+    }
+
+    function persistCollapsed(table){
+      const headRow = table?.tHead?.rows?.[0];
+      if(!headRow){return;}
+      const collapsed = [];
+      Array.from(headRow.cells).forEach((th)=>{
+        const colKey = th?.dataset?.col ?? '';
+        if(!colKey){return;}
+        if(th.classList.contains('col-collapsed')){collapsed.push(colKey);}
+      });
+      updateViewState((s)=>{ s.collapsedColKeys = collapsed; return s; });
+    }
+
+    function applyViewState(table){
+      const state = readViewState();
+      if(!state || !table){return;}
+
+      const widths = (state.widthsByColKey && typeof state.widthsByColKey === 'object') ? state.widthsByColKey : {};
+      const hidden = Array.isArray(state.hiddenColKeys) ? state.hiddenColKeys : [];
+      const collapsed = Array.isArray(state.collapsedColKeys) ? state.collapsedColKeys : [];
+
+      Object.keys(widths).forEach((colKey)=>{
+        const idx = getIndexByColKey(table, colKey);
+        if(idx < 0){return;}
+        const th = table?.tHead?.rows?.[0]?.cells?.[idx];
+        if(!th){return;}
+        const w = String(widths[colKey] ?? '');
+        if(w !== ''){
+          th.style.width = w;
+        }
+      });
+
+      collapsed.forEach((colKey)=>{
+        const idx = getIndexByColKey(table, colKey);
+        if(idx < 0){return;}
+        const th = table?.tHead?.rows?.[0]?.cells?.[idx];
+        if(!th){return;}
+        const cb = th.querySelector('.col-collapse-checkbox');
+        if(cb && cb instanceof HTMLInputElement){
+          cb.checked = true;
+        }
+        const w = String(widths[colKey] ?? '');
+        if(w !== ''){
+          th.dataset.prevWidth = w;
+        }
+        setColumnCollapsed(table, idx, true);
+      });
+
+      hidden.forEach((colKey)=>{
+        const idx = getIndexByColKey(table, colKey);
+        if(idx < 0){return;}
+        setColumnHidden(table, idx, true);
+      });
+
+      if(state.sort && typeof state.sort === 'object'){
+        const colKey = typeof state.sort.colKey === 'string' ? state.sort.colKey : '';
+        const dir = (state.sort.dir === 'asc' || state.sort.dir === 'desc') ? state.sort.dir : '';
+        const idx = colKey ? getIndexByColKey(table, colKey) : -1;
+        if(idx >= 0 && dir !== ''){
+          table.dataset.sortOrder = (dir === 'asc') ? 'desc' : 'asc';
+          sortTable(idx);
+        }
+      }
+    }
 
     function enableResizableColumns(tableId){
       const table=document.getElementById(tableId);
@@ -512,6 +701,7 @@
         document.removeEventListener('mouseup', onUp);
         document.removeEventListener('touchmove', onMove, {passive:false});
         document.removeEventListener('touchend', onUp);
+        persistWidths(table);
       };
 
       ths.forEach((th)=>{
@@ -647,6 +837,18 @@
 
       const table = document.getElementById('searchableTable');
 
+      applyViewState(table);
+
+      const resetLink = document.getElementById('resetViewLink');
+      if(resetLink){
+        resetLink.addEventListener('click',(e)=>{
+          try{
+            localStorage.removeItem(getViewStateKey());
+          }catch(err){
+          }
+        });
+      }
+
       const headRow = table && table.tHead && table.tHead.rows && table.tHead.rows[0] ? table.tHead.rows[0] : null;
       if(headRow){
         Array.from(headRow.cells).forEach((th)=>{
@@ -659,6 +861,11 @@
             const colIndex = Array.from(th.parentElement?.children ?? []).indexOf(th);
             if(colIndex < 0){return;}
             sortTable(colIndex);
+            const colKey = getColKeyByIndex(table, colIndex);
+            const dir = table && table.dataset && (table.dataset.sortOrder === 'asc' || table.dataset.sortOrder === 'desc') ? table.dataset.sortOrder : '';
+            if(colKey !== '' && dir !== ''){
+              updateViewState((s)=>{ s.sort = { colKey, dir }; return s; });
+            }
           });
         });
       }
@@ -672,6 +879,8 @@
           const colIndex = Array.from(th.parentElement?.children ?? []).indexOf(th);
           if(colIndex < 0){return;}
           setColumnCollapsed(table, colIndex, cb.checked);
+          persistCollapsed(table);
+          persistWidths(table);
         });
       });
 
@@ -685,6 +894,7 @@
           const colIndex = Array.from(th.parentElement?.children ?? []).indexOf(th);
           if(colIndex < 0){return;}
           setColumnHidden(table, colIndex, true);
+          persistHidden(table);
         });
       });
 
