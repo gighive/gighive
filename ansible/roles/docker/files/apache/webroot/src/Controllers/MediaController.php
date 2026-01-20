@@ -320,6 +320,7 @@ final class MediaController
     public function list(): Response
     {
         $filters = self::getFiltersFromRequest();
+        [$filterErrors, $filterWarnings] = $this->repo->validateMediaListFilters($filters);
 
         $appFlavor = getenv('APP_FLAVOR');
         $appFlavor = $appFlavor !== false ? trim((string)$appFlavor) : '';
@@ -328,6 +329,41 @@ final class MediaController
         }
 
         $threshold = self::envInt('MEDIA_LIST_PAGINATION_THRESHOLD', 750);
+        if (!empty($filterErrors)) {
+            $targetDate = isset($_GET['date']) ? trim((string)$_GET['date']) : '';
+            $targetOrg  = isset($_GET['org'])  ? trim((string)$_GET['org'])  : '';
+            if ($targetOrg === '') {
+                $targetOrg = isset($_GET['org_name']) ? trim((string)$_GET['org_name']) : '';
+            }
+
+            if ($targetDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) {
+                $targetDate = '';
+            }
+
+            $query = $_GET;
+            unset($query['page']);
+
+            return $this->view->render('media/list.php', [
+                'rows'       => [],
+                'targetDate' => $targetDate !== '' ? $targetDate : null,
+                'targetOrg'  => $targetOrg  !== '' ? $targetOrg  : null,
+                'pagination' => [
+                    'enabled' => false,
+                    'total' => 0,
+                    'threshold' => $threshold,
+                    'page' => 1,
+                    'pageSize' => $threshold,
+                    'pageCount' => 1,
+                    'start' => 0,
+                    'end' => 0,
+                ],
+                'query' => $query,
+                'appFlavor' => $appFlavor,
+                'searchErrors' => $filterErrors,
+                'searchWarnings' => $filterWarnings,
+            ]);
+        }
+
         $totalRows = $this->repo->countMediaListRows($filters);
 
         $pageSize = $threshold;
@@ -445,6 +481,8 @@ final class MediaController
             ],
             'query' => $query,
             'appFlavor' => $appFlavor,
+            'searchErrors' => $filterErrors,
+            'searchWarnings' => $filterWarnings,
         ]);
     }
 

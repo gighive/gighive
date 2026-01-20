@@ -7,26 +7,60 @@ final class SessionRepository
 {
     public function __construct(private PDO $pdo) {}
 
+    public function validateMediaListFilters(array $filters): array
+    {
+        [, , $errors, $warnings] = $this->buildMediaListFilters($filters);
+        return [$errors, $warnings];
+    }
+
     private function buildMediaListFilters(array $filters): array
     {
         $where = ['f.file_id IS NOT NULL'];
         $params = [];
+        $errors = [];
+        $warnings = [];
+
+        $maxTermsPerField = 10;
 
         $map = [
-            'date' => ['sql' => 'LOWER(sesh.date) LIKE LOWER(:date)', 'param' => ':date'],
-            'org_name' => ['sql' => 'LOWER(sesh.org_name) LIKE LOWER(:org_name)', 'param' => ':org_name'],
-            'rating' => ['sql' => 'LOWER(sesh.rating) LIKE LOWER(:rating)', 'param' => ':rating'],
-            'keywords' => ['sql' => 'LOWER(sesh.keywords) LIKE LOWER(:keywords)', 'param' => ':keywords'],
-            'location' => ['sql' => 'LOWER(sesh.location) LIKE LOWER(:location)', 'param' => ':location'],
-            'summary' => ['sql' => 'LOWER(sesh.summary) LIKE LOWER(:summary)', 'param' => ':summary'],
-            'crew' => ['sql' => 'LOWER(m.name) LIKE LOWER(:crew)', 'param' => ':crew'],
-            'song_title' => ['sql' => 'LOWER(s.title) LIKE LOWER(:song_title)', 'param' => ':song_title'],
-            'file_type' => ['sql' => 'LOWER(f.file_type) LIKE LOWER(:file_type)', 'param' => ':file_type'],
-            'file_name' => ['sql' => 'LOWER(f.file_name) LIKE LOWER(:file_name)', 'param' => ':file_name'],
-            'source_relpath' => ['sql' => 'LOWER(f.source_relpath) LIKE LOWER(:source_relpath)', 'param' => ':source_relpath'],
-            'duration_seconds' => ['sql' => 'f.duration_seconds LIKE :duration_seconds', 'param' => ':duration_seconds'],
-            'media_info' => ['sql' => 'LOWER(f.media_info) LIKE LOWER(:media_info)', 'param' => ':media_info'],
+            'date' => ['sql' => 'LOWER(sesh.date) LIKE LOWER(%s)', 'param_base' => 'date'],
+            'org_name' => ['sql' => 'LOWER(sesh.org_name) LIKE LOWER(%s)', 'param_base' => 'org_name'],
+            'rating' => ['sql' => 'LOWER(sesh.rating) LIKE LOWER(%s)', 'param_base' => 'rating'],
+            'keywords' => ['sql' => 'LOWER(sesh.keywords) LIKE LOWER(%s)', 'param_base' => 'keywords'],
+            'location' => ['sql' => 'LOWER(sesh.location) LIKE LOWER(%s)', 'param_base' => 'location'],
+            'summary' => ['sql' => 'LOWER(sesh.summary) LIKE LOWER(%s)', 'param_base' => 'summary'],
+            'crew' => ['sql' => 'LOWER(m.name) LIKE LOWER(%s)', 'param_base' => 'crew'],
+            'song_title' => ['sql' => 'LOWER(s.title) LIKE LOWER(%s)', 'param_base' => 'song_title'],
+            'file_type' => ['sql' => 'LOWER(f.file_type) LIKE LOWER(%s)', 'param_base' => 'file_type'],
+            'file_name' => ['sql' => 'LOWER(f.file_name) LIKE LOWER(%s)', 'param_base' => 'file_name'],
+            'source_relpath' => ['sql' => 'LOWER(f.source_relpath) LIKE LOWER(%s)', 'param_base' => 'source_relpath'],
+            'duration_seconds' => ['sql' => 'f.duration_seconds LIKE %s', 'param_base' => 'duration_seconds'],
+            'media_info' => ['sql' => 'LOWER(f.media_info) LIKE LOWER(%s)', 'param_base' => 'media_info'],
         ];
+
+        $makeParam = static function (string $base, int $orIdx, int $andIdx): string {
+            return ':' . $base . '_' . $orIdx . '_' . $andIdx;
+        };
+
+        $hasInvalidEmptyTerm = static function (string $raw): bool {
+            $raw = trim($raw);
+            if ($raw === '') {
+                return false;
+            }
+            if (str_contains($raw, '||') || str_contains($raw, '&&')) {
+                return true;
+            }
+            if (str_starts_with($raw, '|') || str_ends_with($raw, '|')) {
+                return true;
+            }
+            if (str_starts_with($raw, '&') || str_ends_with($raw, '&')) {
+                return true;
+            }
+            if (str_contains($raw, '|&') || str_contains($raw, '&|')) {
+                return true;
+            }
+            return false;
+        };
 
         foreach ($map as $key => $cfg) {
             $raw = $filters[$key] ?? '';
@@ -37,8 +71,79 @@ final class SessionRepository
             if ($raw === '') {
                 continue;
             }
-            $where[] = $cfg['sql'];
-            $params[$cfg['param']] = '%' . $raw . '%';
+
+            if ($hasInvalidEmptyTerm($raw)) {
+                $errors[] = 'Search for column "' . $key . '" contains empty terms around "|" or "&". Please remove extra operators.';
+                continue;
+            }
+
+            $orParts = array_map('trim', explode('|', $raw));
+            $orParts = array_values(array_filter($orParts, static fn($x) => $x !== ''));
+
+            if (empty($orParts)) {
+                $errors[] = 'Search for column "' . $key . '" is invalid.';
+                continue;
+            }
+
+            $totalTerms = 0;
+            $orExprs = [];
+            foreach ($orParts as $orIdx => $orRaw) {
+                $andParts = array_map('trim', explode('&', $orRaw));
+                $andParts = array_values(array_filter($andParts, static fn($x) => $x !== ''));
+                if (empty($andParts)) {
+                    $errors[] = 'Search for column "' . $key . '" is invalid.';
+                    $orExprs = [];
+                    break;
+                }
+
+                $andExprs = [];
+                foreach ($andParts as $andIdx => $term) {
+                    $negated = false;
+                    $term = trim($term);
+                    if ($term === '!') {
+                        $errors[] = 'Search for column "' . $key . '" contains an invalid NOT term. Use !term (e.g. !bob).';
+                        $orExprs = [];
+                        break 2;
+                    }
+                    if (str_starts_with($term, '!!')) {
+                        $errors[] = 'Search for column "' . $key . '" contains an invalid NOT term. Use !term (e.g. !bob).';
+                        $orExprs = [];
+                        break 2;
+                    }
+                    if (str_starts_with($term, '!')) {
+                        $negated = true;
+                        $term = trim(substr($term, 1));
+                        if ($term === '') {
+                            $errors[] = 'Search for column "' . $key . '" contains an invalid NOT term. Use !term (e.g. !bob).';
+                            $orExprs = [];
+                            break 2;
+                        }
+                    }
+
+                    $totalTerms++;
+                    $param = $makeParam((string)$cfg['param_base'], $orIdx, $andIdx);
+                    $andExpr = sprintf((string)$cfg['sql'], $param);
+                    if ($negated) {
+                        $andExpr = str_replace(' LIKE ', ' NOT LIKE ', $andExpr);
+                    }
+                    $andExprs[] = $andExpr;
+                    $params[$param] = '%' . $term . '%';
+                }
+                $orExprs[] = '(' . implode(' AND ', $andExprs) . ')';
+            }
+
+            if (!empty($orExprs) && $totalTerms > $maxTermsPerField) {
+                $errors[] = 'Search for column "' . $key . '" has too many terms (max ' . (string)$maxTermsPerField . ').';
+                continue;
+            }
+
+            if (!empty($orExprs)) {
+                $where[] = '(' . implode(' OR ', $orExprs) . ')';
+            }
+        }
+
+        if (!empty($errors)) {
+            return ['WHERE 1=0', [], $errors, $warnings];
         }
 
         $whereSql = '';
@@ -46,7 +151,7 @@ final class SessionRepository
             $whereSql = 'WHERE ' . implode(' AND ', $where);
         }
 
-        return [$whereSql, $params];
+        return [$whereSql, $params, $errors, $warnings];
     }
 
     public function countMediaListRows(array $filters = []): int
