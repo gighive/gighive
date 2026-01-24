@@ -144,6 +144,14 @@ OPTIONAL: It is helpful to set an alias in your .bashrc to access the vm you've 
 alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inventory_bootstrap.yml>"
 ```
 
+OPTIONAL: You may want to setup the Virtualbox vm to autostart if the machine on which it is running is restarted.  If so, logon to the server that is home to your Virtualbox vm and perform these steps to create a systemd service to autostart the vm:
+```bash
+cd $GIGHIVE_HOME
+vi ansible/inventories/group_vars/gighive/gighive.yml   # Set `enable_vbox_vm_autostart: true`
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass
+```
+After running the steps, your vm if not started, will start.  Otherwise, the autostart service will be setup. 
+
 ---
 
 ## Option B: Gighive as an Azure VM.  Install Gighive on Azure (requires an Azure subscription).
