@@ -1954,3 +1954,10 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-01-08T15:07:00-05:00
   - my server crapped out last night..went offline.  I haven't restarted it yet.  i'm wondering if it had something to do with the changes we made.  i've restarted the machine.  what system files do i need to check to see what may have happened?  please give me some concrete diagnostic commands to run.
+
+---
+
+## 2026-01-24
+
+- 2026-01-24T16:45:00-05:00
+  - option c
