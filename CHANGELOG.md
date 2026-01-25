@@ -1,22 +1,13 @@
 *** 
 releaseNotes20260124.txt
-Changes: Added %D and %T to apache log for upload duration
+Changes: Pre-TUS implementation doc updates.
 
 Last run (lab: run from lab): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
 
-sodo@pop-os:~/scripts/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/externalConfigs/logging.conf
-	modified:   user-prompts.md
-
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+ToDo: We should expose any 413 errors directly to the IOS app
 ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?, "upload to gighive" should change to "Upload, organize, and stream your media."
 ToDo: integrate with cddb
 ToDo: Remove mysql_native_password=ON
@@ -40,6 +31,24 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260124.txt
+Changes: Added %D and %T to apache log for upload duration
+
+Last run (lab: run from lab): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (staging: run from staging): ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+Last run (dev: run from dev): ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision
+
+sodo@pop-os:~/scripts/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/externalConfigs/logging.conf
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260124.txt

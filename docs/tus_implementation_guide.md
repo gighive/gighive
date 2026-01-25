@@ -8,6 +8,28 @@ This document outlines adding TUS (Tus Resumable Upload) protocol support to the
 
 **Important:** The original memory issue has been solved with `MultipartInputStream` (October 2025). This guide now focuses on adding TUS specifically for Cloudflare compatibility.
 
+## Rationale (Condensed)
+
+### Recommendation
+Implement TUS support for Cloudflare compatibility, using a dedicated TUS endpoint (recommended: `tusd` behind Apache) and keeping the existing upload path as a fallback.
+
+### Why this matters
+- Typical gig/event videos are frequently **>100MB**.
+- Cloudflare Free plan enforces a **100MB per-request body limit**, making remote uploads of typical content fail with HTTP 413.
+- TUS resolves this by uploading via **multiple requests** (resumable), keeping each request under the limit.
+
+### Why it’s feasible in this codebase
+- `MultipartInputStream` already solves memory usage for large files.
+- Upload progress + cancellation infrastructure already exists.
+- The change is mainly a **routing layer**: small files keep using the existing path, large files switch to TUS.
+
+### Trade-offs / caveats
+- Requires a **TUS server endpoint** (the existing `/api/uploads.php` cannot speak TUS).
+- Adds operational surface area (a `tusd` service and temp storage/cleanup).
+
+### Note on Cloudflare Tunnel environments
+If an environment’s origin is only reachable via Cloudflare Tunnel, a DNS-only upload subdomain does not bypass Cloudflare limits unless the origin is also publicly reachable. In these environments, TUS (or direct-to-object-storage uploads) is the practical approach.
+
 ## Current State Analysis (October 2025)
 
 ### ✅ Already Implemented
@@ -20,6 +42,22 @@ This document outlines adding TUS (Tus Resumable Upload) protocol support to the
 
 ### 🎯 New Goal: Cloudflare Compatibility
 **Cloudflare 100MB Limit**: Files >100MB fail with HTTP 413 when uploaded through Cloudflare proxy. TUS protocol will enable chunked uploads (multiple HTTP requests) to bypass this limit.
+
+## Updated Context (January 2026)
+
+### Cloudflare Tunnel Constraint
+The GigHive origin in some environments is only reachable via Cloudflare Tunnel (for example, routing `lab.gighive.app` to a private IP). In that setup:
+
+- A DNS-only "upload" subdomain cannot bypass Cloudflare's 100MB limit if it still resolves to a Cloudflare Tunnel hostname.
+- To keep Cloudflare Free plan and Tunnel-only origins, the practical options are:
+  - TUS (multiple HTTP requests, each < 100MB)
+  - Direct-to-object-storage uploads (signed URLs) as a future phase
+
+### Important: TUS Requires a Separate Server Endpoint
+The existing `/api/uploads.php` endpoint expects a single `multipart/form-data` request (PHP `$_FILES`). TUS uses multiple requests (typically `POST` then multiple `PATCH` requests with `application/offset+octet-stream`). Therefore:
+
+- TUS cannot be implemented by pointing the client at `/api/uploads.php`.
+- Add a dedicated TUS endpoint (recommended: `/tus` or `/files` via `tusd`) and keep `/api/uploads.php` for legacy/small uploads or for a "finalize" step.
 
 **Current Behavior:**
 - ✅ Files <100MB: Work through Cloudflare
@@ -136,7 +174,23 @@ let (status, data, requestURL) = try await client.uploadWithTUSIfNeeded(payload,
 2. **Progress Callbacks**: ✅ Same signature `(Int64, Int64) -> Void`
 3. **Error Handling**: ✅ Same async/await pattern
 4. **Authentication**: ✅ Basic auth preserved
-5. **Server Endpoint**: ✅ Same `/api/uploads.php` endpoint
+5. **Server Endpoint**: ⚠️ Requires a dedicated TUS endpoint (not `/api/uploads.php`)
+
+## Server Plan (Recommended): `tusd` Sidecar Container
+
+### Why `tusd`
+`tusd` is the reference TUS server implementation and is available as a Docker image. Running it as a sidecar keeps the upload logic out of the PHP endpoint and provides well-tested resumable upload semantics.
+
+### Proposed Routing
+- External: `https://<env>.gighive.app/tus` (through Cloudflare, same hostname)
+- Apache reverse proxies `/tus` to the `tusd` container (internal Docker network)
+- `tusd` stores partial uploads in a mounted directory
+
+### ModSecurity Note
+Current ModSecurity configuration enforces `multipart/form-data` for `/api/uploads.php` and `/api/media-files`. TUS requests are not multipart. To avoid conflicts:
+
+- Do not use `/api/uploads.php` for TUS traffic.
+- Expose TUS under a separate path (e.g. `/tus`) and ensure ModSecurity rules do not block `PATCH` or the TUS content type on that path.
 
 ### UI Integration
 - **Progress Display**: ✅ Existing 10% bucket system works perfectly
@@ -217,9 +271,30 @@ if fileSize > 100 * 1024 * 1024 {
 **Alternative Solution:**
 Instead of TUS, consider creating `upload.gighive.app` DNS record (DNS-only, bypassing Cloudflare) for simpler implementation. See `CLOUDFLARE_UPLOAD_LIMIT.md` for details.
 
+Note: This DNS-only bypass is only viable when the origin is publicly reachable without Cloudflare Tunnel.
+
 ---
 
 **Related Documentation:**
 - `STREAMING_ARCHITECTURE_20251008.md` - Current streaming implementation
 - `CLOUDFLARE_UPLOAD_LIMIT.md` - Cloudflare 100MB limit analysis
 - `MultipartInputStream.swift` - Current streaming implementation
+
+## Implementation Steps Summary
+
+### Server (Docker/Apache/Ansible)
+1. Add a `tusd` service to `docker-compose.yml.j2` (`tusproject/tusd`) with a persistent volume for upload storage.
+2. Add Apache reverse proxy for a dedicated path (recommended `/tus`) to `tusd` (e.g. `http://tusd:1080/files/`).
+3. Protect `/tus` with Basic Auth (same users as uploads).
+4. Ensure ModSecurity does not block `PATCH` and TUS content-types on `/tus` (keep multipart enforcement on `/api/uploads.php`).
+5. Implement a finalize endpoint (e.g. `POST /api/uploads/finalize`) that moves a completed TUS upload into the existing `/audio` or `/video` destination and writes DB metadata.
+
+### iOS Client
+6. Add TUSKit dependency (if not already enabled in the project).
+7. Implement/verify `TUSUploadClient` targeting `baseURL + /tus`.
+8. Route uploads:
+   - Files `<=100MB`: use existing `uploadWithMultipartInputStream`.
+   - Files `>100MB`: use TUS upload, then call the finalize endpoint with metadata.
+
+### Verification
+9. Test uploads `>100MB` through Cloudflare Tunnel (should succeed without 413), verify resume/cancel behavior, and confirm final files land in the same `/audio`/`/video` locations.
