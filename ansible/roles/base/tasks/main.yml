@@ -647,7 +647,7 @@
 - name: Drop playbook version marker on guest
   become: false
   ansible.builtin.copy:
-    dest: "{{ scripts_dir }}/ansible-playbook-{{ playbook_environment_token }}-lastrun-{{ playbook_run_date.stdout }}.log"
+    dest: "{{ repo_root }}/ansible-playbook-{{ playbook_environment_token }}-lastrun-{{ playbook_run_date.stdout }}.log"
     content: "{{ playbook_git_log.stdout }}\n"
     mode: "0644"
   tags: always
