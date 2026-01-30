@@ -617,3 +617,37 @@
   systemd:
     name: systemd-networkd
     state: restarted
+
+- name: Choose environment token from inventory groups
+  ansible.builtin.set_fact:
+    playbook_environment_token: >-
+      {{
+        (group_names | difference(['all', 'ungrouped', 'target_vms', 'controller']) | first)
+        | default(inventory_hostname, true)
+      }}
+  tags: always
+
+- name: Get playbook date (guest)
+  ansible.builtin.command: date +%Y%m%d
+  register: playbook_run_date
+  changed_when: false
+  tags: always
+
+- name: Get git log -1 (controller)
+  become: false
+  ansible.builtin.command: git log -1
+  args:
+    chdir: "{{ repo_root }}"
+  register: playbook_git_log
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+  tags: always
+
+- name: Drop playbook version marker on guest
+  become: false
+  ansible.builtin.copy:
+    dest: "{{ scripts_dir }}/ansible-playbook-{{ playbook_environment_token }}-lastrun-{{ playbook_run_date.stdout }}.log"
+    content: "{{ playbook_git_log.stdout }}\n"
+    mode: "0644"
+  tags: always
