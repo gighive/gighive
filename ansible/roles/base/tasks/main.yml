@@ -642,31 +642,6 @@
       or override per environment.
   tags: always
 
-- name: Check VERSION exists under gighive_home
-  become: false
-  ansible.builtin.stat:
-    path: "{{ gighive_home }}/VERSION"
-  register: gighive_version_file
-  tags: always
-
-- name: Fail if VERSION file is missing under gighive_home
-  ansible.builtin.fail:
-    msg: "gighive_home={{ gighive_home }} but VERSION not found at {{ gighive_home }}/VERSION"
-  when: not gighive_version_file.stat.exists
-  tags: always
-
-- name: Read VERSION
-  become: false
-  ansible.builtin.slurp:
-    src: "{{ gighive_home }}/VERSION"
-  register: gighive_version_slurp
-  tags: always
-
-- name: Show resolved gighive_home and VERSION
-  ansible.builtin.debug:
-    msg: "gighive_home={{ gighive_home }} VERSION={{ (gighive_version_slurp.content | b64decode | trim) }}"
-  tags: always
-
 - name: Get git log -1 (controller)
   become: false
   ansible.builtin.command: git log -1 --no-color
