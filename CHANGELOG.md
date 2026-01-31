@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260130.txt
-Changes: Fix for root/gighive in scripts upload (base/tasks/main.yml) and minor changes to remove # in site.yml, .bashrc remove GIGHIVE_HOME
+Changes: Fix for root/gighive in scripts upload (base/tasks/main.yml) and minor changes to remove # in site.yml, .bashrc remove GIGHIVE_HOME, plus README.md change
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass" ../ansible-playbook-gighive2-20260130.log
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ../ansible-playbook-lab-20260130.log
