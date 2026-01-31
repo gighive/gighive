@@ -1,9 +1,9 @@
 *** 
 releaseNotes20260131.txt
-Changes: Playbook no longer depends on {{ gighive_home }}/VERSION existing on the guest, provenance signal is timestamped ansible-playbook-*-lastrun-*.log guest. 
+Changes: Exclude ansible*.log from gighive home
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass" ansible-playbook-gighive2-20260130.log
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ansible-playbook-lab-20260130.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260131.log 
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-staging-20260130.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-prod-20260130.log
 
@@ -41,6 +41,24 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260131.txt
+Changes: Playbook no longer depends on {{ gighive_home }}/VERSION existing on the guest, provenance signal is timestamped ansible-playbook-*-lastrun-*.log guest. 
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass" ansible-playbook-gighive2-20260130.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260131.log 
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-staging-20260130.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-prod-20260130.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
 
 *** 
 releaseNotes20260131.txt
