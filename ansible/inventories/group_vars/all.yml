@@ -3,6 +3,9 @@ repo_root: "{{ (playbook_dir | dirname | dirname) }}"
 
 gighive_home: "{{ '/root/gighive' if ansible_user == 'root' else '/home/' ~ ansible_user ~ '/gighive' }}"
 
+gighive_marker_author_name: "Gighive"
+gighive_marker_author_email: "noreply@gighive.app"
+
 # Convenience paths
 roles_dir: "{{ repo_root }}/ansible/roles"
 cloud_init_files_dir: "{{ roles_dir }}/cloud_init/files"

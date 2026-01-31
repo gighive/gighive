@@ -682,6 +682,6 @@
   become: false
   ansible.builtin.copy:
     dest: "{{ gighive_home }}/ansible-playbook-{{ playbook_environment_token }}-lastrun-{{ playbook_run_date.stdout }}.log"
-    content: "{{ playbook_git_log.stdout }}\n"
+    content: "{{ (playbook_git_log.stdout | regex_replace('^Author:.*$', 'Author: ' ~ gighive_marker_author_name ~ ' <' ~ gighive_marker_author_email ~ '>', multiline=True)) }}\n"
     mode: "0644"
   tags: always
