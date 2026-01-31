@@ -1,7 +1,7 @@
 # One true repo root
 repo_root: "{{ (playbook_dir | dirname | dirname) }}"
 
-gighive_home: "{{ ansible_env.HOME }}/gighive"
+gighive_home: "{{ '/root/gighive' if ansible_user == 'root' else '/home/' ~ ansible_user ~ '/gighive' }}"
 
 # Convenience paths
 roles_dir: "{{ repo_root }}/ansible/roles"
