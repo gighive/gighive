@@ -77,18 +77,12 @@ git clone https://github.com/gighive/gighive
 
 6. GigHive uses an Ansible variable `gighive_home` (default `~/gighive`) to locate the repo on the VM. If you cloned the repo elsewhere, override `gighive_home` (recommended in `ansible/inventories/group_vars/<env>/<env>.yml`; otherwise in `ansible/inventories/group_vars/all.yml`).
 
-7. Add GIGHIVE_HOME export to your .bashrc.
-```bash
-echo "export GIGHIVE_HOME=/home/$USER/gighive" >> ~/.bashrc
-cat ~/.bashrc
-```
-
-8. Make sure you have id_rsa.pub in ./ssh for passwordless authentication.
+7. Make sure you have id_rsa.pub in ./ssh for passwordless authentication.
 ```bash
 ssh-keygen -t rsa
 ```
 
-9. Update the secrets to your desired credentials.  Copy the example file and then edit the destination to your liking:
+8. Update the secrets to your desired credentials.  Copy the example file and then edit the destination to your liking:
 ```bash
 cd $GIGHIVE_HOME
 cp ansible/inventories/group_vars/gighive/secrets.example.yml ansible/inventories/group_vars/gighive/secrets.yml
