@@ -228,7 +228,7 @@
 
 - name: Ensure scripts_dir directory exists
   ansible.builtin.file:
-    path: "{{ scripts_dir }}"
+    path: "{{ gighive_home }}"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -238,7 +238,7 @@
 
 - name: Ensure scripts_dir is owned by ubuntu
   file:
-    path: "{{ scripts_dir }}"
+    path: "{{ gighive_home }}"
     owner: "{{ ansible_user }}" 
     group: "{{ ansible_user }}"
     mode: "0755"
@@ -252,7 +252,7 @@
   become: no
   ansible.builtin.synchronize:
     src: "{{ scripts_home }}/"
-    dest: "{{ scripts_dir }}"
+    dest: "{{ gighive_home }}"
     archive: false
     recursive: yes
     links: yes
