@@ -633,9 +633,44 @@
   changed_when: false
   tags: always
 
+- name: Verify gighive_home is set
+  ansible.builtin.assert:
+    that:
+      - gighive_home is defined
+      - (gighive_home | trim) | length > 0
+    fail_msg: >
+      gighive_home is not set. Define it in ansible/inventories/group_vars/all.yml
+      or override per environment.
+  tags: always
+
+- name: Check VERSION exists under gighive_home
+  become: false
+  ansible.builtin.stat:
+    path: "{{ gighive_home }}/VERSION"
+  register: gighive_version_file
+  tags: always
+
+- name: Fail if VERSION file is missing under gighive_home
+  ansible.builtin.fail:
+    msg: "gighive_home={{ gighive_home }} but VERSION not found at {{ gighive_home }}/VERSION"
+  when: not gighive_version_file.stat.exists
+  tags: always
+
+- name: Read VERSION
+  become: false
+  ansible.builtin.slurp:
+    src: "{{ gighive_home }}/VERSION"
+  register: gighive_version_slurp
+  tags: always
+
+- name: Show resolved gighive_home and VERSION
+  ansible.builtin.debug:
+    msg: "gighive_home={{ gighive_home }} VERSION={{ (gighive_version_slurp.content | b64decode | trim) }}"
+  tags: always
+
 - name: Get git log -1 (controller)
   become: false
-  ansible.builtin.command: git log -1
+  ansible.builtin.command: git log -1 --no-color
   args:
     chdir: "{{ repo_root }}"
   register: playbook_git_log
@@ -647,7 +682,7 @@
 - name: Drop playbook version marker on guest
   become: false
   ansible.builtin.copy:
-    dest: "{{ repo_root }}/ansible-playbook-{{ playbook_environment_token }}-lastrun-{{ playbook_run_date.stdout }}.log"
+    dest: "{{ gighive_home }}/ansible-playbook-{{ playbook_environment_token }}-lastrun-{{ playbook_run_date.stdout }}.log"
     content: "{{ playbook_git_log.stdout }}\n"
     mode: "0644"
   tags: always
