@@ -1,23 +1,11 @@
 ---
 # Put this as the FIRST play in ansible/playbooks/site.yml
-- name: Preflight require GIGHIVE_HOME
+- name: Preflight controller sanity checks
   hosts: all                # match whatever inventory you use
   gather_facts: no
   any_errors_fatal: true
   tags: always              # runs even when you pass --tags ...
   tasks:
-    - name: Fail fast if GIGHIVE_HOME is not set
-      ansible.builtin.fail:
-        msg: >
-          Environment variable GIGHIVE_HOME is not set.
-          Export it first:  export GIGHIVE_HOME=$HOME/gighive
-      when: (lookup('env','GIGHIVE_HOME') | default('')) | length == 0
-
-    - name: Show GIGHIVE_HOME (for sanity)
-      ansible.builtin.debug:
-        msg: "GIGHIVE_HOME = {{ lookup('env','GIGHIVE_HOME') }}"
-      when: (lookup('env','GIGHIVE_HOME') | default('')) | length > 0
-
     - name: Check if SSH public key exists
       ansible.builtin.stat:
         path: "{{ lookup('env','HOME') }}/.ssh/id_rsa.pub"
