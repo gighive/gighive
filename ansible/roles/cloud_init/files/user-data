@@ -37,7 +37,7 @@ write_files:
     permissions: "0644"
     content: |
       127.0.0.1 localhost
-      192.168.1.254 gighive2.mysettings.com gighive2
+      192.168.1.50 gighive2.mysettings.com gighive2
     append: true
 
 runcmd:
