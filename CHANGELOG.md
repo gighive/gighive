@@ -1,24 +1,22 @@
 *** 
 releaseNotes20260130.txt
-Changes: retire scripts_dir in favor of gighive_home.
+Changes: Fix for root/gighive in scripts upload (base/tasks/main.yml) and minor changes to remove # in site.yml, .bashrc remove GIGHIVE_HOME
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass" ../ansible-playbook-gighive2-20260130.log
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ../ansible-playbook-lab-20260130.log
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ../ansible-playbook-staging-20260130.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ../ansible-playbook-staging-20260130.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ~/ansible-playbook-prod-20260130.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
-Your branch is ahead of 'origin/master' by 1 commit.
-  (use "git push" to publish your local commits)
+Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/all.yml
 	modified:   ansible/playbooks/site.yml
 	modified:   ansible/roles/base/tasks/main.yml
-	modified:   ansible/roles/cloud_init/files/network-config
-	modified:   ansible/roles/cloud_init/files/user-data
 
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
@@ -45,6 +43,28 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260130.txt
+Changes: retire scripts_dir in favor of gighive_home.
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass" ../ansible-playbook-gighive2-20260130.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ../ansible-playbook-lab-20260130.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ../ansible-playbook-staging-20260130.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ~/ansible-playbook-prod-20260130.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/cloud_init/files/network-config
+	modified:   ansible/roles/cloud_init/files/user-data
 
 *** 
 releaseNotes20260130.txt

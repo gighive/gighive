@@ -56,10 +56,7 @@
     # controller: more sources
     - name: Set controller-side source paths
       set_fact:
-#        web_root_src: "{{ docker_files_src }}/apache/html"
-#        configs_src: "{{ docker_files_src }}/mysql/externalConfigs"
-#        dbscripts_src: "{{ docker_files_src }}/mysql/dbScripts"
-        scripts_home: "{{ repo_root }}"          # <-- controller source (your $GIGHIVE_HOME)
+        scripts_home: "{{ repo_root }}"     # <-- controller source dir 
         scripts_dir: "{{ gighive_home }}"   # <-- VM destination
 
     # VM: primitives
@@ -68,7 +65,6 @@
         docker_dir: "{{ gighive_home }}/ansible/roles/docker/files"
         video_dir: "{{ root_dir }}/video"
         audio_dir: "{{ root_dir }}/audio"
-#       root_scripts: "{{ root_dir }}/scripts"
   
     # VM: derived from docker_dir
     - name: Set VM paths derived from docker_dir
