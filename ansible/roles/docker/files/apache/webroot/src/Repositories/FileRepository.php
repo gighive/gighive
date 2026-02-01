@@ -37,6 +37,14 @@ final class FileRepository
         return $row ?: null;
     }
 
+    public function findByChecksum(string $sha256): ?array
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM files WHERE checksum_sha256 = :c LIMIT 1');
+        $stmt->execute([':c' => $sha256]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     /**
      * Compute the next per-session sequence number (1-based).
      */

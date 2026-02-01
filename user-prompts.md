@@ -587,6 +587,71 @@ GigHive is dual-licensed:
 - 2025-10-25T09:24:00-04:00
   - i have a change listed as Phase 1 in the document /home/sodo/scripts/gighive/DATABASE_VIEWER_IMPLEMENTATION_PLAN.md.  please read it and confirm your understanding of this phase 1 implementation, but do not make any changes until we have reviewed the plan together.
 
+## 2026-01-25
+
+- 2026-01-25T16:02:00-05:00
+  - ok, i captured a .HAR file from chrome dev tool before we made any changes.  i don't understand the clarifications, please elaborate.
+
+- 2026-01-25T16:12:00-05:00
+  - For #1, Option 1 seems more consistent.  For #2, I assume we should put the tus-js-client in the /db pages and then load that client up to cloudflare cdn (assuming we can do with free level of service).
+
+- 2026-01-25T16:16:00-05:00
+  - Yes, i wondered how we would get the metadata if we only posted upload_id.  Good catch.  Please plan to implement that fix.  For the tus-js-client item, we can either host in a non-protected area or just load from CDN.  latter preferred if a well-maintained client library is already out there.
+
+- 2026-01-25T16:23:00-05:00
+  - ok, let me push the new code now.  what should I expect to see in the Network tab of Chrome developer tools?  one row or many rows?
+
+- 2026-01-25T16:33:00-05:00
+  - error:
+
+- 2026-01-25T16:59:00-05:00
+  - great, that resolved the post_build_checks issue.  And upload worked!
+
+- 2026-01-25T17:02:00-05:00
+  - This was a blunderbuss of activity today.  We kicked ass.  I think I have to take a break now.
+
+- 2026-01-25T17:16:00-05:00
+  - why are .mkv files greyed out when I tried to upload?
+
+- 2026-01-25T17:18:00-05:00
+  - look at ansible/inventories/group_vars/gighive2/gighive2.yml, mkv is already listed as being supported.  so i don't understand the issue..
+
+- 2026-01-25T17:19:00-05:00
+  - isn't that small change a "one-off" and not a consistent approach driven from our ansible configuration files?
+
+- 2026-01-25T17:21:00-05:00
+  - Let's do the allowlist driven consistency
+
+- 2026-01-25T17:33:00-05:00
+  - so i am trying an upload of a 642MB file through cloudflare.  i don't see any progress on the progress circle in the lower left and it has been three minutes.  conversely, i don't see a 413 error.  can we improve the progress meter to show both the progress meter and any debug data where the "Uploading ..." appears?
+
+- 2026-01-25T17:35:00-05:00
+  - did we not set a chunk size in group_vars/gighive2/gighive2.yml?  if not, we should and it should be 8MiB for starters.  and key progress meter off that.
+
+- 2026-01-25T17:39:00-05:00
+  - should we put in any other debugging so we have a log of the flow echo'd to the screen when a user tries an upload?  give me suggestions, but make no change.
+
+- 2026-01-25T17:44:00-05:00
+  - A small file with small chunks works, will try large file next
+
+- 2026-01-25T17:58:00-05:00
+  - option A, beautiful!
+
+- 2026-01-25T18:09:00-05:00
+  - I love the debug output as the file is loading.  can we make that stay after the file upload is complete?  the way it is now, the JSON string opens up and overrides the debug line when the upload finishes
+
+- 2026-01-25T18:18:00-05:00
+  - so the debug area still goes away after "Finalizing" step
+
+- 2026-01-25T18:29:00-05:00
+  - i promoted the latest code changes, but still don't see the debug sticking (see pic).  so go ahead an implement Option 1.
+
+- 2026-01-25T18:44:00-05:00
+  - can you add 1) ETA to the status bar that appears when uploading?  2) when upload is completed, leave the status bar with all the fields of information there..%complete (which would be 100% of course), # of chunks, ETA, sha hash, etc..just append "Upload Completed." to the end of it as the first way of indicating the upload has completed.  Then secondly, as is the case today, the json should automatically expand.  Point is I want to leave the debug window still there with all the info in the completed stat still there.  Is that possible?
+
+- 2026-01-25T18:58:00-05:00
+  - oops, caught one thing.  although i wanted you to keep the debug window there, after a successful upload, i want you to replace the word "Uploading.." that is the first text in the debug window (shown in attached pic) with "Uploading Completed." and then continue with the  "100% (Mb size..and all the other attributes.
+
 ## 2025-12-10
 
 - 2025-12-10T15:44:00-05:00

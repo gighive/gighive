@@ -1,11 +1,9 @@
 *** 
-releaseNotes20260131.txt
-Changes: Exclude ansible*.log from gighive home
+releaseNotes20260201.txt
+Changes: TUS implementation (stash/apply nightmare), TUS uploads: /files endpoint + tusd post-finish hook
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass" ansible-playbook-gighive2-20260130.log
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260131.log 
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-staging-20260130.log
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-prod-20260130.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260201.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260201.log 
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -14,7 +12,27 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/files/apache/Dockerfile
+	deleted:    ansible/roles/docker/files/apache/webroot/db/singlesRandomPlayer.php.old
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/UploadController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/index.php
+	new file:   ansible/roles/docker/files/tusd/hooks/post-finish
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   ansible/roles/docker/templates/entrypoint.sh.j2
+	modified:   ansible/roles/docker/templates/modsecurity.conf.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   docs/tus_implementation_guide.md
+	modified:   user-prompts.md
 
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
@@ -41,6 +59,24 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260131.txt
+Changes: Exclude ansible*.log from gighive home
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --ask-become-pass" ansible-playbook-gighive2-20260130.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260131.log 
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-staging-20260130.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-prod-20260130.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
 
 *** 
 releaseNotes20260131.txt

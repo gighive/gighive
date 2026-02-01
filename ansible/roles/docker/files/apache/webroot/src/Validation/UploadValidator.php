@@ -17,14 +17,9 @@ final class UploadValidator
         $defaultMax = 6 * 1024 * 1024 * 1024; // 6 GB calculated at runtime to avoid literal overflow
         $this->maxBytes = $maxBytes ?? ($env !== false && ctype_digit((string)$env) ? (int)$env : $defaultMax);
 
-        $defaultAllowed = [
-            'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/flac', 'audio/mp4',
-            'video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm', 'video/x-msvideo'
-        ];
-
         if ($allowedMimes === null) {
             $fromEnv = MediaTypes::allowedMimes();
-            $this->allowedMimes = $fromEnv !== [] ? $fromEnv : $defaultAllowed;
+            $this->allowedMimes = $fromEnv;
         } else {
             $this->allowedMimes = $allowedMimes;
         }
@@ -62,9 +57,24 @@ final class UploadValidator
         if ($mime === '') {
             $mime = (string)($f['type'] ?? '');
         }
+        $name = (string)($f['name'] ?? '');
+        $ext = '';
+        $dot = strrpos($name, '.');
+        if (is_int($dot) && $dot !== false) {
+            $ext = strtolower(substr($name, $dot + 1));
+        }
+        $extAllowed = false;
+        if ($ext !== '') {
+            $allowedExts = array_merge(MediaTypes::audioExts(), MediaTypes::videoExts());
+            if ($allowedExts !== [] && in_array($ext, $allowedExts, true)) {
+                $extAllowed = true;
+            }
+        }
+
         if ($mime !== '' && !in_array($mime, $this->allowedMimes, true)) {
-            // Be permissive but guard obvious non-media
-            if (strpos($mime, 'audio/') !== 0 && strpos($mime, 'video/') !== 0) {
+            // Guard obvious non-media, but allow cases where finfo is too strict as long as
+            // the filename extension indicates a supported media type.
+            if (strpos($mime, 'audio/') !== 0 && strpos($mime, 'video/') !== 0 && !$extAllowed) {
                 throw new \InvalidArgumentException('Unsupported media type');
             }
         }

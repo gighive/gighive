@@ -7,6 +7,7 @@ use Production\Api\Repositories\FileRepository;
 use Production\Api\Validation\UploadValidator;
 use PDO;
 
+
 final class UploadService
 {
     private ?string $ffprobeTool = null;
@@ -122,19 +123,37 @@ final class UploadService
         $mediaInfoTool = $mediaInfo !== null ? $this->ffprobeToolString() : null;
 
         // Persist metadata (with session linkage and seq)
-        $id = $this->files->create([
-            'file_name'       => basename($targetPath),
-            'source_relpath'  => $finalName,
-            'file_type'       => $fileType,
-            'session_id'      => $sessionId,
-            'seq'             => $seq,
-            'duration_seconds'=> $durationSeconds,
-            'media_info'      => $mediaInfo,
-            'media_info_tool' => $mediaInfoTool,
-            'mime_type'       => $mime ?: null,
-            'size_bytes'      => $size ?: null,
-            'checksum_sha256' => $checksum,
-        ]);
+        try {
+            $id = $this->files->create([
+                'file_name'       => basename($targetPath),
+                'source_relpath'  => $finalName,
+                'file_type'       => $fileType,
+                'session_id'      => $sessionId,
+                'seq'             => $seq,
+                'duration_seconds'=> $durationSeconds,
+                'media_info'      => $mediaInfo,
+                'media_info_tool' => $mediaInfoTool,
+                'mime_type'       => $mime ?: null,
+                'size_bytes'      => $size ?: null,
+                'checksum_sha256' => $checksum,
+            ]);
+        } catch (\PDOException $e) {
+            if (!is_string($checksum) || preg_match('/^[0-9a-f]{64}$/', $checksum) !== 1 || !$this->isDuplicateChecksumException($e)) {
+                throw $e;
+            }
+
+            $existing = $this->files->findByChecksum($checksum);
+            if (!$existing || !isset($existing['file_id'])) {
+                throw $e;
+            }
+
+            $existingFileName = (string)($existing['file_name'] ?? '');
+            if ($existingFileName !== '' && basename($targetPath) !== $existingFileName && is_file($targetPath)) {
+                @unlink($targetPath);
+            }
+
+            $id = (int)$existing['file_id'];
+        }
 
         // Link to a label (song or wedding table name)
         $songType = ($eventType === 'wedding') ? 'event_label' : 'song';
@@ -167,6 +186,119 @@ final class UploadService
             'keywords'        => $keywords,
             'duration_seconds'=> $durationSeconds,
         ];
+    }
+
+    private function isDuplicateChecksumException(\PDOException $e): bool
+    {
+        $info = $e->errorInfo;
+        if (is_array($info) && isset($info[1]) && (int)$info[1] === 1062) {
+            $msg = $e->getMessage();
+            return str_contains($msg, 'files_uq_files_checksum_sha256') || str_contains($msg, 'checksum_sha256');
+        }
+        $msg = $e->getMessage();
+        return str_contains($msg, 'SQLSTATE[23000]') && str_contains($msg, '1062') && (str_contains($msg, 'checksum_sha256') || str_contains($msg, 'files_uq_files_checksum_sha256'));
+    }
+
+    /**
+     * Finalize a completed tusd upload (Option A).
+     * Expects JSON body containing upload_id + same metadata fields used by handleUpload.
+     */
+    public function finalizeTusUpload(array $post): array
+    {
+        $uploadId = trim((string)($post['upload_id'] ?? ''));
+        if ($uploadId === '' || preg_match('/^[A-Za-z0-9_-]+$/', $uploadId) !== 1) {
+            throw new \InvalidArgumentException('Missing or invalid upload_id');
+        }
+
+        // tusd data + hook outputs are mounted into the Apache container under /var/www/private
+        $hookDir = '/var/www/private/tus-hooks/uploads';
+        $finalDir = '/var/www/private/tus-hooks/finalized';
+        $dataDir = '/var/www/private/tus-data';
+
+        $this->storage->ensureDir($finalDir);
+        $finalMarker = $finalDir . '/' . $uploadId . '.json';
+        if (is_file($finalMarker)) {
+            $raw = @file_get_contents($finalMarker);
+            $decoded = is_string($raw) ? json_decode($raw, true) : null;
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        $hookFile = $hookDir . '/' . $uploadId . '.json';
+        if (!is_file($hookFile)) {
+            throw new \RuntimeException('Upload not found or not finished yet');
+        }
+        $hookRaw = (string)@file_get_contents($hookFile);
+        $hook = json_decode($hookRaw, true);
+        if (!is_array($hook)) {
+            throw new \RuntimeException('Invalid tus hook payload');
+        }
+
+        $meta = [];
+        if (isset($hook['Event']['Upload']['MetaData']) && is_array($hook['Event']['Upload']['MetaData'])) {
+            $meta = $hook['Event']['Upload']['MetaData'];
+        } elseif (isset($hook['Upload']['MetaData']) && is_array($hook['Upload']['MetaData'])) {
+            $meta = $hook['Upload']['MetaData'];
+        } elseif (isset($hook['MetaData']) && is_array($hook['MetaData'])) {
+            $meta = $hook['MetaData'];
+        }
+        if (!is_array($meta)) $meta = [];
+        $origName = (string)($meta['filename'] ?? 'upload.bin');
+        $origName = $this->sanitizeFilename($origName);
+
+        $mergedPost = $post;
+        $fallbackKeys = [
+            'event_date',
+            'org_name',
+            'event_type',
+            'label',
+            'participants',
+            'keywords',
+            'location',
+            'rating',
+            'notes',
+        ];
+        foreach ($fallbackKeys as $k) {
+            $cur = $mergedPost[$k] ?? null;
+            if ($cur === null || (is_string($cur) && trim($cur) === '')) {
+                if (isset($meta[$k]) && is_string($meta[$k]) && trim($meta[$k]) !== '') {
+                    $mergedPost[$k] = $meta[$k];
+                }
+            }
+        }
+
+        $srcPath = $dataDir . '/' . $uploadId;
+        if (!is_file($srcPath)) {
+            throw new \RuntimeException('Upload data missing on disk');
+        }
+
+        $size = (int)@filesize($srcPath);
+        if ($size <= 0) {
+            throw new \RuntimeException('Uploaded file is empty');
+        }
+
+        $mime = '';
+        $fi = new \finfo(FILEINFO_MIME_TYPE);
+        $detected = @$fi->file($srcPath);
+        if (is_string($detected) && $detected !== '') {
+            $mime = $detected;
+        }
+
+        $files = [
+            'file' => [
+                'name' => $origName,
+                'type' => $mime,
+                'tmp_name' => $srcPath,
+                'error' => UPLOAD_ERR_OK,
+                'size' => $size,
+            ],
+        ];
+
+        $result = $this->handleUpload($files, $mergedPost);
+
+        @file_put_contents($finalMarker, json_encode($result));
+        return $result;
     }
 
     private function pickThumbnailTimestamp(?int $durationSeconds, string $sha256): float

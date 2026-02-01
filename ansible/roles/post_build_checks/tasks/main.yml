@@ -214,3 +214,193 @@
     headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
   changed_when: false
 
+# --- TUS verification (external URL) ---
+
+- name: Build variables for TUS checks
+  ansible.builtin.set_fact:
+    tus_payload: "hello-tus-{{ ansible_facts['date_time'].epoch }}"
+    tus_expected_offset: "{{ ('hello-tus-' ~ ansible_facts['date_time'].epoch) | length }}"
+    tus_upload_metadata_filename_b64: "{{ 'verify.wav' | b64encode }}"
+    tus_upload_metadata_label_b64: "{{ 'TUS_VALIDATE' | b64encode }}"
+    tus_upload_metadata_org_name_b64: "{{ 'gighive' | b64encode }}"
+    tus_upload_metadata_event_date_b64: "{{ ansible_facts['date_time'].date | b64encode }}"
+    tus_upload_metadata_event_type_b64: "{{ 'band' | b64encode }}"
+    tus_headers_common: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {} }}"
+    tus_checks_no_log: "{{ tus_checks_no_log | default(true) }}"
+  changed_when: false
+
+- name: Verify tusd container is running
+  community.docker.docker_container_info:
+    name: "{{ apache_container_name }}_tusd"
+  register: tusd_container
+  failed_when:
+    - not tusd_container.exists
+    - not tusd_container.container.State.Running
+    - tusd_container.container.State.Restarting
+  changed_when: false
+
+- name: Build internal tusd probe URL
+  ansible.builtin.set_fact:
+    tusd_internal_probe_url: "http://{{ apache_container_name }}_tusd:{{ tusd_port | default(8080) }}{{ tusd_base_path | default('/files') }}/"
+  changed_when: false
+
+- name: Probe tusd directly via Docker DNS from inside apache container
+  ansible.builtin.command: >
+    docker exec {{ apache_container_name }}
+    sh -lc "curl -sS -o /dev/null -w '%{http_code}' '{{ tusd_internal_probe_url }}'"
+  register: tusd_internal_probe
+  changed_when: false
+  failed_when: tusd_internal_probe.stdout | trim not in ['200', '204', '404', '405']
+  tags: [tus]
+
+- block:
+    - name: TUS endpoint should require auth (probe)
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/files/"
+        method: OPTIONS
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ tus_headers_common | combine({'Tus-Resumable': '1.0.0'}) }}"
+        status_code: [401, 403]
+        return_content: false
+      register: tus_auth_probe
+      changed_when: false
+
+    - name: Create TUS upload (POST /tus)
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/files/"
+        method: POST
+        url_username: "{{ uploader_user }}"
+        url_password: "{{ gighive_uploader_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ tus_headers_common | combine({
+          'Tus-Resumable': '1.0.0',
+          'Upload-Length': (tus_payload | length) | string,
+          'Upload-Metadata': (
+            'filename ' ~ tus_upload_metadata_filename_b64 ~
+            ',label ' ~ tus_upload_metadata_label_b64 ~
+            ',org_name ' ~ tus_upload_metadata_org_name_b64 ~
+            ',event_date ' ~ tus_upload_metadata_event_date_b64 ~
+            ',event_type ' ~ tus_upload_metadata_event_type_b64
+          )
+        }) }}"
+        status_code: [201]
+        return_content: false
+      register: tus_create
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: Capture upload Location + upload_id
+      ansible.builtin.set_fact:
+        tus_upload_location: "{{ tus_create.location | default('') }}"
+        tus_upload_id: "{{ (tus_create.location | default('')).split('/')[-1] }}"
+        tus_public_upload_url: "{{ gighive_base_url }}/files/{{ (tus_create.location | default('')).split('/')[-1] }}"
+      changed_when: false
+
+    - name: Assert Location header was returned
+      ansible.builtin.assert:
+        that:
+          - tus_upload_location | length > 0
+          - tus_upload_id | length > 0
+      changed_when: false
+
+    - name: Upload a small payload via TUS (PATCH)
+      ansible.builtin.uri:
+        url: "{{ tus_public_upload_url }}"
+        method: PATCH
+        url_username: "{{ uploader_user }}"
+        url_password: "{{ gighive_uploader_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ tus_headers_common | combine({
+          'Tus-Resumable': '1.0.0',
+          'Upload-Offset': '0',
+          'Content-Type': 'application/offset+octet-stream'
+        }) }}"
+        body: "{{ tus_payload }}"
+        body_format: raw
+        status_code: [204]
+        return_content: false
+      register: tus_patch
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: Verify upload offset via TUS (HEAD)
+      ansible.builtin.command: >
+        sh -lc
+        'curl -sS --http1.1 {{ "-k" if not (gighive_validate_certs | default(true)) else "" }} -u "{{ uploader_user }}:{{ gighive_uploader_password }}" -I "{{ tus_public_upload_url }}" -H "Tus-Resumable: 1.0.0" -D - -o /dev/null | tr -d "\r" | awk -F": " "tolower(\$1)==\"upload-offset\"{print \$2; exit}"'
+      register: tus_head
+      changed_when: false
+      failed_when: tus_head.rc not in [0, 18]
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: Extract Upload-Offset header value
+      ansible.builtin.set_fact:
+        tus_upload_offset_value: "{{ tus_head.stdout | default('') | trim }}"
+      changed_when: false
+
+    - name: Assert TUS offset matches payload length
+      ansible.builtin.assert:
+        that:
+          - (tus_upload_offset_value | default('')) | string == (tus_expected_offset | string)
+        fail_msg: "Expected Upload-Offset={{ tus_expected_offset }}, got '{{ tus_upload_offset_value | default('') }}'"
+      changed_when: false
+
+    - name: Wait for tusd post-finish hook JSON to appear
+      ansible.builtin.command: >
+        docker exec {{ apache_container_name }}
+        sh -lc 'test -f "/var/www/private/tus-hooks/uploads/{{ tus_upload_id }}.json"'
+      register: tus_hook_wait
+      changed_when: false
+      retries: 20
+      delay: 1
+      until: tus_hook_wait.rc == 0
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: Finalize TUS upload (POST /api/uploads/finalize)
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/api/uploads/finalize"
+        method: POST
+        url_username: "{{ uploader_user }}"
+        url_password: "{{ gighive_uploader_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
+        body_format: json
+        body:
+          upload_id: "{{ tus_upload_id }}"
+        status_code: 201
+        return_content: true
+      register: tus_finalize_1
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: Finalize again (idempotency)
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/api/uploads/finalize"
+        method: POST
+        url_username: "{{ uploader_user }}"
+        url_password: "{{ gighive_uploader_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
+        body_format: json
+        body:
+          upload_id: "{{ tus_upload_id }}"
+        status_code: 201
+        return_content: true
+      register: tus_finalize_2
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: Assert finalize idempotency (same file id)
+      ansible.builtin.assert:
+        that:
+          - tus_finalize_1.json is mapping
+          - tus_finalize_2.json is mapping
+          - (tus_finalize_1.json.id | int) == (tus_finalize_2.json.id | int)
+          - (tus_finalize_1.json.file_name | default('')) == (tus_finalize_2.json.file_name | default(''))
+      changed_when: false
+
+  tags: [tus]
+

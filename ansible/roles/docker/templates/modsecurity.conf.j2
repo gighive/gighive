@@ -39,3 +39,17 @@ SecAuditLogRelevantStatus "^(?:5|4(?!04))"
     SecRule FILES_NAMES "\.(php\d?|phtml|phar|cgi|pl|asp|aspx|jsp|jar|exe|sh|bat|cmd|com|msi)$" \
         "id:1203,phase:2,deny,status:400,msg:'Disallowed extension for upload'"
 </LocationMatch>
+
+# MVC upload routes accept JSON bodies (e.g. /api/uploads/finalize)
+<LocationMatch "^/api/uploads(?:/|$)">
+    SecRuleEngine On
+    SecRequestBodyAccess On
+    SecRequestBodyLimit 6442450944
+</LocationMatch>
+
+# TUS endpoint is not multipart; allow PATCH and tus content types without the multipart requirement
+<LocationMatch "^/files(?:/|$)">
+    SecRuleEngine On
+    SecRequestBodyAccess On
+    SecRequestBodyLimit 6442450944
+</LocationMatch>

@@ -172,6 +172,18 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
+- name: Ensure tusd hooks directory exists
+  ansible.builtin.file:
+    path: "{{ docker_dir }}/tusd/hooks"
+    state: directory
+    mode: "0755"
+
+- name: Deploy tusd post-finish hook
+  ansible.builtin.copy:
+    src: "tusd/hooks/post-finish"
+    dest: "{{ docker_dir }}/tusd/hooks/post-finish"
+    mode: "0755"
+
 - name: Ensure API spec directory exists
   file:
     path: "{{ web_root }}/api"

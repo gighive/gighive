@@ -1,0 +1,55 @@
+#!/usr/bin/env sh
+set -eu
+
+# tusd provides TUS_ID and JSON payload on stdin.
+# Write the payload to a shared volume so the main app can finalize the upload.
+
+id="${TUS_ID:-}"
+if [ -z "$id" ]; then
+  id="${TUS_UPLOAD_ID:-}"
+fi
+
+outdir="/hook-out/uploads"
+mkdir -p "$outdir"
+
+debug_log="/hook-out/hook-debug.log"
+ts="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown_time)"
+uidgid="$(id -u 2>/dev/null):$(id -g 2>/dev/null)"
+has_tus_id="${TUS_ID:+1}"
+has_tus_upload_id="${TUS_UPLOAD_ID:+1}"
+id_source=""
+
+tmpfile="$outdir/$id.json.tmp"
+outfile="$outdir/$id.json"
+
+if [ -n "$id" ]; then
+  id_source="env"
+  payload="$(cat)"
+  printf '%s' "$payload" > "$tmpfile"
+else
+  payload="$(cat)"
+  id="$(printf '%s' "$payload" | sed -n 's/.*"Upload"[[:space:]]*:[[:space:]]*{[^}]*"ID"[[:space:]]*:[[:space:]]*"\([^"]\+\)".*/\1/p' | head -n 1)"
+  if [ -z "$id" ]; then
+    id="$(printf '%s' "$payload" | sed -n 's/.*"ID"[[:space:]]*:[[:space:]]*"\([^"]\+\)".*/\1/p' | head -n 1)"
+  fi
+  if [ -z "$id" ]; then
+    printf '%s %s hook=post-finish has_TUS_ID=%s has_TUS_UPLOAD_ID=%s parsed_id= parsed_source= bytes=%s wrote_tmp=0 mv_ok=0 outfile_size=0\n' "$ts" "$uidgid" "${has_tus_id:-0}" "${has_tus_upload_id:-0}" "${#payload}" >> "$debug_log" 2>/dev/null || true
+    exit 0
+  fi
+  if printf '%s' "$payload" | grep -q '"Upload"[[:space:]]*:' 2>/dev/null; then
+    id_source="payload_upload"
+  else
+    id_source="payload"
+  fi
+  tmpfile="$outdir/$id.json.tmp"
+  outfile="$outdir/$id.json"
+  printf '%s' "$payload" > "$tmpfile"
+fi
+chmod 0644 "$tmpfile" || true
+outfile_size="$(wc -c < "$tmpfile" 2>/dev/null || echo 0)"
+if mv "$tmpfile" "$outfile" 2>/dev/null; then
+  printf '%s %s hook=post-finish has_TUS_ID=%s has_TUS_UPLOAD_ID=%s parsed_id=%s parsed_source=%s bytes=%s wrote_tmp=1 mv_ok=1 outfile_size=%s\n' "$ts" "$uidgid" "${has_tus_id:-0}" "${has_tus_upload_id:-0}" "$id" "${id_source:-}" "${#payload}" "$outfile_size" >> "$debug_log" 2>/dev/null || true
+else
+  printf '%s %s hook=post-finish has_TUS_ID=%s has_TUS_UPLOAD_ID=%s parsed_id=%s parsed_source=%s bytes=%s wrote_tmp=1 mv_ok=0 outfile_size=%s\n' "$ts" "$uidgid" "${has_tus_id:-0}" "${has_tus_upload_id:-0}" "$id" "${id_source:-}" "${#payload}" "$outfile_size" >> "$debug_log" 2>/dev/null || true
+  exit 0
+fi

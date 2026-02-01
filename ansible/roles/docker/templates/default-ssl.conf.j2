@@ -40,6 +40,17 @@
     # API routing - Using MVC architecture in /src/
     # -------------------------------
 
+    RewriteEngine On
+
+    # Route MVC API endpoints to the front controller.
+    # Keep legacy script endpoint /api/uploads.php intact.
+    RewriteCond %{REQUEST_URI} ^/api/uploads(?:/.*)?$
+    RewriteCond %{REQUEST_URI} !^/api/uploads\.php$
+    RewriteRule .* /src/index.php [QSA,L]
+
+    RewriteCond %{REQUEST_URI} ^/api/media-files$
+    RewriteRule .* /src/index.php [QSA,L]
+
     # -------------------------------
     # Root is public, but no indexes
     # -------------------------------
@@ -160,6 +171,15 @@
         Require user admin uploader
     </Location>
 
+    # --- UPLOADS API (MVC ROUTES): admin + uploader ---
+    <LocationMatch "^/api/uploads(?:/|$)">
+        AuthType Basic
+        AuthName "GigHive"
+        AuthBasicProvider file
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin uploader
+    </LocationMatch>
+
     # --- MEDIA-FILES API: admin + uploader ---
     <Location "/api/media-files">
         AuthType Basic
@@ -167,6 +187,20 @@
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin uploader
     </Location>
+
+    # --- TUS UPLOAD ENDPOINT: admin + uploader ---
+    <LocationMatch "^/files(?:/|$)">
+        AuthType Basic
+        AuthName "GigHive"
+        AuthBasicProvider file
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require user admin uploader
+    </LocationMatch>
+
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "https"
+    ProxyPass "/files/" "http://{{ apache_container_name }}_tusd:8080{{ tusd_base_path | default('/files') }}/" nocanon
+    ProxyPassReverse "/files/" "http://{{ apache_container_name }}_tusd:8080{{ tusd_base_path | default('/files') }}/"
     
     # --- ADMIN PAGE: admin only ---
     <Location "/admin.php">
