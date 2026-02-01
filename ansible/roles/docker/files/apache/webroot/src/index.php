@@ -38,6 +38,13 @@ try {
         debug_log("Matched GET route for uploads/{id}");
         $id = (int)$matches[1];
         $resp = $controller->get($id);
+    } elseif ($method === 'POST' && $path === '/uploads/finalize') {
+        // POST /api/uploads/finalize
+        debug_log("Matched POST route for /uploads/finalize");
+        $raw = file_get_contents('php://input') ?: '';
+        $json = json_decode($raw, true);
+        $post = is_array($json) ? $json : $_POST;
+        $resp = $controller->finalize($post);
     } elseif ($method === 'POST' && $path === '/uploads') {
         // POST /src/uploads
         debug_log("Matched POST route for /uploads");
@@ -60,7 +67,7 @@ try {
     } else {
         // 404 for unmatched routes
         debug_log("No route matched! Method: $method, Path: '$path'");
-        debug_log("Available routes: GET /uploads/{id}, POST /uploads, POST /media-files, GET /media-files (planned)");
+        debug_log("Available routes: GET /uploads/{id}, POST /uploads, POST /uploads/finalize, POST /media-files, GET /media-files (planned)");
         http_response_code(404);
         header('Content-Type: application/json');
         echo json_encode(['error' => 'Not Found', 'debug' => ['method' => $method, 'path' => $path]]);

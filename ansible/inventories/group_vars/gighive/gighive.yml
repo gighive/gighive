@@ -47,7 +47,7 @@ database_full: false
 
 # Docker container rebuild control
 rebuild_mysql: false       # Rebuild MySQL container (preserve data)
-rebuild_mysql_data: false # Rebuild MySQL container + wipe database (nuclear)
+rebuild_mysql_data: true # Rebuild MySQL container + wipe database (nuclear)
 
 # these vars control full/reduced set of media
 sync_video: true
@@ -198,6 +198,41 @@ apache_group: www-data
 
 # htpasswd vars coming up
 protected_paths: ['app','api','db','debug','src','vendor']
+
+# --------------------------------------------------------------------
+# TUS (tusd) uploads
+# --------------------------------------------------------------------
+# NOTE: tusd runs in its own container, but shares volumes with the apache
+# container. Using numeric uid/gid here avoids relying on user names existing
+# inside the tusd image.
+tusd_user_uid: 33
+tusd_user_gid: 33
+
+# tusd internal listen port (container)
+tusd_port: 8080
+
+# tusd internal base path (what tusd serves)
+tusd_base_path: "/files"
+
+# public path exposed via Apache reverse proxy
+tus_public_path: "/files"
+
+# tusd container paths
+tusd_upload_dir: "/srv/tusd-data/data"
+tusd_hooks_dir: "/hooks"
+tusd_hook_out_dir: "/hook-out"
+
+# apache container paths for shared volumes
+tus_data_dir: "/var/www/private/tus-data"
+tus_hooks_dir: "/var/www/private/tus-hooks"
+
+# post_build_checks tunables
+tus_hook_wait_retries: 20
+tus_hook_wait_delay_seconds: 1
+tus_checks_no_log_default: true
+
+# tus-js-client chunk size (bytes). Keep below Cloudflare request limits.
+tus_client_chunk_size_bytes: 8388608
 
 #gighive_host — what tests hit (can be IP or hostname)
 #gighive_server_name — what goes into the cert (CN + DNS.1)

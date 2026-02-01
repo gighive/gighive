@@ -23,6 +23,10 @@ mkdir -p /var/www/html/audio /var/www/html/video
 chown -R www-data:www-data /var/www/html
 chmod 775 /var/www/html/audio /var/www/html/video
 
+mkdir -p /var/www/private/tus-hooks/uploads /var/www/private/tus-hooks/finalized
+chown -R www-data:www-data /var/www/private/tus-hooks /var/www/private/tus-data || true
+chmod 775 /var/www/private/tus-hooks /var/www/private/tus-hooks/uploads /var/www/private/tus-hooks/finalized || true
+
 # Ensure php-fpm log files exist and are writable
 mkdir -p /var/log/php-fpm
 touch /var/log/fpm-php.www.log /var/log/php-fpm/www.slow.log

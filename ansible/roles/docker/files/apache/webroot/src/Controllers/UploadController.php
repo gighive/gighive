@@ -95,4 +95,32 @@ final class UploadController
             ],
         ];
     }
+
+    /**
+     * Handle POST /api/uploads/finalize
+     * @param array $post JSON body (preferred) or form fields
+     */
+    public function finalize(array $post): array
+    {
+        try {
+            $result = $this->service->finalizeTusUpload($post);
+            return [
+                'status'  => 201,
+                'headers' => ['Content-Type' => 'application/json'],
+                'body'    => $result,
+            ];
+        } catch (\InvalidArgumentException $e) {
+            return [
+                'status'  => 400,
+                'headers' => ['Content-Type' => 'application/json'],
+                'body'    => ['error' => 'Bad Request', 'message' => $e->getMessage()],
+            ];
+        } catch (\RuntimeException $e) {
+            return [
+                'status'  => 500,
+                'headers' => ['Content-Type' => 'application/json'],
+                'body'    => ['error' => 'Server Error', 'message' => $e->getMessage()],
+            ];
+        }
+    }
 }

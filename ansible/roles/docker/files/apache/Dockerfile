@@ -47,7 +47,7 @@ RUN rm -f /etc/apache2/sites-enabled/000-default.conf && \
     mkdir -p /etc/ssl/certs /etc/ssl/private && \
     mkdir -p /etc/modsecurity/crs && \
     mkdir -p /var/www/private && chown www-data:www-data /var/www/private && chmod 0775 /var/www/private && \
-    a2enmod ssl http2 proxy proxy_fcgi headers rewrite cache cache_disk security2 remoteip && \
+    a2enmod ssl http2 proxy proxy_http proxy_fcgi headers rewrite cache cache_disk security2 remoteip && \
     a2ensite default-ssl
 
 # Switch MPM
