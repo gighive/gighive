@@ -1,4 +1,51 @@
 *** 
+releaseNotes20260203.txt
+Changes: Pre-ssl cert doc additions and plan
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260203.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260203.log 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/cert_internal_no_warnings_guidance.md
+	new file:   docs/cert_naming_consistency.md
+	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_44 PM.png
+	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_46 PM.png
+	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_50 PM.png
+	new file:   docs/problem_hsts_collision.md
+
+ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+ToDo: We should expose any 413 errors directly to the IOS app
+ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?, "upload to gighive" should change to "Upload, organize, and stream your media."
+ToDo: integrate with cddb
+ToDo: Remove mysql_native_password=ON
+ToDo: Is it worthwhile to have an embed feature?
+ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+ToDo: fix reload clears sort media library page
+ToDo: Check azure build
+ToDo: Match cert with cloudflare, name only or something else needed?
+ToDo: database table name change to genericize songs 
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod baremetal with same ansible scripts as staging
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: Integrate Let's Encrypt for future
+ToDo: guest user?
+ToDo: Should have "backup now" feature
+
+*** 
 releaseNotes20260201.txt
 Changes: TUS implementation (stash/apply nightmare), TUS uploads: /files endpoint + tusd post-finish hook
 
@@ -33,32 +80,6 @@ Changes to be committed:
 	modified:   ansible/roles/post_build_checks/tasks/main.yml
 	modified:   docs/tus_implementation_guide.md
 	modified:   user-prompts.md
-
-ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
-ToDo: We should expose any 413 errors directly to the IOS app
-ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?, "upload to gighive" should change to "Upload, organize, and stream your media."
-ToDo: integrate with cddb
-ToDo: Remove mysql_native_password=ON
-ToDo: Is it worthwhile to have an embed feature?
-ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-ToDo: fix reload clears sort media library page
-ToDo: Check azure build
-ToDo: Match cert with cloudflare, name only or something else needed?
-ToDo: database table name change to genericize songs 
-ToDo: investigate vids that didn't produce thumbnails 
-ToDo: rebuild prod baremetal with same ansible scripts as staging
-ToDo: Make sure ask-become-pass is run at first part of vbox_provision
-ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: Integrate Let's Encrypt for future
-ToDo: guest user?
-ToDo: Should have "backup now" feature
 
 *** 
 releaseNotes20260131.txt
