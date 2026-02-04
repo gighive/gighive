@@ -11,7 +11,7 @@ User www-data
 Group www-data
 
 # Set the ServerName to avoid DNS lookup delays
-ServerName {{ gighive_server_name | default('gighive') }}
+ServerName {{ gighive_fqdn | default(gighive_server_name | default('gighive')) }}
 Protocols h2 http/1.1
 
 # Load all module configuration files

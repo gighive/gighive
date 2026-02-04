@@ -402,5 +402,58 @@
           - (tus_finalize_1.json.file_name | default('')) == (tus_finalize_2.json.file_name | default(''))
       changed_when: false
 
+    - block:
+        - name: Assert TUS smoke-test file is safe to delete
+          ansible.builtin.assert:
+            that:
+              - (tus_finalize_1.json.label | default('')) == 'TUS_VALIDATE'
+              - (tus_finalize_1.json.file_name | default('')) is search('tus-validate')
+              - (tus_finalize_1.json.id | default('') | string) is regex('^[0-9]+$')
+            fail_msg: >-
+              Refusing to cleanup because finalize response does not look like a TUS_VALIDATE smoke-test file.
+              label='{{ tus_finalize_1.json.label | default('') }}' file_name='{{ tus_finalize_1.json.file_name | default('') }}' id='{{ tus_finalize_1.json.id | default('') }}'
+          changed_when: false
+
+        - name: Delete TUS smoke-test media record (DB + served file)
+          ansible.builtin.uri:
+            url: "{{ gighive_base_url }}/db/delete_media_files.php"
+            method: POST
+            url_username: "admin"
+            url_password: "{{ gighive_admin_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ gighive_validate_certs }}"
+            headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
+            body_format: json
+            body:
+              file_ids:
+                - "{{ tus_finalize_1.json.id | int }}"
+            status_code: [200]
+            return_content: true
+          register: tus_cleanup_delete
+          changed_when: false
+          no_log: "{{ tus_checks_no_log }}"
+
+        - name: Assert delete endpoint removed 1 row
+          ansible.builtin.assert:
+            that:
+              - tus_cleanup_delete.json is mapping
+              - (tus_cleanup_delete.json.deleted_count | default(0) | int) == 1
+              - (tus_cleanup_delete.json.error_count | default(0) | int) == 0
+            fail_msg: >-
+              Cleanup delete failed. Response={{ tus_cleanup_delete.content | default('') }}
+          changed_when: false
+
+        - name: Remove tus staging artifacts for this upload_id
+          ansible.builtin.command: >
+            docker exec {{ apache_container_name }}
+            sh -lc 'rm -f
+            "/var/www/private/tus-data/{{ tus_upload_id }}"
+            "/var/www/private/tus-hooks/uploads/{{ tus_upload_id }}.json"
+            "/var/www/private/tus-hooks/finalized/{{ tus_upload_id }}.json"'
+          changed_when: false
+          failed_when: false
+          no_log: "{{ tus_checks_no_log }}"
+      when: tus_cleanup_after_check | default(true)
+
   tags: [tus]
 

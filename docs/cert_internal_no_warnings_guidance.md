@@ -1,4 +1,4 @@
-# Internal TLS: “No Browser Warnings” Guidance
+ Internal TLS: “No Browser Warnings” Guidance
 
 This document explains why you can still get browser TLS warnings even when a certificate’s `subjectAltName` matches the hostname/IP you’re visiting, and it outlines options (in increasing “properness”) to achieve **clean HTTPS without warnings** for internal/LAN access.
 

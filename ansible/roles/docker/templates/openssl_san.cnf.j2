@@ -7,7 +7,7 @@ x509_extensions    = v3_req
 prompt             = no
 
 [ req_distinguished_name ]
-CN = {{ gighive_server_name | default('gighive') }}
+CN = {{ gighive_cert_cn | default(gighive_server_name | default('gighive')) }}
 
 [ v3_req ]
 subjectAltName = @alt_names
@@ -15,14 +15,9 @@ keyUsage = critical, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 
 [ alt_names ]
-DNS.1 = {{ gighive_server_name | default('gighive') }}
-DNS.2 = {{ gighive_server_alias | default('gighive') }}
-DNS.3 = musiclibrary
-DNS.4 = musiclibrary-dev
-DNS.5 = ubuntu
-IP.1  = 192.168.1.227
-IP.2  = 192.168.1.239
-IP.3  = 192.168.1.245
-IP.4  = 192.168.1.248
-IP.5  = 192.168.1.249
-
+{% set sans = (gighive_cert_dns_sans
+               | default([gighive_server_name | default('gighive'),
+                          gighive_server_alias | default('gighive')])) %}
+{% for san in sans %}
+DNS.{{ loop.index }} = {{ san }}
+{% endfor %}
