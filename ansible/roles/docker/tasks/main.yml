@@ -217,11 +217,11 @@
   register: docker_compose_template
   tags: docker, compose
 
-- name: Assert server_name is not an IP (CN must be hostname)
+- name: Assert gighive_fqdn is not an IP (must be hostname)
   assert:
     that:
-      - gighive_server_name is regex("^[A-Za-z0-9.-]+$")  # naive host check, not IP
-    fail_msg: "gighive_server_name should be a hostname (CN), not an IP."
+      - (gighive_fqdn | default(gighive_server_name)) is regex("^[A-Za-z0-9.-]+$")  # naive host check, not IP
+    fail_msg: "gighive_fqdn should be a hostname, not an IP."
 
   # Removed deploy-time overlay: handled at build-time now
 

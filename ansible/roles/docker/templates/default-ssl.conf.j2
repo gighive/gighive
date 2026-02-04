@@ -17,9 +17,11 @@
 </Directory>
 
 <VirtualHost *:443>
-    ServerName {{ gighive_server_name }}
-    ServerAlias {{ gighive_server_alias }}
-    {% if gighive_server_name != gighive_host %}
+    ServerName {{ gighive_fqdn | default(gighive_server_name) }}
+    {% for alias in (gighive_server_aliases | default([gighive_server_alias] if (gighive_server_alias is defined) else [])) %}
+    ServerAlias {{ alias }}
+    {% endfor %}
+    {% if (gighive_fqdn | default(gighive_server_name)) != gighive_host %}
     ServerAlias {{ gighive_host }}
     {% endif %}
     DocumentRoot /var/www/html

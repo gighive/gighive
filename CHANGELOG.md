@@ -1,23 +1,9 @@
 *** 
-releaseNotes20260203.txt
-Changes: Pre-ssl cert doc additions and plan
+releaseNotes20260204.txt
+Changes: DNS and SSL cert standardizations (gighive_cert_cn: gighive.internal, gighive_cert_dns_sans: [*.gighive.internal, gighive.internal], gighive_fqdn: dev.gighive.internal, gighive_server_aliases: [gighive2.gighive.internal, dev.gighive.app]
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260203.log
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260203.log 
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	new file:   docs/cert_internal_no_warnings_guidance.md
-	new file:   docs/cert_naming_consistency.md
-	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_44 PM.png
-	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_46 PM.png
-	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_50 PM.png
-	new file:   docs/problem_hsts_collision.md
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260204.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260204.log 
 
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
@@ -44,6 +30,24 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260203.txt
+Changes: Pre-ssl cert doc additions and plan
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/cert_internal_no_warnings_guidance.md
+	new file:   docs/cert_naming_consistency.md
+	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_44 PM.png
+	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_46 PM.png
+	deleted:    docs/images/ChatGPT Image Aug 25, 2025, 04_28_50 PM.png
+	new file:   docs/problem_hsts_collision.md
 
 *** 
 releaseNotes20260201.txt

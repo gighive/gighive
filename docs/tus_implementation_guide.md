@@ -108,6 +108,79 @@ Current ModSecurity configuration enforces `multipart/form-data` for `/api/uploa
 - `OPTIONS /files/` without auth should return `401/403`.
 - Authenticated `POST /files/` should return `201 Created` with a `Location` header.
 
+### Post-build validation (Ansible)
+
+The Ansible role `post_build_checks` includes a TUS smoke test to validate the end-to-end upload pipeline, including reverse proxying, authentication, the tusd hook, and the application-side finalize flow.
+
+- Implementation:
+  - `ansible/roles/post_build_checks/tasks/main.yml`
+
+The test exercises these behaviors:
+
+- `OPTIONS /files/` (unauthenticated)
+  - Expected: `401` or `403`
+- `POST /files/` (authenticated)
+  - Expected: `201 Created`
+  - Requires `Location` header for the new upload resource
+- `PATCH <Location>` (authenticated)
+  - Uploads a small payload
+  - Expected: `204 No Content`
+- `HEAD <Location>`
+  - Verifies the upload offset equals the payload length
+- Wait for tusd post-finish hook output
+  - Ensures the hook JSON file exists before finalizing
+- `POST /api/uploads/finalize` (authenticated)
+  - Expected: `201 Created`
+- Finalize again (idempotency regression)
+  - Calls finalize a second time and asserts it returns the same `id` and `file_name`
+
+This is intended to catch regressions where:
+
+- Apache proxying is misrouted (hitting tusd welcome endpoint vs TUS handler)
+- `PATCH` / TUS headers are blocked
+- the post-finish hook does not fire or cannot write to its shared volume
+- finalize is not idempotent for the same `upload_id`
+
+### Server-side artifact layout (/var/www/private)
+
+The tusd container and Apache container share volumes that are mounted into the Apache container under `/var/www/private`.
+
+- Staging upload data (tusd write target):
+  - `/var/www/private/tus-data/<upload_id>`
+- Hook output (written by tusd post-finish hook):
+  - `/var/www/private/tus-hooks/uploads/<upload_id>.json`
+- Finalize marker (written by the app after successful finalize):
+  - `/var/www/private/tus-hooks/finalized/<upload_id>.json`
+
+Finalize reads the hook JSON and the tusd staging upload file, then writes the final served media and DB metadata via the existing upload handling logic.
+
+Final served media locations:
+
+- Audio:
+  - `/var/www/html/audio/<sha256>.<ext>`
+- Video:
+  - `/var/www/html/video/<sha256>.<ext>`
+  - Thumbnails: `/var/www/html/video/thumbnails/<sha256>.png`
+
+### Optional cleanup (avoid DB/filesystem pollution)
+
+The TUS smoke test can optionally clean up the validation media record and staging artifacts.
+
+- Variable:
+  - `tus_cleanup_after_check`
+    - Default: `true`
+    - Set to `false` to keep artifacts for debugging
+
+Cleanup behavior:
+
+- Verifies the finalize response looks like the smoke-test record (label `TUS_VALIDATE` and file name contains `tus-validate`).
+- Deletes the created DB row and served file via:
+  - `POST /db/delete_media_files.php` (admin-only)
+- Removes staging artifacts for the `upload_id`:
+  - `/var/www/private/tus-data/<upload_id>`
+  - `/var/www/private/tus-hooks/uploads/<upload_id>.json`
+  - `/var/www/private/tus-hooks/finalized/<upload_id>.json`
+
 ### UI Integration
 - **Progress Display**: ✅ Existing 10% bucket system works perfectly
 - **Cancel Functionality**: ✅ Task cancellation preserved
