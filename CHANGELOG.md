@@ -1,9 +1,18 @@
 *** 
 releaseNotes20260204.txt
-Changes: DNS and SSL cert standardizations (gighive_cert_cn: gighive.internal, gighive_cert_dns_sans: [*.gighive.internal, gighive.internal], gighive_fqdn: dev.gighive.internal, gighive_server_aliases: [gighive2.gighive.internal, dev.gighive.app]
+Changes: gighive group vars for recent DNS/SSL changes
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260204.log
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260204.log 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
 
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
@@ -30,6 +39,30 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260204.txt
+Changes: DNS and SSL cert standardizations (gighive_cert_cn: gighive.internal, gighive_cert_dns_sans: [*.gighive.internal, gighive.internal], gighive_fqdn: dev.gighive.internal, gighive_server_aliases: [gighive2.gighive.internal, dev.gighive.app]
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260204.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260204.log 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/apache2.conf.j2
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/templates/openssl_san.cnf.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   docs/cert_internal_no_warnings_guidance.md
+	modified:   docs/tus_implementation_guide.md
 
 *** 
 releaseNotes20260203.txt
