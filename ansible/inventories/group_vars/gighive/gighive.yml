@@ -246,8 +246,27 @@ gighive_base_url: "{{ gighive_scheme }}://{{ gighive_host }}"
 gighive_auth_probe_url: "{{ gighive_scheme }}://{{ gighive_host }}/db/database.php"
 gighive_auth_probe_insecure: true
 
-gighive_server_name: "{{ vm_name | default(inventory_hostname) }}" # name in cert
-gighive_server_alias: "staging.gighive.app" # alias in cert
+# --- Naming strategy (gighive2/dev test) ---
+# Certificate identity (TLS only)
+gighive_cert_cn: "gighive.internal"
+gighive_cert_dns_sans:
+  - "*.gighive.internal"
+  - "gighive.internal"
+  
+# Host identity (Apache / what clients connect to)
+gighive_fqdn: "gighive.gighive.internal"
+  
+# Optional additional names for the vhost
+gighive_server_aliases:
+  - "gighive.gighive.internal"
+  - "staging.gighive.internal"
+  - "lab.gighive.internal"
+  - "staging.gighive.app"
+  - "lab.gighive.app"
+  
+# Back-compat mapping (keep during testing; remove later once everything migrates)
+gighive_server_name: "{{ gighive_fqdn }}"
+gighive_server_alias: "{{ (gighive_server_aliases | default([])) | first | default('gighive') }}"
 gighive_ssl_cert_file: "/etc/ssl/certs/origin_cert.pem"
 gighive_ssl_key_file:  "/etc/ssl/private/origin_key.pem"
 gighive_ssl_san_config: "/etc/ssl/openssl_san.cnf"
