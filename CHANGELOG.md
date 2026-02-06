@@ -1,17 +1,6 @@
 *** 
-releaseNotes20260204.txt
-Changes: Add conditional reboot at bottom of base/tasks/main.yml
-
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ansible-playbook-lab-20260204.log 
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/base/tasks/main.yml
+releaseNotes20260206.txt
+Changes: Add Google Analytics via Jekyll default layout 
 
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
@@ -38,6 +27,21 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260204.txt
+Changes: Add conditional reboot at bottom of base/tasks/main.yml
+
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ansible-playbook-lab-20260204.log 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
 
 *** 
 releaseNotes20260204.txt
