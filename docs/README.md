@@ -75,7 +75,7 @@ ansible --version # Should be 2.17.2 or higher
 git clone https://github.com/gighive/gighive
 ```
 
-6. GigHive uses an Ansible variable `gighive_home` (default `~/gighive`) to locate the repo on the VM. If you cloned the repo elsewhere, override `gighive_home` (recommended in `ansible/inventories/group_vars/<env>/<env>.yml`; otherwise in `ansible/inventories/group_vars/all.yml`).
+6. GigHive uses an Ansible variable `gighive_home` (default `~/gighive`) to locate the repo on the VM. If you cloned the repo anywhere else other than ~/gighive, edit the `gighive_home` variable found in `ansible/inventories/group_vars/gighive/all.yml` to the actual location of the repo.
 
 7. Make sure you have id_rsa.pub in ./ssh for passwordless authentication.
 ```bash
