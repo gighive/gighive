@@ -1,5 +1,0 @@
-defaults:
-  - scope:
-      path: "docs"
-    values:
-      layout: default

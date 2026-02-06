@@ -1,6 +1,18 @@
 *** 
 releaseNotes20260206.txt
-Changes: Add Google Analytics via Jekyll default layout 
+Changes: Load GA only for pages sourced from docs/ 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	deleted:    _config.yml
+	new file:   _includes/head-custom.html
+	deleted:    _includes/head.html
+	deleted:    _layouts/default.html
 
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
@@ -27,6 +39,10 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260206.txt
+Changes: Add Google Analytics via Jekyll default layout 
 
 *** 
 releaseNotes20260204.txt
