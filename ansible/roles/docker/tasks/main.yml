@@ -26,7 +26,6 @@
         path: "{{ gighive_htpasswd_host_path }}"
         state: touch
         mode: "0640"
-      when: not ghp.stat.exists
 
     - name: Ensure host htpasswd file has correct ownership and permissions
       ansible.builtin.file:
