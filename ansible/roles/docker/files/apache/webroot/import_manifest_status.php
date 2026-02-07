@@ -42,20 +42,30 @@ if ($jobId === '' || !preg_match('/^[0-9]{8}-[0-9]{6}-[a-f0-9]{12}$/', $jobId)) 
     exit;
 }
 
-[$jobRoot, $jobDir] = gighive_manifest_job_paths($jobId);
+$jobRoot = '/var/www/private/import_jobs';
 $jobRootReal = realpath($jobRoot);
-$jobDirReal = realpath($jobDir);
-if ($jobRootReal === false || $jobDirReal === false || !str_starts_with($jobDirReal . '/', $jobRootReal . '/')) {
-    http_response_code(400);
+if ($jobRootReal === false || !is_dir($jobRootReal) || !is_readable($jobRootReal)) {
+    http_response_code(500);
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'error' => 'Bad Request',
-        'message' => 'Invalid job_id',
+        'error' => 'Server Error',
+        'message' => 'Import jobs directory not available',
     ]);
     exit;
 }
-if (!is_dir($jobDir)) {
+
+$jobDirName = null;
+foreach (glob($jobRootReal . '/*', GLOB_ONLYDIR) ?: [] as $p) {
+    if (!is_string($p)) continue;
+    $bn = basename($p);
+    if ($bn === $jobId) {
+        $jobDirName = $bn;
+        break;
+    }
+}
+
+if ($jobDirName === null) {
     http_response_code(404);
     header('Content-Type: application/json');
     echo json_encode([
@@ -66,8 +76,31 @@ if (!is_dir($jobDir)) {
     exit;
 }
 
-$resultPath = $jobDir . '/result.json';
-$statusPath = $jobDir . '/status.json';
+$jobDir = $jobRootReal . '/' . $jobDirName;
+$jobDirReal = realpath($jobDir);
+if ($jobDirReal === false || !str_starts_with($jobDirReal . '/', $jobRootReal . '/')) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Invalid job_id',
+    ]);
+    exit;
+}
+if (!is_dir($jobDirReal)) {
+    http_response_code(404);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Not Found',
+        'message' => 'Job not found',
+    ]);
+    exit;
+}
+
+$resultPath = $jobDirReal . '/result.json';
+$statusPath = $jobDirReal . '/status.json';
 
 if (is_file($resultPath) && is_readable($resultPath)) {
     $raw = file_get_contents($resultPath);
