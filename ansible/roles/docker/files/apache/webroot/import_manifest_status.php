@@ -42,7 +42,19 @@ if ($jobId === '' || !preg_match('/^[0-9]{8}-[0-9]{6}-[a-f0-9]{12}$/', $jobId)) 
     exit;
 }
 
-[, $jobDir] = gighive_manifest_job_paths($jobId);
+[$jobRoot, $jobDir] = gighive_manifest_job_paths($jobId);
+$jobRootReal = realpath($jobRoot);
+$jobDirReal = realpath($jobDir);
+if ($jobRootReal === false || $jobDirReal === false || !str_starts_with($jobDirReal . '/', $jobRootReal . '/')) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Bad Request',
+        'message' => 'Invalid job_id',
+    ]);
+    exit;
+}
 if (!is_dir($jobDir)) {
     http_response_code(404);
     header('Content-Type: application/json');

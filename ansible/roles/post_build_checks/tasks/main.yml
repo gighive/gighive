@@ -214,6 +214,54 @@
     headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
   changed_when: false
 
+- name: Generate manifest status smoke-test job_id
+  ansible.builtin.set_fact:
+    manifest_smoke_job_id: "20990101-000000-{{ lookup('password', '/dev/null length=12 chars=hexdigits') | lower }}"
+  changed_when: false
+  tags: [smoke]
+
+- block:
+    - name: Write manifest smoke-test status.json inside apache container (python)
+      community.docker.docker_container_exec:
+        container: "{{ apache_container_name }}"
+        command: >-
+          /bin/sh -lc "python3 -c 'import json, os; jid=\"{{ manifest_smoke_job_id }}\"; jobdir=f\"/var/www/private/import_jobs/{jid}\"; os.makedirs(jobdir, exist_ok=True); p=f\"{jobdir}/status.json\"; data={\"success\": True, \"job_id\": jid, \"state\": \"running\", \"message\": \"post_build_checks smoke test\", \"updated_at\": \"2099-01-01T00:00:00Z\"}; open(p, \"w\", encoding=\"utf-8\").write(json.dumps(data)); os.chmod(p, 0o644)' && chown www-data:www-data /var/www/private/import_jobs/{{ manifest_smoke_job_id }}/status.json"
+      changed_when: false
+
+    - name: Verify import_manifest_status.php returns our synthetic status.json
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/import_manifest_status.php?job_id={{ manifest_smoke_job_id }}"
+        method: GET
+        url_username: "admin"
+        url_password: "{{ gighive_admin_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+        return_content: true
+        status_code: 200
+      register: manifest_status_smoke_resp
+      changed_when: false
+
+    - name: Assert manifest status smoke-test response
+      ansible.builtin.assert:
+        that:
+          - manifest_status_smoke_resp.json is mapping
+          - (manifest_status_smoke_resp.json.success | default(false)) == true
+          - (manifest_status_smoke_resp.json.job_id | default('')) == manifest_smoke_job_id
+          - (manifest_status_smoke_resp.json.state | default('')) == 'running'
+          - (manifest_status_smoke_resp.json.message | default('')) == 'post_build_checks smoke test'
+      changed_when: false
+
+  always:
+    - name: Cleanup manifest smoke-test job directory
+      community.docker.docker_container_exec:
+        container: "{{ apache_container_name }}"
+        command: >-
+          /bin/sh -lc "rm -rf /var/www/private/import_jobs/{{ manifest_smoke_job_id }}"
+      changed_when: false
+      failed_when: false
+  tags: [smoke]
+
 # --- TUS verification (external URL) ---
 
 - name: Build variables for TUS checks

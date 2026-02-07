@@ -1,6 +1,8 @@
 *** 
-releaseNotes20260206.txt
-Changes: Load GA only for pages sourced from docs/ 
+releaseNotes20260207.txt
+Changes: Fix Sonarqube callout with import_manifest_upload.php and logic/race in the htpasswd tasks
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260207.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -9,11 +11,13 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	deleted:    _config.yml
-	new file:   _includes/head-custom.html
-	deleted:    _includes/head.html
-	deleted:    _layouts/default.html
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_status.php
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
 
+ToDo: make sure prod inventory is updated with latest vars
+ToDo: have function to delete video you just uploaded
+ToDo: Have to upgrade to IOS 26 by 4/28/26
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
 ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?, "upload to gighive" should change to "Upload, organize, and stream your media."
@@ -42,11 +46,27 @@ ToDo: Should have "backup now" feature
 
 *** 
 releaseNotes20260206.txt
+Changes: Load GA only for pages sourced from docs/ 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	deleted:    _config.yml
+	new file:   _includes/head-custom.html
+	deleted:    _includes/head.html
+	deleted:    _layouts/default.html
+
+*** 
+releaseNotes20260206.txt
 Changes: Add Google Analytics via Jekyll default layout 
 
 *** 
 releaseNotes20260204.txt
-Changes: Add conditional reboot at bottom of base/tasks/main.yml
+Changes: Add conditional reboot at bottom of base/tasks/main.yml in case os needs one
 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass" ansible-playbook-lab-20260204.log 
 
