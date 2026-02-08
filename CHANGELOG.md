@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260208.txt
-Changes: Add check if apache2.conf is a directory to ansible/roles/docker/tasks/main.yml
+Changes: Add check if apache2.conf is a directory to ansible/roles/docker/tasks/main.yml, reorder db_migrations before post_build_checks, increase db wait to 2m
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260208.log
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260208.log 

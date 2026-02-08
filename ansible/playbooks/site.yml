@@ -100,10 +100,10 @@
       tags: [ security_basic_auth ]
     - role: security_owasp_crs
       tags: [ security_owasp_crs ]
-    - role: post_build_checks
-      tags: [ post_build_checks ]
     - role: db_migrations
       tags: [ db_migrations ]
+    - role: post_build_checks
+      tags: [ post_build_checks ]
     - role: validate_app
       tags: [ validate_app ]
     - role: mysql_backup
