@@ -106,6 +106,17 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
 
+- name: Stat apache2.conf path (guard)
+  ansible.builtin.stat:
+    path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
+  register: _gighive_apache2_conf_stat
+
+- name: Remove miscreated apache2.conf directory (if present)
+  ansible.builtin.file:
+    path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
+    state: absent
+  when: _gighive_apache2_conf_stat.stat.isdir | default(false)
+
 - name: Render apache2.conf
   template:
     src: apache2.conf.j2
