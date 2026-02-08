@@ -289,6 +289,10 @@ mysql_user: appuser
 mysql_db_host: mysqlServer
 mysql_container_name: "{{ mysql_db_host }}"
 
+# --- DB migrations role vars ---
+db_migrations_mysql_ready_retries: 30
+db_migrations_mysql_ready_delay_seconds: 2
+
 # --- MySQL backup role vars ---
 mysql_backup_user: "{{ ansible_user }}"
 
