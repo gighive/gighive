@@ -252,6 +252,8 @@ gighive_cert_cn: "gighive.internal"
 gighive_cert_dns_sans:
   - "*.gighive.internal"
   - "gighive.internal"
+  - "*.gighive.app"
+  - "www.stormpigs.com"
 
 # Host identity (Apache / what clients connect to)
 gighive_fqdn: "gighive.gighive.internal"
@@ -259,6 +261,8 @@ gighive_fqdn: "gighive.gighive.internal"
 # Optional additional names for the vhost
 gighive_server_aliases:
   - "gighive.gighive.internal"
+  - "gighive2.gighive.internal"
+  - "dev.gighive.internal"
   - "staging.gighive.internal"
   - "lab.gighive.internal"
   - "staging.gighive.app"
