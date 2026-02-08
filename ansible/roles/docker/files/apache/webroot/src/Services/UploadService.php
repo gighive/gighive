@@ -122,6 +122,9 @@ final class UploadService
         $mediaInfo = $this->probeMediaInfo($targetPath);
         $mediaInfoTool = $mediaInfo !== null ? $this->ffprobeToolString() : null;
 
+        $deleteToken = null;
+        $createdNew = true;
+
         // Persist metadata (with session linkage and seq)
         try {
             $id = $this->files->create([
@@ -153,6 +156,16 @@ final class UploadService
             }
 
             $id = (int)$existing['file_id'];
+            $createdNew = false;
+        }
+
+        if ($createdNew) {
+            $deleteToken = bin2hex(random_bytes(32));
+            $hash = hash('sha256', $deleteToken);
+            $stored = $this->files->setDeleteTokenHashIfNull($id, $hash);
+            if (!$stored) {
+                $deleteToken = null;
+            }
         }
 
         // Link to a label (song or wedding table name)
@@ -169,7 +182,7 @@ final class UploadService
             $this->attachParticipants($sessionId, $participants);
         }
 
-        return [
+        $resp = [
             'id'              => $id,
             'file_name'       => $finalName,
             'file_type'       => $fileType,
@@ -186,6 +199,10 @@ final class UploadService
             'keywords'        => $keywords,
             'duration_seconds'=> $durationSeconds,
         ];
+        if (is_string($deleteToken) && $deleteToken !== '') {
+            $resp['delete_token'] = $deleteToken;
+        }
+        return $resp;
     }
 
     private function isDuplicateChecksumException(\PDOException $e): bool
@@ -297,7 +314,11 @@ final class UploadService
 
         $result = $this->handleUpload($files, $mergedPost);
 
-        @file_put_contents($finalMarker, json_encode($result));
+        $markerResult = $result;
+        if (is_array($markerResult) && array_key_exists('delete_token', $markerResult)) {
+            unset($markerResult['delete_token']);
+        }
+        @file_put_contents($finalMarker, json_encode($markerResult));
         return $result;
     }
 

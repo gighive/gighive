@@ -1,8 +1,9 @@
 *** 
-releaseNotes20260207.txt
-Changes: Fix Sonarqube callout with import_manifest_upload.php and logic/race in the htpasswd tasks
+releaseNotes20260208.txt
+Changes: Delete for uploader plus db_migrations DDL in ansible playbook addition
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260207.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260208.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260208.log 
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -11,9 +12,20 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_status.php
-	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/playbooks/site.yml
+	new file:   ansible/roles/db_migrations/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/db/delete_media_files.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
 	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   docs/pr_delete_for_uploader.md
+	new file:   docs/problem_sonarqube_phpsecurityS2083.md
+	new file:   docs/refactor_add_db_migrations_backup_before.md
+	new file:   docs/tus_checks_no_log.md
 
 ToDo: make sure prod inventory is updated with latest vars
 ToDo: have function to delete video you just uploaded
@@ -43,6 +55,23 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260207.txt
+Changes: Fix Sonarqube callout with import_manifest_upload.php and logic/race in the htpasswd tasks
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260207.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_status.php
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
 
 *** 
 releaseNotes20260206.txt

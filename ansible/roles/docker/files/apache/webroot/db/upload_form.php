@@ -101,7 +101,8 @@
     <a class="admin-link" href="/db/upload_form_admin.php">For Admins</a>
     <div id="status">Ready.</div>
   </form>
-  <pre id="result" style="margin-top:16px; white-space:pre-wrap;"></pre>
+  <div id="myUploads" style="margin-top:16px; display:none;"></div>
+  <pre id="result" style="margin-top:24px; white-space:pre-wrap;"></pre>
 
   <script>
     (function() {
@@ -109,8 +110,119 @@
       const labelInput = document.getElementById('label');
       const dateInput = document.getElementById('event_date');
       const form = document.getElementById('uploadForm');
+      const myUploadsEl = document.getElementById('myUploads');
+      const btn = document.getElementById('btnUpload');
+      const statusEl = document.getElementById('status');
+      const resultEl = document.getElementById('result');
+
+      const STORAGE_KEY = 'uploader_delete_tokens_v1';
+
+      function loadTokens() {
+        try {
+          const raw = window.localStorage ? window.localStorage.getItem(STORAGE_KEY) : null;
+          const parsed = raw ? JSON.parse(raw) : null;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+        } catch(_) {}
+        return {};
+      }
+
+      function saveTokens(map) {
+        try {
+          if (!window.localStorage) return;
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map || {}));
+        } catch(_) {}
+      }
+
+      function renderMyUploads() {
+        if (!myUploadsEl) return;
+        const tokens = loadTokens();
+        const ids = Object.keys(tokens || {}).filter(function(k) { return /^[0-9]+$/.test(String(k)); });
+        ids.sort(function(a, b) { return Number(b) - Number(a); });
+        if (!ids.length) {
+          myUploadsEl.style.display = 'none';
+          myUploadsEl.innerHTML = '';
+          return;
+        }
+
+        myUploadsEl.style.display = 'block';
+        const rows = ids.map(function(id) {
+          const safeId = String(id).replace(/"/g, '');
+          return '<div class="row" style="margin-top:8px;">'
+            + '<div><strong>File ID</strong> ' + safeId + '</div>'
+            + '<button type="button" data-file-id="' + safeId + '" style="margin-top:0; padding:6px 10px;">Delete</button>'
+            + '</div>';
+        }).join('');
+        myUploadsEl.innerHTML = '<h2 style="margin:0 0 8px 0;">My uploads on this device</h2>'
+          + '<div class="hint">These entries exist because this browser saved a delete token at upload time.</div>'
+          + rows;
+
+        const buttons = myUploadsEl.querySelectorAll('button[data-file-id]');
+        buttons.forEach(function(b) {
+          b.addEventListener('click', async function() {
+            const fileId = String(this.getAttribute('data-file-id') || '');
+            const cur = loadTokens();
+            const token = cur && cur[fileId] ? String(cur[fileId]) : '';
+            if (!fileId || !token) return;
+
+            this.disabled = true;
+            const prevText = this.textContent;
+            this.textContent = 'Deleting…';
+
+            try {
+              const resp = await fetch('/db/delete_media_files.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file_ids: [Number(fileId)], file_id: Number(fileId), delete_token: token }),
+                credentials: 'same-origin'
+              });
+              const text = await resp.text();
+              let json = null;
+              try { json = text ? JSON.parse(text) : null; } catch(_) {}
+              if (!resp.ok) {
+                throw new Error('Delete failed (' + resp.status + '): ' + (json ? JSON.stringify(json, null, 2) : text));
+              }
+              delete cur[fileId];
+              saveTokens(cur);
+              renderMyUploads();
+              if (statusEl) {
+                statusEl.textContent = 'File ID ' + fileId + ' has been deleted.';
+              }
+              if (resultEl) {
+                resultEl.textContent = json ? JSON.stringify(json, null, 2) : text;
+              }
+            } catch (e) {
+              alert(String(e && e.message ? e.message : e));
+            } finally {
+              this.disabled = false;
+              this.textContent = prevText;
+            }
+          });
+        });
+      }
+
+      function checkLocalStoragePersistence() {
+        try {
+          if (!window.localStorage) return false;
+          const k = '__gighive_ls_test__' + String(Date.now());
+          window.localStorage.setItem(k, '1');
+          const v = window.localStorage.getItem(k);
+          window.localStorage.removeItem(k);
+          return v === '1';
+        } catch(_) {
+          return false;
+        }
+      }
 
       // rolled back: no localStorage persistence
+
+      const hasPersistentStorage = checkLocalStoragePersistence();
+      if (!hasPersistentStorage) {
+        if (btn) btn.disabled = true;
+        if (statusEl) statusEl.textContent = 'Uploads disabled: this browser does not support persistent local storage (private browsing?).';
+        try { form && form.addEventListener('submit', function(e) { e.preventDefault(); }); } catch(_) {}
+      } else {
+        renderMyUploads();
+      }
 
       function ymd(d) {
         const dt = new Date(d);
@@ -151,10 +263,6 @@
           alert('Media file is required.');
           return;
         }
-
-        const statusEl = document.getElementById('status');
-        const resultEl = document.getElementById('result');
-        const btn = document.getElementById('btnUpload');
 
         function setBusy(text) {
           if (statusEl) {
@@ -321,6 +429,15 @@
                 try {
                   if (payload && typeof payload === 'object' && payload.checksum_sha256) {
                     checksum = String(payload.checksum_sha256);
+                  }
+                } catch(_) {}
+
+                try {
+                  if (payload && typeof payload === 'object' && payload.id && payload.delete_token) {
+                    const tokens = loadTokens();
+                    tokens[String(payload.id)] = String(payload.delete_token);
+                    saveTokens(tokens);
+                    renderMyUploads();
                   }
                 } catch(_) {}
 

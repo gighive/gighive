@@ -162,7 +162,7 @@
         AuthType Basic
         AuthName "GigHive Admin"
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
-        Require user admin
+        Require user admin uploader
     </Location>
 
     # --- UPLOAD API: admin + uploader ---

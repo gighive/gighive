@@ -45,6 +45,31 @@ final class FileRepository
         return $row ?: null;
     }
 
+    public function getDeleteTokenHashById(int $fileId): ?string
+    {
+        $stmt = $this->pdo->prepare('SELECT delete_token_hash FROM files WHERE file_id = :id');
+        $stmt->execute([':id' => $fileId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        $v = $row['delete_token_hash'] ?? null;
+        if ($v === null) {
+            return null;
+        }
+        $s = trim((string)$v);
+        return $s !== '' ? $s : null;
+    }
+
+    public function setDeleteTokenHashIfNull(int $fileId, string $hash): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE files SET delete_token_hash = :h WHERE file_id = :id AND delete_token_hash IS NULL'
+        );
+        $stmt->execute([':h' => $hash, ':id' => $fileId]);
+        return $stmt->rowCount() === 1;
+    }
+
     /**
      * Compute the next per-session sequence number (1-based).
      */
