@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
+use Production\Api\Repositories\FileRepository;
 use PDO;
 
 $user = $_SERVER['PHP_AUTH_USER']
@@ -10,13 +11,13 @@ $user = $_SERVER['PHP_AUTH_USER']
     ?? $_SERVER['REDIRECT_REMOTE_USER']
     ?? null;
 
-if ($user !== 'admin') {
+if ($user !== 'admin' && $user !== 'uploader') {
     http_response_code(403);
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
         'error' => 'Forbidden',
-        'message' => 'Admin access required',
+        'message' => 'Forbidden',
     ]);
     exit;
 }
@@ -36,31 +37,63 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $rawBody = file_get_contents('php://input');
 $payload = json_decode(is_string($rawBody) ? $rawBody : '', true);
 
-if (!is_array($payload) || !isset($payload['file_ids']) || !is_array($payload['file_ids'])) {
-    http_response_code(400);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'error' => 'Bad Request',
-        'message' => 'Expected JSON body with file_ids array',
-    ]);
-    exit;
+if (!is_array($payload)) {
+    $payload = [];
 }
 
-$fileIds = [];
-foreach ($payload['file_ids'] as $v) {
-    if (is_int($v)) {
-        $n = $v;
-    } elseif (is_string($v) && ctype_digit($v)) {
-        $n = (int)$v;
+$deleteToken = null;
+
+if ($user === 'admin') {
+    if (!isset($payload['file_ids']) || !is_array($payload['file_ids'])) {
+        http_response_code(400);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => 'Bad Request',
+            'message' => 'Expected JSON body with file_ids array',
+        ]);
+        exit;
+    }
+
+    $fileIds = [];
+    foreach ($payload['file_ids'] as $v) {
+        if (is_int($v)) {
+            $n = $v;
+        } elseif (is_string($v) && ctype_digit($v)) {
+            $n = (int)$v;
+        } else {
+            continue;
+        }
+        if ($n > 0) {
+            $fileIds[$n] = true;
+        }
+    }
+    $fileIds = array_keys($fileIds);
+} else {
+    $fileId = $payload['file_id'] ?? null;
+    if (is_int($fileId)) {
+        $n = $fileId;
+    } elseif (is_string($fileId) && ctype_digit($fileId)) {
+        $n = (int)$fileId;
     } else {
-        continue;
+        $n = 0;
     }
-    if ($n > 0) {
-        $fileIds[$n] = true;
+    $deleteToken = $payload['delete_token'] ?? null;
+    $deleteToken = is_string($deleteToken) ? trim($deleteToken) : '';
+
+    if ($n <= 0 || $deleteToken === '') {
+        http_response_code(400);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => 'Bad Request',
+            'message' => 'Expected JSON body with file_id and delete_token',
+        ]);
+        exit;
     }
+
+    $fileIds = [$n];
 }
-$fileIds = array_keys($fileIds);
 
 if (!$fileIds) {
     http_response_code(400);
@@ -116,6 +149,25 @@ $results = [
 
 try {
     $pdo = Database::createFromEnv();
+
+    $filesRepo = new FileRepository($pdo);
+
+    if ($user === 'uploader') {
+        $fileIdToDelete = (int)$fileIds[0];
+        $storedHash = $filesRepo->getDeleteTokenHashById($fileIdToDelete);
+        $providedHash = hash('sha256', (string)$deleteToken);
+
+        if (!is_string($storedHash) || $storedHash === '' || !hash_equals($storedHash, $providedHash)) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error' => 'Forbidden',
+                'message' => 'Invalid delete token',
+            ]);
+            exit;
+        }
+    }
 
     $select = $pdo->prepare('SELECT file_id, file_type, file_name, source_relpath, checksum_sha256 FROM files WHERE file_id = :id');
     $delete = $pdo->prepare('DELETE FROM files WHERE file_id = :id');

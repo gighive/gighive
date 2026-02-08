@@ -274,7 +274,7 @@
     tus_upload_metadata_event_date_b64: "{{ ansible_facts['date_time'].date | b64encode }}"
     tus_upload_metadata_event_type_b64: "{{ 'band' | b64encode }}"
     tus_headers_common: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {} }}"
-    tus_checks_no_log: "{{ tus_checks_no_log | default(true) }}"
+    tus_checks_no_log: "{{ tus_checks_no_log | default((ansible_verbosity | int) < 2) }}"
   changed_when: false
 
 - name: Verify tusd container is running
@@ -450,6 +450,70 @@
           - (tus_finalize_1.json.file_name | default('')) == (tus_finalize_2.json.file_name | default(''))
       changed_when: false
 
+    - name: Assert uploader delete token is returned only on first finalize (R1)
+      ansible.builtin.assert:
+        that:
+          - (tus_finalize_1.json.delete_token | default('')) | length > 0
+          - (tus_finalize_2.json.delete_token | default('')) | length == 0
+        fail_msg: >-
+          Expected delete_token on first finalize only.
+          finalize_1.delete_token='{{ tus_finalize_1.json.delete_token | default('') }}'
+          finalize_2.delete_token='{{ tus_finalize_2.json.delete_token | default('') }}'
+      changed_when: false
+
+    - name: Delete TUS smoke-test media record as uploader (capability token)
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/db/delete_media_files.php"
+        method: POST
+        url_username: "{{ uploader_user }}"
+        url_password: "{{ gighive_uploader_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
+        body_format: json
+        body:
+          file_id: "{{ tus_finalize_1.json.id | int }}"
+          delete_token: "{{ tus_finalize_1.json.delete_token }}"
+        status_code: [200]
+        return_content: true
+      register: tus_uploader_delete_ok
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: Assert uploader delete removed 1 row
+      ansible.builtin.assert:
+        that:
+          - tus_uploader_delete_ok.json is mapping
+          - (tus_uploader_delete_ok.json.deleted_count | default(0) | int) == 1
+          - (tus_uploader_delete_ok.json.error_count | default(0) | int) == 0
+        fail_msg: >-
+          Uploader delete failed. Response={{ tus_uploader_delete_ok.content | default('') }}
+      changed_when: false
+
+    - name: Attempt uploader delete again with wrong token (should 403)
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/db/delete_media_files.php"
+        method: POST
+        url_username: "{{ uploader_user }}"
+        url_password: "{{ gighive_uploader_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
+        body_format: json
+        body:
+          file_id: "{{ tus_finalize_1.json.id | int }}"
+          delete_token: "0000000000000000000000000000000000000000000000000000000000000000"
+        status_code: [403]
+        return_content: true
+      register: tus_uploader_delete_wrong
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: Mark uploader deletion completed
+      ansible.builtin.set_fact:
+        tus_deleted_by_uploader: true
+      changed_when: false
+
     - block:
         - name: Assert TUS smoke-test file is safe to delete
           ansible.builtin.assert:
@@ -480,6 +544,7 @@
           register: tus_cleanup_delete
           changed_when: false
           no_log: "{{ tus_checks_no_log }}"
+          when: not (tus_deleted_by_uploader | default(false))
 
         - name: Assert delete endpoint removed 1 row
           ansible.builtin.assert:
@@ -490,6 +555,7 @@
             fail_msg: >-
               Cleanup delete failed. Response={{ tus_cleanup_delete.content | default('') }}
           changed_when: false
+          when: not (tus_deleted_by_uploader | default(false))
 
         - name: Remove tus staging artifacts for this upload_id
           ansible.builtin.command: >

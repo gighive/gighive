@@ -1,0 +1,44 @@
+---
+
+- name: Wait for MySQL to be ready (container)
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" --silent'
+  register: _mysql_ping
+  changed_when: false
+  retries: "{{ db_migrations_mysql_ready_retries | default(30) }}"
+  delay: "{{ db_migrations_mysql_ready_delay_seconds | default(2) }}"
+  until: (_mysql_ping.rc | default(1)) == 0
+
+- name: Check if files.delete_token_hash column exists
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '\''files'\'' AND COLUMN_NAME = '\''delete_token_hash'\'';"'
+  register: _col_delete_token_hash_count
+  changed_when: false
+
+- name: Add files.delete_token_hash column if missing
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -e "ALTER TABLE files ADD COLUMN delete_token_hash CHAR(64) NULL;"'
+  register: _alter_delete_token_hash
+  changed_when: true
+  when: (_col_delete_token_hash_count.stdout | trim) == '0'
+
+- name: Verify files.delete_token_hash column exists
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '\''files'\'' AND COLUMN_NAME = '\''delete_token_hash'\'';"'
+  register: _col_delete_token_hash_count_verify
+  changed_when: false
+
+- name: Fail if files.delete_token_hash column is still missing
+  ansible.builtin.assert:
+    that:
+      - (_col_delete_token_hash_count_verify.stdout | trim) == '1'
+    fail_msg: >-
+      Expected files.delete_token_hash column to exist after migrations, but it was not found.
