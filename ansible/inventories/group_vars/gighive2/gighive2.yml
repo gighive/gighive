@@ -252,15 +252,21 @@ gighive_cert_cn: "gighive.internal"
 gighive_cert_dns_sans:
   - "*.gighive.internal"
   - "gighive.internal"
- 
+  - "*.gighive.app"
+
 # Host identity (Apache / what clients connect to)
-gighive_fqdn: "dev.gighive.internal"
- 
+gighive_fqdn: "gighive.gighive.internal"
+
 # Optional additional names for the vhost
 gighive_server_aliases:
+  - "gighive.gighive.internal"
   - "gighive2.gighive.internal"
-  - "dev.gighive.app"
- 
+  - "dev.gighive.internal"
+  - "staging.gighive.internal"
+  - "lab.gighive.internal"
+  - "staging.gighive.app"
+  - "lab.gighive.app"
+
 # Back-compat mapping (keep during testing; remove later once everything migrates)
 gighive_server_name: "{{ gighive_fqdn }}"
 gighive_server_alias: "{{ (gighive_server_aliases | default([])) | first | default('gighive') }}"

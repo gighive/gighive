@@ -1,7 +1,9 @@
 *** 
 releaseNotes20260208.txt
-Changes: Synchronize prod.yml with gighive.yml
+Changes: Synchronize all certificate gighive_cert_dns_sans / gighive_server_aliases vars across all environments
 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260208.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-staging-20260208.log 
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-prod-20260208.log
 
 sodo@pop-os:~/gighive$ git status
@@ -11,10 +13,10 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
 	modified:   ansible/inventories/group_vars/prod/prod.yml
 
-ToDo: make sure prod inventory is updated with latest vars
-ToDo: have function to delete video you just uploaded
 ToDo: Have to upgrade to IOS 26 by 4/28/26
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
@@ -44,10 +46,25 @@ ToDo: Should have "backup now" feature
 
 *** 
 releaseNotes20260208.txt
+Changes: Synchronize prod.yml with gighive.yml
+
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-prod-20260208.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+
+*** 
+releaseNotes20260208.txt
 Changes: Add check if apache2.conf is a directory to ansible/roles/docker/tasks/main.yml, reorder db_migrations before post_build_checks, increase db wait to 2m
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260208.log
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260208.log 
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-staging-20260208.log 
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-prod-20260208.log
 
 sodo@pop-os:~/gighive$ git status
@@ -64,7 +81,7 @@ releaseNotes20260208.txt
 Changes: Delete for uploader plus db_migrations DDL in ansible playbook addition
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260208.log
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-lab-20260208.log 
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-staging-20260208.log 
 
 sodo@pop-os:~/gighive$ git status
 On branch master
