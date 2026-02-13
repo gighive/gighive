@@ -2026,3 +2026,10 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-01-24T16:45:00-05:00
   - option c
+
+---
+
+## 2026-02-13
+
+- 2026-02-13T14:28:00-05:00
+  - this is correct path for user-prompts.md: user-prompts.md
