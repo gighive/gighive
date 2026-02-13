@@ -1,5 +1,26 @@
 *** 
 releaseNotes20260208.txt
+Changes: Jibe file size constraint of 6390MB with iphone app
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260208.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/Dockerfile
+	modified:   docs/cert_naming_consistency.md
+	new file:   docs/pr_azure_blob_storage_integration.md
+	new file:   docs/rearch_prepare_video_cancel.md
+	new file:   docs/to_remove_NetworkProgressUploadClient.md
+	new file:   docs/tus_implementation_iphone.md
+	modified:   user-prompts.md
+
+*** 
+releaseNotes20260208.txt
 Changes: Synchronize all certificate gighive_cert_dns_sans / gighive_server_aliases vars across all environments
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260208.log

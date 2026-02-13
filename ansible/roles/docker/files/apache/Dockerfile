@@ -33,8 +33,8 @@ RUN apt-get update && \
     chmod +x /usr/local/bin/composer
 
 # Configure PHP upload limits for large files (6GB)
-RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
-    sed -i 's/post_max_size = .*/post_max_size = 6144M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6390M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    sed -i 's/post_max_size = .*/post_max_size = 6390M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
     sed -i 's/max_execution_time = .*/max_execution_time = 7200/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
     sed -i 's/max_input_time = .*/max_input_time = 7200/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
     sed -i 's/memory_limit = .*/memory_limit = 512M/' /etc/php/${PHP_VERSION}/fpm/php.ini

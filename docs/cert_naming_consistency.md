@@ -105,6 +105,8 @@ ServerAlias dev.gighive.app
 
 ### Certificate Variables (TLS only)
 
+These variables control what DNS names the generated TLS certificate is valid for. If a user browses to a hostname that is not present in the certificate SANs, the browser will show a certificate name mismatch error (even if Apache serves the site correctly).
+
 gighive_cert_cn: gighive.internal
 gighive_cert_dns_sans:
   - "*.gighive.internal"
@@ -116,10 +118,42 @@ gighive_fqdn: dev.gighive.internal
 
 ### Optional Alias Variables
 
+This variable controls what hostnames Apache will accept and route to this vhost via `ServerAlias`. If a hostname is not listed here, Apache may not serve the site for that Host header (even if the certificate could be valid for it).
+
+Rule of thumb:
+
+- Put every hostname users will browse to in `gighive_cert_dns_sans` (TLS validity)
+- Put every hostname Apache should serve on this vhost in `gighive_server_aliases` (HTTP routing)
+
 gighive_server_aliases:
   - dev.gighive.app
 
 ---
+
+## Example from group_vars/gighive/gighive.yml 
+
+```yaml
+# --- Naming strategy (gighive2/dev test) ---
+# Certificate identity (TLS only)
+gighive_cert_cn: "gighive.internal"
+gighive_cert_dns_sans:
+  - "*.gighive.internal"
+  - "gighive.internal"
+  - "*.gighive.app"
+
+# Host identity (Apache / what clients connect to)
+gighive_fqdn: "gighive.gighive.internal"
+
+# Optional additional names for the vhost
+gighive_server_aliases:
+  - "gighive.gighive.internal"
+  - "gighive2.gighive.internal"
+  - "dev.gighive.internal"
+  - "staging.gighive.internal"
+  - "lab.gighive.internal"
+  - "staging.gighive.app"
+  - "lab.gighive.app"
+```
 
 ## Required Template Usage
 
