@@ -1,0 +1,54 @@
+---
+- name: Upload tests - determine whether destructive variants are selected
+  ansible.builtin.set_fact:
+    upload_tests_selected_destructive: >-
+      {{
+        ((upload_test_variants | selectattr('section', 'in', ['3a','3b','4']) | list | length) > 0)
+        or (upload_test_restore_only | default(false) | bool)
+      }}
+
+- name: Upload tests - refuse to run destructive variants unless explicitly allowed
+  ansible.builtin.fail:
+    msg: "Destructive upload test variants selected but allow_destructive is false"
+  when:
+    - upload_tests_selected_destructive | bool
+    - not (allow_destructive | bool)
+
+- name: Upload tests - confirm destructive variants
+  ansible.builtin.pause:
+    prompt: "Destructive upload tests selected. Type YES to proceed"
+  register: upload_tests_destructive_confirm_input
+  when:
+    - upload_tests_selected_destructive | bool
+    - allow_destructive | bool
+    - upload_test_destructive_confirm | bool
+
+- name: Upload tests - abort if destructive confirmation not given
+  ansible.builtin.fail:
+    msg: "Destructive upload tests aborted"
+  when:
+    - upload_tests_selected_destructive | bool
+    - allow_destructive | bool
+    - upload_test_destructive_confirm | bool
+    - (upload_tests_destructive_confirm_input.user_input | default('')) != 'YES'
+
+- name: Upload tests - run selected variants
+  ansible.builtin.include_tasks: "test_{{ item.section }}.yml"
+  vars:
+    upload_tests_variant: "{{ item }}"
+  loop: "{{ upload_test_variants }}"
+  loop_control:
+    label: "{{ item.name | default(item.section) }}"
+  when:
+    - not (upload_test_restore_only | default(false) | bool)
+
+- name: Upload tests - optional restore normalized DB for selected app_flavor
+  ansible.builtin.include_tasks: test_3b.yml
+  vars:
+    upload_tests_variant:
+      name: "restore_3b_normalized_import"
+      section: "3b"
+      app_flavor: "{{ app_flavor }}"
+  when:
+    - upload_tests_selected_destructive | bool
+    - (upload_test_restore_only | default(false) | bool) or ((upload_test_restore_db_after | default(true)) | bool)

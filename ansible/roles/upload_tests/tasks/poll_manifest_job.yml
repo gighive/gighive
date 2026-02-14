@@ -1,0 +1,25 @@
+---
+- name: Upload tests - poll manifest job status
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/import_manifest_status.php?job_id={{ upload_tests_job_id }}"
+    method: GET
+    url_username: "{{ admin_user }}"
+    url_password: "{{ gighive_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+  register: upload_tests_poll_http
+  delegate_to: localhost
+  become: false
+  until: "upload_tests_poll_http.json.state in ['ok', 'error', 'canceled']"
+  retries: 120
+  delay: 2
+
+- name: Upload tests - parse final job status
+  ansible.builtin.set_fact:
+    upload_tests_job_status: "{{ upload_tests_poll_http.json }}"
+
+- name: Upload tests - assert job completed successfully
+  ansible.builtin.assert:
+    that:
+      - upload_tests_job_status.state == 'ok'
