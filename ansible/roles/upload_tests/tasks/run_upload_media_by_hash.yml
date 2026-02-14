@@ -1,0 +1,26 @@
+---
+- name: Upload tests - upload binaries by hash (step 2)
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py"
+      - --source-root
+      - "{{ upload_tests_source_roots[0] }}"
+      - --source-roots
+      - "{{ (upload_tests_source_roots[1:] | default([])) | join(':') }}"
+      - --ssh-target
+      - "{{ upload_test_ssh_target }}"
+      - --db-host
+      - "{{ mysql_db_host }}"
+      - --db-user
+      - "{{ mysql_user }}"
+      - --db-password
+      - "{{ mysql_appuser_password }}"
+      - --db-name
+      - "{{ mysql_database }}"
+  delegate_to: localhost
+  become: false
+  when:
+    - upload_test_run_upload_media_by_hash | bool
+    - upload_tests_source_roots is defined
+    - (upload_tests_source_roots | length) > 0

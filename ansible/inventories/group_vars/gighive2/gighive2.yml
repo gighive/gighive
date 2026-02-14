@@ -42,7 +42,7 @@ nocloud_iso: "{{ cloud_init_files_dir }}/seed-{{ vm_name }}.iso"
 ansible_remote_tmp: "/tmp/.ansible/tmp"
 
 # app flavor for build-time overlay; database_full kept as-is
-app_flavor: defaultcodebase 
+app_flavor: gighive
 database_full: false
 
 # --------------------------------------------------------------------

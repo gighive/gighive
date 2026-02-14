@@ -1,0 +1,71 @@
+---
+- name: Upload tests - generate manifest JSON on control host
+  ansible.builtin.shell: |
+    set -euo pipefail
+    python3 - <<'PY'
+    import hashlib
+    import json
+    import os
+    import sys
+    from pathlib import Path
+
+    roots = json.loads(os.environ['UPLOAD_TEST_ROOTS_JSON'])
+    audio_exts = set(json.loads(os.environ['UPLOAD_TEST_AUDIO_EXTS_JSON']))
+    video_exts = set(json.loads(os.environ['UPLOAD_TEST_VIDEO_EXTS_JSON']))
+    event_date = os.environ['UPLOAD_TEST_EVENT_DATE']
+    org_name = os.environ['UPLOAD_TEST_ORG_NAME']
+    event_type = os.environ['UPLOAD_TEST_EVENT_TYPE']
+
+    items = []
+    for root_s in roots:
+        root = Path(root_s).resolve()
+        if not root.is_dir():
+            continue
+        for p in sorted(root.rglob('*')):
+            if not p.is_file():
+                continue
+            rel = p.relative_to(root).as_posix()
+            ext = p.suffix.lower().lstrip('.')
+            if ext in audio_exts:
+                ftype = 'audio'
+            elif ext in video_exts:
+                ftype = 'video'
+            else:
+                continue
+            h = hashlib.sha256()
+            with p.open('rb') as f:
+                for chunk in iter(lambda: f.read(1024*1024), b''):
+                    h.update(chunk)
+            items.append({
+                'checksum_sha256': h.hexdigest(),
+                'file_type': ftype,
+                'file_name': p.name,
+                'source_relpath': rel,
+                'event_date': event_date,
+                'size_bytes': p.stat().st_size,
+            })
+
+    payload = {
+        'org_name': org_name,
+        'event_type': event_type,
+        'items': items,
+    }
+
+    out_path = os.environ['UPLOAD_TEST_MANIFEST_PATH']
+    Path(out_path).write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    sys.stdout.write(str(len(items)))
+    PY
+  args:
+    executable: /bin/bash
+  environment:
+    UPLOAD_TEST_ROOTS_JSON: "{{ upload_tests_manifest_source_roots | to_json }}"
+    UPLOAD_TEST_AUDIO_EXTS_JSON: "{{ gighive_upload_audio_exts | default([]) | to_json }}"
+    UPLOAD_TEST_VIDEO_EXTS_JSON: "{{ gighive_upload_video_exts | default([]) | to_json }}"
+    UPLOAD_TEST_EVENT_DATE: "{{ upload_test_event_date }}"
+    UPLOAD_TEST_ORG_NAME: "{{ upload_test_org_name }}"
+    UPLOAD_TEST_EVENT_TYPE: "{{ upload_test_event_type }}"
+    UPLOAD_TEST_MANIFEST_PATH: "{{ upload_tests_manifest_path }}"
+  register: upload_tests_manifest_item_count
+  changed_when: false
+  delegate_to: localhost
+  become: false
