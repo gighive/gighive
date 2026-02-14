@@ -1,0 +1,18 @@
+---
+- name: Upload tests - query DB row counts (sessions, files)
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default(mysql_db_host) }}"
+    env:
+      MYSQL_PWD: "{{ mysql_appuser_password }}"
+    command: >-
+      mysql -N -B --show-warnings
+      -u {{ mysql_user }}
+      {{ mysql_database }}
+      -e "SELECT (SELECT COUNT(*) FROM sessions) AS sessions_count, (SELECT COUNT(*) FROM files) AS files_count;"
+  register: upload_tests_db_counts
+  changed_when: false
+
+- name: Upload tests - parse DB counts
+  ansible.builtin.set_fact:
+    "{{ upload_tests_db_counts_prefix }}_sessions_count": "{{ (upload_tests_db_counts.stdout.split('\t')[0] | int) if (upload_tests_db_counts.stdout | default('')) != '' else 0 }}"
+    "{{ upload_tests_db_counts_prefix }}_files_count": "{{ (upload_tests_db_counts.stdout.split('\t')[1] | int) if (upload_tests_db_counts.stdout | default('')) != '' else 0 }}"

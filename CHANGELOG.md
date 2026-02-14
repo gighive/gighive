@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260214.txt
-Changes: Initial working rollout of upload_tests
+Changes: Low-risk refactor of upload_tests
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
  
@@ -11,18 +11,13 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/fixtures/upload_tests/csv/databaseSmall.csv
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/playbooks/site.yml
-	new file:   ansible/roles/upload_tests/tasks/assert_db_invariants.yml
-	new file:   ansible/roles/upload_tests/tasks/main.yml
-	new file:   ansible/roles/upload_tests/tasks/poll_manifest_job.yml
-	new file:   ansible/roles/upload_tests/tasks/test_3a.yml
-	new file:   ansible/roles/upload_tests/tasks/test_3b.yml
-	new file:   ansible/roles/upload_tests/tasks/test_4.yml
-	new file:   ansible/roles/upload_tests/tasks/test_5.yml
-	modified:   docs/pr_upload_testing.md
-	modified:   user-prompts.md
+	new file:   ansible/roles/upload_tests/tasks/generate_manifest.yml
+	new file:   ansible/roles/upload_tests/tasks/query_db_counts.yml
+	new file:   ansible/roles/upload_tests/tasks/run_upload_media_by_hash.yml
+	modified:   ansible/roles/upload_tests/tasks/test_4.yml
+	modified:   ansible/roles/upload_tests/tasks/test_5.yml
+	new file:   docs/refactor_upload_tests.md
 
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
@@ -49,6 +44,32 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260214.txt
+Changes: Initial working rollout of upload_tests
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
+ 
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/fixtures/upload_tests/csv/databaseSmall.csv
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/playbooks/site.yml
+	new file:   ansible/roles/upload_tests/tasks/assert_db_invariants.yml
+	new file:   ansible/roles/upload_tests/tasks/main.yml
+	new file:   ansible/roles/upload_tests/tasks/poll_manifest_job.yml
+	new file:   ansible/roles/upload_tests/tasks/test_3a.yml
+	new file:   ansible/roles/upload_tests/tasks/test_3b.yml
+	new file:   ansible/roles/upload_tests/tasks/test_4.yml
+	new file:   ansible/roles/upload_tests/tasks/test_5.yml
+	modified:   docs/pr_upload_testing.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260214.txt
