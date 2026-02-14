@@ -331,3 +331,75 @@ As PR4/PR5 land (Upload API cutover + Manifest import cutover), update the harne
   - explicitly set by a playbook var, or
   - inferred from filename patterns?
 - Should the harness run 4/5 under both flavors, or treat them as flavor-agnostic until the cutover changes require otherwise?
+
+## Notes (idempotency + Ansible best practices)
+
+### Idempotency
+
+- Sections 3A / 3B / 4 are destructive (they overwrite DB state) but repeatable; rerunning with the same inputs should converge to the same final DB contents.
+- Section 5 is additive; it should be idempotent when rerun with an identical manifest if the importer dedupes by `checksum_sha256` as intended.
+- `upload_media_by_hash.py` is idempotent by default (skips already-present destination files unless force options are used).
+
+### Post-run DB restore behavior
+
+The role performs an optional “restore” at the end of the run by re-running the normalized import (Section 3B) for the inventory’s `app_flavor`.
+
+Purpose:
+- Ensure the final database state after running destructive variants (3A/3B/4) is predictable.
+- Prevent later playbook steps (or a subsequent test run) from inheriting a partially-modified DB.
+
+When it runs:
+- Runs only if destructive variants were selected (any of 3A/3B/4).
+- Defaults to running unless explicitly disabled.
+
+Control variable:
+- `upload_test_restore_db_after`
+  - If `true` or undefined: restore runs.
+  - If `false`: restore is skipped.
+
+Restore-only mode:
+- `upload_test_restore_only: true`
+  - Skips running the configured variants and only performs the post-run normalized restore.
+  - Still requires `allow_destructive=true` (since restore truncates/imports).
+
+Variable semantics (two switches):
+
+`upload_test_restore_only`:
+- `false` (normal mode)
+  - Run the configured `upload_test_variants`
+  - Then optionally run the post-run restore (controlled by `upload_test_restore_db_after`)
+- `true` (restore-only mode)
+  - Skip all variants
+  - Run only the normalized restore
+
+`upload_test_restore_db_after`:
+- `false`
+  - Do not run the restore at the end of a normal test run
+- `true`
+  - Run the restore at the end of a normal test run (when destructive variants were selected)
+
+Quick recipes:
+- Run tests + restore at end
+  - `upload_test_restore_only: false`
+  - `upload_test_restore_db_after: true`
+- Run tests + do NOT restore
+  - `upload_test_restore_only: false`
+  - `upload_test_restore_db_after: false`
+- Restore only (no tests)
+  - `upload_test_restore_only: true`
+  - (`upload_test_restore_db_after` does not matter)
+
+Notes:
+- This “restore” is itself destructive (it truncates/imports), so it is intentionally gated behind the “destructive variants selected” check.
+
+### Best-practice refactors applied
+
+- Polling (async job status) is implemented with `ansible.builtin.uri` instead of raw `curl`.
+- Async JSON POSTs for Sections 4/5 are implemented with `ansible.builtin.uri`.
+- DB assertions use `community.docker.docker_container_exec` instead of raw `docker exec`.
+- Manifest generation extension allowlists are sourced from `group_vars` (`gighive_upload_audio_exts` / `gighive_upload_video_exts`).
+
+Remaining pragmatic implementations:
+
+- Multipart uploads for Sections 3A/3B still use `curl` (kept for simplicity).
+- Manifest generation is currently inline Python in tasks (can be extracted into role scripts if/when it grows).

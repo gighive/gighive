@@ -1,0 +1,144 @@
+---
+- name: Upload tests 3A - select CSV fixture
+  ansible.builtin.set_fact:
+    upload_tests_3a_csv: >-
+      {{
+        ((upload_tests_variant.app_flavor | default(app_flavor)) == 'gighive')
+        | ternary(upload_tests_csv_dir ~ '/databaseSmall.csv', upload_tests_csv_dir ~ '/databaseLarge.csv')
+      }}
+
+- name: Upload tests 3A - derive expected sessions/files from legacy CSV
+  ansible.builtin.shell: |
+    set -euo pipefail
+    python3 - "{{ upload_tests_3a_csv }}" <<'PY'
+    import csv
+    import json
+    import sys
+    from pathlib import Path
+
+    p = Path(sys.argv[1])
+    sessions = 0
+    files = 0
+    skipped_header = False
+    with p.open('r', encoding='utf-8', newline='') as f:
+      r = csv.reader(f)
+      for row in r:
+        if not row:
+          continue
+        if all((c or '').strip() == '' for c in row):
+          continue
+
+        if not skipped_header:
+          row_l = [((c or '').strip().lower()) for c in row]
+          if any(x in ('session_key', 't_title', 'd_date', 'source_relpath', 'checksum_sha256') for x in row_l) or any('title' in x for x in row_l):
+            skipped_header = True
+            continue
+          skipped_header = True
+
+        sessions += 1
+        rightmost_nonempty = ''
+        for c in reversed(row):
+          v = (c or '').strip()
+          if v:
+            rightmost_nonempty = v
+            break
+
+        if rightmost_nonempty:
+          parts = [x.strip() for x in rightmost_nonempty.split(',')]
+          parts = [x for x in parts if x]
+          files += len(parts)
+
+    print(json.dumps({'sessions': sessions, 'files': files}))
+    PY
+  args:
+    executable: /bin/bash
+  register: upload_tests_3a_expected_json
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Upload tests 3A - set expected counts
+  ansible.builtin.set_fact:
+    upload_tests_expected_sessions_count: "{{ (upload_tests_3a_expected_json.stdout | from_json).sessions }}"
+    upload_tests_expected_files_count: "{{ (upload_tests_3a_expected_json.stdout | from_json).files }}"
+
+- name: Upload tests 3A - POST import_database.php
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -sS
+      - -k
+      - -u
+      - "{{ admin_user }}:{{ gighive_admin_password }}"
+      - -F
+      - "database_csv=@{{ upload_tests_3a_csv }}"
+      - "{{ gighive_base_url }}/import_database.php"
+  register: upload_tests_3a_http
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Upload tests 3A - parse response JSON
+  ansible.builtin.set_fact:
+    upload_tests_3a_resp: "{{ upload_tests_3a_http.stdout | from_json }}"
+
+- name: Upload tests 3A - debug response
+  ansible.builtin.debug:
+    msg:
+      success: "{{ upload_tests_3a_resp.success | default(false) }}"
+      error: "{{ upload_tests_3a_resp.error | default('') }}"
+      message: "{{ upload_tests_3a_resp.message | default('') }}"
+      steps: "{{ upload_tests_3a_resp.steps | default([]) }}"
+
+- name: Upload tests 3A - assert success
+  ansible.builtin.assert:
+    that:
+      - upload_tests_3a_resp.success | bool
+
+- name: Upload tests 3A - extract import job id
+  ansible.builtin.set_fact:
+    upload_tests_3a_job_id: >-
+      {{
+        (
+          (upload_tests_3a_resp.steps[0].message | default('', true))
+          | regex_findall('[0-9]{8}-[0-9]{6}-[0-9a-f]{12}')
+          | first
+        )
+        | default('', true)
+      }}
+
+- name: Upload tests 3A - debug step message (job id extraction)
+  ansible.builtin.debug:
+    msg:
+      step0_message: "{{ upload_tests_3a_resp.steps[0].message | default('', true) }}"
+      extracted_job_id: "{{ upload_tests_3a_job_id }}"
+  when: (upload_tests_3a_job_id | default('')) == ''
+
+- name: Upload tests 3A - assert job id extracted
+  ansible.builtin.assert:
+    that:
+      - (upload_tests_3a_job_id | default('')) != ''
+
+- name: Upload tests 3A - derive expected files count from job prepped CSV (in apache container)
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      python3 -c
+      "import csv; p='/var/www/private/import_jobs/{{ upload_tests_3a_job_id }}/prepped_csvs/files.csv';
+      r=csv.DictReader(open(p, newline='', encoding='utf-8'));
+      chks=[((row.get('checksum_sha256') or '').strip().lower()) for row in r];
+      empty=sum(1 for c in chks if c=='');
+      uniq=len(set(c for c in chks if c!=''));
+      print(empty+uniq)"
+  register: upload_tests_3a_prepped_files_count
+  changed_when: false
+
+- name: Upload tests 3A - override expected files count (mirror importer)
+  ansible.builtin.set_fact:
+    upload_tests_expected_files_count: "{{ upload_tests_3a_prepped_files_count.stdout | int }}"
+
+- name: Upload tests 3A - DB count assertions
+  ansible.builtin.include_tasks: assert_db_invariants.yml
+  vars:
+    upload_tests_expect_sessions_count: "{{ upload_tests_expected_sessions_count }}"
+    upload_tests_expect_files_count: "{{ upload_tests_expected_files_count }}"

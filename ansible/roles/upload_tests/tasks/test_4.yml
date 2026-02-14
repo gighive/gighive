@@ -1,0 +1,147 @@
+---
+- name: Upload tests 4 - generate manifest JSON on control host
+  ansible.builtin.shell: |
+    set -euo pipefail
+    python3 - <<'PY'
+    import hashlib
+    import json
+    import os
+    import sys
+    from pathlib import Path
+
+    roots = json.loads(os.environ['UPLOAD_TEST_ROOTS_JSON'])
+    audio_exts = set(json.loads(os.environ['UPLOAD_TEST_AUDIO_EXTS_JSON']))
+    video_exts = set(json.loads(os.environ['UPLOAD_TEST_VIDEO_EXTS_JSON']))
+    event_date = os.environ['UPLOAD_TEST_EVENT_DATE']
+    org_name = os.environ['UPLOAD_TEST_ORG_NAME']
+    event_type = os.environ['UPLOAD_TEST_EVENT_TYPE']
+
+    items = []
+    for root_s in roots:
+        root = Path(root_s).resolve()
+        if not root.is_dir():
+            continue
+        for p in sorted(root.rglob('*')):
+            if not p.is_file():
+                continue
+            rel = p.relative_to(root).as_posix()
+            ext = p.suffix.lower().lstrip('.')
+            if ext in audio_exts:
+                ftype = 'audio'
+            elif ext in video_exts:
+                ftype = 'video'
+            else:
+                continue
+            h = hashlib.sha256()
+            with p.open('rb') as f:
+                for chunk in iter(lambda: f.read(1024*1024), b''):
+                    h.update(chunk)
+            items.append({
+                'checksum_sha256': h.hexdigest(),
+                'file_type': ftype,
+                'file_name': p.name,
+                'source_relpath': rel,
+                'event_date': event_date,
+                'size_bytes': p.stat().st_size,
+            })
+
+    payload = {
+        'org_name': org_name,
+        'event_type': event_type,
+        'items': items,
+    }
+
+    out_path = os.environ['UPLOAD_TEST_MANIFEST_PATH']
+    Path(out_path).write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    sys.stdout.write(str(len(items)))
+    PY
+  args:
+    executable: /bin/bash
+  environment:
+    UPLOAD_TEST_ROOTS_JSON: "{{ upload_test_manifest_source_roots_reload | to_json }}"
+    UPLOAD_TEST_AUDIO_EXTS_JSON: "{{ gighive_upload_audio_exts | default([]) | to_json }}"
+    UPLOAD_TEST_VIDEO_EXTS_JSON: "{{ gighive_upload_video_exts | default([]) | to_json }}"
+    UPLOAD_TEST_EVENT_DATE: "{{ upload_test_event_date }}"
+    UPLOAD_TEST_ORG_NAME: "{{ upload_test_org_name }}"
+    UPLOAD_TEST_EVENT_TYPE: "{{ upload_test_event_type }}"
+    UPLOAD_TEST_MANIFEST_PATH: "/tmp/upload_test_manifest_reload.json"
+  register: upload_tests_manifest_item_count
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Upload tests 4 - capture DB counts before
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default(mysql_db_host) }}"
+    env:
+      MYSQL_PWD: "{{ mysql_appuser_password }}"
+    command: >-
+      mysql -N -B --show-warnings
+      -u {{ mysql_user }}
+      {{ mysql_database }}
+      -e "SELECT (SELECT COUNT(*) FROM sessions) AS sessions_count, (SELECT COUNT(*) FROM files) AS files_count;"
+  register: upload_tests_db_counts_before
+  changed_when: false
+
+- name: Upload tests 4 - POST import_manifest_reload_async.php
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/import_manifest_reload_async.php"
+    method: POST
+    url_username: "{{ admin_user }}"
+    url_password: "{{ gighive_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body: "{{ lookup('ansible.builtin.file', '/tmp/upload_test_manifest_reload.json') | from_json }}"
+    status_code: [200, 202]
+    return_content: true
+  register: upload_tests_4_http
+  delegate_to: localhost
+  become: false
+
+- name: Upload tests 4 - parse response JSON
+  ansible.builtin.set_fact:
+    upload_tests_4_resp: "{{ upload_tests_4_http.json }}"
+
+- name: Upload tests 4 - assert job queued
+  ansible.builtin.assert:
+    that:
+      - upload_tests_4_resp.success | bool
+      - upload_tests_4_resp.job_id is defined
+
+- name: Upload tests 4 - poll job until completion
+  ansible.builtin.include_tasks: poll_manifest_job.yml
+  vars:
+    upload_tests_job_id: "{{ upload_tests_4_resp.job_id }}"
+
+- name: Upload tests 4 - DB count assertions (reload)
+  ansible.builtin.include_tasks: assert_db_invariants.yml
+  vars:
+    upload_tests_expect_sessions_count: null
+    upload_tests_expect_files_count: "{{ upload_tests_manifest_item_count.stdout | int }}"
+
+- name: Upload tests 4 - upload binaries by hash (step 2)
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py"
+      - --source-root
+      - "{{ upload_test_manifest_source_roots_reload[0] }}"
+      - --source-roots
+      - "{{ (upload_test_manifest_source_roots_reload[1:] | default([])) | join(':') }}"
+      - --ssh-target
+      - "{{ upload_test_ssh_target }}"
+      - --db-host
+      - "{{ mysql_db_host }}"
+      - --db-user
+      - "{{ mysql_user }}"
+      - --db-password
+      - "{{ mysql_appuser_password }}"
+      - --db-name
+      - "{{ mysql_database }}"
+  delegate_to: localhost
+  become: false
+  when:
+    - upload_test_run_upload_media_by_hash | bool
+    - upload_test_manifest_source_roots_reload is defined
+    - (upload_test_manifest_source_roots_reload | length) > 0

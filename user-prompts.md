@@ -2100,3 +2100,78 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-02-14T08:57:00-05:00
   - 1) yes, add upload_test_destructive_confirm var to gighive2.yml group_vars. 2) please review upload_media_by_hash.py for sections 4/5 testing; it will require mysql password; prefer using mysql_appuser_password instead of mysql_root_password
+
+- 2026-02-14T09:29:00-05:00
+  - do the test*.yml files conform to ansible best practices or are there any command line implementations that are brittle that we should change to best practice?
+
+- 2026-02-14T09:38:00-05:00
+  - do it (convert manifest async POSTs 4/5 from curl to uri)
+
+- 2026-02-14T09:39:00-05:00
+  - yes run the syntax check
+
+- 2026-02-14T09:41:00-05:00
+  - syntax check should be run with explicit inventory: ansible-playbook -i ansible/inventories/inventory_gighive2.yml --syntax-check ansible/playbooks/site.yml
+
+- 2026-02-14T09:42:00-05:00
+  - make a note about idempotency and ansible best practices fixes at the bottom of the .md file
+
+- 2026-02-14T09:44:00-05:00
+  - option a (run upload_media_by_hash.py after section 4 and after section 5)
+
+- 2026-02-14T09:45:00-05:00
+  - yes (rerun syntax check after Step-2 wiring)
+
+- 2026-02-14T09:56:00-05:00
+  - ran upload_tests with ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e upload_test_mode=true; failed because allow_destructive is false
+
+- 2026-02-14T09:58:00-05:00
+  - ran upload_tests with allow_destructive=tru (typo); still failed with allow_destructive is false
+
+- 2026-02-14T09:59:00-05:00
+  - upload_tests run failed on localhost delegated task due to sudo password required; fix by setting become: false on delegate_to: localhost tasks
+
+- 2026-02-14T10:00:00-05:00
+  - upload_tests run failed in 3A expected-count python because selected CSV path evaluated to False; fix ternary precedence in test_3a.yml/test_3b.yml
+
+- 2026-02-14T10:01:00-05:00
+  - upload_tests run failed in 3A expected-count python with IndexError because heredoc invocation did not pass CSV path into argv; fix python3 heredoc call to include path on command line
+
+- 2026-02-14T10:03:00-05:00
+  - upload_tests run failed in assert_db_invariants.yml due to recursive loop detected templating upload_tests_expected_sessions_count; fix by renaming expected-count include vars
+
+- 2026-02-14T10:05:00-05:00
+  - upload_tests run failed on sessions count assertion mismatch (db_sessions_count != expected_sessions_count) in assert_db_invariants.yml
+
+- 2026-02-14T10:06:00-05:00
+  - upload_tests run still failing on sessions count assertion and debug output not visible; add assert fail_msg to print counts
+
+- 2026-02-14T10:08:00-05:00
+  - upload_tests debug counts: db_sessions_count=1, expected_sessions_count=2, db_files_count=0, expected_files_count=0; sessions assertion failed
+
+- 2026-02-14T10:13:00-05:00
+  - fixed databaseSmall.csv to include header row; upload_tests now imports db_sessions_count=2 db_files_count=15 but expected counts were off due to counting header; update parser to skip header
+
+- 2026-02-14T10:15:00-05:00
+  - upload_tests sessions/files assertion failed even though debug showed db_sessions_count=2 expected_sessions_count=2 and db_files_count=15 expected_files_count=15; fix by casting db counts to int in assertions
+
+- 2026-02-14T10:17:00-05:00
+  - upload_tests 3B failure: sessions count ok (135), but files count mismatch db_files_count=657 expected_files_count=857; adjust expected files logic to unique checksums vs session_files row count
+
+- 2026-02-14T10:19:00-05:00
+  - upload_tests 3B mismatch persisted after first expected-files adjustment (db_files_count=657 expected_files_count=857); refine expected unique checksum counting to match importer filtering
+
+- 2026-02-14T10:20:00-05:00
+  - upload_tests run failed loading test_3b.yml with error conflicting action statements: ansible.builtin.shell, stdin; fix by passing ext lists via environment instead of stdin
+
+- 2026-02-14T10:21:00-05:00
+  - upload_tests 3B still failing: db_files_count=657 expected_files_count=857; need to align expected files count with mysqlPrep_normalized.py behavior (files keyed by source_relpath)
+
+- 2026-02-14T10:24:00-05:00
+  - upload_tests 3B still failing after expected-files changes; expected_files_count remained 857 while db_files_count stayed 657
+
+- 2026-02-14T10:24:00-05:00
+  - upload_tests 3B mismatch: db_files_count=657 expected_files_count=857; change approach to derive expected from mysqlPrep_normalized.py output files.csv
+
+- 2026-02-14T10:29:00-05:00
+  - 3B expected_files_count still high after deriving from prepped_csvs/files.csv; adjust expected calculation to account for DB UNIQUE(checksum_sha256) by counting (blank checksums) + (unique non-blank checksums)

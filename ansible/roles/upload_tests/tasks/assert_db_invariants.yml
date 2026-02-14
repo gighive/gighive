@@ -1,0 +1,53 @@
+---
+- name: Upload tests - query DB row counts (sessions, files)
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default(mysql_db_host) }}"
+    env:
+      MYSQL_PWD: "{{ mysql_appuser_password }}"
+    command: >-
+      mysql -N -B --show-warnings
+      -u {{ mysql_user }}
+      {{ mysql_database }}
+      -e "SELECT (SELECT COUNT(*) FROM sessions) AS sessions_count, (SELECT COUNT(*) FROM files) AS files_count;"
+  register: upload_tests_db_counts
+
+- name: Upload tests - parse DB counts
+  ansible.builtin.set_fact:
+    upload_tests_db_sessions_count: "{{ (upload_tests_db_counts.stdout.split('\t')[0] | int) if (upload_tests_db_counts.stdout | default('')) != '' else 0 }}"
+    upload_tests_db_files_count: "{{ (upload_tests_db_counts.stdout.split('\t')[1] | int) if (upload_tests_db_counts.stdout | default('')) != '' else 0 }}"
+
+- name: Upload tests - debug DB counts vs expected
+  ansible.builtin.debug:
+    msg:
+      db_sessions_count: "{{ upload_tests_db_sessions_count }}"
+      db_files_count: "{{ upload_tests_db_files_count }}"
+      expected_sessions_count: "{{ upload_tests_expect_sessions_count }}"
+      expected_files_count: "{{ upload_tests_expect_files_count }}"
+
+- name: Upload tests - assert sessions count (when expected provided)
+  ansible.builtin.assert:
+    that:
+      - (upload_tests_db_sessions_count | int) == (upload_tests_expect_sessions_count | int)
+    fail_msg: >-
+      sessions count mismatch:
+      db={{ upload_tests_db_sessions_count }}
+      expected={{ upload_tests_expect_sessions_count }}
+      files_db={{ upload_tests_db_files_count }}
+      files_expected={{ upload_tests_expect_files_count }}
+    success_msg: >-
+      sessions count ok: db={{ upload_tests_db_sessions_count }} expected={{ upload_tests_expect_sessions_count }}
+  when: upload_tests_expect_sessions_count is not none
+
+- name: Upload tests - assert files count (when expected provided)
+  ansible.builtin.assert:
+    that:
+      - (upload_tests_db_files_count | int) == (upload_tests_expect_files_count | int)
+    fail_msg: >-
+      files count mismatch:
+      db={{ upload_tests_db_files_count }}
+      expected={{ upload_tests_expect_files_count }}
+      sessions_db={{ upload_tests_db_sessions_count }}
+      sessions_expected={{ upload_tests_expect_sessions_count }}
+    success_msg: >-
+      files count ok: db={{ upload_tests_db_files_count }} expected={{ upload_tests_expect_files_count }}
+  when: upload_tests_expect_files_count is not none
