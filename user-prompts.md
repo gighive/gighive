@@ -2033,3 +2033,70 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-02-13T14:28:00-05:00
   - this is correct path for user-prompts.md: user-prompts.md
+
+- 2026-02-13T18:50:00-05:00
+  - db usernames and passwords should come from what is in group_vars. here is a .j2 environment file that points to the exact variable names you'll need: ansible/roles/docker/templates/.env.mysql.j2
+
+- 2026-02-13T18:54:00-05:00
+  - we don't need individual paths for the various csvs. let's just have one path and different names for the csvs
+
+- 2026-02-13T18:56:00-05:00
+  - i suggest five csv names: database.csv, sessionsSmall.csv/session_filesSmall.csv (for the gighive appflavor) and sessionsLarge.csv/session_filesLarge.csv (for the defaultcodebase (stormpigs) app flavor)
+
+- 2026-02-13T19:14:00-05:00
+  - correction: we will have two files for 3A for the two app flavors: databaseSmall.csv (gighive app flavor) and databaseLarge.csv (defaultcodebase app flavor). check the directory for these and update the .md doc
+
+- 2026-02-13T18:57:00-05:00
+  - what directory should these files go into?
+
+- 2026-02-13T19:02:00-05:00
+  - double-check to make sure all the files prepped for the tests are there: ansible/fixtures/upload_tests/csv
+
+- 2026-02-13T19:04:00-05:00
+  - yes the dir location and var name are fine. is "fixtures" some kind of ansible standard?
+
+- 2026-02-13T19:08:00-05:00
+  - note that app_flavor values are 'gighive' and 'defaultcodebase'. i want to limit the use of "stormpigs" even tho to you and I 'defaultcodebase' is equivalent to stormpigs, as stormpigs was the first rollout of the gighive infrastructure platform.
+
+- 2026-02-13T19:16:00-05:00
+  - repeat back to me the ten variables you are considering adding for the upload test role
+
+- 2026-02-13T19:18:00-05:00
+  - add these variables to the appropriate section within the .md file
+
+- 2026-02-13T19:23:00-05:00
+  - since we keep 99% of variables in group_vars, add to the plan that the ten new vars will live in group_vars for the various SDLC environments. starting with group_vars/gighive2/gighive2.yml. also, i think it's a good idea for this role to run after validate_app, just so we make sure all the upload functions work every time a new instance of gighive is instantiated. make sense?
+
+- 2026-02-13T19:27:00-05:00
+  - i just thought of something. when mysql is brought up, it automatically runs the create_music_db.sql and load_and_transform.sql when mysql initializes. since we're doing these upload tests, the tests will overwrite that data. i suggest we add a switch in the code to upload the normalized versions of whatever app_flavor is selected in group_vars yml file last in order, so that the correct version of the database gets written. does that make sense to you?
+
+- 2026-02-13T19:30:00-05:00
+  - yes, i mean the ansible var app_flavor. and you can place the switch in the upload_tests role.
+
+- 2026-02-14T07:57:00-05:00
+  - if we are moving the storage of the variables from defaults/main.yml to group_vars, the documentation .md file needs to be updated
+
+- 2026-02-14T08:19:00-05:00
+  - approved.
+
+- 2026-02-14T08:28:00-05:00
+  - based upon my requirement to keep all new variables in group_vars (starting in dev environment using group_vars/gighive2/gighive2.yml), i'd like you to move upload_test_mode and allow_destructive vars from defaults/main.yml to group_vars, thus negating the need for defaults/main.yml
+  - also, keep all variables regarding upload_tests role in the same block in the group_vars file. group_vars should be indicated as a file that is changing in the ## Ansible Changes (roles/files) of the .md file
+
+- 2026-02-14T08:35:00-05:00
+  - 1) upload_test_event_date should default to current date of the ansible playbook run. 2) upload test variants should be all six tests: 3a/3b by app_flavor, 4/5 should be by video_reduced for #4 and audio_reduced for #5 as well like we previously decided. correct?
+
+- 2026-02-14T08:40:00-05:00
+  - upload_test_ssh_target should probably be set to the group_var gighive_host, correct? as this represents the vm host that is home to the apache and mysql docker containers
+
+- 2026-02-14T08:42:00-05:00
+  - upload_test_ssh_target: "{{ ansible_user }}@{{ gighive_host }}" because ansible_host is set in the inventory file and is effectively, the main gighive user on the vm
+
+- 2026-02-14T08:43:00-05:00
+  - take the sample block of all the variables we have added to gighive2.yml and insert it into to .md file to show an example of how the upload_tests vars should be configured
+
+- 2026-02-14T08:54:00-05:00
+  - passwords are in secrets.yml (gighive2). admin password var name is gighive_admin_password; confirm this should not impede ansible runs since ansible can access secrets.yml
+
+- 2026-02-14T08:57:00-05:00
+  - 1) yes, add upload_test_destructive_confirm var to gighive2.yml group_vars. 2) please review upload_media_by_hash.py for sections 4/5 testing; it will require mysql password; prefer using mysql_appuser_password instead of mysql_root_password

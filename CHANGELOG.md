@@ -1,8 +1,32 @@
 *** 
-releaseNotes20260208.txt
+releaseNotes20260214.txt
+Changes: Prep for upload_tests role and fix a permissions issue with /var/www/private/import_jobs
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260214.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/fixtures/upload_tests/csv/databaseLarge.csv
+	new file:   ansible/fixtures/upload_tests/csv/databaseSmall.csv
+	new file:   ansible/fixtures/upload_tests/csv/session_filesLarge.csv
+	new file:   ansible/fixtures/upload_tests/csv/session_filesSmall.csv
+	new file:   ansible/fixtures/upload_tests/csv/sessionsLarge.csv
+	new file:   ansible/fixtures/upload_tests/csv/sessionsSmall.csv
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/templates/entrypoint.sh.j2
+	new file:   docs/pr_upload_testing.md
+	modified:   user-prompts.md
+
+*** 
+releaseNotes20260213.txt
 Changes: Jibe file size constraint of 6390MB with iphone app
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260208.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision" ansible-playbook-gighive2-20260213.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
