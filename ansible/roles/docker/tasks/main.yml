@@ -69,129 +69,189 @@
     enabled: yes
   tags: docker
 
-# Ensure the host path exists where docker-compose will mount from
-- name: Ensure externalConfigs directory exists
-  file:
-    path: "{{ docker_dir }}/apache/externalConfigs"
-    state: directory
-    mode: "0755"
+- name: Render bind-mounted docker config files
+  block:
+    # Ensure the host path exists where docker-compose will mount from
+    - name: Ensure externalConfigs directory exists
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/apache/externalConfigs"
+        state: directory
+        mode: "0755"
 
-- name: Ensure MySQL externalConfigs directory exists
-  file:
-    path: "{{ docker_dir }}/mysql/externalConfigs"
-    state: directory
-    mode: "0755"
+    - name: Stat ports.conf path (guard)
+      ansible.builtin.stat:
+        path: "{{ docker_dir }}/apache/externalConfigs/ports.conf"
+      register: _gighive_ports_conf_stat
 
-- name: Render Docker env file
-  template:
-    src: .env.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/.env"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: '0644'
+    - name: Remove miscreated ports.conf directory (if present)
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/apache/externalConfigs/ports.conf"
+        state: absent
+      when: _gighive_ports_conf_stat.stat.isdir | default(false)
 
-- name: Render MySQL env file
-  template:
-    src: .env.mysql.j2
-    dest: "{{ docker_dir }}/mysql/externalConfigs/.env.mysql"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: '0644'
+    - name: Copy ports.conf
+      ansible.builtin.copy:
+        src: "apache/externalConfigs/ports.conf"
+        dest: "{{ docker_dir }}/apache/externalConfigs/ports.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
 
-- name: Render entrypoint.sh
-  template:
-    src: entrypoint.sh.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/entrypoint.sh"
-    mode: "0755"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    - name: Stat logging.conf path (guard)
+      ansible.builtin.stat:
+        path: "{{ docker_dir }}/apache/externalConfigs/logging.conf"
+      register: _gighive_logging_conf_stat
 
-- name: Stat apache2.conf path (guard)
-  ansible.builtin.stat:
-    path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
-  register: _gighive_apache2_conf_stat
+    - name: Remove miscreated logging.conf directory (if present)
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/apache/externalConfigs/logging.conf"
+        state: absent
+      when: _gighive_logging_conf_stat.stat.isdir | default(false)
 
-- name: Remove miscreated apache2.conf directory (if present)
-  ansible.builtin.file:
-    path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
-    state: absent
-  when: _gighive_apache2_conf_stat.stat.isdir | default(false)
+    - name: Copy logging.conf
+      ansible.builtin.copy:
+        src: "apache/externalConfigs/logging.conf"
+        dest: "{{ docker_dir }}/apache/externalConfigs/logging.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
 
-- name: Render apache2.conf
-  template:
-    src: apache2.conf.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    - name: Stat apache2-logrotate.conf path (guard)
+      ansible.builtin.stat:
+        path: "{{ docker_dir }}/apache/externalConfigs/apache2-logrotate.conf"
+      register: _gighive_apache2_logrotate_conf_stat
 
-- name: Render openssl_san.cnf
-  template:
-    src: openssl_san.cnf.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/openssl_san.cnf"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    - name: Remove miscreated apache2-logrotate.conf directory (if present)
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/apache/externalConfigs/apache2-logrotate.conf"
+        state: absent
+      when: _gighive_apache2_logrotate_conf_stat.stat.isdir | default(false)
 
-- name: Render modsecurity.conf
-  template:
-    src: modsecurity.conf.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/modsecurity.conf"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    - name: Copy apache2-logrotate.conf
+      ansible.builtin.copy:
+        src: "apache/externalConfigs/apache2-logrotate.conf"
+        dest: "{{ docker_dir }}/apache/externalConfigs/apache2-logrotate.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
 
-- name: Render crs/crs-setup.conf
-  template:
-    src: crs-setup.conf.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/crs/crs-setup.conf"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    - name: Ensure MySQL externalConfigs directory exists
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/mysql/externalConfigs"
+        state: directory
+        mode: "0755"
 
-- name: Render security2.conf
-  template:
-    src: security2.conf.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    - name: Render Docker env file
+      ansible.builtin.template:
+        src: .env.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/.env"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
 
-- name: Render php-fpm.conf
-  template:
-    src: php-fpm.conf.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/php-fpm.conf"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    - name: Render MySQL env file
+      ansible.builtin.template:
+        src: .env.mysql.j2
+        dest: "{{ docker_dir }}/mysql/externalConfigs/.env.mysql"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
 
-- name: Render www.conf
-  template:
-    src: www.conf.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/www.conf"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    - name: Render entrypoint.sh
+      ansible.builtin.template:
+        src: entrypoint.sh.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/entrypoint.sh"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
 
-- name: Stat default-ssl.conf path (guard)
-  ansible.builtin.stat:
-    path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
-  register: _gighive_default_ssl_conf_stat
+    - name: Stat apache2.conf path (guard)
+      ansible.builtin.stat:
+        path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
+      register: _gighive_apache2_conf_stat
 
-- name: Remove miscreated default-ssl.conf directory (if present)
-  ansible.builtin.file:
-    path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
-    state: absent
-  when: _gighive_default_ssl_conf_stat.stat.isdir | default(false)
+    - name: Remove miscreated apache2.conf directory (if present)
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
+        state: absent
+      when: _gighive_apache2_conf_stat.stat.isdir | default(false)
 
-# Render the vhost to a real file on the host (that the container will bind-mount)
-- name: Render Apache SSL vhost (default-ssl.conf)
-  template:
-    src: default-ssl.conf.j2
-    dest: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    - name: Render apache2.conf
+      ansible.builtin.template:
+        src: apache2.conf.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Render openssl_san.cnf
+      ansible.builtin.template:
+        src: openssl_san.cnf.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/openssl_san.cnf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Render modsecurity.conf
+      ansible.builtin.template:
+        src: modsecurity.conf.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/modsecurity.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Render crs/crs-setup.conf
+      ansible.builtin.template:
+        src: crs-setup.conf.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/crs/crs-setup.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Render security2.conf
+      ansible.builtin.template:
+        src: security2.conf.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Render php-fpm.conf
+      ansible.builtin.template:
+        src: php-fpm.conf.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/php-fpm.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Render www.conf
+      ansible.builtin.template:
+        src: www.conf.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/www.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Stat default-ssl.conf path (guard)
+      ansible.builtin.stat:
+        path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
+      register: _gighive_default_ssl_conf_stat
+
+    - name: Remove miscreated default-ssl.conf directory (if present)
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
+        state: absent
+      when: _gighive_default_ssl_conf_stat.stat.isdir | default(false)
+
+    # Render the vhost to a real file on the host (that the container will bind-mount)
+    - name: Render Apache SSL vhost (default-ssl.conf)
+      ansible.builtin.template:
+        src: default-ssl.conf.j2
+        dest: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+  tags: docker, compose
 
 - name: Ensure tusd hooks directory exists
   ansible.builtin.file:
@@ -218,15 +278,6 @@
 #    owner: www-data
 #    group: www-data
 #    mode: "0644"
-
-# Ensure the host path exists where docker-compose will mount from
-- name: Ensure externalConfigs directory exists
-  file:
-    path: "{{ docker_dir }}/apache/externalConfigs"
-    state: directory
-    mode: "0755"
-    owner: "{{ ansible_user | default('ubuntu') }}"
-    group: "{{ ansible_user | default('ubuntu') }}"
 
 - name: Render Docker Compose file from Jinja2 template
   template:
@@ -287,13 +338,6 @@
   failed_when: false
   changed_when: compose_result.changed
   tags: docker, compose
-
-- name: Ensure Docker service is running
-  ansible.builtin.systemd:
-    name: docker
-    state: started
-    enabled: yes
-  tags: docker
 
 - name: Add current user to Docker group
   ansible.builtin.user:

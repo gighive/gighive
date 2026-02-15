@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260215.txt
-Changes: Add a check for default-ssl.conf as a file and delete directory
+Changes: Rework docker/tasks/main.yml to created bind mounted files on target BEFORE compose to prevent Docker from creating directories.
 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
 
