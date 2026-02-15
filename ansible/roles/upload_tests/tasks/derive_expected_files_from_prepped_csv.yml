@@ -1,0 +1,23 @@
+---
+- name: Upload tests - derive expected files count from job prepped CSV (in apache container)
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      python3 -c
+      "import csv,json; p='/var/www/private/import_jobs/{{ upload_tests_job_id }}/prepped_csvs/files.csv';
+      r=csv.DictReader(open(p, newline='', encoding='utf-8'));
+      fieldnames=list(r.fieldnames or []);
+      rows=list(r);
+      chk_col=('checksum_sha256' if 'checksum_sha256' in fieldnames else ('checksum' if 'checksum' in fieldnames else next((c for c in fieldnames if 'checksum' in (c or '').lower() or 'sha' in (c or '').lower()), '')));
+      chks=[(((row.get(chk_col) if chk_col else '') or '').strip().lower()) for row in rows];
+      empty=sum(1 for c in chks if c=='');
+      uniq=len(set(c for c in chks if c!=''));
+      out={'path':p,'fieldnames':fieldnames,'checksum_column':chk_col,'total_rows':len(rows),'empty_checksum_rows':empty,'unique_nonempty_checksums':uniq,'expected_loaded_rows':empty+uniq};
+      print(json.dumps(out))"
+  register: upload_tests_prepped_files_diag
+  changed_when: false
+
+- name: Upload tests - set derived expected files count
+  ansible.builtin.set_fact:
+    "{{ upload_tests_prepped_files_diag_fact | default('upload_tests_prepped_files_diag_json') }}": "{{ upload_tests_prepped_files_diag.stdout | from_json }}"
+    "{{ upload_tests_expected_files_fact | default('upload_tests_expected_files_count') }}": "{{ (upload_tests_prepped_files_diag.stdout | from_json).expected_loaded_rows | int }}"

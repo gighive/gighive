@@ -59,51 +59,17 @@
       - upload_tests_3b_resp.success | bool
 
 - name: Upload tests 3B - extract import job id
-  ansible.builtin.set_fact:
-    upload_tests_3b_job_id: >-
-      {{
-        (
-          (upload_tests_3b_resp.steps[0].message | default('', true))
-          | regex_findall('[0-9]{8}-[0-9]{6}-[0-9a-f]{12}')
-          | first
-        )
-        | default('', true)
-      }}
-
-- name: Upload tests 3B - debug step message (job id extraction)
-  ansible.builtin.debug:
-    msg:
-      step0_message: "{{ upload_tests_3b_resp.steps[0].message | default('', true) }}"
-      extracted_job_id: "{{ upload_tests_3b_job_id }}"
-  when: (upload_tests_3b_job_id | default('')) == ''
-
-- name: Upload tests 3B - assert job id extracted
-  ansible.builtin.assert:
-    that:
-      - (upload_tests_3b_job_id | default('')) != ''
+  ansible.builtin.include_tasks: extract_import_job_id.yml
+  vars:
+    upload_tests_resp: "{{ upload_tests_3b_resp }}"
+    upload_tests_job_id_fact: upload_tests_3b_job_id
 
 - name: Upload tests 3B - derive expected files count from job prepped CSV (in apache container)
-  community.docker.docker_container_exec:
-    container: "{{ apache_container_name }}"
-    command: >-
-      python3 -c
-      "import csv,json; p='/var/www/private/import_jobs/{{ upload_tests_3b_job_id }}/prepped_csvs/files.csv';
-      r=csv.DictReader(open(p, newline='', encoding='utf-8'));
-      fieldnames=list(r.fieldnames or []);
-      rows=list(r);
-      chk_col=('checksum_sha256' if 'checksum_sha256' in fieldnames else ('checksum' if 'checksum' in fieldnames else next((c for c in fieldnames if 'checksum' in (c or '').lower() or 'sha' in (c or '').lower()), '')));
-      chks=[(((row.get(chk_col) if chk_col else '') or '').strip().lower()) for row in rows];
-      empty=sum(1 for c in chks if c=='');
-      uniq=len(set(c for c in chks if c!=''));
-      out={'path':p,'fieldnames':fieldnames,'checksum_column':chk_col,'total_rows':len(rows),'empty_checksum_rows':empty,'unique_nonempty_checksums':uniq,'expected_loaded_rows':empty+uniq};
-      print(json.dumps(out))"
-  register: upload_tests_3b_prepped_files_diag
-  changed_when: false
-
-- name: Upload tests 3B - set expected files count
-  ansible.builtin.set_fact:
-    upload_tests_3b_prepped_files_diag_json: "{{ upload_tests_3b_prepped_files_diag.stdout | from_json }}"
-    upload_tests_expected_files_count: "{{ (upload_tests_3b_prepped_files_diag.stdout | from_json).expected_loaded_rows | int }}"
+  ansible.builtin.include_tasks: derive_expected_files_from_prepped_csv.yml
+  vars:
+    upload_tests_job_id: "{{ upload_tests_3b_job_id }}"
+    upload_tests_prepped_files_diag_fact: upload_tests_3b_prepped_files_diag_json
+    upload_tests_expected_files_fact: upload_tests_expected_files_count
 
 - name: Upload tests 3B - debug derived expected counts
   ansible.builtin.debug:

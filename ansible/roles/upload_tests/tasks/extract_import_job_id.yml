@@ -1,0 +1,35 @@
+---
+- name: Upload tests - compute step message (job id extraction)
+  ansible.builtin.set_fact:
+    upload_tests_job_step_message: >-
+      {{
+        (
+          (upload_tests_resp.steps[upload_tests_resp_steps_index | default(0)].message | default('', true))
+          if (upload_tests_resp.steps is defined and (upload_tests_resp.steps | length) > (upload_tests_resp_steps_index | default(0)))
+          else ''
+        )
+      }}
+
+- name: Upload tests - extract import job id
+  ansible.builtin.set_fact:
+    "{{ upload_tests_job_id_fact }}": >-
+      {{
+        (
+          upload_tests_job_step_message
+          | regex_findall('[0-9]{8}-[0-9]{6}-[0-9a-f]{12}')
+          | first
+        )
+        | default('', true)
+      }}
+
+- name: Upload tests - debug step message (job id extraction)
+  ansible.builtin.debug:
+    msg:
+      step_message: "{{ upload_tests_job_step_message }}"
+      extracted_job_id: "{{ vars[upload_tests_job_id_fact] | default('') }}"
+  when: (vars[upload_tests_job_id_fact] | default('')) == ''
+
+- name: Upload tests - assert job id extracted
+  ansible.builtin.assert:
+    that:
+      - (vars[upload_tests_job_id_fact] | default('')) != ''

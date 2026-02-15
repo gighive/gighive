@@ -1,8 +1,8 @@
-# Refactor Proposal: `upload_tests` role (documentation-only)
+# Refactor Notes: `upload_tests` role (implemented A–D, planned E)
 
-This document proposes *optional* refactors for the `ansible/roles/upload_tests` role to reduce duplicated code, improve maintainability, and align with Ansible best practices and idempotency principles.
+This document tracks refactors for the `ansible/roles/upload_tests` role to reduce duplicated code, improve maintainability, and align with Ansible best practices and idempotency principles.
 
-**Important:** This is documentation only. No refactor has been implemented yet.
+**Status:** Stages 1, 2, and Stage 3 (D + E) have been implemented and tested.
 
 ## Goals
 
@@ -28,6 +28,69 @@ Location: `ansible/roles/upload_tests/tasks/`
 - `test_5.yml` (manifest add async)
 - `poll_manifest_job.yml`
 - `assert_db_invariants.yml`
+
+## Refactor status (what changed in the implementation)
+
+### Implemented: Stage 1 (A + B)
+
+Goal: factor out pure duplication shared by Sections 4 and 5.
+
+- A) Manifest generation helper
+  - Added: `ansible/roles/upload_tests/tasks/generate_manifest.yml`
+  - Rewired:
+    - `ansible/roles/upload_tests/tasks/test_4.yml`
+    - `ansible/roles/upload_tests/tasks/test_5.yml`
+
+- B) Step-2 uploader helper
+  - Added: `ansible/roles/upload_tests/tasks/run_upload_media_by_hash.yml`
+  - Rewired:
+    - `ansible/roles/upload_tests/tasks/test_4.yml`
+    - `ansible/roles/upload_tests/tasks/test_5.yml`
+
+Notes:
+- Kept manifest paths as fixed `/tmp/upload_test_manifest_*.json` (no tempfile change).
+- Preserved `changed_when: false` behavior for test harness semantics.
+
+### Implemented: Stage 2 (C)
+
+Goal: centralize DB count “before/after” queries.
+
+- Added: `ansible/roles/upload_tests/tasks/query_db_counts.yml`
+- Rewired:
+  - `ansible/roles/upload_tests/tasks/test_5.yml`
+
+Notes:
+- The helper writes parsed counts into facts under a caller-provided prefix, e.g.:
+  - `upload_tests_db_before_sessions_count`
+  - `upload_tests_db_before_files_count`
+
+### Implemented: Stage 3D (D)
+
+Goal: centralize import job id extraction shared by 3A and 3B.
+
+- Added: `ansible/roles/upload_tests/tasks/extract_import_job_id.yml`
+- Rewired:
+  - `ansible/roles/upload_tests/tasks/test_3a.yml`
+  - `ansible/roles/upload_tests/tasks/test_3b.yml`
+
+Notes:
+- The helper computes the step message safely and extracts job ids using the same regex used previously.
+- The helper includes debug output when extraction fails and asserts the job id is non-empty.
+
+### Implemented: Stage 3E (E)
+
+Goal: standardize “expected files inserted” derivation from the importer job’s `prepped_csvs/files.csv`.
+
+- Added: `ansible/roles/upload_tests/tasks/derive_expected_files_from_prepped_csv.yml`
+- Rewired:
+  - `ansible/roles/upload_tests/tasks/test_3a.yml`
+  - `ansible/roles/upload_tests/tasks/test_3b.yml`
+
+Notes:
+- This consolidation mirrors the importer output by reading the job’s prepped CSV inside the apache container.
+- It accounts for `UNIQUE(checksum_sha256)` semantics by computing:
+  - `expected_loaded_rows = empty_checksum_rows + unique_nonempty_checksums`
+- It emits a structured diagnostics JSON (fieldnames, chosen checksum column, totals).
 
 ## Duplicated code / patterns found
 
@@ -129,14 +192,12 @@ Location: `ansible/roles/upload_tests/tasks/`
 - This touches core “expected counts” logic.
 - It’s safe, but higher risk because it’s close to the previously-buggy logic.
 
-## Suggested helper-task interfaces (sketch)
-
-These are *proposed* variable names and behaviors.
+## Helper-task interfaces (current implementation)
 
 ### `generate_manifest.yml`
 
 Inputs:
-- `upload_tests_manifest_roots` (list)
+- `upload_tests_manifest_source_roots` (list)
 - `upload_tests_manifest_path` (string)
 
 Outputs:
@@ -165,9 +226,11 @@ Outputs facts:
 
 Inputs:
 - `upload_tests_resp`
+- `upload_tests_job_id_fact` (string: name of the fact to set)
+- (optional) `upload_tests_resp_steps_index` (int, default 0)
 
 Outputs:
-- `upload_tests_job_id`
+- caller-specified fact name provided by `upload_tests_job_id_fact` (e.g. `upload_tests_3a_job_id`)
 
 ### `derive_expected_files_from_prepped_csv.yml`
 
@@ -177,6 +240,12 @@ Inputs:
 Outputs:
 - `upload_tests_expected_files_count`
 - (optional) `upload_tests_prepped_files_diag_json`
+
+Files that Stage 3E would touch:
+- Add: `ansible/roles/upload_tests/tasks/derive_expected_files_from_prepped_csv.yml`
+- Modify:
+  - `ansible/roles/upload_tests/tasks/test_3a.yml`
+  - `ansible/roles/upload_tests/tasks/test_3b.yml`
 
 ## Validation / regression strategy
 

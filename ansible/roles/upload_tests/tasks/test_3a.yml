@@ -96,46 +96,17 @@
       - upload_tests_3a_resp.success | bool
 
 - name: Upload tests 3A - extract import job id
-  ansible.builtin.set_fact:
-    upload_tests_3a_job_id: >-
-      {{
-        (
-          (upload_tests_3a_resp.steps[0].message | default('', true))
-          | regex_findall('[0-9]{8}-[0-9]{6}-[0-9a-f]{12}')
-          | first
-        )
-        | default('', true)
-      }}
-
-- name: Upload tests 3A - debug step message (job id extraction)
-  ansible.builtin.debug:
-    msg:
-      step0_message: "{{ upload_tests_3a_resp.steps[0].message | default('', true) }}"
-      extracted_job_id: "{{ upload_tests_3a_job_id }}"
-  when: (upload_tests_3a_job_id | default('')) == ''
-
-- name: Upload tests 3A - assert job id extracted
-  ansible.builtin.assert:
-    that:
-      - (upload_tests_3a_job_id | default('')) != ''
+  ansible.builtin.include_tasks: extract_import_job_id.yml
+  vars:
+    upload_tests_resp: "{{ upload_tests_3a_resp }}"
+    upload_tests_job_id_fact: upload_tests_3a_job_id
 
 - name: Upload tests 3A - derive expected files count from job prepped CSV (in apache container)
-  community.docker.docker_container_exec:
-    container: "{{ apache_container_name }}"
-    command: >-
-      python3 -c
-      "import csv; p='/var/www/private/import_jobs/{{ upload_tests_3a_job_id }}/prepped_csvs/files.csv';
-      r=csv.DictReader(open(p, newline='', encoding='utf-8'));
-      chks=[((row.get('checksum_sha256') or '').strip().lower()) for row in r];
-      empty=sum(1 for c in chks if c=='');
-      uniq=len(set(c for c in chks if c!=''));
-      print(empty+uniq)"
-  register: upload_tests_3a_prepped_files_count
-  changed_when: false
-
-- name: Upload tests 3A - override expected files count (mirror importer)
-  ansible.builtin.set_fact:
-    upload_tests_expected_files_count: "{{ upload_tests_3a_prepped_files_count.stdout | int }}"
+  ansible.builtin.include_tasks: derive_expected_files_from_prepped_csv.yml
+  vars:
+    upload_tests_job_id: "{{ upload_tests_3a_job_id }}"
+    upload_tests_prepped_files_diag_fact: upload_tests_3a_prepped_files_diag_json
+    upload_tests_expected_files_fact: upload_tests_expected_files_count
 
 - name: Upload tests 3A - DB count assertions
   ansible.builtin.include_tasks: assert_db_invariants.yml
