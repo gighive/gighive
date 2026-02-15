@@ -173,16 +173,16 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
- - name: Stat default-ssl.conf path (guard)
-   ansible.builtin.stat:
-     path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
-   register: _gighive_default_ssl_conf_stat
+- name: Stat default-ssl.conf path (guard)
+  ansible.builtin.stat:
+    path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
+  register: _gighive_default_ssl_conf_stat
 
- - name: Remove miscreated default-ssl.conf directory (if present)
-   ansible.builtin.file:
-     path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
-     state: absent
-   when: _gighive_default_ssl_conf_stat.stat.isdir | default(false)
+- name: Remove miscreated default-ssl.conf directory (if present)
+  ansible.builtin.file:
+    path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
+    state: absent
+  when: _gighive_default_ssl_conf_stat.stat.isdir | default(false)
 
 # Render the vhost to a real file on the host (that the container will bind-mount)
 - name: Render Apache SSL vhost (default-ssl.conf)
