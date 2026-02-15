@@ -189,6 +189,67 @@ The upload/import endpoints (e.g. `import_normalized.php`) run different Python 
 
 Those import preprocessors also attempt to use `ffprobe` to populate `duration_seconds` and `media_info` during preprocessing.
 
+### Behavior: additive checksum-based probing fallback in `mysqlPrep_normalized.py`
+
+The current behavior in `mysqlPrep_normalized.py` is to resolve a probe path using `source_relpath` (typically by searching for `basename(source_relpath)` under directories in `MEDIA_SEARCH_DIRS`).
+
+This behavior is additive: keep the current probing behavior, but add a fallback path so `ffprobe` can still run when the media on disk is stored as checksum-named files.
+
+For each file row, when determining the path to pass to `ffprobe`:
+
+1. First try (existing behavior)
+   - Look for: `<dir>/<basename(source_relpath)>` for each directory in `MEDIA_SEARCH_DIRS`.
+
+2. If not found, try (new behavior)
+   - If `source_relpath` is blank or has no extension, skip this fallback.
+   - Otherwise:
+     - Derive `ext` from `source_relpath` (e.g. `20050303_1.mp3` -> `.mp3`).
+     - Construct `checksum_name = <checksum_sha256><ext>`.
+     - Look for: `<dir>/<checksum_name>` for each directory in `MEDIA_SEARCH_DIRS`.
+
+If either candidate exists, the resolved path is fed into the existing `probe_duration_seconds()` / `probe_media_info_json()` logic, and `media_info_tool` is populated using the existing `ffprobe` version string behavior.
+
+### Verification: confirm media metadata is populated after a normalized import
+
+After running a normalized import (3B) or a restore that executes `import_normalized.php`, you can verify that media probing occurred by inspecting the most recent import job’s `prepped_csvs/files.csv`.
+
+1. Identify the newest import job directory:
+
+```bash
+docker exec -it apacheWebServer /bin/bash -lc 'ls -1dt /var/www/private/import_jobs/* | head -n 3'
+```
+
+2. Print a few rows of `prepped_csvs/files.csv` with key columns:
+
+```bash
+docker exec -it apacheWebServer /bin/bash -lc '
+job="$(ls -1dt /var/www/private/import_jobs/* | head -n 1)";
+echo "JOB=$job";
+python3 - <<PY
+import csv, os
+job = os.popen("ls -1dt /var/www/private/import_jobs/* | head -n 1").read().strip()
+p = job + "/prepped_csvs/files.csv"
+with open(p, newline="", encoding="utf-8") as f:
+    r = csv.DictReader(f)
+    rows = [next(r) for _ in range(5)]
+for i, row in enumerate(rows, 1):
+    print(
+        i,
+        row.get("source_relpath", ""),
+        (row.get("checksum_sha256", "") or "")[:12],
+        row.get("duration_seconds", ""),
+        (row.get("media_info_tool", "") or ""),
+    )
+PY
+'
+```
+
+Expected result:
+
+- `duration_seconds` is non-empty for probeable rows.
+- `media_info_tool` is non-empty (e.g. `ffprobe 6.1.1-3ubuntu5`).
+- `media_info` (not shown above) is non-empty JSON.
+
 ### Example: import job `prepped_csvs/` directory (apache container)
 
 Each import creates a job directory under `/var/www/private/import_jobs/<job_id>/` and writes preprocessed CSVs to `prepped_csvs/`.

@@ -138,6 +138,26 @@ def resolve_media_path(name: str) -> str:
     return name
 
 
+def resolve_media_path_with_checksum(source_relpath: str, checksum_sha256: str) -> str:
+    resolved = resolve_media_path(source_relpath)
+    if os.path.isfile(resolved):
+        return resolved
+
+    src = (source_relpath or "").strip()
+    if src == "":
+        return resolved
+
+    _, ext = os.path.splitext(src)
+    if ext == "":
+        return resolved
+
+    chk = (checksum_sha256 or "").strip().lower()
+    if chk == "":
+        return resolved
+
+    return resolve_media_path(f"{chk}{ext}")
+
+
 def write_csv(rows, cols, fname):
     path = os.path.join(OUTPUT_DIR, fname)
     with open(path, "w", newline="", encoding="utf8") as f:
@@ -303,7 +323,7 @@ for _, row in sessions_df.iterrows():
             media = MEDIA_TYPE.get(ext, 'audio')
             canonical_name = os.path.basename(fname)
 
-            resolved = resolve_media_path(fname)
+            resolved = resolve_media_path_with_checksum(fname, chk)
             dur = probe_duration_seconds(resolved)
             media_info = probe_media_info_json(resolved)
             media_info_tool = ffprobe_tool_string() if media_info != "" else ""

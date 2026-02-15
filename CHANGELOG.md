@@ -1,5 +1,36 @@
 *** 
 releaseNotes20260215.txt
+Changes: Refactor mysqlPrep_normalized.py in order to solve missing ffprobe info (reconstitute correct file path)
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,base,docker,security_basic_auth,security_owasp_crs,post_build_checks,upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
+ 
+ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+ToDo: We should expose any 413 errors directly to the IOS app
+ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?
+ToDo: integrate with cddb
+ToDo: Remove mysql_native_password=ON
+ToDo: Is it worthwhile to have an embed feature?
+ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+ToDo: Check azure build
+ToDo: Match cert with cloudflare, name only or something else needed?
+ToDo: database table name change to genericize songs 
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod baremetal with same ansible scripts as staging
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: Integrate Let's Encrypt for future
+ToDo: guest user?
+ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260214.txt
 Changes: Medium risk refactor of upload_tests (refactor #2)
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
@@ -18,32 +49,6 @@ Changes to be committed:
 	modified:   ansible/roles/upload_tests/tasks/test_3b.yml
 	new file:   docs/process_mysql_init.md
 	modified:   docs/refactor_upload_tests.md
-
-ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
-ToDo: We should expose any 413 errors directly to the IOS app
-ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?, "upload to gighive" should change to "Upload, organize, and stream your media."
-ToDo: integrate with cddb
-ToDo: Remove mysql_native_password=ON
-ToDo: Is it worthwhile to have an embed feature?
-ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-ToDo: fix reload clears sort media library page
-ToDo: Check azure build
-ToDo: Match cert with cloudflare, name only or something else needed?
-ToDo: database table name change to genericize songs 
-ToDo: investigate vids that didn't produce thumbnails 
-ToDo: rebuild prod baremetal with same ansible scripts as staging
-ToDo: Make sure ask-become-pass is run at first part of vbox_provision
-ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: Integrate Let's Encrypt for future
-ToDo: guest user?
-ToDo: Should have "backup now" feature
 
 *** 
 releaseNotes20260214.txt
