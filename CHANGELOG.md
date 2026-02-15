@@ -1,9 +1,22 @@
 *** 
 releaseNotes20260215.txt
-Changes: Refactor mysqlPrep_normalized.py in order to solve missing ffprobe info (reconstitute correct file path)
+Changes: Update gighive/gighive.yml to include the new changes and test lab.  Also update librarianAsset_musician plan.
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,base,docker,security_basic_auth,security_owasp_crs,post_build_checks,upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
- 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   docs/pr_librarianAsset_musicianSession_changeSet.md
+	new file:   docs/pr_librarianAsset_musician_implementation.md
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
 ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?
@@ -20,7 +33,6 @@ ToDo: Make sure ask-become-pass is run at first part of vbox_provision
 ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
 ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
 ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB
 ToDo: create a canonical md versions for the site and convert using composer recommendation
 ToDo: cleaning the database won't clear out what has been uploaded to video and audio
 ToDo: remove vodcast.xml from webroot for gighive
@@ -29,6 +41,12 @@ ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
 
+*** 
+releaseNotes20260215.txt
+Changes: Refactor mysqlPrep_normalized.py in order to solve missing ffprobe info (reconstitute correct file path)
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,base,docker,security_basic_auth,security_owasp_crs,post_build_checks,upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
+ 
 *** 
 releaseNotes20260214.txt
 Changes: Medium risk refactor of upload_tests (refactor #2)
