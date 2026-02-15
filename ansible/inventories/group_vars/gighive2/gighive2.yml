@@ -58,7 +58,7 @@ reduced_audio: true
 # --------------------------------------------------------------------
 # upload_tests role
 # --------------------------------------------------------------------
-upload_test_restore_only: true
+upload_test_restore_only: false
 upload_test_restore_db_after: true
 
 upload_test_mode: false
