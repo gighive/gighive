@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260215.txt
-Changes: Update gighive/gighive.yml to include the new changes and test lab.  Also update librarianAsset_musician plan.
+Changes: Add a check for default-ssl.conf as a file and delete directory
 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
 
@@ -11,10 +11,7 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   docs/pr_librarianAsset_musicianSession_changeSet.md
-	new file:   docs/pr_librarianAsset_musician_implementation.md
+	modified:   ansible/roles/docker/tasks/main.yml
 
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
@@ -40,6 +37,24 @@ ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same f
 ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260215.txt
+Changes: Update gighive/gighive.yml to include the new changes and test lab.  Also update librarianAsset_musician plan. 
+
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   docs/pr_librarianAsset_musicianSession_changeSet.md
+	new file:   docs/pr_librarianAsset_musician_implementation.md
 
 *** 
 releaseNotes20260215.txt
