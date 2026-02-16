@@ -6,7 +6,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>StormPigs Upload (Admin)</title>
+  <title>Upload File (Admin)</title>
   <style>
     body { font-family: system-ui, Arial, sans-serif; margin: 2rem; padding-bottom: 84px; }
     form { max-width: 720px; }
@@ -70,7 +70,7 @@
     <input id="event_date" name="event_date" type="date" required value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES) ?>" />
 
     <label for="org_name">Organization name *</label>
-    <input id="org_name" name="org_name" type="text" value="StormPigs" />
+    <input id="org_name" name="org_name" type="text" value="Band or Wedding Event Name" />
     <div class="hint">Band name or wedding short name</div>
 
     <label for="event_type">Event type *</label>
