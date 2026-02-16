@@ -113,6 +113,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
        u: viewer<br>
        p: stormpigsviewer
       </li>
+      </ul>
 
       <h3>Why not just use YouTube?</h3>
       <ul>
