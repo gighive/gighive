@@ -96,16 +96,23 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
           </li>
         </ul>
       </li>
-      <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the <a href="https://gighive.app/README.html">Setup Guide</a>, but you may want to jump right to the installation video below:</li>
-      <ul>
-        <li>
-          <span style="display: inline-flex; align-items: center; gap: 8px;">
-            <span>Installation Video:</span>
-            <a href="https://staging.gighive.app/video/0e9bb3bc4ab1cb245e51ad70f52e103a4dc3b13a35d0b4c8438807b17c8b2260.mp4"><img src="https://staging.gighive.app/video/thumbnails/0e9bb3bc4ab1cb245e51ad70f52e103a4dc3b13a35d0b4c8438807b17c8b2260.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
-          </span>
-        </li>
-      </ul>
-      </ul>
+      <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the <a href="https://gighive.app/README.html">Setup Guide</a>, but you may want to jump right to the installation video below:
+        <ul>
+          <li>
+            <span style="display: inline-flex; align-items: center; gap: 8px;">
+              <span>Installation Video:</span>
+              <a href="https://staging.gighive.app/video/0e9bb3bc4ab1cb245e51ad70f52e103a4dc3b13a35d0b4c8438807b17c8b2260.mp4"><img src="https://staging.gighive.app/video/thumbnails/0e9bb3bc4ab1cb245e51ad70f52e103a4dc3b13a35d0b4c8438807b17c8b2260.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
+            </span>
+          </li>
+        </ul>
+      </li>
+      <li>Example of GigHive in Action:
+        <a href="https://www.stormpigs.com">https://www.stormpigs.com</a>
+        <br><br>
+       <strong>Credentials:</strong><br>
+       u: viewer<br>
+       p: stormpigsviewer
+      </li>
 
       <h3>Why not just use YouTube?</h3>
       <ul>

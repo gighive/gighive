@@ -1,8 +1,16 @@
 *** 
+releaseNotes20260216.txt
+Changes: Add group vars to group_vars/prod/prod.yml, push to prod, add SP to index.md and remove SP from upload forms
+
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260216.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260216.log
+
+*** 
 releaseNotes20260215.txt
 Changes: Rework docker/tasks/main.yml to created bind mounted files on target BEFORE compose to prevent Docker from creating directories.
 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive-20260215.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260215.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
