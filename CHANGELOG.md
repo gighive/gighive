@@ -1,4 +1,10 @@
 *** 
+releaseNotes20260217.txt
+Changes: Remove sp crd
+
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260216.log
+
+*** 
 releaseNotes20260216.txt
 Changes: Implement delete upload on iphone and disallow duplicates on both platforms via 409s
 
