@@ -91,6 +91,21 @@
     - (gighive_uploader_password | length) > 0
   become: true
 
+- name: Optionally create/update guest user in host htpasswd (bcrypt)
+  community.general.htpasswd:
+    path: "{{ gighive_htpasswd_host_path }}"
+    name: "{{ guest_user }}"
+    password: "{{ gighive_guest_password }}"
+    crypt_scheme: bcrypt
+    owner: "{{ gighive_htpasswd_owner | default('www-data') }}"
+    group: "{{ gighive_htpasswd_group | default('www-data') }}"
+    mode: "{{ gighive_htpasswd_mode  | default('0640') }}"
+  when:
+    - guest_user is defined
+    - gighive_guest_password is defined
+    - (gighive_guest_password | length) > 0
+  become: true
+
 - name: Validate host htpasswd is a regular file (safety net)
   ansible.builtin.stat:
     path: "{{ gighive_htpasswd_host_path }}"
@@ -294,6 +309,28 @@
       delay: 2
       until: _http_viewer.status == 200
 
+    - name: Probe as guest (expect 200)
+      ansible.builtin.uri:
+        url: "{{ gighive_auth_probe_url_eff }}"
+        method: GET
+        force_basic_auth: true
+        url_username: "{{ guest_user }}"
+        url_password: "{{ gighive_guest_password }}"
+        return_content: false
+        validate_certs: "{{ (not gighive_auth_probe_insecure | default(false)) and (gighive_validate_certs | default(true)) }}"
+        status_code: [200]
+      register: _http_guest
+      changed_when: false
+      failed_when: false
+      no_log: true
+      retries: 3
+      delay: 2
+      until: _http_guest.status == 200
+      when:
+        - guest_user is defined
+        - gighive_guest_password is defined
+        - (gighive_guest_password | length) > 0
+
     - name: Probe as uploader (expect 200)
       ansible.builtin.uri:
         url: "{{ gighive_auth_probe_url_eff }}"
@@ -317,6 +354,8 @@
         admin_http_ok: "{{ _http_admin.status == 200 }}"
         viewer_http_ok: "{{ _http_viewer.status == 200 }}"
         uploader_http_ok: "{{ _http_uploader.status == 200 }}"
+        guest_http_enabled: "{{ (guest_user is defined) and (gighive_guest_password is defined) and ((gighive_guest_password | length) > 0) }}"
+        guest_http_ok: "{{ (not ((guest_user is defined) and (gighive_guest_password is defined) and ((gighive_guest_password | length) > 0))) or ((_http_guest.status | default(0)) == 200) }}"
         unauth_http_locked: "{{ _http_noauth.status in [401, 403] }}"
       changed_when: false
 
@@ -326,12 +365,14 @@
           - admin_http_ok
           - viewer_http_ok
           - uploader_http_ok
+          - guest_http_ok
           - unauth_http_locked
         fail_msg: >-
           Basic Auth probe failed:
           admin={{ _http_admin.status | default('n/a') }},
           viewer={{ _http_viewer.status | default('n/a') }},
           uploader={{ _http_uploader.status | default('n/a') }},
+          guest={{ _http_guest.status | default('n/a') }},
           unauth={{ _http_noauth.status | default('n/a') }}
         success_msg: "Basic Auth verified via HTTP (admin/viewer/uploader OK; unauth blocked)."
 
@@ -343,5 +384,7 @@
           - "admin_http_ok={{ admin_http_ok }}"
           - "viewer_http_ok={{ viewer_http_ok }}"
           - "uploader_http_ok={{ uploader_http_ok }}"
+          - "guest_http_enabled={{ guest_http_enabled }}"
+          - "guest_http_ok={{ guest_http_ok }}"
           - "unauth_http_locked={{ unauth_http_locked }}"
   when: gighive_auth_probe_url_eff is defined

@@ -1,5 +1,50 @@
 *** 
 releaseNotes20260217.txt
+Changes: Create optional guest user
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260216.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260216.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260216.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/security_basic_auth/tasks/main.yml
+	new file:   docs/user_provisioning.md
+
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
+ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+ToDo: We should expose any 413 errors directly to the IOS app
+ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?
+ToDo: integrate with cddb
+ToDo: Remove mysql_native_password=ON
+ToDo: Is it worthwhile to have an embed feature?
+ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+ToDo: Check azure build
+ToDo: Match cert with cloudflare, name only or something else needed?
+ToDo: database table name change to genericize songs 
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod baremetal with same ansible scripts as staging
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260217.txt
 Changes: Remove sp crd
 
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260216.log
@@ -51,30 +96,6 @@ Changes to be committed:
 	renamed:    docs/pr_librarianAsset_musicianSession_changeSet.md -> docs/pr_librarianAsset_musicianEvent.md
 	renamed:    docs/pr_librarianAsset_musician_implementation.md -> docs/pr_librarianAsset_musicianEvent_implementation.md
 	new file:   docs/process_docker_bind_mount_protection.md
-
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
-ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
-ToDo: We should expose any 413 errors directly to the IOS app
-ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?
-ToDo: integrate with cddb
-ToDo: Remove mysql_native_password=ON
-ToDo: Is it worthwhile to have an embed feature?
-ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-ToDo: Check azure build
-ToDo: Match cert with cloudflare, name only or something else needed?
-ToDo: database table name change to genericize songs 
-ToDo: investigate vids that didn't produce thumbnails 
-ToDo: rebuild prod baremetal with same ansible scripts as staging
-ToDo: Make sure ask-become-pass is run at first part of vbox_provision
-ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: guest user?
-ToDo: Should have "backup now" feature
 
 *** 
 releaseNotes20260215.txt

@@ -215,6 +215,7 @@ gighive_upload_video_exts:
 admin_user: admin
 viewer_user: viewer
 uploader_user: uploader
+guest_user: guest
  
 # htpasswd locations, one on the host, other on the container
 # gighive_apache_container: "{{ apache_container_name }}"
