@@ -108,6 +108,7 @@
     <div class="legend">* = mandatory</div>
     <div id="status">Ready.</div>
   </form>
+  <div id="myUploads" style="margin-top:16px; display:none;"></div>
   <pre id="result" style="margin-top:16px; white-space:pre-wrap;"></pre>
 
   <script>
@@ -116,7 +117,100 @@
       const labelInput = document.getElementById('label');
       const dateInput = document.getElementById('event_date');
       const form = document.getElementById('uploadForm');
+      const myUploadsEl = document.getElementById('myUploads');
       // rolled back: no localStorage persistence or XHR
+
+      const STORAGE_KEY = 'uploader_delete_tokens_v1';
+
+      function loadTokens() {
+        try {
+          const raw = window.localStorage ? window.localStorage.getItem(STORAGE_KEY) : null;
+          const parsed = raw ? JSON.parse(raw) : null;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+        } catch(_) {}
+        return {};
+      }
+
+      function saveTokens(map) {
+        try {
+          if (!window.localStorage) return;
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map || {}));
+        } catch(_) {}
+      }
+
+      function renderMyUploads() {
+        if (!myUploadsEl) return;
+        const tokens = loadTokens();
+        const ids = Object.keys(tokens || {}).filter(function(k) { return /^[0-9]+$/.test(String(k)); });
+        ids.sort(function(a, b) { return Number(b) - Number(a); });
+
+        myUploadsEl.style.display = 'block';
+        const rows = ids.map(function(id) {
+          const safeId = String(id).replace(/"/g, '');
+          return '<div class="row" style="margin-top:8px;">'
+            + '<div><strong>File ID</strong> ' + safeId + '</div>'
+            + '<button type="button" data-file-id="' + safeId + '" style="margin-top:0; padding:6px 10px;">Delete</button>'
+            + '</div>';
+        }).join('');
+
+        const body = !ids.length
+          ? '<div class="hint">No uploads from this device yet.</div>'
+          : ('<div class="hint">These entries exist because this browser saved a delete token at upload time.</div>' + rows);
+
+        myUploadsEl.innerHTML = '<h2 style="margin:0 0 8px 0;">My uploads from this device</h2>' + body;
+
+        const buttons = myUploadsEl.querySelectorAll('button[data-file-id]');
+        buttons.forEach(function(b) {
+          b.addEventListener('click', async function() {
+            const fileId = String(this.getAttribute('data-file-id') || '');
+            const cur = loadTokens();
+            const token = cur && cur[fileId] ? String(cur[fileId]) : '';
+            if (!fileId || !token) return;
+
+            this.disabled = true;
+            const prevText = this.textContent;
+            this.textContent = 'Deleting…';
+
+            const statusEl = document.getElementById('status');
+            const resultEl = document.getElementById('result');
+
+            try {
+              const resp = await fetch('/db/delete_media_files.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file_ids: [Number(fileId)], file_id: Number(fileId), delete_token: token }),
+                credentials: 'same-origin'
+              });
+              const text = await resp.text();
+              let json = null;
+              try { json = text ? JSON.parse(text) : null; } catch(_) {}
+              if (!resp.ok) {
+                throw new Error('Delete failed (' + resp.status + '): ' + (json ? JSON.stringify(json, null, 2) : text));
+              }
+              delete cur[fileId];
+              saveTokens(cur);
+              renderMyUploads();
+              if (statusEl) {
+                statusEl.textContent = 'File ID ' + fileId + ' has been deleted.';
+              }
+              if (resultEl) {
+                resultEl.textContent = json ? JSON.stringify(json, null, 2) : text;
+              }
+            } catch (e) {
+              alert(String(e && e.message ? e.message : e));
+            } finally {
+              this.disabled = false;
+              this.textContent = prevText;
+            }
+          });
+        });
+      }
+
+      try {
+        if (window.localStorage) {
+          renderMyUploads();
+        }
+      } catch(_) {}
 
       function ymd(d) {
         const dt = new Date(d);
@@ -318,6 +412,15 @@
                 let j = null;
                 try { j = t ? JSON.parse(t) : null; } catch(_) {}
                 if (!r.ok) {
+                  if (r.status === 409) {
+                    let msg = 'Duplicate Upload. A file with the same content (SHA256) already exists on the server. Upload rejected to prevent duplicates.';
+                    try {
+                      if (j && typeof j === 'object' && j.message) {
+                        msg = String(j.message);
+                      }
+                    } catch(_) {}
+                    throw new Error(msg);
+                  }
                   throw new Error('Finalize failed (' + r.status + '): ' + (j ? JSON.stringify(j, null, 2) : t));
                 }
                 return j || t;
@@ -327,6 +430,15 @@
                 try {
                   if (payload && typeof payload === 'object' && payload.checksum_sha256) {
                     checksum = String(payload.checksum_sha256);
+                  }
+                } catch(_) {}
+
+                try {
+                  if (payload && typeof payload === 'object' && payload.id && payload.delete_token) {
+                    const tokens = loadTokens();
+                    tokens[String(payload.id)] = String(payload.delete_token);
+                    saveTokens(tokens);
+                    renderMyUploads();
                   }
                 } catch(_) {}
 
@@ -360,7 +472,12 @@
               .catch(function(err) {
                 clearBusy();
                 if (statusEl) {
-                  statusEl.textContent = ((finalStatusText && typeof finalStatusText === 'string') ? finalStatusText : 'Finalizing…') + ' Upload Failed.';
+                  const m = String(err && err.message ? err.message : err);
+                  if (/duplicate upload/i.test(m)) {
+                    statusEl.textContent = 'Duplicate Upload: ' + m;
+                  } else {
+                    statusEl.textContent = ((finalStatusText && typeof finalStatusText === 'string') ? finalStatusText : 'Finalizing…') + ' Upload Failed.';
+                  }
                 }
                 alert(String(err && err.message ? err.message : err));
               });

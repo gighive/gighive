@@ -1,16 +1,10 @@
 *** 
 releaseNotes20260216.txt
-Changes: Add group vars to group_vars/prod/prod.yml, push to prod, add SP to index.md and remove SP from upload forms
+Changes: Implement delete upload on iphone and disallow duplicates on both platforms via 409s
 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260216.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260216.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260216.log
-
-*** 
-releaseNotes20260215.txt
-Changes: Rework docker/tasks/main.yml to created bind mounted files on target BEFORE compose to prevent Docker from creating directories.
-
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive-20260215.log
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260215.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -19,7 +13,38 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/UploadController.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Exceptions/DuplicateChecksumException.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   docs/pr_delete_for_uploader.md
+	modified:   docs/pr_delete_upload_iphone.md
+
+*** 
+releaseNotes20260216.txt
+Changes: Add group vars to group_vars/prod/prod.yml, push to prod, add SP to index.md and remove SP from upload forms
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260216.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260216.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260216.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
+	modified:   docs/index.md
+	new file:   docs/pr_delete_upload_iphone.md
+	renamed:    docs/pr_librarianAsset_musicianSession_changeSet.md -> docs/pr_librarianAsset_musicianEvent.md
+	renamed:    docs/pr_librarianAsset_musician_implementation.md -> docs/pr_librarianAsset_musicianEvent_implementation.md
+	new file:   docs/process_docker_bind_mount_protection.md
 
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
@@ -42,9 +67,24 @@ ToDo: create a canonical md versions for the site and convert using composer rec
 ToDo: cleaning the database won't clear out what has been uploaded to video and audio
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: Integrate Let's Encrypt for future
 ToDo: guest user?
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260215.txt
+Changes: Rework docker/tasks/main.yml to created bind mounted files on target BEFORE compose to prevent Docker from creating directories.
+
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive-20260215.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260215.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/tasks/main.yml
 
 *** 
 releaseNotes20260215.txt

@@ -2,6 +2,7 @@
 namespace Production\Api\Services;
 
 use Production\Api\Config\MediaTypes;
+use Production\Api\Exceptions\DuplicateChecksumException;
 use Production\Api\Infrastructure\FileStorage;
 use Production\Api\Repositories\FileRepository;
 use Production\Api\Validation\UploadValidator;
@@ -109,6 +110,15 @@ final class UploadService
             }
         }
 
+        // Server policy: reject duplicate uploads by checksum_sha256 (server-wide).
+        // Do this before moving the file so we don't persist duplicate bytes.
+        if (is_string($checksum) && preg_match('/^[0-9a-f]{64}$/', $checksum) === 1) {
+            $existing = $this->files->findByChecksum($checksum);
+            if ($existing && isset($existing['file_id'])) {
+                throw new DuplicateChecksumException((int)$existing['file_id'], (string)$checksum);
+            }
+        }
+
         // Move the file
         $this->storage->moveUploadedFile($tmpPath, $targetPath);
 
@@ -155,8 +165,9 @@ final class UploadService
                 @unlink($targetPath);
             }
 
-            $id = (int)$existing['file_id'];
-            $createdNew = false;
+            // Server policy: reject duplicate uploads by checksum.
+            // We already cleaned up any newly-stored file bytes above.
+            throw new DuplicateChecksumException((int)$existing['file_id'], (string)$checksum);
         }
 
         if ($createdNew) {
@@ -312,7 +323,15 @@ final class UploadService
             ],
         ];
 
-        $result = $this->handleUpload($files, $mergedPost);
+        try {
+            $result = $this->handleUpload($files, $mergedPost);
+        } catch (DuplicateChecksumException $e) {
+            // If we reject the upload, clean up tusd data to avoid disk accumulation.
+            if (is_file($srcPath)) {
+                @unlink($srcPath);
+            }
+            throw $e;
+        }
 
         $markerResult = $result;
         if (is_array($markerResult) && array_key_exists('delete_token', $markerResult)) {
