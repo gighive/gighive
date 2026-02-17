@@ -106,13 +106,6 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
           </li>
         </ul>
       </li>
-      <li>Example of GigHive in Action:
-        <a href="https://www.stormpigs.com">https://www.stormpigs.com</a>
-        <br><br>
-       <strong>Credentials:</strong><br>
-       u: viewer<br>
-       p: stormpigsviewer
-      </li>
       </ul>
 
       <h3>Why not just use YouTube?</h3>
