@@ -24,6 +24,11 @@ On iPhone:
 - Entries should be kept **indefinitely** until deleted or manually cleared.
 - Tokens must be scoped per server host (base URL) to avoid mixing environments.
 
+## Clarifications / decisions (implementation)
+- **Token store scope:** Store tokens scoped by `baseURL.host` only (not `host+username`). Deletion authorization is based on possession of the capability token, not the username, so a single “this device” list per host is sufficient and matches the web localStorage behavior.
+- **Finalize success codes:** Treat HTTP `200` and `201` as success for `POST /api/uploads/finalize`. The endpoint is idempotent and may return `200` on a repeated finalize (which will not include `delete_token`).
+- **Delete success criteria:** Treat HTTP `200` with `deleted_count == 1` as success for a single-file delete request.
+
 ## UX requirements
 - The “My uploads on this device” section lives on the iPhone upload screen (`UploadView`).
 - List items should be “rich” enough so users remember what they uploaded (event date, org name, event type, label/file name, plus file id).
@@ -109,7 +114,7 @@ On iPhone:
 ### Milestone 2 — Parse finalize response + persist token
 **Objective:** Capture and persist the one-time `delete_token` returned by finalize.
 
-**Where:** `UploadView` upload completion (`case 201:`).
+**Where:** `UploadView` upload completion (treat `case 200` and `case 201` as success).
 
 **Steps:**
 1. Decode finalize response JSON to a minimal struct.
@@ -179,3 +184,18 @@ On iPhone:
 ## Rollout notes
 - Existing uploads without a stored token cannot be deleted from the app.
 - Tokens remain valid as long as the server retains the stored `delete_token_hash` and the app remains installed (and Keychain entry remains).
+
+## Notes: Web `db/upload_form.php` parity
+The web testing UI at `db/upload_form.php` uses the same uploader-delete capability token design and the same delete endpoint as iOS.
+
+**Shared behavior:**
+- Both store `file_id -> delete_token` locally (web: `localStorage`; iOS: Keychain per-host) only when finalize returns `delete_token`.
+- Both delete via `POST /db/delete_media_files.php`.
+- Both rely on Basic Auth for `/db/*` routes (web: browser session via `fetch(..., credentials: 'same-origin')`; iOS: explicit `Authorization: Basic ...` header).
+
+**Minor differences:**
+- Web sends `{ file_ids: [id], file_id: id, delete_token: token }` (includes admin-style `file_ids`); iOS sends `{ file_id: id, delete_token: token }`.
+- Web deletes the local token entry on 200 OK and re-renders; iOS removes from Keychain and reloads the list.
+
+**Important consequence:**
+- If finalize does not return `delete_token` (often for deduped uploads), neither web nor iOS can delete that upload via capability token.

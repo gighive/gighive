@@ -2,6 +2,7 @@
 namespace Production\Api\Controllers;
 
 use PDO;
+use Production\Api\Exceptions\DuplicateChecksumException;
 use Production\Api\Services\UploadService;
 use Production\Api\Repositories\FileRepository;
 
@@ -14,6 +15,20 @@ final class UploadController
     {
         $this->service = new UploadService($pdo);
         $this->files   = new FileRepository($pdo);
+    }
+
+    private function duplicateChecksumResponse(DuplicateChecksumException $e): array
+    {
+        return [
+            'status'  => 409,
+            'headers' => ['Content-Type' => 'application/json'],
+            'body'    => [
+                'error' => 'Duplicate Upload',
+                'message' => 'A file with the same checksum_sha256 already exists on the server. Upload rejected to prevent duplicates.',
+                'existing_file_id' => $e->getExistingFileId(),
+                'checksum_sha256' => $e->getChecksumSha256(),
+            ],
+        ];
     }
 
     /**
@@ -50,6 +65,8 @@ final class UploadController
                 'headers' => ['Content-Type' => 'application/json'],
                 'body'    => $result,
             ];
+        } catch (DuplicateChecksumException $e) {
+            return $this->duplicateChecksumResponse($e);
         } catch (\InvalidArgumentException $e) {
             return [
                 'status'  => 400,
@@ -109,6 +126,8 @@ final class UploadController
                 'headers' => ['Content-Type' => 'application/json'],
                 'body'    => $result,
             ];
+        } catch (DuplicateChecksumException $e) {
+            return $this->duplicateChecksumResponse($e);
         } catch (\InvalidArgumentException $e) {
             return [
                 'status'  => 400,

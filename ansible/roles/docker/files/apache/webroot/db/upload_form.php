@@ -138,12 +138,6 @@
         const tokens = loadTokens();
         const ids = Object.keys(tokens || {}).filter(function(k) { return /^[0-9]+$/.test(String(k)); });
         ids.sort(function(a, b) { return Number(b) - Number(a); });
-        if (!ids.length) {
-          myUploadsEl.style.display = 'none';
-          myUploadsEl.innerHTML = '';
-          return;
-        }
-
         myUploadsEl.style.display = 'block';
         const rows = ids.map(function(id) {
           const safeId = String(id).replace(/"/g, '');
@@ -152,9 +146,12 @@
             + '<button type="button" data-file-id="' + safeId + '" style="margin-top:0; padding:6px 10px;">Delete</button>'
             + '</div>';
         }).join('');
-        myUploadsEl.innerHTML = '<h2 style="margin:0 0 8px 0;">My uploads on this device</h2>'
-          + '<div class="hint">These entries exist because this browser saved a delete token at upload time.</div>'
-          + rows;
+
+        const body = !ids.length
+          ? '<div class="hint">No uploads from this device yet.</div>'
+          : ('<div class="hint">These entries exist because this browser saved a delete token at upload time.</div>' + rows);
+
+        myUploadsEl.innerHTML = '<h2 style="margin:0 0 8px 0;">My uploads from this device</h2>' + body;
 
         const buttons = myUploadsEl.querySelectorAll('button[data-file-id]');
         buttons.forEach(function(b) {
@@ -420,6 +417,15 @@
                 let j = null;
                 try { j = t ? JSON.parse(t) : null; } catch(_) {}
                 if (!r.ok) {
+                  if (r.status === 409) {
+                    let msg = 'Duplicate Upload. A file with the same content (SHA256) already exists on the server. Upload rejected to prevent duplicates.';
+                    try {
+                      if (j && typeof j === 'object' && j.message) {
+                        msg = String(j.message);
+                      }
+                    } catch(_) {}
+                    throw new Error(msg);
+                  }
                   throw new Error('Finalize failed (' + r.status + '): ' + (j ? JSON.stringify(j, null, 2) : t));
                 }
                 return j || t;
@@ -471,7 +477,12 @@
               .catch(function(err) {
                 clearBusy();
                 if (statusEl) {
-                  statusEl.textContent = ((finalStatusText && typeof finalStatusText === 'string') ? finalStatusText : 'Finalizing…') + ' Upload Failed.';
+                  const m = String(err && err.message ? err.message : err);
+                  if (/duplicate upload/i.test(m)) {
+                    statusEl.textContent = 'Duplicate Upload: ' + m;
+                  } else {
+                    statusEl.textContent = ((finalStatusText && typeof finalStatusText === 'string') ? finalStatusText : 'Finalizing…') + ' Upload Failed.';
+                  }
                 }
                 alert(String(err && err.message ? err.message : err));
               });
