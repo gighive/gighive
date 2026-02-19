@@ -68,14 +68,14 @@ pipx install --include-deps ansible
 ansible --version # Should be 2.17.2 or higher
 ```
 
-5. Clone the repo from your desired location (usually /home/$USER, 4 minutes).  \
-- The repo has some sample media files, so it's about 690MB in size.  \
+5. Clone the repo from your desired location (usually /home/$USER, 4 minutes).
+- The repo has some sample media files, so it's about 690MB in size.  
 - Takes a few minutes to download on an average connection.
 ```bash
 git clone https://github.com/gighive/gighive
 ```
 
-6. GigHive uses an Ansible variable `gighive_home` (default `~/gighive`) to locate the repo on the VM. If you cloned the repo anywhere else other than ~/gighive, edit the `gighive_home` variable found in `ansible/inventories/group_vars/gighive/all.yml` to the actual location of the repo.
+6. GigHive sets and uses an Ansible variable `gighive_home` (default `~/gighive`) to locate the repo on the VM. If you cloned the repo anywhere else other than ~/gighive, edit the `gighive_home` variable found in `ansible/inventories/group_vars/gighive/all.yml` to the actual location of the repo.
 
 7. Make sure you have id_rsa.pub in ./ssh for passwordless authentication.
 ```bash
