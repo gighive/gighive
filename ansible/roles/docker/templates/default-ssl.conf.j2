@@ -38,6 +38,15 @@
     ErrorLog ${APACHE_LOG_DIR}/error.log
     CustomLog ${APACHE_LOG_DIR}/access.log combined
 
+    <IfModule mod_headers.c>
+        Header always unset Cache-Control "expr=%{REQUEST_STATUS} == 401 || %{REQUEST_STATUS} == 404 || %{REQUEST_STATUS} == 500"
+        Header always unset Pragma "expr=%{REQUEST_STATUS} == 401 || %{REQUEST_STATUS} == 404 || %{REQUEST_STATUS} == 500"
+        Header always unset Expires "expr=%{REQUEST_STATUS} == 401 || %{REQUEST_STATUS} == 404 || %{REQUEST_STATUS} == 500"
+        Header always set Cache-Control "no-store" "expr=%{REQUEST_STATUS} == 401 || %{REQUEST_STATUS} == 404 || %{REQUEST_STATUS} == 500"
+        Header always set Pragma "no-cache" "expr=%{REQUEST_STATUS} == 401 || %{REQUEST_STATUS} == 404 || %{REQUEST_STATUS} == 500"
+        Header always set Expires "0" "expr=%{REQUEST_STATUS} == 401 || %{REQUEST_STATUS} == 404 || %{REQUEST_STATUS} == 500"
+    </IfModule>
+
     ErrorDocument 401 /errors/401.html
     ErrorDocument 404 /errors/404.html
     ErrorDocument 500 /errors/500.html
