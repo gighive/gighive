@@ -30,7 +30,7 @@ IncludeOptional sites-enabled/*.conf
         Header set Cache-Control "public, max-age=604800, immutable"
     </FilesMatch>
     <FilesMatch "^(?!import_manifest_).*\.(php|html|css|js|json|xml)$">
-        Header set Cache-Control "public, max-age=86400"
+        Header set Cache-Control "public, max-age=86400" "expr=%{REQUEST_STATUS} < 400"
     </FilesMatch>
     <FilesMatch "^import_manifest_.*\.php$">
         Header always unset Cache-Control

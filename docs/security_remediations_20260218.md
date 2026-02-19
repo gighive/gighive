@@ -271,4 +271,36 @@ Remaining items are browser-hardening and defense-in-depth enhancements.
 
 ------------------------------------------------------------------------
 
+# 5. Status Update (2026-02-19)
+
+Implemented Bundle A (dev-first):
+
+-   Cloudflare: Transform Rule (Modify Response Header) applied to hosts ending in `gighive.app`:
+    -   `X-Content-Type-Options: nosniff`
+    -   `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+-   Apache origin: generic error pages to reduce error-page fingerprinting:
+    -   Added `ErrorDocument` mappings for `401/404/500` to `/errors/*.html`
+    -   Added static pages under `ansible/roles/docker/files/apache/webroot/errors/`
+
+Validation:
+
+-   `curl -I https://dev.gighive.app/` confirms both headers are present (duplicated at edge + origin; left as-is).
+-   `curl https://dev.gighive.app/admin.php` returns the new generic 401 page.
+-   ZAP baseline scan now shows PASS for:
+    -   `X-Content-Type-Options Header Missing [10021]`
+    -   `Permissions Policy Header Not Set [10063]`
+    -   `In Page Banner Information Leak [10009]`
+
+Remaining ZAP warnings to address next:
+
+-   `Re-examine Cache-control Directives [10015]`
+-   `Strict-Transport-Security Header Not Set [10035]`
+-   `Content Security Policy (CSP) Header Not Set [10038]`
+-   `Non-Storable Content [10049]`
+-   `Retrieved from Cache [10050]` (informational; indicates caching of assets)
+-   `Modern Web Application [10109]` (informational)
+-   `Cross-Origin-Embedder-Policy Header Missing or Invalid [90004]`
+
+------------------------------------------------------------------------
+
 End of Report
