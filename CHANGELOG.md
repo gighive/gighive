@@ -1,10 +1,10 @@
 *** 
-releaseNotes20260219.txt
-Changes: Custom error pages were being cached, fixed the three to be no-cache in apache2.conf
+releaseNotes20260220.txt
+Changes: Change gighive realm to gighive upload 
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260219.log
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260219.log
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260219.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260220.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260220.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260220.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -13,9 +13,11 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/templates/apache2.conf.j2
 	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	new file:   docs/problem_cached_error_messages.md
+	new file:   docs/security_apache_realms.md
 	modified:   docs/security_remediations_20260218.md
+	modified:   user-prompts.md
 
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
@@ -39,6 +41,25 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260219.txt
+Changes: Custom error pages were being cached, fixed the three to be no-cache in apache2.conf
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260219.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260219.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260219.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/templates/apache2.conf.j2
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   docs/security_remediations_20260218.md
 
 *** 
 releaseNotes20260219.txt
