@@ -291,6 +291,11 @@ Validation:
     -   `Permissions Policy Header Not Set [10063]`
     -   `In Page Banner Information Leak [10009]`
 
+Incident note:
+
+-   After enabling custom `ErrorDocument` pages, Cloudflare cached some `401` responses for media URLs (cached-401 poisoning), causing authenticated media requests to return `401` until cache was purged.
+-   Remediation: ensure `401/404/500` are `Cache-Control: no-store` and ensure global cache headers only apply to successful responses; purge affected Cloudflare cache objects.
+
 Remaining ZAP warnings to address next:
 
 -   `Re-examine Cache-control Directives [10015]`

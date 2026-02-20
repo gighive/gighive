@@ -2175,3 +2175,6 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-02-14T10:29:00-05:00
   - 3B expected_files_count still high after deriving from prepped_csvs/files.csv; adjust expected calculation to account for DB UNIQUE(checksum_sha256) by counting (blank checksums) + (unique non-blank checksums)
+
+- 2026-02-19T17:51:00-05:00
+  - yes, please add a short incident note to that .md file. but create a docs/problem_cached_error_messages.md for a more full incident RCA

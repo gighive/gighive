@@ -144,7 +144,7 @@
     # --- UPLOAD FORMS: admin + uploader ---
     <Location "/db/upload_form.php">
         AuthType Basic
-        AuthName "GigHive"
+        AuthName "GigHive Upload"
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin uploader
     </Location>
@@ -181,7 +181,7 @@
     # --- UPLOAD API: admin + uploader ---
     <Location "/api/uploads.php">
         AuthType Basic
-        AuthName "GigHive"
+        AuthName "GigHive Upload"
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin uploader
     </Location>
@@ -189,7 +189,7 @@
     # --- UPLOADS API (MVC ROUTES): admin + uploader ---
     <LocationMatch "^/api/uploads(?:/|$)">
         AuthType Basic
-        AuthName "GigHive"
+        AuthName "GigHive Upload"
         AuthBasicProvider file
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin uploader
@@ -198,7 +198,7 @@
     # --- MEDIA-FILES API: admin + uploader ---
     <Location "/api/media-files">
         AuthType Basic
-        AuthName "GigHive"
+        AuthName "GigHive Upload"
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin uploader
     </Location>
@@ -206,7 +206,7 @@
     # --- TUS UPLOAD ENDPOINT: admin + uploader ---
     <LocationMatch "^/files(?:/|$)">
         AuthType Basic
-        AuthName "GigHive"
+        AuthName "GigHive Upload"
         AuthBasicProvider file
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin uploader
