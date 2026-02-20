@@ -315,10 +315,10 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </li>
   </ul>
-- Example of Gighive in Action [www.stormpigs.com](https://www.stormpigs.com)
-  Guest creds:
-  u: guest 
-  p: stormpigsguestuser1234!
+- Example of Gighive in Action: [https://www.stormpigs.com](https://www.stormpigs.com)  
+  Guest creds:  
+  u: guest   
+  p: stormpigsguestuser1234!  
 - Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the [Setup Guide](README.html), but you may want to jump right to the installation video below: 
 
   <ul style="margin: 0.5rem 0 0; padding-left: 0; list-style-position: inside;">
