@@ -1,10 +1,6 @@
 *** 
 releaseNotes20260220.txt
-Changes: Change gighive realm to gighive upload 
-
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260220.log
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260220.log
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260220.log
+Changes: Validate upload_tests in prod, change var to run_upload_tests and document roles_upload_test_vars.md
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -13,11 +9,17 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
-	new file:   docs/problem_cached_error_messages.md
-	new file:   docs/security_apache_realms.md
-	modified:   docs/security_remediations_20260218.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/playbooks/site.yml
+	modified:   docs/pr_upload_testing.md
+	new file:   docs/role_upload_tests_vars.md
 	modified:   user-prompts.md
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260220.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260220.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260220.log
 
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
@@ -41,6 +43,27 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260220.txt
+Changes: Change gighive realm to gighive upload 
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260220.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260220.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260220.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	new file:   docs/problem_cached_error_messages.md
+	new file:   docs/security_apache_realms.md
+	modified:   docs/security_remediations_20260218.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260219.txt
@@ -163,7 +186,7 @@ Changes to be committed:
 releaseNotes20260215.txt
 Changes: Rework docker/tasks/main.yml to created bind mounted files on target BEFORE compose to prevent Docker from creating directories.
 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive-20260215.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e run_upload_tests=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive-20260215.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260215.log
 
 sodo@pop-os:~/gighive$ git status
@@ -179,7 +202,7 @@ Changes to be committed:
 releaseNotes20260215.txt
 Changes: Update gighive/gighive.yml to include the new changes and test lab.  Also update librarianAsset_musician plan. 
 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision -e run_upload_tests=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -197,13 +220,13 @@ Changes to be committed:
 releaseNotes20260215.txt
 Changes: Refactor mysqlPrep_normalized.py in order to solve missing ffprobe info (reconstitute correct file path)
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,base,docker,security_basic_auth,security_owasp_crs,post_build_checks,upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,base,docker,security_basic_auth,security_owasp_crs,post_build_checks,upload_tests -e run_upload_tests=true -e allow_destructive=true -e upload_test_destructive_confirm=false -vvv" ansible-playbook-gighive2-20260215.log
  
 *** 
 releaseNotes20260214.txt
 Changes: Medium risk refactor of upload_tests (refactor #2)
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e run_upload_tests=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
  
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -224,7 +247,7 @@ Changes to be committed:
 releaseNotes20260214.txt
 Changes: Low-risk refactor of upload_tests
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e run_upload_tests=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
  
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -245,7 +268,7 @@ Changes to be committed:
 releaseNotes20260214.txt
 Changes: Initial working rollout of upload_tests
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e upload_test_mode=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e run_upload_tests=true -e allow_destructive=true -e upload_test_destructive_confirm=false" ansible-playbook-gighive2-20260214.log
  
 sodo@pop-os:~/gighive$ git status
 On branch master

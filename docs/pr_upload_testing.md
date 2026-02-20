@@ -58,7 +58,7 @@ These variables SHOULD be defined in per-environment `group_vars` (consistent wi
 
 New role variables (planned):
 
-1. `upload_test_mode`
+1. `run_upload_tests`
    - Master opt-in flag; the role should refuse to run unless enabled.
 2. `allow_destructive`
    - Secondary opt-in required for destructive variants (Sections 3A, 3B, 4).
@@ -88,7 +88,7 @@ New role variables (planned):
 Example `group_vars` configuration (from `ansible/inventories/group_vars/gighive2/gighive2.yml`):
 
 ```yaml
-upload_test_mode: false
+run_upload_tests: false
 allow_destructive: false
 upload_test_destructive_confirm: true
 
@@ -184,7 +184,7 @@ The harness SHOULD avoid introducing a separate set of DB credential variables u
 
 The `upload_tests` role SHOULD run after `validate_app` during new instance provisioning so each newly instantiated GigHive instance is verified for upload/import functionality.
 
-This MUST remain opt-in via `upload_test_mode` (and `allow_destructive` for destructive variants) so normal installs do not unexpectedly run destructive import tests.
+This MUST remain opt-in via `run_upload_tests` (and `allow_destructive` for destructive variants) so normal installs do not unexpectedly run destructive import tests.
 
 If `upload_test_restore_db_after=true`, the role SHOULD perform a final normalized import (Section 3B) after running the test matrix so the DB ends in a deterministic “correct” state for the selected `app_flavor`:
 

@@ -2080,7 +2080,7 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
   - approved.
 
 - 2026-02-14T08:28:00-05:00
-  - based upon my requirement to keep all new variables in group_vars (starting in dev environment using group_vars/gighive2/gighive2.yml), i'd like you to move upload_test_mode and allow_destructive vars from defaults/main.yml to group_vars, thus negating the need for defaults/main.yml
+  - based upon my requirement to keep all new variables in group_vars (starting in dev environment using group_vars/gighive2/gighive2.yml), i'd like you to move run_upload_tests and allow_destructive vars from defaults/main.yml to group_vars, thus negating the need for defaults/main.yml
   - also, keep all variables regarding upload_tests role in the same block in the group_vars file. group_vars should be indicated as a file that is changing in the ## Ansible Changes (roles/files) of the .md file
 
 - 2026-02-14T08:35:00-05:00
@@ -2123,7 +2123,7 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
   - yes (rerun syntax check after Step-2 wiring)
 
 - 2026-02-14T09:56:00-05:00
-  - ran upload_tests with ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e upload_test_mode=true; failed because allow_destructive is false
+  - ran upload_tests with ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags upload_tests -e run_upload_tests=true; failed because allow_destructive is false
 
 - 2026-02-14T09:58:00-05:00
   - ran upload_tests with allow_destructive=tru (typo); still failed with allow_destructive is false
