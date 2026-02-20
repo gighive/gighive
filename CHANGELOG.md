@@ -1,6 +1,10 @@
 *** 
 releaseNotes20260220.txt
-Changes: Validate upload_tests in prod, change var to run_upload_tests and document roles_upload_test_vars.md
+Changes: New Gighive Setup Tutorial
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260220.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260220.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260220.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -9,17 +13,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/playbooks/site.yml
-	modified:   docs/pr_upload_testing.md
-	new file:   docs/role_upload_tests_vars.md
-	modified:   user-prompts.md
-
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260220.log
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260220.log
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260220.log
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   docs/index.md
 
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
@@ -43,6 +38,29 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260220.txt
+Changes: Validate upload_tests in prod, change var to run_upload_tests and document roles_upload_test_vars.md
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260220.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260220.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260220.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/playbooks/site.yml
+	modified:   docs/pr_upload_testing.md
+	new file:   docs/role_upload_tests_vars.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260220.txt
