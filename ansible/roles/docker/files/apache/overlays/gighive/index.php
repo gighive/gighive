@@ -11,7 +11,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Welcome</title>
+  <title>Welcome Gighivers!</title>
   <!-- Favicons -->
   <link rel="icon" href="/images/icons/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/images/icons/favicon-16.png" sizes="16x16">
@@ -21,6 +21,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
   <link rel="icon" type="image/png" href="/images/icons/favicon-128.png" sizes="128x128">
   <link rel="icon" type="image/png" href="/images/icons/favicon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png" sizes="180x180">
+  <?php include __DIR__ . '/includes/ga_tag.php'; ?>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     body { margin:0; background:#0b1020; color:#e9eef7; }

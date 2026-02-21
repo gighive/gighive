@@ -45,6 +45,9 @@ ansible_remote_tmp: "/tmp/.ansible/tmp"
 app_flavor: gighive
 database_full: false
 
+ga4_measurement_id_defaultcodebase: ""
+ga4_measurement_id_gighive: "G-HBWR9ZZE3N"
+
 # Docker container rebuild control
 rebuild_mysql: false       # Rebuild MySQL container (preserve data)
 rebuild_mysql_data: false # Rebuild MySQL container + wipe database (nuclear)
