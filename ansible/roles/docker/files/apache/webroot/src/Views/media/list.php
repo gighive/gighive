@@ -399,7 +399,19 @@
             <?php elseif ($key === 'download'): ?>
               <td data-col="download">
                 <?php if (!empty($r['url'])): ?>
-                  <a href="<?= htmlspecialchars($r['url'], ENT_QUOTES) ?>" target="_blank">Download / View</a>
+                  <a
+                    href="<?= htmlspecialchars($r['url'], ENT_QUOTES) ?>"
+                    class="media-download-link"
+                    data-media-id="<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>"
+                    data-file-type="<?= htmlspecialchars((string)($r['type'] ?? ''), ENT_QUOTES) ?>"
+                    data-song-name="<?= htmlspecialchars((string)($r['songTitle'] ?? ''), ENT_QUOTES) ?>"
+                    data-org-name="<?= htmlspecialchars((string)($r['org_name'] ?? ''), ENT_QUOTES) ?>"
+                    data-date="<?= htmlspecialchars((string)($r['date'] ?? ''), ENT_QUOTES) ?>"
+                    data-checksum-sha256="<?= htmlspecialchars((string)($r['checksumSha256'] ?? ''), ENT_QUOTES) ?>"
+                    data-source-relpath="<?= htmlspecialchars((string)($r['sourceRelpath'] ?? ''), ENT_QUOTES) ?>"
+                    data-download-source="download_link"
+                    target="_blank"
+                  >Download / View</a>
                 <?php endif; ?>
               </td>
             <?php elseif ($key === 'thumbnail'): ?>
@@ -413,7 +425,19 @@
                 <?php if ($thumbUrl !== ''): ?>
                   <?php $thumbWidth = $isVideo ? 240 : 96; ?>
                   <?php if (!empty($r['url'])): ?>
-                    <a href="<?= htmlspecialchars((string)$r['url'], ENT_QUOTES) ?>" target="_blank">
+                    <a
+                      href="<?= htmlspecialchars((string)$r['url'], ENT_QUOTES) ?>"
+                      class="media-download-link"
+                      data-media-id="<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>"
+                      data-file-type="<?= htmlspecialchars((string)($r['type'] ?? ''), ENT_QUOTES) ?>"
+                      data-song-name="<?= htmlspecialchars((string)($r['songTitle'] ?? ''), ENT_QUOTES) ?>"
+                      data-org-name="<?= htmlspecialchars((string)($r['org_name'] ?? ''), ENT_QUOTES) ?>"
+                      data-date="<?= htmlspecialchars((string)($r['date'] ?? ''), ENT_QUOTES) ?>"
+                      data-checksum-sha256="<?= htmlspecialchars((string)($r['checksumSha256'] ?? ''), ENT_QUOTES) ?>"
+                      data-source-relpath="<?= htmlspecialchars((string)($r['sourceRelpath'] ?? ''), ENT_QUOTES) ?>"
+                      data-download-source="thumbnail"
+                      target="_blank"
+                    >
                       <img
                         src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES) ?>"
                         alt=""
@@ -992,6 +1016,46 @@
       }
       updateDeleteUi();
     });
+
+    document.addEventListener('click', function(e){
+      const link = e.target && e.target.closest ? e.target.closest('a.media-download-link') : null;
+      if(!link){
+        return;
+      }
+      if(typeof gtag !== 'function'){
+        return;
+      }
+
+      const href = String(link.getAttribute('href') || '');
+      const fileName = (function(){
+        try{
+          const u = new URL(href, window.location.href);
+          const parts = (u.pathname || '').split('/').filter(Boolean);
+          return parts.length ? parts[parts.length - 1] : '';
+        }catch(_){
+          const parts = href.split('?')[0].split('#')[0].split('/').filter(Boolean);
+          return parts.length ? parts[parts.length - 1] : '';
+        }
+      })();
+
+      const fileType = String(link.dataset.fileType || '');
+      if(fileType !== 'audio' && fileType !== 'video'){
+        return;
+      }
+
+      gtag('event', 'file_download', {
+        file_url: href,
+        file_name: fileName,
+        file_type: fileType,
+        media_id: String(link.dataset.mediaId || ''),
+        org_name: String(link.dataset.orgName || ''),
+        date: String(link.dataset.date || ''),
+        song_name: String(link.dataset.songName || ''),
+        checksum_sha256: String(link.dataset.checksumSha256 || ''),
+        source_relpath: String(link.dataset.sourceRelpath || ''),
+        download_source: String(link.dataset.downloadSource || ''),
+      });
+    }, { capture: true });
   </script>
 </body>
 </html>

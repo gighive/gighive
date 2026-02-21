@@ -103,7 +103,10 @@ The Media Library renders downloadable/viewable assets as `<a>` links in the `Do
 Implementation:
 
 - Add a click listener via event delegation.
-- When an anchor `href` matches media files (or paths like `/audio/...` and `/video/...`), emit:
+- When a user clicks either:
+  - The `Download / View` link, or
+  - The thumbnail (when it links to the underlying media URL)
+  emit:
 
 Event:
 
@@ -117,6 +120,16 @@ Suggested parameters:
 - `media_id`: database `id`
 - `org_name`, `date`, `song_name`
 - `checksum_sha256`, `source_relpath`
+
+Additional parameter:
+
+- `download_source`: identifies what UI element initiated the download (e.g. `download_link` or `thumbnail`)
+
+Implementation details:
+
+- Click tracking is attached to anchors with `class="media-download-link"`.
+- The link elements are populated with `data-*` attributes for analytics metadata (e.g. `data-media-id`, `data-file-type`, `data-org-name`, `data-date`, `data-song-name`, `data-checksum-sha256`, `data-source-relpath`, `data-download-source`).
+- The event is emitted only when GA is loaded on the page (i.e. `typeof gtag === 'function'`).
 
 ### `media_play`
 
@@ -147,6 +160,18 @@ The implementation should follow whichever semantic strategy is chosen for repor
 - GA4 reporting:
   - Reports → Engagement → Events
   - Register any custom parameters you want visible in standard reports.
+
+---
+
+## Evidence (GA Validation)
+
+Expected result after clicking `Download / View` links and thumbnails in `db/database.php`:
+
+- GA Realtime shows increasing counts for the `file_download` event.
+
+Add the validation screenshot here:
+
+![GA Realtime showing file_download events](images/ga_realtime_file_download.png)
 
 ---
 
