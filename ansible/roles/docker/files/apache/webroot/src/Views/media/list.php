@@ -5,13 +5,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <?php
-  $appFlavor = isset($appFlavor) ? (string)$appFlavor : 'stormpigs';
+  $appFlavor = isset($appFlavor) ? (string)$appFlavor : 'defaultcodebase';
   $isGighive = strtolower(trim($appFlavor)) === 'gighive';
   $maxWidth = $isGighive ? 900 : 1350;
   ?>
   <?php if (!$isGighive): ?>
   <link rel="stylesheet" href="../header.css">
   <?php endif; ?>
+  <?php include __DIR__ . '/../../../includes/ga_tag.php'; ?>
   <title>Media Library</title>
   <style>
     :root{

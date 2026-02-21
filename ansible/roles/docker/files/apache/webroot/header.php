@@ -41,16 +41,7 @@
 
         
 
-<!-- Google tag (gtag.js) START -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MX1FQZ3H0W"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-MX1FQZ3H0W');
-</script>
-<!-- Google tag (gtag.js) END -->
+<?php include __DIR__ . '/includes/ga_tag.php'; ?>
 
 <?php if (basename($_SERVER['PHP_SELF']) === 'index.php'): ?>
     <!-- Modern Timeline Styles -->
