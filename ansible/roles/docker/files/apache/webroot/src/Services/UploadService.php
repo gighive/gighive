@@ -63,7 +63,7 @@ final class UploadService
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $eventDate)) {
             throw new \InvalidArgumentException('Invalid event_date format; expected YYYY-MM-DD');
         }
-        $orgName   = trim((string)($post['org_name'] ?? 'StormPigs')); // default for blue_green
+        $orgName   = trim((string)($post['org_name'] ?? 'Band')); // default for blue_green
         $eventType = trim((string)($post['event_type'] ?? 'band'));
         $label     = trim((string)($post['label'] ?? ''));
         $participants = trim((string)($post['participants'] ?? ''));

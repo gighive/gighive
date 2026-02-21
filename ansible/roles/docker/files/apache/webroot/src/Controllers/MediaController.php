@@ -325,7 +325,7 @@ final class MediaController
         $appFlavor = getenv('APP_FLAVOR');
         $appFlavor = $appFlavor !== false ? trim((string)$appFlavor) : '';
         if ($appFlavor === '') {
-            $appFlavor = 'stormpigs';
+            $appFlavor = 'defaultcodebase';
         }
 
         $threshold = self::envInt('MEDIA_LIST_PAGINATION_THRESHOLD', 750);
