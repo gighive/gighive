@@ -1,10 +1,20 @@
 *** 
 releaseNotes20260221.txt
-Changes: Variablize the GA tag and fix app_flavor vars
+Changes: Add hooks to GA when user clicks Download or on a thumbnail
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260221.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260221.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260221.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   docs/media_google_analytics_feature_mod.md
 
 ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
@@ -28,6 +38,33 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260221.txt
+Changes: Variablize the GA tag and fix app_flavor vars
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260221.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260221.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260221.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/apache/webroot/header.php
+	new file:   ansible/roles/docker/files/apache/webroot/includes/ga_tag.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/templates/.env.j2
+	new file:   docs/media_google_analytics_feature_mod.md
+	new file:   docs/media_google_analytics_tracking.md
+	new file:   docs/refactor_email_address.md
 
 *** 
 releaseNotes20260220.txt
