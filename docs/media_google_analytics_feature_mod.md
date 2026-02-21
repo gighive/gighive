@@ -133,19 +133,9 @@ Implementation details:
 
 ### `media_play`
 
-Important: the Media Library page currently does **not** embed `<audio>` or `<video>` elements.
+This is out of scope for Milestone A.
 
-Therefore, there are two acceptable semantic strategies:
-
-- **Strict strategy (recommended for accuracy)**
-  - Introduce a lightweight “player page” that embeds HTML5 `<audio>`/`<video>`.
-  - Emit `media_play` on the media element’s `play` event.
-
-- **Proxy strategy (acceptable if you only need intent)**
-  - Emit `media_play` when the user clicks `Download / View`.
-  - Include a parameter like `play_proxy: true` to distinguish it from true playback.
-
-The implementation should follow whichever semantic strategy is chosen for reporting.
+See `docs/pr_standalone_media_player.md` for the dedicated player-page approach required for accurate `media_play` tracking.
 
 ---
 
