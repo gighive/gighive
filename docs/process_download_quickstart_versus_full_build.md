@@ -2,7 +2,7 @@
 description: Quickstart tarball install vs full normal build
 ---
 
-# Overview
+# Quickstart vs Full Build
 
 GigHive supports two distinct installation paths:
 
@@ -53,7 +53,6 @@ This document explains the benefits and drawbacks of each approach, and when eac
 - **Risk of drift from production**
   - If production is managed via the full workflow and Quickstart evolves separately, the two can diverge.
 
-# Benefits vs drawbacks
 ## Benefits of the full normal build
 
 - **Most configurable and auditable**
