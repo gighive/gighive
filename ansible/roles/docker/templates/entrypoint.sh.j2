@@ -20,8 +20,13 @@ export APACHE_LOG_DIR=/var/log/apache2
 
 # Ensure required dirs exist inside the mounted volume
 mkdir -p /var/www/html/audio /var/www/html/video
-chown -R www-data:www-data /var/www/html
+chown -R www-data:www-data /var/www/html/audio /var/www/html/video
 chmod 775 /var/www/html/audio /var/www/html/video
+
+# /var/www/html/downloads may be a read-only bind mount; do not fail if it is not writable
+if [ -d /var/www/html/downloads ] && [ -w /var/www/html/downloads ]; then
+  chown -R www-data:www-data /var/www/html/downloads || true
+fi
 
 mkdir -p /var/www/private/tus-hooks/uploads /var/www/private/tus-hooks/finalized
 chown -R www-data:www-data /var/www/private/tus-hooks /var/www/private/tus-data || true
