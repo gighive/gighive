@@ -323,6 +323,11 @@ gighive_ssl_san_config: "/etc/ssl/openssl_san.cnf"
 gighive_php_version: "8.3"
 gighive_php_fpm_bin: "php-fpm{{ gighive_php_version }}"
 
+# One-shot installer tarball distribution (artifact): filename + controller-local source path + staging download URL
+one_shot_bundle_filename: "gighive-one-shot-bundle.tgz"
+one_shot_bundle_controller_src: "{{ repo_root }}/ansible/roles/docker/files/apache/downloads/{{ one_shot_bundle_filename }}"
+one_shot_bundle_url: "https://staging.gighive.app/downloads/{{ one_shot_bundle_filename }}"
+
 # If you use custom-compiled httpd in the container:
 apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
 

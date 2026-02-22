@@ -57,6 +57,9 @@ Thumbs.db
 **/gighive-one-shot-bundle
 gighive-one-shot-bundle.tgz
 
+# downloads
+**/downloads/
+
 # ALL XCODE DEV IGNORES
 # Xcode
 *.xcuserstate
