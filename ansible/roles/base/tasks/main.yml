@@ -262,6 +262,7 @@
       - "--exclude=cloud-init/"
       - "--exclude=*.vdi"
       - "--exclude=*.vmdk"
+      - "--exclude=ansible/roles/docker/files/apache/downloads/"
       - "--exclude=ansible/roles/docker/files/apache/externalConfigs/resizerequests/"
       - "--exclude=ansible/roles/docker/files/mysql/dbScripts/backups/"
       - "--exclude=ansible*.log"

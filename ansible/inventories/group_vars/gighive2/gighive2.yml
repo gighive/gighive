@@ -302,7 +302,7 @@ gighive_cert_dns_sans:
   - "*.gighive.app"
 
 # Host identity (Apache / what clients connect to)
-gighive_fqdn: "gighive.gighive.internal"
+gighive_fqdn: "gighive2.gighive.internal"
 
 # Optional additional names for the vhost
 gighive_server_aliases:
