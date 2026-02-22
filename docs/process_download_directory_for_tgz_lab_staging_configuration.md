@@ -92,6 +92,42 @@ Notes:
 - `one_shot_bundle_controller_src` is the canonical location on the controller when you build the tarball on Pop!_OS.
 - `one_shot_bundle_url` is the canonical external distribution URL.
 
+---
+
+# IMPORTANT: Prime the Pump (Required for `one_shot_bundle_source: controller`)
+
+Because `gighive-one-shot-bundle.tgz` is typically gitignored (e.g. `**/downloads`), `git pull` on the staging controller will **not** retrieve the tarball.
+
+If the staging inventory uses:
+
+```yaml
+one_shot_bundle_source: controller
+```
+
+then the tarball **must already exist on the Ansible controller** at:
+
+- `{{ one_shot_bundle_controller_src }}`
+
+This means you must "prime the pump" by copying the tarball to the staging controller out-of-band (e.g. `scp`/`rsync`) before running `ansible-playbook` from that controller.
+
+Concrete priming steps:
+
+1) On the staging controller:
+
+```bash
+cd ~/gighive/ansible/roles/docker/files/apache
+mkdir -p downloads
+```
+
+2) On Pop!_OS (copy tarball to the staging controller):
+
+```bash
+cd ~/gighive/ansible/roles/docker/files/apache/downloads
+scp gighive-one-shot-bundle.tgz sodo@staging.gighive.internal:/home/sodo/gighive/ansible/roles/docker/files/apache/downloads
+```
+
+If you do not do this, the playbook is expected to **fail** during the controller-side `stat` check (by design, to avoid silently taking downloads offline).
+
 ## Per-host behavior in inventory (not group_vars)
 
 Two hosts (staging and lab) need to **serve** `/downloads`, but they differ in how they obtain the tarball.

@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260222.txt
-Changes: Host gighive-one-shot-bundle.tgz from the staging GigHive instance gighive.gighive.internal while ensuring the tarball is not deployed to other GigHive hosts.  Note new inventory_lab.yml.
+Changes: Change entrypoint to only chown audio and video not all webroot
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260222.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260222.log
@@ -13,14 +13,9 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   .gitignore
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/inventory_bootstrap.yml
-	new file:   ansible/inventories/inventory_lab.yml
-	modified:   ansible/roles/docker/tasks/main.yml
-	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
-	new file:   docs/process_download_directory_for_tgz_lab_staging_configuration.md
+	modified:   ansible/roles/docker/templates/entrypoint.sh.j2
+	modified:   docs/process_download_directory_for_tgz_lab_staging_configuration.md
 
 ToDo: Rename the vms to their full names
 ToDo: Consider adding session timeout
@@ -47,6 +42,30 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260222.txt
+Changes: Host gighive-one-shot-bundle.tgz from the staging GigHive instance gighive.gighive.internal while ensuring the tarball is not deployed to other GigHive hosts.  Note new inventory_lab.yml.
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260222.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-prod-20260222.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260222.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260222.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/inventory_bootstrap.yml
+	new file:   ansible/inventories/inventory_lab.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	new file:   docs/process_download_directory_for_tgz_lab_staging_configuration.md
 
 *** 
 releaseNotes20260221.txt
