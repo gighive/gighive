@@ -125,8 +125,8 @@ Expected:
 - Redeploy.
 - Remove `{{ docker_dir }}/apache/downloads` from staging host if desired.
 
-# End-user install instructions (updated best practice)
-## Verify Integrity (Recommended)
+# Quickstart install instructions 
+## Download and verify integrity of tarball
 
 Download the file:
 
@@ -147,12 +147,14 @@ sha256sum -c gighive-one-shot-bundle.tgz.sha256
 ```
 
 Expected output:
-
+  If verification fails, do **not** continue. Re-download the bundle.
 ``` text
 gighive-one-shot-bundle.tgz: OK
 ```
 
-If verification fails, do **not** continue. Re-download the bundle.
+## Install the tarball and verify containers are running
+
+Uncompress, install the tarball and verify containers are running:
 
 ```bash
 tar -xzf gighive-one-shot-bundle.tgz
