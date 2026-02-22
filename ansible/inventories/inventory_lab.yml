@@ -14,9 +14,9 @@ all:
     gighive:
       hosts:
         gighive_vm:
-          ansible_host: 192.168.1.248
+          ansible_host: 192.168.1.252
           ansible_user: ubuntu
           ansible_python_interpreter: /usr/bin/python3
           ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
           serve_one_shot_installer_downloads: true
-          one_shot_bundle_source: controller
+          one_shot_bundle_source: url

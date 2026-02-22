@@ -29,7 +29,7 @@ services:
       - "{{ gighive_htpasswd_host_path }}:{{ gighive_htpasswd_path }}:rw"
       - "{{ gighive_resize_requests_host_path }}:{{ gighive_resize_requests_path }}:rw"
       - "{{ mysql_backups_dir }}:/var/www/private/mysql_backups:ro"
-{% if gighive_fqdn | default('') == 'gighive.gighive.internal' %}
+{% if serve_one_shot_installer_downloads | default(false) %}
       - "{{ docker_dir }}/apache/downloads:/var/www/html/downloads:ro"
 {% endif %}
       - "{{ docker_dir }}/apache/externalConfigs/restorelogs:/var/www/private/restorelogs:rw"

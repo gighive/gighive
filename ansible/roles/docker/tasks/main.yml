@@ -76,16 +76,46 @@
       ansible.builtin.file:
         path: "{{ docker_dir }}/apache/downloads"
         state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
         mode: "0755"
 
-    - name: Copy one-shot bundle tarball into downloads directory
+    - name: Stat one-shot bundle tarball on controller (controller source)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ one_shot_bundle_controller_src }}"
+      register: _one_shot_bundle_controller_stat
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Fail if one-shot bundle is missing on controller (controller source)
+      ansible.builtin.fail:
+        msg: >-
+          One-shot bundle tarball is required but was not found on the Ansible controller:
+          {{ one_shot_bundle_controller_src }}
+      when:
+        - (one_shot_bundle_source | default('controller')) == 'controller'
+        - not (_one_shot_bundle_controller_stat.stat.exists | default(false))
+
+    - name: Copy one-shot bundle tarball from controller into downloads directory (controller source)
       ansible.builtin.copy:
-        src: "apache/downloads/gighive-one-shot-bundle.tgz"
-        dest: "{{ docker_dir }}/apache/downloads/gighive-one-shot-bundle.tgz"
-        owner: root
-        group: root
+        src: "{{ one_shot_bundle_controller_src }}"
+        dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
         mode: "0644"
-  when: gighive_fqdn | default('') == 'gighive.gighive.internal'
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Download one-shot bundle tarball from staging into downloads directory (url source)
+      ansible.builtin.get_url:
+        url: "{{ one_shot_bundle_url }}"
+        dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+      when: (one_shot_bundle_source | default('controller')) == 'url'
+
+  when: serve_one_shot_installer_downloads | default(false)
   tags:
     - docker
     - downloads
