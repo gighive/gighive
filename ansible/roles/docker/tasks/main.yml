@@ -69,6 +69,27 @@
     enabled: yes
   tags: docker
 
+- name: Stage one-shot installer tarball for downloads (staging only)
+  become: true
+  block:
+    - name: Ensure apache downloads directory exists
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/apache/downloads"
+        state: directory
+        mode: "0755"
+
+    - name: Copy one-shot bundle tarball into downloads directory
+      ansible.builtin.copy:
+        src: "apache/downloads/gighive-one-shot-bundle.tgz"
+        dest: "{{ docker_dir }}/apache/downloads/gighive-one-shot-bundle.tgz"
+        owner: root
+        group: root
+        mode: "0644"
+  when: gighive_fqdn | default('') == 'gighive.gighive.internal'
+  tags:
+    - docker
+    - downloads
+
 - name: Render bind-mounted docker config files
   block:
     # Ensure the host path exists where docker-compose will mount from

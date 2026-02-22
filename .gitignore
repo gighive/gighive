@@ -53,6 +53,10 @@ Thumbs.db
 # Terraform local state & plugins
 **/terraform/.terraform/
 
+# bundle
+**/gighive-one-shot-bundle
+gighive-one-shot-bundle.tgz
+
 # ALL XCODE DEV IGNORES
 # Xcode
 *.xcuserstate

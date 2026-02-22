@@ -29,6 +29,9 @@ services:
       - "{{ gighive_htpasswd_host_path }}:{{ gighive_htpasswd_path }}:rw"
       - "{{ gighive_resize_requests_host_path }}:{{ gighive_resize_requests_path }}:rw"
       - "{{ mysql_backups_dir }}:/var/www/private/mysql_backups:ro"
+{% if gighive_fqdn | default('') == 'gighive.gighive.internal' %}
+      - "{{ docker_dir }}/apache/downloads:/var/www/html/downloads:ro"
+{% endif %}
       - "{{ docker_dir }}/apache/externalConfigs/restorelogs:/var/www/private/restorelogs:rw"
       - "{{ docker_dir }}/apache/externalConfigs/apache2.conf:/etc/apache2/apache2.conf:ro"
       - "{{ docker_dir }}/apache/externalConfigs/ports.conf:/etc/apache2/ports.conf:ro"
