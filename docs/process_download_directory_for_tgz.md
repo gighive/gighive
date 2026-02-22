@@ -126,16 +126,35 @@ Expected:
 - Remove `{{ docker_dir }}/apache/downloads` from staging host if desired.
 
 # End-user install instructions (updated best practice)
+## Verify Integrity (Recommended)
 
-```bash
+Download the file:
+
+``` bash
 curl -fL -C - -o gighive-one-shot-bundle.tgz \
   https://staging.gighive.app/downloads/gighive-one-shot-bundle.tgz
+```
+Create the checksum file:
 
-# optional integrity check (if you publish the sha file)
-curl -fL -o gighive-one-shot-bundle.tgz.sha256 \
-  https://staging.gighive.app/downloads/gighive-one-shot-bundle.tgz.sha256
+``` bash
+sha256sum gighive-one-shot-bundle.tgz > gighive-one-shot-bundle.tgz.sha256
+```
+
+Verify the bundle integrity:
+
+``` bash
 sha256sum -c gighive-one-shot-bundle.tgz.sha256
+```
 
+Expected output:
+
+``` text
+gighive-one-shot-bundle.tgz: OK
+```
+
+If verification fails, do **not** continue. Re-download the bundle.
+
+```bash
 tar -xzf gighive-one-shot-bundle.tgz
 cd gighive-one-shot-bundle
 # THe installer will ask you to confirm an IP address.  This will be the ip address of the docker host on which you will run the containers.
