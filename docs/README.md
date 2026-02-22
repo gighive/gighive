@@ -47,12 +47,21 @@ Internet-exposed or production deployment.  You will see a step for this below.
 
 ---
 
-## ⚙️ Setup options
+# Setup
 
 Choose one of the following:
 
-- **Quickstart (one-shot bundle)**: `docs/setup_instructions_quickstart.md`
-- **Full build (normal Ansible/Terraform workflow)**: `docs/setup_instructions_fullbuild.md`
+## Quickstart (one-shot bundle)
+
+[setup_instructions_quickstart.html](setup_instructions_quickstart.html)
+
+## Full build (normal Ansible/Terraform workflow)
+
+[setup_instructions_fullbuild.html](setup_instructions_fullbuild.html)
+
+## Benefits and Drawbacks of Quickstart vs Full Build
+
+[process_download_quickstart_versus_full_build.html](process_download_quickstart_versus_full_build.html)
 
 ---
 
