@@ -8,8 +8,7 @@ description: Quickstart install instructions (one-shot bundle)
 Download the file:
 
 ``` bash
-curl -fL -C - -o gighive-one-shot-bundle.tgz \
-  https://staging.gighive.app/downloads/gighive-one-shot-bundle.tgz
+curl -fL -O https://staging.gighive.app/downloads/gighive-one-shot-bundle.tgz
 ```
 Create the checksum file:
 
@@ -38,7 +37,10 @@ tar -xzf gighive-one-shot-bundle.tgz
 cd gighive-one-shot-bundle
 # The installer will ask you to confirm an IP address.  This will be the ip address of the docker host on which you will run the containers.
 ./install.sh
+# On a decently fast machine, this should take less than five minutes.
 docker compose ps
+# Validate installation by performing smoke tests below and accessing the URL in a browser.
+# Note you will get a security warning because the certificate is self-signed.
 ```
 
 # Sample debugging output (successful install)
@@ -87,6 +89,7 @@ mysqlServer            mysql:8.4                "docker-entrypoint.s…"   mysql
 curl -kI https://192.168.1.252/
 curl -kI https://192.168.1.252/db/database.php
 curl -kI https://viewer:secretviewer@192.168.1.252/db/database.php
+# Then check by opening the URL in your favorit browser
 ```
 
 If you see `HTTP 500` after BasicAuth, check:
