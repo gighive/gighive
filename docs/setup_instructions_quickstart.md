@@ -48,17 +48,16 @@ During `./install.sh`, you will be prompted to set BasicAuth passwords for the f
 - `uploader`
 - `viewer`
 
-  Validate installation by performing the smoke tests below and accessing the URL in a browser.
+Validate installation by performing the smoke tests below and accessing the URL in a browser.
 
-# Sample debugging output (successful install)
-
-Use this section as a reference for what a successful install commonly looks like.
-
-## `install.sh` run (example)
+## `install.sh` sample run
 
 ```text
 ubuntu@gighive:~/gighive-one-shot-bundle$ ./install.sh
 SITE_URL (example: https://192.168.1.230): https://192.168.1.252
+BasicAuth password for user 'admin': 
+BasicAuth password for user 'uploader': 
+BasicAuth password for user 'viewer': 
 MYSQL_PASSWORD:
 MYSQL_ROOT_PASSWORD:
 Wrote:
@@ -81,7 +80,7 @@ Next checks:
   - docker compose logs -n 200 apacheWebServer
 ```
 
-## Expected `docker compose ps` (example)
+## `docker compose ps` output
 
 ```text
 NAME                   IMAGE                    COMMAND                  SERVICE           STATUS          PORTS
@@ -90,7 +89,7 @@ apacheWebServer_tusd   tusproject/tusd:latest   "/usr/local/share/do…"   tusd 
 mysqlServer            mysql:8.4                "docker-entrypoint.s…"   mysqlServer       Up ...          0.0.0.0:3306->3306/tcp
 ```
 
-## Quick curl HTTP smoke tests (example)
+## curl HTTP smoke tests 
 
 Replace `192.168.1.252` with your host IP.
 
@@ -99,17 +98,9 @@ curl -kI https://192.168.1.252/
 curl -kI https://192.168.1.252/db/database.php
 curl -kI https://viewer:secretviewer@192.168.1.252/db/database.php
 ```
-# Check by opening the URL in your favorite browser
-
-Note you will get a security warning because the certificate is self-signed.
-
-# Troubleshooting
-If you see `HTTP 500` after BasicAuth, check:
-
-```bash
-docker compose logs -n 200 apacheWebServer
-docker compose exec apacheWebServer bash -lc 'tail -n 200 /var/log/apache2/error.log'
-```
+# Open the URL in your favorite browser; 
+Example: `https://192.168.1.252/`
+  Note you will get a security warning because the certificate is self-signed.
 
 ## ⚙️ After Installation
 - Once installed, there will be a splash page, a link to the database and a link to the uploads and admin pages. Simple! 
@@ -119,6 +110,14 @@ docker compose exec apacheWebServer bash -lc 'tail -n 200 /var/log/apache2/error
   * uploader: Uploaders can upload and view media files. 
   * admin: Admin can view and upload files and change passwords.
 - Admin utility (admin.php): a page for the admins to reset default password in GUI as well.
+
+# Troubleshooting
+If you see `HTTP 500` after BasicAuth, check:
+
+```bash
+docker compose logs -n 200 apacheWebServer
+docker compose exec apacheWebServer bash -lc 'tail -n 200 /var/log/apache2/error.log'
+```
 
 # Clean reinstall / full wipe (install host)
 
