@@ -32,6 +32,16 @@ gighive-one-shot-bundle.tgz: OK
 
 Uncompress, install the tarball and verify containers are running:
 
+During `./install.sh`, you will be prompted to set BasicAuth passwords for:
+
+- `admin`
+- `uploader`
+- `viewer`
+
+These are written to:
+
+- `apache/externalConfigs/gighive.htpasswd`
+
 ```bash
 tar -xzf gighive-one-shot-bundle.tgz
 cd gighive-one-shot-bundle
@@ -41,6 +51,12 @@ cd gighive-one-shot-bundle
 docker compose ps
 # Validate installation by performing smoke tests below and accessing the URL in a browser.
 # Note you will get a security warning because the certificate is self-signed.
+```
+
+To rotate BasicAuth passwords later, regenerate `apache/externalConfigs/gighive.htpasswd` and restart the apache container:
+
+```bash
+docker compose restart apacheWebServer
 ```
 
 # Sample debugging output (successful install)
