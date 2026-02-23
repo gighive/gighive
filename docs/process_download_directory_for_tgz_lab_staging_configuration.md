@@ -241,6 +241,23 @@ This makes `/downloads` mount explicit and inventory-controlled.
 
 - `ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz`
 
+Concrete commands (run from the repo root on the controller):
+
+```bash
+# From the gighive repo root
+mkdir -p ansible/roles/docker/files/apache/downloads
+
+# go to gighive
+cd ~/gighive
+
+# Rebuild the artifact tarball (bundle directory must exist at repo root)
+tar -czf ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz -C . gighive-one-shot-bundle
+
+# Quick sanity check: ensure the tarball contains the installer
+tar -tzf ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz | head
+tar -tzf ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz | grep -E '^gighive-one-shot-bundle/install\.sh$'
+```
+
 2) Run Ansible against staging inventory.
 
 Result:
@@ -260,6 +277,32 @@ Result:
 - lab downloads tarball from staging URL into:
   - `{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}`
 - lab serves it similarly if you expose lab via a public hostname.
+
+---
+
+# Step 5) Post-implementation documentation (after success)
+
+After the staging + lab flows work end-to-end, document the final state so future installs/debugging do not require rediscovering decisions.
+
+Update documentation to include:
+
+- **What changed (authoritative file list)**
+  - Confirm the final set of changed files (inventories, `group_vars`, docker role tasks, compose template).
+- **Final variables to set per environment**
+  - Staging: `serve_one_shot_installer_downloads: true`, `one_shot_bundle_source: controller`
+  - Lab: `serve_one_shot_installer_downloads: true`, `one_shot_bundle_source: url`
+- **Verification commands + expected output**
+  - Staging URL returns HTTP 200 for the tarball.
+  - Lab can download the tarball from staging.
+- **Known failure modes**
+  - Missing controller artifact should hard-fail.
+  - `get_url` failures should hard-fail.
+
+Recommended places to record these details:
+
+- `docs/process_download_directory_for_tgz_lab_staging_configuration.md` (this doc)
+- `docs/setup_instructions_quickstart.md` (end-user facing quickstart)
+- `docs/README.md` (top-level entry point)
 
 ---
 
