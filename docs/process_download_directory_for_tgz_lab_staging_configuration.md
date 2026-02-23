@@ -237,28 +237,37 @@ This makes `/downloads` mount explicit and inventory-controlled.
 
 ## Staging publish/update flow
 
-1) On Pop!_OS dev box (controller), build/update the tarball at:
+1) If you have an update to the quick start, one-shot bundle, or related artifacts, on Pop!_OS dev box (controller), build/update the tarball at:
 
 - `ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz`
 
 Concrete commands (run from the repo root on the controller):
 
 ```bash
-# From the gighive repo root
-mkdir -p ansible/roles/docker/files/apache/downloads
-
-# go to gighive
+# Change directory to gighive
 cd ~/gighive
 
 # Rebuild the artifact tarball (bundle directory must exist at repo root)
 tar -czf ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz -C . gighive-one-shot-bundle
 
 # Quick sanity check: ensure the tarball contains the installer
+ls -l ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz 
 tar -tzf ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz | head
 tar -tzf ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz | grep -E '^gighive-one-shot-bundle/install\.sh$'
 ```
 
+If the staging controller is a different machine than your Pop!_OS dev box and staging uses `one_shot_bundle_source: controller`, copy the tarball to the staging controller (this is the "prime the pump" step):
+
+This puts the tarball on the staging.gighive.app host internally known as `stagingvm.gighive.internal`.  This will make the file available to the world, after the next Ansible run in the next step.
+```bash
+  scp ansible/roles/docker/files/apache/downloads/gighive-one-shot-bundle.tgz sodo@staging.gighive.internal:/home/sodo/gighive/ansible/roles/docker/files/apache/downloads/
+```
+
 2) Run Ansible against staging inventory.
+
+```bash
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v
+```
 
 Result:
 
@@ -267,6 +276,7 @@ Result:
 - Apache serves it at:
   - `https://staging.gighive.app/downloads/{{ one_shot_bundle_filename }}`
 
+3) Now the tarball is available to the world at `https://staging.gighive.app/downloads/{{ one_shot_bundle_filename }}` 
 ## Lab sync flow
 
 1) Ensure staging already hosts the tarball (above).

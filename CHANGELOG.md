@@ -1,8 +1,8 @@
 *** 
 releaseNotes20260223.txt
-Changes: Update gighive quick start to include apache users
+Changes: Update quick start documentation and make small fix to mount guard for sec conf 
 
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260222.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260223.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -11,7 +11,9 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/tasks/main.yml
 	modified:   docs/process_download_directory_for_tgz_lab_staging_configuration.md
+	new file:   docs/refactor_bind_mount_guard_pattern.md
 	modified:   docs/setup_instructions_quickstart.md
 
 ToDo: Rename the vms to their full names
@@ -39,6 +41,22 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+***
+releaseNotes20260223.txt
+Changes: Update gighive quick start to include apache users and regenerate/test quickstart tgz
+
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260223.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/process_download_directory_for_tgz_lab_staging_configuration.md
+	modified:   docs/setup_instructions_quickstart.md
 
 *** 
 releaseNotes20260223.txt

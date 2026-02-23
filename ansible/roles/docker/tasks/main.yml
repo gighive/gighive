@@ -259,6 +259,17 @@
         group: "{{ ansible_user }}"
         mode: "0644"
 
+    - name: Stat security2.conf path (guard)
+      ansible.builtin.stat:
+        path: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
+      register: _gighive_security2_conf_stat
+
+    - name: Remove miscreated security2.conf directory (if present)
+      ansible.builtin.file:
+        path: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
+        state: absent
+      when: _gighive_security2_conf_stat.stat.isdir | default(false)
+
     - name: Render security2.conf
       ansible.builtin.template:
         src: security2.conf.j2
