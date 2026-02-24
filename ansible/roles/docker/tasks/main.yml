@@ -97,10 +97,36 @@
         - (one_shot_bundle_source | default('controller')) == 'controller'
         - not (_one_shot_bundle_controller_stat.stat.exists | default(false))
 
+    - name: Create one-shot bundle sha256 on controller (controller source)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: sha256sum "{{ one_shot_bundle_controller_src }}"
+      register: _one_shot_bundle_sha256
+      changed_when: false
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Write one-shot bundle sha256 file on controller (controller source)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.copy:
+        content: "{{ _one_shot_bundle_sha256.stdout }}\n"
+        dest: "{{ one_shot_bundle_controller_src }}.sha256"
+        mode: "0644"
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
     - name: Copy one-shot bundle tarball from controller into downloads directory (controller source)
       ansible.builtin.copy:
         src: "{{ one_shot_bundle_controller_src }}"
         dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Copy one-shot bundle sha256 file from controller into downloads directory (controller source)
+      ansible.builtin.copy:
+        src: "{{ one_shot_bundle_controller_src }}.sha256"
+        dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}.sha256"
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: "0644"
