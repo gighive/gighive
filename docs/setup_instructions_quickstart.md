@@ -10,23 +10,31 @@ Download the file:
 ``` bash
 curl -fL -O https://staging.gighive.app/downloads/gighive-one-shot-bundle.tgz
 ```
-Create the checksum file:
+
+Download the sha:
 
 ``` bash
-sha256sum gighive-one-shot-bundle.tgz > gighive-one-shot-bundle.tgz.sha256
+curl -fL -O https://staging.gighive.app/downloads/gighive-one-shot-bundle.tgz.sha256
 ```
 
-Verify the bundle integrity:
+Validate the bundle integrity against the sha:
 
 ``` bash
 sha256sum -c gighive-one-shot-bundle.tgz.sha256
+cat gighive-one-shot-bundle.tgz.sha256
+```
+
+The output should match:
+``` bash
+ubuntu@gighive:~/$ sha256sum gighive-one-shot-bundle.tgz
+8b8070b8eeb8dee2e045f4e44666a786cebbe193c617201615219976cdcc39a5  gighive-one-shot-bundle.tgz
+ubuntu@gighive:~/$ cat gighive-one-shot-bundle.tgz.sha256
+8b8070b8eeb8dee2e045f4e44666a786cebbe193c617201615219976cdcc39a5  gighive-one-shot-bundle.tgz
 ```
 
 Expected output:
+  If verification matches, all good!
   If verification fails, do **not** continue. Re-download the bundle.
-``` text
-gighive-one-shot-bundle.tgz: OK
-```
 
 ## Install the tarball and verify containers are running
 
