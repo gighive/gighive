@@ -20,7 +20,7 @@ curl -fL -O https://staging.gighive.app/downloads/gighive-one-shot-bundle.tgz.sh
 Validate the bundle integrity against the sha:
 
 ``` bash
-sha256sum -c gighive-one-shot-bundle.tgz.sha256
+sha256sum -c gighive-one-shot-bundle.tgz
 cat gighive-one-shot-bundle.tgz.sha256
 ```
 
