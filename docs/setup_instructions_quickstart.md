@@ -112,7 +112,7 @@ Example: `https://192.168.1.252/`
 
 ## ⚙️ After Installation
 - Once installed, there will be a splash page, a link to the database and a link to the uploads and admin pages. Simple! 
-- Default install will populate the database with ~10 sample video and audio files. These can be deleted later with <a href="">database reset procedure</a>.
+- Default install will populate the database with ~10 sample video and audio files. These can be deleted later with the database reset procedure on the admin page (admin.php).
 - There are three users: 
   * viewer: Viewers can view media files, but can't upload. 
   * uploader: Uploaders can upload and view media files. 
