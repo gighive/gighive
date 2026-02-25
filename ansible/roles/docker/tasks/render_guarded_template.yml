@@ -1,0 +1,19 @@
+---
+- name: Stat guarded template destination
+  ansible.builtin.stat:
+    path: "{{ item.dest }}"
+  register: _gighive_guarded_template_stat
+
+- name: Remove miscreated guarded template destination directory (if present)
+  ansible.builtin.file:
+    path: "{{ item.dest }}"
+    state: absent
+  when: _gighive_guarded_template_stat.stat.isdir | default(false)
+
+- name: Render guarded template
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner | default(ansible_user) }}"
+    group: "{{ item.group | default(ansible_user) }}"
+    mode: "{{ item.mode | default('0644') }}"

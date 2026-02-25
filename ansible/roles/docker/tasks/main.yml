@@ -80,6 +80,172 @@
         group: "{{ ansible_user }}"
         mode: "0755"
 
+    - name: Stat one-shot bundle inputs manifest on controller (if present)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
+      register: _one_shot_bundle_inputs_manifest_stat
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Load previous one-shot bundle inputs manifest (if present)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.slurp:
+        src: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
+      register: _one_shot_bundle_inputs_manifest_prev_slurp
+      when:
+        - (one_shot_bundle_source | default('controller')) == 'controller'
+        - _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
+
+    - name: Parse previous one-shot bundle inputs manifest (if present)
+      ansible.builtin.set_fact:
+        _one_shot_bundle_inputs_manifest_prev: "{{ (_one_shot_bundle_inputs_manifest_prev_slurp.content | b64decode | from_json) }}"
+      when:
+        - (one_shot_bundle_source | default('controller')) == 'controller'
+        - _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
+
+    - name: Initialize empty previous manifest when missing
+      ansible.builtin.set_fact:
+        _one_shot_bundle_inputs_manifest_prev: {}
+      when:
+        - (one_shot_bundle_source | default('controller')) == 'controller'
+        - not (_one_shot_bundle_inputs_manifest_stat.stat.exists | default(false))
+
+    - name: Stat one-shot bundle input paths on controller
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ one_shot_bundle_input_paths | default([]) }}"
+      register: _one_shot_bundle_inputs_paths_stat
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Find files under monitored input directories on controller
+      delegate_to: localhost
+      become: false
+      ansible.builtin.find:
+        paths: "{{ item.stat.path }}"
+        file_type: file
+        recurse: true
+        hidden: true
+        patterns: "*"
+        excludes:
+          - "._*"
+          - ".DS_Store"
+      loop: "{{ _one_shot_bundle_inputs_paths_stat.results | selectattr('stat.isdir','defined') | selectattr('stat.isdir') | list }}"
+      loop_control:
+        label: "{{ item.stat.path }}"
+      register: _one_shot_bundle_inputs_find_results
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Build flat list of monitored files (dirs + individual files)
+      ansible.builtin.set_fact:
+        _one_shot_bundle_inputs_files: >-
+          {{
+            (
+              (_one_shot_bundle_inputs_find_results.results | default([]))
+              | map(attribute='files')
+              | list
+              | flatten
+              | map(attribute='path')
+              | list
+            )
+            +
+            (
+              _one_shot_bundle_inputs_paths_stat.results
+              | selectattr('stat.isreg','defined')
+              | selectattr('stat.isreg')
+              | map(attribute='stat.path')
+              | list
+            )
+          }}
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Compute sha256 for monitored files (controller)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: true
+        checksum_algorithm: sha256
+      loop: "{{ _one_shot_bundle_inputs_files | unique | sort }}"
+      register: _one_shot_bundle_inputs_files_stat
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Initialize current manifest dict
+      ansible.builtin.set_fact:
+        _one_shot_bundle_inputs_manifest_now: {}
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Build current manifest mapping path->sha256
+      ansible.builtin.set_fact:
+        _one_shot_bundle_inputs_manifest_now: >-
+          {{
+            _one_shot_bundle_inputs_manifest_now
+            | combine(item.stat.checksum | community.general.dict_kv(item.stat.path))
+          }}
+      loop: "{{ _one_shot_bundle_inputs_files_stat.results }}"
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Compute added/removed paths
+      ansible.builtin.set_fact:
+        _one_shot_bundle_inputs_added: "{{ _one_shot_bundle_inputs_manifest_now.keys() | difference(_one_shot_bundle_inputs_manifest_prev.keys()) | sort }}"
+        _one_shot_bundle_inputs_removed: "{{ _one_shot_bundle_inputs_manifest_prev.keys() | difference(_one_shot_bundle_inputs_manifest_now.keys()) | sort }}"
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Initialize changed paths list
+      ansible.builtin.set_fact:
+        _one_shot_bundle_inputs_changed: []
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Compute changed paths (same path, different sha)
+      ansible.builtin.set_fact:
+        _one_shot_bundle_inputs_changed: "{{ _one_shot_bundle_inputs_changed + [item] }}"
+      loop: "{{ _one_shot_bundle_inputs_manifest_now.keys() | intersect(_one_shot_bundle_inputs_manifest_prev.keys()) | list }}"
+      when:
+        - (one_shot_bundle_source | default('controller')) == 'controller'
+        - _one_shot_bundle_inputs_manifest_now[item] != _one_shot_bundle_inputs_manifest_prev[item]
+
+    - name: Pause if one-shot bundle inputs changed (controller source)
+      ansible.builtin.pause:
+        prompt: |-
+          ONE-SHOT BUNDLE INPUTS CHANGED.
+
+          ADDED:
+          {{ (_one_shot_bundle_inputs_added | default([])) | map('regex_replace','^(.*)$','  \\1') | join('\n') }}
+
+          REMOVED:
+          {{ (_one_shot_bundle_inputs_removed | default([])) | map('regex_replace','^(.*)$','  \\1') | join('\n') }}
+
+          CHANGED:
+          {{ (_one_shot_bundle_inputs_changed | default([])) | sort | map('regex_replace','^(.*)$','  \\1') | join('\n') }}
+
+          REBUILD THE TGZ ON YOUR DEV BOX AND COPY IT TO THE STAGING CONTROLLER.
+          THEN PRESS ENTER TO CONTINUE.
+      when:
+        - (one_shot_bundle_source | default('controller')) == 'controller'
+        - _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
+        - (_one_shot_bundle_inputs_added | length) > 0 or (_one_shot_bundle_inputs_removed | length) > 0 or (_one_shot_bundle_inputs_changed | length) > 0
+
+    - name: Write current one-shot bundle inputs manifest (controller)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.copy:
+        content: "{{ _one_shot_bundle_inputs_manifest_now | to_nice_json }}\n"
+        dest: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
+        mode: "0644"
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+    - name: Write current one-shot bundle inputs fingerprint (controller)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.copy:
+        content: "{{ (_one_shot_bundle_inputs_manifest_now | to_nice_json | hash('sha256')) }}\n"
+        dest: "{{ one_shot_bundle_inputs_fingerprint_path }}"
+        mode: "0644"
+      when: (one_shot_bundle_source | default('controller')) == 'controller'
+
     - name: Stat one-shot bundle tarball on controller (controller source)
       delegate_to: localhost
       become: false
@@ -218,127 +384,46 @@
         state: directory
         mode: "0755"
 
-    - name: Render Docker env file
-      ansible.builtin.template:
-        src: .env.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/.env"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Render MySQL env file
-      ansible.builtin.template:
-        src: .env.mysql.j2
-        dest: "{{ docker_dir }}/mysql/externalConfigs/.env.mysql"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Render entrypoint.sh
-      ansible.builtin.template:
-        src: entrypoint.sh.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/entrypoint.sh"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0755"
-
-    - name: Stat apache2.conf path (guard)
-      ansible.builtin.stat:
-        path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
-      register: _gighive_apache2_conf_stat
-
-    - name: Remove miscreated apache2.conf directory (if present)
-      ansible.builtin.file:
-        path: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
-        state: absent
-      when: _gighive_apache2_conf_stat.stat.isdir | default(false)
-
-    - name: Render apache2.conf
-      ansible.builtin.template:
-        src: apache2.conf.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Render openssl_san.cnf
-      ansible.builtin.template:
-        src: openssl_san.cnf.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/openssl_san.cnf"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Render modsecurity.conf
-      ansible.builtin.template:
-        src: modsecurity.conf.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/modsecurity.conf"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Render crs/crs-setup.conf
-      ansible.builtin.template:
-        src: crs-setup.conf.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/crs/crs-setup.conf"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Stat security2.conf path (guard)
-      ansible.builtin.stat:
-        path: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
-      register: _gighive_security2_conf_stat
-
-    - name: Remove miscreated security2.conf directory (if present)
-      ansible.builtin.file:
-        path: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
-        state: absent
-      when: _gighive_security2_conf_stat.stat.isdir | default(false)
-
-    - name: Render security2.conf
-      ansible.builtin.template:
-        src: security2.conf.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Render php-fpm.conf
-      ansible.builtin.template:
-        src: php-fpm.conf.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/php-fpm.conf"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Render www.conf
-      ansible.builtin.template:
-        src: www.conf.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/www.conf"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-
-    - name: Stat default-ssl.conf path (guard)
-      ansible.builtin.stat:
-        path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
-      register: _gighive_default_ssl_conf_stat
-
-    - name: Remove miscreated default-ssl.conf directory (if present)
-      ansible.builtin.file:
-        path: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
-        state: absent
-      when: _gighive_default_ssl_conf_stat.stat.isdir | default(false)
-
     # Render the vhost to a real file on the host (that the container will bind-mount)
-    - name: Render Apache SSL vhost (default-ssl.conf)
-      ansible.builtin.template:
-        src: default-ssl.conf.j2
-        dest: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
+    - name: Render guarded template bind-mounted config files
+      ansible.builtin.include_tasks: render_guarded_template.yml
+      loop:
+        - src: .env.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/.env"
+          mode: "0644"
+        - src: .env.mysql.j2
+          dest: "{{ docker_dir }}/mysql/externalConfigs/.env.mysql"
+          mode: "0644"
+        - src: entrypoint.sh.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/entrypoint.sh"
+          mode: "0755"
+        - src: apache2.conf.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/apache2.conf"
+          mode: "0644"
+        - src: openssl_san.cnf.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/openssl_san.cnf"
+          mode: "0644"
+        - src: modsecurity.conf.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/modsecurity.conf"
+          mode: "0644"
+        - src: crs-setup.conf.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/crs/crs-setup.conf"
+          mode: "0644"
+        - src: security2.conf.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/security2.conf"
+          mode: "0644"
+        - src: php-fpm.conf.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/php-fpm.conf"
+          mode: "0644"
+        - src: www.conf.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/www.conf"
+          mode: "0644"
+        - src: default-ssl.conf.j2
+          dest: "{{ docker_dir }}/apache/externalConfigs/default-ssl.conf"
+          mode: "0644"
+      loop_control:
+        label: "{{ item.dest }}"
+
   tags: docker, compose
 
 - name: Ensure tusd hooks directory exists
@@ -359,14 +444,6 @@
     state: directory
     mode: "0755"
 
-#- name: Copy OpenAPI spec into Apache webroot
-#  copy:
-#    src: "api/openapi.yaml"          # resolved under roles/docker/files/
-#    dest: "{{ web_root }}/api/openapi.yaml"
-#    owner: www-data
-#    group: www-data
-#    mode: "0644"
-
 - name: Render Docker Compose file from Jinja2 template
   template:
     src: docker-compose.yml.j2
@@ -382,9 +459,6 @@
     that:
       - (gighive_fqdn | default(gighive_server_name)) is regex("^[A-Za-z0-9.-]+$")  # naive host check, not IP
     fail_msg: "gighive_fqdn should be a hostname, not an IP."
-
-  # Removed deploy-time overlay: handled at build-time now
-
 
 - name: Stop Apache container for rebuild
   community.docker.docker_container:
