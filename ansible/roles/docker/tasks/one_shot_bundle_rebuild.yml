@@ -80,8 +80,6 @@
   ansible.builtin.copy:
     src: "{{ item.stat.path }}/"
     dest: "{{ one_shot_bundle_bundle_dir }}/{{ _one_shot_bundle_dest_dir | trim }}/"
-    mode: preserve
-    directory_mode: preserve
   loop: "{{ _one_shot_bundle_inputs_paths_stat.results | default([]) }}"
   loop_control:
     label: "{{ item.stat.path | default(item.item) }}"
