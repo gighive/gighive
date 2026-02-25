@@ -370,6 +370,11 @@ upload_max_mb: 6144
 
 database_pagination_threshold: 750
 
+# One-shot installer tarball distribution (artifact): filename + controller-local source path + staging download URL
+one_shot_bundle_filename: "gighive-one-shot-bundle.tgz"
+one_shot_bundle_controller_src: "{{ repo_root }}/ansible/roles/docker/files/apache/downloads/{{ one_shot_bundle_filename }}"
+one_shot_bundle_url: "https://staging.gighive.app/downloads/{{ one_shot_bundle_filename }}"
+
 # One-shot bundle input monitoring (dev-first; monitor is gated by inventory vars)
 one_shot_bundle_input_paths:
   - "{{ repo_root }}/ansible/roles/docker/templates"

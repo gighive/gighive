@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260224.txt
-Changes: Monitoring for gighive-one-shot-bundle.tgz differences, added standardized guard for templated files for bind mounted directories
+Changes: Sync gighive/gighive2.yml changes
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260224.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260224.log
@@ -12,12 +12,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	deleted:    ansible/roles/docker/files/apache/Dockerfile.working
-	deleted:    ansible/roles/docker/files/mysql/externalConfigs/load_and_transform.sql.new
-	modified:   ansible/roles/docker/tasks/main.yml
-	new file:   ansible/roles/docker/tasks/render_guarded_template.yml
-	new file:   docs/process_download_quickstart_rebuild_criteria.md
 
 ToDo: Rename the vms to their full names
 ToDo: Consider adding session timeout
@@ -44,6 +40,27 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260224.txt
+Changes: Monitoring for gighive-one-shot-bundle.tgz differences, added standardized guard for templated files for bind mounted directories
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260224.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260224.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	deleted:    ansible/roles/docker/files/apache/Dockerfile.working
+	deleted:    ansible/roles/docker/files/mysql/externalConfigs/load_and_transform.sql.new
+	modified:   ansible/roles/docker/tasks/main.yml
+	new file:   ansible/roles/docker/tasks/render_guarded_template.yml
+	new file:   docs/process_download_quickstart_rebuild_criteria.md
 
 *** 
 releaseNotes20260224.txt

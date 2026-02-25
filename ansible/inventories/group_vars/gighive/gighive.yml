@@ -323,11 +323,6 @@ gighive_ssl_san_config: "/etc/ssl/openssl_san.cnf"
 gighive_php_version: "8.3"
 gighive_php_fpm_bin: "php-fpm{{ gighive_php_version }}"
 
-# One-shot installer tarball distribution (artifact): filename + controller-local source path + staging download URL
-one_shot_bundle_filename: "gighive-one-shot-bundle.tgz"
-one_shot_bundle_controller_src: "{{ repo_root }}/ansible/roles/docker/files/apache/downloads/{{ one_shot_bundle_filename }}"
-one_shot_bundle_url: "https://staging.gighive.app/downloads/{{ one_shot_bundle_filename }}"
-
 # If you use custom-compiled httpd in the container:
 apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
 
@@ -374,3 +369,22 @@ upload_max_bytes: 6442450944
 upload_max_mb: 6144
 
 database_pagination_threshold: 750
+
+# One-shot installer tarball distribution (artifact): filename + controller-local source path + staging download URL
+one_shot_bundle_filename: "gighive-one-shot-bundle.tgz"
+one_shot_bundle_controller_src: "{{ repo_root }}/ansible/roles/docker/files/apache/downloads/{{ one_shot_bundle_filename }}"
+one_shot_bundle_url: "https://staging.gighive.app/downloads/{{ one_shot_bundle_filename }}"
+
+# One-shot bundle input monitoring (dev-first; monitor is gated by inventory vars)
+one_shot_bundle_input_paths:
+  - "{{ repo_root }}/ansible/roles/docker/templates"
+  - "{{ repo_root }}/ansible/roles/docker/files/apache/Dockerfile"
+  - "{{ repo_root }}/ansible/roles/docker/files/apache/externalConfigs"
+  - "{{ repo_root }}/ansible/roles/docker/files/apache/overlays"
+  - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot"
+  - "{{ repo_root }}/ansible/roles/docker/files/mysql/externalConfigs"
+  - "{{ repo_root }}/ansible/roles/docker/files/tusd/hooks"
+  - "{{ repo_root }}/assets/audio"
+  - "{{ repo_root }}/assets/video"
+
+one_shot_bundle_inputs_fingerprint_path: "{{ repo_root }}/ansible/roles/docker/files/apache/downloads/.one_shot_bundle_inputs.sha256"
