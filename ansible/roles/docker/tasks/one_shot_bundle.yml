@@ -1,0 +1,4 @@
+
+
+ - name: One-shot bundle tasks
+   ansible.builtin.include_tasks: one_shot_bundle_dispatch.yml
