@@ -156,7 +156,7 @@ This gives a reliable “tripwire” so you know a Quickstart rebuild + publish 
 Variables:
 
 - `one_shot_bundle_input_paths` (list of files/dirs to monitor; recursive for dirs)
-- `one_shot_bundle_inputs_fingerprint_path` (controller-local baseline digest)
+- `one_shot_bundle_inputs_fingerprint_path` (controller-local baseline fingerprint)
 
 The monitor also stores a controller-local manifest alongside the digest:
 
@@ -164,7 +164,9 @@ The monitor also stores a controller-local manifest alongside the digest:
 
 The manifest is a JSON dictionary mapping:
 
-- `absolute_path -> sha256`
+- `absolute_path -> mtime+size`
+
+The controller-local fingerprint file (`{{ one_shot_bundle_inputs_fingerprint_path }}`) is computed from the manifest JSON (it is not a per-file checksum).
 
 ## Suggested input paths for full bundle coverage
 

@@ -162,13 +162,11 @@
           }}
       when: (one_shot_bundle_source | default('controller')) == 'controller'
 
-    - name: Compute sha256 for monitored files (controller)
+    - name: Stat monitored files (controller)
       delegate_to: localhost
       become: false
       ansible.builtin.stat:
         path: "{{ item }}"
-        get_checksum: true
-        checksum_algorithm: sha256
       loop: "{{ _one_shot_bundle_inputs_files | unique | sort }}"
       register: _one_shot_bundle_inputs_files_stat
       when: (one_shot_bundle_source | default('controller')) == 'controller'
@@ -178,15 +176,17 @@
         _one_shot_bundle_inputs_manifest_now: {}
       when: (one_shot_bundle_source | default('controller')) == 'controller'
 
-    - name: Build current manifest mapping path->sha256
+    - name: Build current manifest mapping path->mtime+size
       ansible.builtin.set_fact:
         _one_shot_bundle_inputs_manifest_now: >-
           {{
             _one_shot_bundle_inputs_manifest_now
-            | combine(item.stat.checksum | community.general.dict_kv(item.stat.path))
+            | combine(((item.stat.mtime | string) ~ ':' ~ (item.stat.size | string)) | community.general.dict_kv(item.stat.path))
           }}
       loop: "{{ _one_shot_bundle_inputs_files_stat.results }}"
-      when: (one_shot_bundle_source | default('controller')) == 'controller'
+      when:
+        - (one_shot_bundle_source | default('controller')) == 'controller'
+        - item.stat.exists | default(false)
 
     - name: Compute added/removed paths
       ansible.builtin.set_fact:
@@ -199,7 +199,7 @@
         _one_shot_bundle_inputs_changed: []
       when: (one_shot_bundle_source | default('controller')) == 'controller'
 
-    - name: Compute changed paths (same path, different sha)
+    - name: Compute changed paths (same path, different fingerprint)
       ansible.builtin.set_fact:
         _one_shot_bundle_inputs_changed: "{{ _one_shot_bundle_inputs_changed + [item] }}"
       loop: "{{ _one_shot_bundle_inputs_manifest_now.keys() | intersect(_one_shot_bundle_inputs_manifest_prev.keys()) | list }}"
