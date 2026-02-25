@@ -1,0 +1,30 @@
+---
+
+- name: Ensure apache downloads directory exists
+  ansible.builtin.file:
+    path: "{{ docker_dir }}/apache/downloads"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: One-shot bundle (controller source)
+  block:
+    - name: Monitor one-shot bundle inputs
+      ansible.builtin.include_tasks: one_shot_bundle_monitor.yml
+
+    - name: Rebuild one-shot bundle (optional)
+      ansible.builtin.include_tasks: one_shot_bundle_rebuild.yml
+
+    - name: Publish one-shot bundle artifacts + advance baseline (optional)
+      ansible.builtin.include_tasks: one_shot_bundle_publish.yml
+  when: (one_shot_bundle_source | default('controller')) == 'controller'
+
+- name: One-shot bundle (url source)
+  ansible.builtin.get_url:
+    url: "{{ one_shot_bundle_url }}"
+    dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when: (one_shot_bundle_source | default('controller')) == 'url'

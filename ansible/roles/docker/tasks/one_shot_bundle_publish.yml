@@ -1,0 +1,95 @@
+---
+
+- name: Stat one-shot bundle tarball on controller (controller source)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ one_shot_bundle_controller_src }}"
+  register: _one_shot_bundle_controller_stat
+
+- name: Fail if one-shot bundle is missing on controller (controller source)
+  ansible.builtin.fail:
+    msg: >-
+      One-shot bundle tarball is required but was not found on the Ansible controller:
+      {{ one_shot_bundle_controller_src }}
+
+      You answered "no" to the rebuild prompt (or rebuild did not run), so there is no artifact available to publish.
+  when:
+    - not (_one_shot_bundle_controller_stat.stat.exists | default(false))
+    - not (_one_shot_bundle_do_rebuild | default(false))
+
+- name: Create one-shot bundle sha256 on controller (controller source)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command: sha256sum "{{ one_shot_bundle_controller_src }}"
+  register: _one_shot_bundle_sha256
+  changed_when: false
+
+- name: Parse one-shot bundle sha256 (controller source)
+  ansible.builtin.set_fact:
+    _one_shot_bundle_controller_sha256: "{{ (_one_shot_bundle_sha256.stdout | default('') ).split()[0] | default('') }}"
+
+- name: Write one-shot bundle sha256 file on controller (controller source)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    content: "{{ _one_shot_bundle_sha256.stdout }}\n"
+    dest: "{{ one_shot_bundle_controller_src }}.sha256"
+    mode: "0644"
+
+- name: Stat one-shot bundle tarball in downloads directory (target)
+  ansible.builtin.stat:
+    path: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
+    checksum_algorithm: sha256
+  register: _one_shot_bundle_target_tgz_stat
+
+- name: Stat one-shot bundle sha256 file in downloads directory (target)
+  ansible.builtin.stat:
+    path: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}.sha256"
+  register: _one_shot_bundle_target_sha256_stat
+
+- name: Decide whether to publish one-shot bundle artifact to target downloads directory
+  ansible.builtin.set_fact:
+    _one_shot_bundle_should_publish: >-
+      {{
+        (_one_shot_bundle_do_rebuild | default(false))
+        or (not (_one_shot_bundle_target_tgz_stat.stat.exists | default(false)))
+        or (not (_one_shot_bundle_target_sha256_stat.stat.exists | default(false)))
+        or ((_one_shot_bundle_target_tgz_stat.stat.checksum | default('')) != (_one_shot_bundle_controller_sha256 | default('')))
+      }}
+
+- name: Copy one-shot bundle tarball from controller into downloads directory (controller source)
+  ansible.builtin.copy:
+    src: "{{ one_shot_bundle_controller_src }}"
+    dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when: _one_shot_bundle_should_publish | default(false)
+
+- name: Copy one-shot bundle sha256 file from controller into downloads directory (controller source)
+  ansible.builtin.copy:
+    src: "{{ one_shot_bundle_controller_src }}.sha256"
+    dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}.sha256"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when: _one_shot_bundle_should_publish | default(false)
+
+- name: Advance one-shot bundle baseline manifest after successful rebuild (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    content: "{{ _one_shot_bundle_inputs_manifest_now | to_nice_json }}\n"
+    dest: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
+    mode: "0644"
+  when: _one_shot_bundle_do_rebuild | default(false)
+
+- name: Advance one-shot bundle baseline fingerprint after successful rebuild (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    content: "{{ (_one_shot_bundle_inputs_manifest_now | to_nice_json | hash('sha256')) }}\n"
+    dest: "{{ one_shot_bundle_inputs_fingerprint_path }}"
+    mode: "0644"
+  when: _one_shot_bundle_do_rebuild | default(false)

@@ -1,0 +1,150 @@
+---
+
+- name: Prompt whether to rebuild one-shot bundle (controller source)
+  ansible.builtin.pause:
+    prompt: >-
+      Do you want to rebuild the one-shot bundle now? (yes/no)
+  register: _one_shot_bundle_rebuild_prompt
+  when: not (_one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)) or (_one_shot_bundle_inputs_has_diffs | default(false))
+
+- name: Interpret one-shot bundle rebuild answer (controller source)
+  ansible.builtin.set_fact:
+    _one_shot_bundle_do_rebuild: "{{ (_one_shot_bundle_rebuild_prompt.user_input | default('no') | lower) in ['y','yes'] }}"
+  when: not (_one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)) or (_one_shot_bundle_inputs_has_diffs | default(false))
+
+- name: Set one-shot bundle path prefixes (controller)
+  ansible.builtin.set_fact:
+    _one_shot_bundle_install_src: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/install.sh"
+    _one_shot_bundle_files_prefix: "{{ repo_root }}/ansible/roles/docker/files/"
+    _one_shot_bundle_templates_prefix: "{{ repo_root }}/ansible/roles/docker/templates/"
+    _one_shot_bundle_assets_prefix: "{{ repo_root }}/assets/"
+  when: _one_shot_bundle_do_rebuild | default(false)
+
+- name: Ensure parent directory for one-shot bundle workspace exists (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ one_shot_bundle_bundle_dir | dirname }}"
+    state: directory
+    mode: "0755"
+  when: _one_shot_bundle_do_rebuild | default(false)
+
+- name: Remove existing one-shot bundle workspace (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ one_shot_bundle_bundle_dir }}"
+    state: absent
+  when: _one_shot_bundle_do_rebuild | default(false)
+
+- name: Create clean one-shot bundle workspace directory (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ one_shot_bundle_bundle_dir }}"
+    state: directory
+    mode: "0755"
+  when: _one_shot_bundle_do_rebuild | default(false)
+
+- name: Ensure one-shot bundle destination directories exist (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ one_shot_bundle_bundle_dir }}/{{ _one_shot_bundle_dest_dir }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ _one_shot_bundle_inputs_paths_stat.results | default([]) }}"
+  loop_control:
+    label: "{{ item.stat.path | default(item.item) }}"
+  vars:
+    _p: "{{ item.stat.path | default(item.item) }}"
+    _one_shot_bundle_dest_dir: >-
+      {% if _p == _one_shot_bundle_install_src %}
+      .
+      {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
+      {{ (_p[_one_shot_bundle_files_prefix | length:] | dirname) if (item.stat.isdir | default(false)) == false else (_p[_one_shot_bundle_files_prefix | length:]) }}
+      {% elif _p.startswith(_one_shot_bundle_templates_prefix) %}
+      templates
+      {% elif _p.startswith(_one_shot_bundle_assets_prefix) %}
+      assets/{{ _p[_one_shot_bundle_assets_prefix | length:] }}
+      {% else %}
+      .
+      {% endif %}
+  when:
+    - _one_shot_bundle_do_rebuild | default(false)
+    - item.stat.exists | default(false)
+
+- name: Copy one-shot bundle input directories into workspace (controller)
+  delegate_to: localhost
+  become: false
+  ansible.posix.synchronize:
+    src: "{{ item.stat.path }}/"
+    dest: "{{ one_shot_bundle_bundle_dir }}/{{ _one_shot_bundle_dest_dir }}/"
+    recursive: true
+    delete: false
+    times: true
+    perms: true
+  loop: "{{ _one_shot_bundle_inputs_paths_stat.results | default([]) }}"
+  loop_control:
+    label: "{{ item.stat.path | default(item.item) }}"
+  vars:
+    _p: "{{ item.stat.path | default(item.item) }}"
+    _one_shot_bundle_dest_dir: >-
+      {% if _p.startswith(_one_shot_bundle_files_prefix) %}
+      {{ _p[_one_shot_bundle_files_prefix | length:] }}
+      {% elif _p.startswith(_one_shot_bundle_templates_prefix) %}
+      templates
+      {% elif _p.startswith(_one_shot_bundle_assets_prefix) %}
+      assets/{{ _p[_one_shot_bundle_assets_prefix | length:] }}
+      {% else %}
+      .
+      {% endif %}
+  when:
+    - _one_shot_bundle_do_rebuild | default(false)
+    - item.stat.isdir | default(false)
+
+- name: Copy one-shot bundle input files into workspace (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    src: "{{ item.stat.path }}"
+    dest: "{{ one_shot_bundle_bundle_dir }}/{{ _one_shot_bundle_dest_file }}"
+    mode: preserve
+  loop: "{{ _one_shot_bundle_inputs_paths_stat.results | default([]) }}"
+  loop_control:
+    label: "{{ item.stat.path | default(item.item) }}"
+  vars:
+    _p: "{{ item.stat.path | default(item.item) }}"
+    _one_shot_bundle_dest_file: >-
+      {% if _p == _one_shot_bundle_install_src %}
+      install.sh
+      {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
+      {{ _p[_one_shot_bundle_files_prefix | length:] }}
+      {% elif _p.startswith(_one_shot_bundle_templates_prefix) %}
+      templates/{{ _p[_one_shot_bundle_templates_prefix | length:] }}
+      {% elif _p.startswith(_one_shot_bundle_assets_prefix) %}
+      assets/{{ _p[_one_shot_bundle_assets_prefix | length:] }}
+      {% else %}
+      {{ _p | basename }}
+      {% endif %}
+  when:
+    - _one_shot_bundle_do_rebuild | default(false)
+    - item.stat.isreg | default(false)
+
+- name: Ensure destination directory for one-shot bundle tarball exists (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ one_shot_bundle_controller_src | dirname }}"
+    state: directory
+    mode: "0755"
+  when: _one_shot_bundle_do_rebuild | default(false)
+
+- name: Archive one-shot bundle workspace into tgz (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.archive:
+    path: "{{ one_shot_bundle_bundle_dir }}"
+    dest: "{{ one_shot_bundle_controller_src }}"
+    format: gz
+  when: _one_shot_bundle_do_rebuild | default(false)

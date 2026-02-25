@@ -36,7 +36,9 @@ Milestone 2 extends this so Ansible can:
 
 - **Controller**: the machine from which `ansible-playbook` is executed. Tasks using `delegate_to: localhost` run on the controller.
 - **Target host**: the staging VM being configured.
-- **Bundle directory**: the controller-local generated directory that is tarred into the artifact.
+- **Canonical inputs**: curated, source-controlled files and templates used to generate the bundle.
+- **Generated workspace**: a controller-local directory created by Ansible to assemble the bundle content. It must not overlap the canonical inputs.
+- **Bundle directory**: the controller-local generated directory (inside the generated workspace) that is tarred into the artifact.
 - **Artifact**: `gighive-one-shot-bundle.tgz` plus `gighive-one-shot-bundle.tgz.sha256`.
 
 ---
@@ -55,22 +57,33 @@ It is copied into the **tarball root** as:
 
 ## Other inputs
 
-The remaining bundle content is sourced from a curated subset of:
+The bundle contents are defined by `one_shot_bundle_input_paths`.
 
-- `ansible/roles/docker/files/**`
-- `ansible/roles/docker/templates/**` (rendered as needed)
-- `assets/audio/**` and `assets/video/**` (if shipping bundled sample media)
+- The list is used for both monitoring and packaging.
+- The packaged roots are exactly the roots listed in `one_shot_bundle_input_paths`.
+
+## Generated workspace (controller)
+
+Milestone 2 generates the bundle in a controller-local workspace directory.
+
+- The generated workspace is not source-controlled.
+- It must not write into `ansible/roles/docker/files/**` or `ansible/roles/docker/templates/**`.
+
+Generated workspace location:
+
+- `{{ repo_root }}/ansible/.tmp/one_shot_bundle/`
 
 ---
 
 # Gating (when Milestone 2 runs)
 
-Milestone 2 build/publish tasks must remain gated by inventory vars so the pipeline only runs when intended.
-
-At minimum, the tasks should run only when:
+Milestone 2 build/publish tasks run only when:
 
 - `serve_one_shot_installer_downloads | default(false)`
-- and `one_shot_bundle_source == 'controller'`
+
+When `one_shot_bundle_source == 'controller'`, the playbook monitors inputs on the controller and optionally rebuilds/publishes.
+
+When `one_shot_bundle_source == 'url'`, the playbook downloads the artifact from `one_shot_bundle_url` and publishes it into the target downloads directory.
 
 This is consistent with Milestone 1 monitoring behavior.
 
@@ -91,14 +104,10 @@ These variables exist today (Milestone 1 monitoring):
 
 Milestone 2 adds build-workspace variables:
 
-- `one_shot_bundle_build_root`
-  - controller-local directory used as a workspace for generating the bundle directory
 - `one_shot_bundle_bundle_dir`
   - controller-local path to the generated bundle directory that will be archived
-
-Optionally, add a rebuild policy variable:
-
-- `one_shot_bundle_rebuild_mode` (suggested values: `on_change`, `always`, `never`)
+  - (this also serves as the build workspace for Milestone 2)
+  - value: `{{ repo_root }}/ansible/.tmp/one_shot_bundle/gighive-one-shot-bundle`
 
 ---
 
@@ -129,28 +138,29 @@ On the target host, in the Apache downloads directory (example: `{{ docker_dir }
 
 Milestone 2 extends the existing downloads staging block.
 
-## Step 0: Run Milestone 1 monitor (existing)
+## Step 0: Monitor inputs (controller)
 
-- Build/refresh the controller-side input manifest and fingerprint.
-- If inputs changed and a previous baseline exists:
-  - pause with **ADDED/REMOVED/CHANGED** lists
+On the controller, the playbook computes an inputs manifest based on `one_shot_bundle_input_paths`.
 
-## Step 1: Decide whether to rebuild
+If a previous baseline manifest exists, the playbook computes and prints **ADDED/REMOVED/CHANGED** lists.
 
-- If `one_shot_bundle_rebuild_mode == 'always'`: rebuild.
-- If `one_shot_bundle_rebuild_mode == 'on_change'`: rebuild only when the monitor detected changes.
-- If `one_shot_bundle_rebuild_mode == 'never'`: do not rebuild (legacy/manual behavior).
+Additional operator-facing output:
+
+- The playbook always emits whether a previous baseline JSON exists at `{{ one_shot_bundle_inputs_fingerprint_path }}.json`.
+
+## Step 1: Ask whether to rebuild (interactive)
+
+- After the monitor step, prompt the operator:
+  - `Do you want to rebuild the bundle? (yes/no)`
+- The prompt is shown when no baseline exists (first run) or when inputs have diffs.
+- If the operator answers `no`, the playbook does not rebuild the artifact.
+- If the operator answers `no` and the controller artifact is missing, the playbook fails.
 
 ## Step 2: Generate the bundle directory (controller)
 
-On the controller:
+On the controller, the playbook creates a clean `{{ one_shot_bundle_bundle_dir }}` directory and populates it from `one_shot_bundle_input_paths`.
 
-- ensure `{{ one_shot_bundle_build_root }}` exists
-- create a clean `{{ one_shot_bundle_bundle_dir }}` directory
-- create required subdirectories (`apache/`, `mysql/`, `tusd/`, etc.)
-- copy in curated file trees from `ansible/roles/docker/files/**`
-- copy in the canonical installer script to `{{ one_shot_bundle_bundle_dir }}/install.sh`
-- render `docker-compose.yml` into the bundle directory (from a template)
+`ansible/roles/docker/files/one_shot_bundle/install.sh` is copied to the tarball root as `install.sh`.
 
 ## Step 3: Create the `.tgz` (controller)
 
@@ -158,22 +168,19 @@ On the controller:
 
 - archive `{{ one_shot_bundle_bundle_dir }}` into `{{ one_shot_bundle_controller_src }}`
 
-Implementation detail:
-
-- prefer `ansible.builtin.archive` over a `tar` shell command
+The playbook uses `ansible.builtin.archive`.
 
 ## Step 4: Create/update the artifact `.sha256` (controller)
 
-On the controller:
-
-- generate `{{ one_shot_bundle_controller_src }}.sha256`
+On the controller, the playbook generates `{{ one_shot_bundle_controller_src }}.sha256`.
 
 ## Step 5: Publish artifact to the target host downloads directory
 
-On the target host:
+On the target host, the playbook publishes the artifact into the Apache downloads directory.
 
-- copy `{{ one_shot_bundle_controller_src }}` to `{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}`
-- copy `{{ one_shot_bundle_controller_src }}.sha256` to `{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}.sha256`
+Publishing is a no-op when the target already has the exact artifact (sha256 match) and the operator did not rebuild.
+
+After a successful rebuild, the playbook advances the baseline manifest and fingerprint on the controller.
 
 ---
 
