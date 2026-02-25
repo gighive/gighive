@@ -43,7 +43,7 @@ If the end user experience, container behavior, default config, bundled sample d
 
 The directory `gighive-one-shot-bundle/` is a **generated staging-targeted artifact**.
 
-- `install.sh` is maintained directly.
+- `install.sh` is maintained at `ansible/roles/docker/files/one_shot_bundle/install.sh`.
 - Most other bundle files are migrated/copied from `ansible/` as a minimal subset needed to run the one-shot install.
 
 Therefore, the primary rebuild trigger is **not** “the bundle directory changed” (because it is derivative), but rather:
