@@ -207,19 +207,30 @@
         - (one_shot_bundle_source | default('controller')) == 'controller'
         - _one_shot_bundle_inputs_manifest_now[item] != _one_shot_bundle_inputs_manifest_prev[item]
 
+    - name: Show one-shot bundle input diffs (controller source)
+      ansible.builtin.debug:
+        msg:
+          added: "{{ _one_shot_bundle_inputs_added | default([]) | sort }}"
+          removed: "{{ _one_shot_bundle_inputs_removed | default([]) | sort }}"
+          changed: "{{ _one_shot_bundle_inputs_changed | default([]) | sort }}"
+      when:
+        - (one_shot_bundle_source | default('controller')) == 'controller'
+        - _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
+        - (_one_shot_bundle_inputs_added | length) > 0 or (_one_shot_bundle_inputs_removed | length) > 0 or (_one_shot_bundle_inputs_changed | length) > 0
+
     - name: Pause if one-shot bundle inputs changed (controller source)
       ansible.builtin.pause:
         prompt: |-
           ONE-SHOT BUNDLE INPUTS CHANGED.
 
           ADDED:
-          {{ (_one_shot_bundle_inputs_added | default([])) | map('regex_replace','^(.*)$','  \\1') | join('\n') }}
+          {{ (_one_shot_bundle_inputs_added | default([])) | map('regex_replace','^','  ') | join('\n') }}
 
           REMOVED:
-          {{ (_one_shot_bundle_inputs_removed | default([])) | map('regex_replace','^(.*)$','  \\1') | join('\n') }}
+          {{ (_one_shot_bundle_inputs_removed | default([])) | map('regex_replace','^','  ') | join('\n') }}
 
           CHANGED:
-          {{ (_one_shot_bundle_inputs_changed | default([])) | sort | map('regex_replace','^(.*)$','  \\1') | join('\n') }}
+          {{ (_one_shot_bundle_inputs_changed | default([])) | sort | map('regex_replace','^','  ') | join('\n') }}
 
           REBUILD THE TGZ ON YOUR DEV BOX AND COPY IT TO THE STAGING CONTROLLER.
           THEN PRESS ENTER TO CONTINUE.
