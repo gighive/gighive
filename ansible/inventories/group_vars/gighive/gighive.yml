@@ -380,6 +380,7 @@ one_shot_bundle_bundle_dir: "{{ repo_root }}/ansible/.tmp/one_shot_bundle/gighiv
 # One-shot bundle input monitoring (dev-first; monitor is gated by inventory vars)
 one_shot_bundle_input_paths:
   - "{{ repo_root }}/ansible/roles/docker/templates"
+  - "{{ repo_root }}/gighive-one-shot-bundle/docker-compose.yml"
   - "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/install.sh"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/Dockerfile"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/externalConfigs"
