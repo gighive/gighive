@@ -2178,3 +2178,6 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-02-19T17:51:00-05:00
   - yes, please add a short incident note to that .md file. but create a docs/problem_cached_error_messages.md for a more full incident RCA
+
+- 2026-02-25T20:01:00-05:00
+  - let's do this for now: 1) as a temporary solution, stick with using  "{{ repo_root }}/gighive-one-shot-bundle/docker-compose.yml".  but create a refactor document called docs/refactor_quickstart_specific_template.md with the details you provided in your last comment.  meanwhile, i will accept and test the changes you just make to use  "{{ repo_root }}/gighive-one-shot-bundle/docker-compose.yml". sound good?
