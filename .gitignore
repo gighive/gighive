@@ -54,7 +54,7 @@ Thumbs.db
 **/terraform/.terraform/
 
 # bundle
-**/gighive-one-shot-bundle
+**/gighive-one-shot-bundle*
 gighive-one-shot-bundle.tgz
 
 # downloads
