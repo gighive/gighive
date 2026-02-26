@@ -33,7 +33,7 @@
   delegate_to: localhost
   become: false
   ansible.builtin.copy:
-    content: "{{ _one_shot_bundle_sha256.stdout }}\n"
+    content: "{{ _one_shot_bundle_controller_sha256 }}  {{ one_shot_bundle_filename }}\n"
     dest: "{{ one_shot_bundle_controller_src }}.sha256"
     mode: "0644"
 
