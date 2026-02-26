@@ -1,8 +1,11 @@
 ---
 description: Quickstart install instructions (one-shot bundle)
 ---
-
-# Quickstart install instructions (for users with docker already installed)
+These are instructions to get up and running with Gighive for users with Docker already installed.
+# Quickstart install instructions 
+## Requirements
+A running Docker installation.
+  
 ## Download and verify integrity of tarball
 
 Download the file:
@@ -27,9 +30,9 @@ cat gighive-one-shot-bundle.tgz.sha256
 The output should match:
 ``` bash
 ubuntu@gighive:~/$ sha256sum gighive-one-shot-bundle.tgz
-8b8070b8eeb8dee2e045f4e44666a786cebbe193c617201615219976cdcc39a5  gighive-one-shot-bundle.tgz
+503c1ca2f6b6858ac0d5862d92621b597a3e5009339aecfbf4c9427eb40a2c00  gighive-one-shot-bundle.tgz
 ubuntu@gighive:~/$ cat gighive-one-shot-bundle.tgz.sha256
-8b8070b8eeb8dee2e045f4e44666a786cebbe193c617201615219976cdcc39a5  gighive-one-shot-bundle.tgz
+503c1ca2f6b6858ac0d5862d92621b597a3e5009339aecfbf4c9427eb40a2c00  gighive-one-shot-bundle.tar.gz
 ```
 
 Expected output:
