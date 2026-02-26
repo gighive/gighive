@@ -1,0 +1,86 @@
+services:
+  apacheWebServer:
+    ports:
+      - "0.0.0.0:443:443"
+    build:
+      context: "./apache"
+      dockerfile: Dockerfile
+      args:
+        APP_FLAVOR: "gighive"
+    image: "ubuntu-apache-img:1.00"
+    pull_policy: build
+    env_file:
+      - ./apache/externalConfigs/.env
+    environment:
+      TZ: "${TZ:-America/New_York}"
+    container_name: "apacheWebServer"
+    restart: unless-stopped
+    dns:
+      - 127.0.0.11
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+      - "${GIGHIVE_AUDIO_DIR:-./_host_audio}:/var/www/html/audio"
+      - "${GIGHIVE_VIDEO_DIR:-./_host_video}:/var/www/html/video"
+
+      - tusd_data:/var/www/private/tus-data
+      - tus_hooks:/var/www/private/tus-hooks
+
+      - "./apache/externalConfigs/gighive.htpasswd:/var/www/private/gighive.htpasswd:rw"
+      - "./apache/externalConfigs/resizerequests:/var/www/private/resizerequests:rw"
+      - "./mysql_backups:/var/www/private/mysql_backups:rw"
+      - "./apache/externalConfigs/restorelogs:/var/www/private/restorelogs:rw"
+
+      - "./apache/externalConfigs/apache2.conf:/etc/apache2/apache2.conf:ro"
+      - "./apache/externalConfigs/ports.conf:/etc/apache2/ports.conf:ro"
+      - "./apache/externalConfigs/default-ssl.conf:/etc/apache2/sites-available/default-ssl.conf:ro"
+      - "./apache/externalConfigs/logging.conf:/etc/apache2/conf-available/logging.conf:ro"
+      - "./apache/externalConfigs/php-fpm.conf:/etc/apache2/conf-available/php-fpm.conf:ro"
+      - "./apache/externalConfigs/www.conf:/etc/php/8.3/fpm/pool.d/www.conf:ro"
+      - "./apache/externalConfigs/apache2-logrotate.conf:/etc/logrotate.d/apache2:ro"
+      - "./apache/externalConfigs/entrypoint.sh:/entrypointapache.sh:ro"
+      - "./apache/externalConfigs/openssl_san.cnf:/etc/ssl/openssl_san.cnf:ro"
+      - "./apache/externalConfigs/modsecurity.conf:/etc/modsecurity/modsecurity.conf:ro"
+      - "./apache/externalConfigs/crs/crs-setup.conf:/etc/modsecurity/crs-setup.conf:ro"
+      - "./apache/externalConfigs/crs/rules:/etc/modsecurity/crs/rules:ro"
+      - "./apache/externalConfigs/security2.conf:/etc/apache2/mods-available/security2.conf:ro"
+    entrypoint: ["/entrypointapache.sh"]
+
+  tusd:
+    image: tusproject/tusd:latest
+    container_name: "apacheWebServer_tusd"
+    restart: unless-stopped
+    user: "33:33"
+    command: ["-host=0.0.0.0", "-upload-dir=/srv/tusd-data/data", "-base-path=/files", "-behind-proxy", "-hooks-dir=/hooks", "-hooks-enabled-events=post-finish", "-show-startup-logs"]
+    volumes:
+      - tusd_data:/srv/tusd-data/data
+      - tus_hooks:/hook-out
+      - "./tusd/hooks:/hooks:ro"
+
+  mysqlServer:
+    image: mysql:8.4
+    container_name: "mysqlServer"
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    env_file:
+      - ./mysql/externalConfigs/.env.mysql
+    environment:
+      TZ: "${TZ:-America/New_York}"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+      - "./mysql/externalConfigs/prepped_csvs/sample:/var/lib/mysql-files/"
+      - "./mysql/externalConfigs/create_music_db.sql:/docker-entrypoint-initdb.d/00-create_music_db.sql"
+      - "./mysql/externalConfigs/load_and_transform.sql:/docker-entrypoint-initdb.d/01-load_and_transform.sql"
+      - "./mysql/externalConfigs/z-custommysqld.cnf:/etc/mysql/conf.d/z-custommysqld.cnf"
+
+volumes:
+  mysql_data:
+  tusd_data:
+  tus_hooks:

@@ -15,6 +15,7 @@
 - name: Set one-shot bundle path prefixes (controller)
   ansible.builtin.set_fact:
     _one_shot_bundle_install_src: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/install.sh"
+    _one_shot_bundle_one_shot_bundle_prefix: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle"
     _one_shot_bundle_files_prefix: "{{ repo_root }}/ansible/roles/docker/files/"
     _one_shot_bundle_templates_prefix: "{{ repo_root }}/ansible/roles/docker/templates/"
     _one_shot_bundle_assets_prefix: "{{ repo_root }}/assets/"
@@ -61,6 +62,8 @@
     _one_shot_bundle_dest_dir: >-
       {% if _p == _one_shot_bundle_install_src %}
       .
+      {% elif _p == _one_shot_bundle_one_shot_bundle_prefix %}
+      .
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ (_p[_one_shot_bundle_files_prefix | length:] | dirname) if (item.stat.isdir | default(false)) == false else (_p[_one_shot_bundle_files_prefix | length:]) }}
       {% elif _p.startswith(_one_shot_bundle_templates_prefix) %}
@@ -86,7 +89,9 @@
   vars:
     _p: "{{ item.stat.path | default(item.item) }}"
     _one_shot_bundle_dest_dir: >-
-      {% if _p.startswith(_one_shot_bundle_files_prefix) %}
+      {% if _p == _one_shot_bundle_one_shot_bundle_prefix %}
+      .
+      {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ _p[_one_shot_bundle_files_prefix | length:] }}
       {% elif _p.startswith(_one_shot_bundle_templates_prefix) %}
       templates
