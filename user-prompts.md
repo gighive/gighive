@@ -2181,3 +2181,6 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-02-25T20:01:00-05:00
   - let's do this for now: 1) as a temporary solution, stick with using  "{{ repo_root }}/gighive-one-shot-bundle/docker-compose.yml".  but create a refactor document called docs/refactor_quickstart_specific_template.md with the details you provided in your last comment.  meanwhile, i will accept and test the changes you just make to use  "{{ repo_root }}/gighive-one-shot-bundle/docker-compose.yml". sound good?
+
+- 2026-02-25T20:22:00-05:00
+  - ok, i manually copied the file into ansible/roles/docker/files/one_shot_bundle 2) please update gighive.yml/gighive2.yml group_vars to pull that entire directory in, as install.sh is in there too
