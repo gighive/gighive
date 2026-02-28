@@ -1,0 +1,24 @@
+Marketing Speak
+Have you ever thought that it might be nice during a wedding event for people at the event to upload their videos of the event to your own branded website so you can grab their content and produce a video from it?
+
+Real Speak
+I'm Scott Frase and I saw your business card at Color Bar 51 and wanted to reach out. I've been developing an internet application that I thought would be useful for videographers and photographers.  It's an iPhone app and website that allows wedding guests to upload the videos that they took of the wedding and reception.  It's directed at people who produce videos of the event, who want to assemble as much content as possible from the event so that the wedding party can have a really complete picture of what their event was like from all angles.  Another analogy I use is that the app (Gighive) is kind of like a Personal YouTube. I can host the website for you with a custom domain "meredithandtomswedding.gighive.app" or you can host it yourself, as it is open source software you can run on your own machine in your own network. 
+
+The iPhone app is here: https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513
+
+You can see the website at https://dev.gighive.app
+username: viewer password: secretviewer
+
+Right now, the app and website are bare bones, as I've spent the time on the programming guts under the hood.  But the plan is to eventually have configurable skins for the website that you can choose from to make the gui more wedding like.
+
+If you'd like to try an upload to https://dev.gighive.app
+username: uploader, password: secretuploader
+
+Note that the site is dual-purpose; not only for wedding events, but also for fans of bands who want to share videos of the band's shows..that's why you see the default videos are of a band's website that I built last year, https://www.stormpigs.com (username: guest, password: stormpigsguestuser1234!)
+
+I appreciate your looking at this and simply ask if you would find the app useful to you as a photographer.
+
+scott
+
+PS - Note that I am not asking any money, as I am developing this app for free right now.  It's open source on Github: https://github.com/gighive/gighive
+

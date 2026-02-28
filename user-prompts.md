@@ -2184,3 +2184,18 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-02-25T20:22:00-05:00
   - ok, i manually copied the file into ansible/roles/docker/files/one_shot_bundle 2) please update gighive.yml/gighive2.yml group_vars to pull that entire directory in, as install.sh is in there too
+
+- 2026-02-27T17:32:00-05:00
+  - in ansible/roles/docker/tasks/one_shot_bundle_publish.yml, the  Copy one-shot bundle tarball.. and Copy one-shot bundle sha256 file should be similarly gated with prompts and manual yes/no entry just like in the ansible/roles/docker/tasks/one_shot_bundle_rebuild.yml task called Prompt whether to rebuild one-shot bundle..
+
+- 2026-02-27T17:43:00-05:00
+  - i think we should lock down the password entry to best practices on ansible/roles/docker/files/one_shot_bundle/install.sh.  what do you suggest?
+
+- 2026-02-27T17:46:00-05:00
+  - do #1, for #2 - just use interactive prompts only for now.  3) enforce minimum password requirements (lightweight), don't do #4-6 just yet.
+
+- 2026-02-27T18:01:00-05:00
+  - the gighive sample files for mysql in the one-shot-bundle have these permissions and ownership... however, after i copy them over to a test server and run the one-shot-bundle install.sh program... why is this?
+
+- 2026-02-27T18:04:00-05:00
+  - add your last response to docs/mysql_bind_mount_behavior.md as it is interesting.  secondly, what is best practice given that the csvs are for the mysql initialization process?

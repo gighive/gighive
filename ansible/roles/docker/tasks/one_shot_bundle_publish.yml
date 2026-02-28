@@ -87,6 +87,43 @@
         or (_one_shot_bundle_should_publish_tgz | default(false))
       }}
 
+- name: Decide whether any one-shot bundle publishing is needed
+  ansible.builtin.set_fact:
+    _one_shot_bundle_should_publish_any: >-
+      {{
+        (_one_shot_bundle_should_publish_tgz | default(false))
+        or (_one_shot_bundle_should_publish_sha256 | default(false))
+      }}
+
+- name: Prompt whether to publish one-shot bundle artifacts to target downloads directory
+  ansible.builtin.pause:
+    prompt: >-
+      Publishing is needed to update {{ docker_dir }}/apache/downloads.
+      Do you want to publish the one-shot bundle now? (yes/no)
+  register: _one_shot_bundle_publish_prompt
+  when: _one_shot_bundle_should_publish_any | default(false)
+
+- name: Interpret one-shot bundle publish answer
+  ansible.builtin.set_fact:
+    _one_shot_bundle_do_publish: "{{ (_one_shot_bundle_publish_prompt.user_input | default('no') | lower) in ['y','yes'] }}"
+  when: _one_shot_bundle_should_publish_any | default(false)
+
+- name: Fail if publishing is required but was declined
+  ansible.builtin.fail:
+    msg: >-
+      One-shot bundle publishing is required to keep the target downloads directory up to date,
+      but you answered "no" to the publish prompt.
+
+      Required updates:
+      - publish tgz: {{ _one_shot_bundle_should_publish_tgz | default(false) }}
+      - publish sha256: {{ _one_shot_bundle_should_publish_sha256 | default(false) }}
+
+      Target path:
+      - {{ docker_dir }}/apache/downloads/
+  when:
+    - _one_shot_bundle_should_publish_any | default(false)
+    - not (_one_shot_bundle_do_publish | default(false))
+
 - name: Copy one-shot bundle tarball from controller into downloads directory (controller source)
   ansible.builtin.copy:
     src: "{{ one_shot_bundle_controller_src }}"
@@ -94,7 +131,9 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  when: _one_shot_bundle_should_publish_tgz | default(false)
+  when:
+    - _one_shot_bundle_should_publish_tgz | default(false)
+    - _one_shot_bundle_do_publish | default(false)
 
 - name: Copy one-shot bundle sha256 file from controller into downloads directory (controller source)
   ansible.builtin.copy:
@@ -103,7 +142,9 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  when: _one_shot_bundle_should_publish_sha256 | default(false)
+  when:
+    - _one_shot_bundle_should_publish_sha256 | default(false)
+    - _one_shot_bundle_do_publish | default(false)
 
 - name: Advance one-shot bundle baseline manifest after successful rebuild (controller)
   delegate_to: localhost

@@ -29,10 +29,10 @@ cat gighive-one-shot-bundle.tgz.sha256
 
 The output should match:
 ``` bash
-ubuntu@gighive:~/$ sha256sum gighive-one-shot-bundle.tgz
-503c1ca2f6b6858ac0d5862d92621b597a3e5009339aecfbf4c9427eb40a2c00  gighive-one-shot-bundle.tgz
-ubuntu@gighive:~/$ cat gighive-one-shot-bundle.tgz.sha256
-503c1ca2f6b6858ac0d5862d92621b597a3e5009339aecfbf4c9427eb40a2c00  gighive-one-shot-bundle.tar.gz
+sodo@pop-os:~/gighive$ sha256sum gighive-one-shot-bundle.tgz
+d198c63c287484775b161eec7984a74d1228b966d73a74d27d9c51c5b803ce8f  gighive-one-shot-bundle.tgz
+sodo@pop-os:~/gighive$ cat gighive-one-shot-bundle.tgz.sha256
+d198c63c287484775b161eec7984a74d1228b966d73a74d27d9c51c5b803ce8f  gighive-one-shot-bundle.tgz
 ```
 
 Expected output:
@@ -151,6 +151,10 @@ rm -rf ./mysql_backups ./_host_audio ./_host_video
 # Sanity checks
 docker compose ps
 docker ps | egrep 'apacheWebServer|mysqlServer|apacheWebServer_tusd' || true
+
+# Remove gighive-one-shot-bundle directory
+cd ..
+sudo rm -rf ~/gighive-one-shot-bundle
 ```
 
 ## To rotate BasicAuth passwords later
