@@ -108,10 +108,10 @@
     _one_shot_bundle_do_publish: "{{ (_one_shot_bundle_publish_prompt.user_input | default('no') | lower) in ['y','yes'] }}"
   when: _one_shot_bundle_should_publish_any | default(false)
 
-- name: Fail if publishing is required but was declined
-  ansible.builtin.fail:
+- name: Warn if publishing is needed but was declined
+  ansible.builtin.debug:
     msg: >-
-      One-shot bundle publishing is required to keep the target downloads directory up to date,
+      One-shot bundle publishing is needed to keep the target downloads directory up to date,
       but you answered "no" to the publish prompt.
 
       Required updates:

@@ -1,5 +1,96 @@
 *** 
 releaseNotes20260228.txt
+Changes: Change fail to warn if publishing needed but declined
+
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260228.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/tasks/one_shot_bundle_publish.yml
+
+ToDo: Should I only rollout the one-shot-bundle to my customers?
+ToDo: Rename the vms to their full names
+ToDo: Consider adding session timeout
+ToDo: Consider generic media player addition
+ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
+ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+ToDo: We should expose any 413 errors directly to the IOS app
+ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?
+ToDo: integrate with cddb
+ToDo: Remove mysql_native_password=ON
+ToDo: Is it worthwhile to have an embed feature?
+ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+ToDo: Check azure build
+ToDo: Match cert with cloudflare, name only or something else needed?
+ToDo: database table name change to genericize songs 
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod baremetal with same ansible scripts as staging
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260228.txt
+Changes: Locked down installer security, updated setup instructions, prompt for tgz copy 
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260228.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260228.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260228.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
+	modified:   ansible/roles/docker/tasks/one_shot_bundle_publish.yml
+	new file:   docs/mysql_backups_procedure.md
+	new file:   docs/mysql_bind_mount_behavior.md
+	modified:   docs/setup_instructions_quickstart.md
+	new file:   docs/video_introduction_for_photographers.txt
+	modified:   user-prompts.md
+
+*** 
+releaseNotes20260225.txt
+Changes: Implement full one_shot_bundle creation
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260225.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260225.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   ansible-playbook-gighive2-20260225.lo
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	new file:   ansible/roles/docker/tasks/one_shot_bundle.yml
+	new file:   ansible/roles/docker/tasks/one_shot_bundle_dispatch.yml
+	new file:   ansible/roles/docker/tasks/one_shot_bundle_monitor.yml
+	new file:   ansible/roles/docker/tasks/one_shot_bundle_publish.yml
+	new file:   ansible/roles/docker/tasks/one_shot_bundle_rebuild.yml
+	modified:   docs/process_quickstart_milestone2.md
+
+*** 
+releaseNotes20260225.txt
+*** 
+releaseNotes20260228.txt
 Changes: Locked down installer security, updated setup instructions, prompt for tgz copy 
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260228.log
