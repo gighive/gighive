@@ -26,6 +26,8 @@ EOF
 
 NON_INTERACTIVE=0
 
+MIN_PASSWORD_LEN=12
+
 SITE_URL="${SITE_URL:-}"
 AUDIO_DIR="${AUDIO_DIR:-./_host_audio}"
 VIDEO_DIR="${VIDEO_DIR:-./_host_video}"
@@ -49,18 +51,23 @@ while [[ $# -gt 0 ]]; do
     --site-url) SITE_URL="${2:-}"; shift 2 ;;
     --audio-dir) AUDIO_DIR="${2:-}"; shift 2 ;;
     --video-dir) VIDEO_DIR="${2:-}"; shift 2 ;;
-    --admin-password) ADMIN_PASSWORD="${2:-}"; shift 2 ;;
-    --uploader-password) UPLOADER_PASSWORD="${2:-}"; shift 2 ;;
-    --viewer-password) VIEWER_PASSWORD="${2:-}"; shift 2 ;;
+    --admin-password) echo "Password args are not supported right now; use interactive prompts." >&2; exit 2 ;;
+    --uploader-password) echo "Password args are not supported right now; use interactive prompts." >&2; exit 2 ;;
+    --viewer-password) echo "Password args are not supported right now; use interactive prompts." >&2; exit 2 ;;
     --mysql-db) MYSQL_DATABASE="${2:-}"; shift 2 ;;
     --mysql-user) MYSQL_USER="${2:-}"; shift 2 ;;
-    --mysql-password) MYSQL_PASSWORD="${2:-}"; shift 2 ;;
-    --mysql-root-password) MYSQL_ROOT_PASSWORD="${2:-}"; shift 2 ;;
+    --mysql-password) echo "Password args are not supported right now; use interactive prompts." >&2; exit 2 ;;
+    --mysql-root-password) echo "Password args are not supported right now; use interactive prompts." >&2; exit 2 ;;
     --tz) TZ="${2:-}"; shift 2 ;;
     --mysql-dataset) MYSQL_DATASET="${2:-}"; shift 2 ;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2 ;;
   esac
 done
+
+if [[ "$NON_INTERACTIVE" -eq 1 ]]; then
+  echo "--non-interactive is not supported right now; interactive prompts are required." >&2
+  exit 2
+fi
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1" >&2; exit 1; }
@@ -97,8 +104,8 @@ prompt() {
   fi
 
   if [[ "$secret" -eq 1 ]]; then
-    read -r -s -p "$prompt_text: " current_val
-    echo
+    echo "Internal error: prompt() should not be used for secret values" >&2
+    exit 1
   else
     read -r -p "$prompt_text: " current_val
   fi
@@ -111,15 +118,56 @@ prompt() {
   printf -v "$var_name" '%s' "$current_val"
 }
 
+prompt_secret() {
+  local var_name="$1"
+  local prompt_text="$2"
+  local min_len="$3"
+
+  local v1=""
+  local v2=""
+  local attempts=0
+
+  while true; do
+    attempts=$((attempts + 1))
+    if [[ "$attempts" -gt 5 ]]; then
+      echo "Too many attempts for $var_name" >&2
+      exit 1
+    fi
+
+    read -r -s -p "$prompt_text: " v1
+    echo
+    read -r -s -p "$prompt_text (confirm): " v2
+    echo
+
+    if [[ -z "$v1" ]]; then
+      echo "Value required: $var_name" >&2
+      continue
+    fi
+
+    if [[ "$v1" != "$v2" ]]; then
+      echo "Values did not match. Please try again." >&2
+      continue
+    fi
+
+    if [[ "${#v1}" -lt "$min_len" ]]; then
+      echo "$var_name must be at least ${min_len} characters." >&2
+      continue
+    fi
+
+    printf -v "$var_name" '%s' "$v1"
+    return 0
+  done
+}
+
 # Required inputs
 prompt SITE_URL "SITE_URL (example: https://192.168.1.252)"
 prompt AUDIO_DIR "Host path for audio dir (will be created if missing)"
 prompt VIDEO_DIR "Host path for video dir (will be created if missing)"
-prompt ADMIN_PASSWORD "BasicAuth password for user 'admin'" 1
-prompt UPLOADER_PASSWORD "BasicAuth password for user 'uploader'" 1
-prompt VIEWER_PASSWORD "BasicAuth password for user 'viewer'" 1
-prompt MYSQL_PASSWORD "MYSQL_PASSWORD" 1
-prompt MYSQL_ROOT_PASSWORD "MYSQL_ROOT_PASSWORD" 1
+prompt_secret ADMIN_PASSWORD "BasicAuth password for user 'admin'" "$MIN_PASSWORD_LEN"
+prompt_secret UPLOADER_PASSWORD "BasicAuth password for user 'uploader'" "$MIN_PASSWORD_LEN"
+prompt_secret VIEWER_PASSWORD "BasicAuth password for user 'viewer'" "$MIN_PASSWORD_LEN"
+prompt_secret MYSQL_PASSWORD "MYSQL_PASSWORD" "$MIN_PASSWORD_LEN"
+prompt_secret MYSQL_ROOT_PASSWORD "MYSQL_ROOT_PASSWORD" "$MIN_PASSWORD_LEN"
 
 if [[ "$MYSQL_DATASET" != "sample" ]]; then
   echo "Only 'sample' is supported by this installer right now. You set: $MYSQL_DATASET" >&2
