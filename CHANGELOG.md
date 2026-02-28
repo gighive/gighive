@@ -1,8 +1,8 @@
 *** 
 releaseNotes20260228.txt
-Changes: Change fail to warn if publishing needed but declined
+Changes: Added GA tag for dev, added backups for mysql to install.sh for quickstart
 
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260228.log
+Last run (lab: run from lab): gighive-one-shot-bundle
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -11,13 +11,15 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/tasks/one_shot_bundle_publish.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	renamed:    docs/process_docker_bind_mount_protection.md -> docs/docker_bind_mount_protection.md
+	new file:   docs/process_one_shot_bundle_original_creation.md
+	new file:   docs/process_one_shot_bundle_original_creation_plus_backups.md
 
 ToDo: Should I only rollout the one-shot-bundle to my customers?
 ToDo: Rename the vms to their full names
-ToDo: Consider adding session timeout
+ToDo: Consider adding session timeout and max session timeout
 ToDo: Consider generic media player addition
-ToDo: If staging.gighive.app is used as target, pop a message saying, restricted to 100MB (delete after V1.0.2 out)
 ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 ToDo: We should expose any 413 errors directly to the IOS app
 ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?
@@ -39,6 +41,21 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260228.txt
+Changes: Change fail to warn if publishing needed but declined
+
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260228.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/tasks/one_shot_bundle_publish.yml
 
 *** 
 releaseNotes20260228.txt
