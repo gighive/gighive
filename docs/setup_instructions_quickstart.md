@@ -27,7 +27,7 @@ sha256sum gighive-one-shot-bundle.tgz
 cat gighive-one-shot-bundle.tgz.sha256
 ```
 
-The output should match:
+The outputs should match (but don't need to be the same sha, as the bundles are subject to change):
 ``` bash
 sodo@pop-os:~/gighive$ sha256sum gighive-one-shot-bundle.tgz
 ed3311b73c058134dca31a32e91415e14e7408740cf2d9cf7db04a97a4b1a982  gighive-one-shot-bundle.tgz
