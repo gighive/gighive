@@ -30,9 +30,9 @@ cat gighive-one-shot-bundle.tgz.sha256
 The output should match:
 ``` bash
 sodo@pop-os:~/gighive$ sha256sum gighive-one-shot-bundle.tgz
-d198c63c287484775b161eec7984a74d1228b966d73a74d27d9c51c5b803ce8f  gighive-one-shot-bundle.tgz
-sodo@pop-os:~/gighive$ cat gighive-one-shot-bundle.tgz.sha256
-d198c63c287484775b161eec7984a74d1228b966d73a74d27d9c51c5b803ce8f  gighive-one-shot-bundle.tgz
+ed3311b73c058134dca31a32e91415e14e7408740cf2d9cf7db04a97a4b1a982  gighive-one-shot-bundle.tgz
+sodo@pop-os:~/gighive$ cat gighive-one-shot-bundle.tgz.sha256 
+ed3311b73c058134dca31a32e91415e14e7408740cf2d9cf7db04a97a4b1a982  gighive-one-shot-bundle.tgz
 ```
 
 Expected output:
