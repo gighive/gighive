@@ -31,7 +31,7 @@ services:
 
       - "./apache/externalConfigs/gighive.htpasswd:/var/www/private/gighive.htpasswd:rw"
       - "./apache/externalConfigs/resizerequests:/var/www/private/resizerequests:rw"
-      - "./mysql_backups:/var/www/private/mysql_backups:rw"
+      - "./mysql/dbScripts/backups:/var/www/private/mysql_backups:rw"
       - "./apache/externalConfigs/restorelogs:/var/www/private/restorelogs:rw"
 
       - "./apache/externalConfigs/apache2.conf:/etc/apache2/apache2.conf:ro"

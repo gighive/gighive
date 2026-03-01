@@ -176,9 +176,6 @@ fi
 
 mkdir -p "$AUDIO_DIR" "$VIDEO_DIR"
 
-# Bundle-local MySQL backups directory mounted into the apache container
-mkdir -p ./mysql_backups
-
 # Ensure config dirs exist (bundle should include them; this is defensive)
 mkdir -p apache/externalConfigs mysql/externalConfigs
 

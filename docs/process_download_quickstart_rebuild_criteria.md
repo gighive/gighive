@@ -4,6 +4,18 @@ description: Rebuild criteria for Quickstart one-shot bundle tarball
 
 # Quickstart one-shot bundle: rebuild criteria
 
+## Rationale (why the one-shot bundle exists)
+
+The one-shot bundle exists to give end users a **simple installation path** for GigHive that does **not** require them to run (or understand) Ansible.
+
+Instead of cloning the repo, learning inventory/group_vars conventions, and executing playbooks, a user can:
+
+- download a single `gighive-one-shot-bundle.tgz`
+- extract it
+- run `./install.sh`
+
+The installer script and bundled files act as the “pre-built output” of the full Ansible-driven build/deploy workflow.
+
 This document defines **when you must rebuild** the Quickstart artifact:
 
 - `gighive-one-shot-bundle.tgz`

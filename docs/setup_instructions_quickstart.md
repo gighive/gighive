@@ -29,10 +29,10 @@ cat gighive-one-shot-bundle.tgz.sha256
 
 The outputs should match (but don't need to be the same sha, as the bundles are subject to change):
 ``` bash
+sodo@pop-os:~/gighive$ cat gighive-one-shot-bundle.tgz.sha256
+d7d4d03adf70f5c023000a8a884355e9442d01a20b57fc2a45a69f50b6537500  gighive-one-shot-bundle.tgz
 sodo@pop-os:~/gighive$ sha256sum gighive-one-shot-bundle.tgz
-ed3311b73c058134dca31a32e91415e14e7408740cf2d9cf7db04a97a4b1a982  gighive-one-shot-bundle.tgz
-sodo@pop-os:~/gighive$ cat gighive-one-shot-bundle.tgz.sha256 
-ed3311b73c058134dca31a32e91415e14e7408740cf2d9cf7db04a97a4b1a982  gighive-one-shot-bundle.tgz
+d7d4d03adf70f5c023000a8a884355e9442d01a20b57fc2a45a69f50b6537500  gighive-one-shot-bundle.tgz
 ```
 
 Expected output:
@@ -60,6 +60,8 @@ During `./install.sh`, you will be prompted to set BasicAuth passwords for the f
 - `viewer`
 
 Validate installation by performing the smoke tests below and accessing the URL in a browser.
+
+Note that it will take a minute or two for mysqlServer and apacheWebServer containers to spinup fully.
 
 ## `install.sh` sample run
 
@@ -146,7 +148,7 @@ docker compose down --volumes --remove-orphans
 docker image rm ubuntu-apache-img:1.00
 
 # Optional: remove bundle-created host dirs (only if you are OK losing local contents)
-rm -rf ./mysql_backups ./_host_audio ./_host_video
+rm -rf ./mysql/dbScripts/backups ./_host_audio ./_host_video
 
 # Sanity checks
 docker compose ps
