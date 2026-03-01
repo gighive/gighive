@@ -4,6 +4,12 @@ description: Quickstart tarball install vs full normal build
 
 # Quickstart vs Full Build
 
+## Rationale (why Quickstart/one-shot bundle exists)
+
+Quickstart exists to let end users install GigHive **without running (or understanding) Ansible**.
+
+In the full workflow, Ansible is the tool that assembles configuration, templates, and deployment state. In Quickstart, maintainers publish a pre-built `gighive-one-shot-bundle.tgz` so users can install by extracting the tarball and running `./install.sh`.
+
 GigHive supports two distinct installation paths:
 
 1. **Quickstart (one-shot bundle)**

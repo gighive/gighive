@@ -1,8 +1,8 @@
 *** 
-releaseNotes20260228.txt
-Changes: Added GA tag for dev, added backups for mysql to install.sh for quickstart
+releaseNotes20260301.txt
+Changes: Fix backup/restore for one-shot-bundle
 
-Last run (lab: run from lab): gighive-one-shot-bundle
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260301.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -10,12 +10,19 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	renamed:    docs/process_docker_bind_mount_protection.md -> docs/docker_bind_mount_protection.md
-	new file:   docs/process_one_shot_bundle_original_creation.md
-	new file:   docs/process_one_shot_bundle_original_creation_plus_backups.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/docker-compose.yml
+	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
+	new file:   docs/feature_future_strategy_licensing_communitypro_monetization.md
+	modified:   docs/process_download_quickstart_rebuild_criteria.md
+	modified:   docs/process_download_quickstart_versus_full_build.md
+	modified:   docs/process_one_shot_bundle_original_creation_plus_backups.md
+	new file:   docs/refactor_acls_on_restore_logs.md
+	new file:   docs/refactor_db_database_admin_soft_deletes.md
+	modified:   docs/setup_instructions_quickstart.md
 
+ToDo: Fix the popup window in the app when video playing.rather have a popup that can do full screen. 
 ToDo: Should I only rollout the one-shot-bundle to my customers?
 ToDo: Rename the vms to their full names
 ToDo: Consider adding session timeout and max session timeout
@@ -41,6 +48,24 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260228.txt
+Changes: Added GA tag for dev, added backups for mysql to install.sh for quickstart
+
+Last run (lab: run from lab): gighive-one-shot-bundle
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	renamed:    docs/process_docker_bind_mount_protection.md -> docs/docker_bind_mount_protection.md
+	new file:   docs/process_one_shot_bundle_original_creation.md
+	new file:   docs/process_one_shot_bundle_original_creation_plus_backups.md
 
 *** 
 releaseNotes20260228.txt

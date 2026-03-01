@@ -73,6 +73,17 @@ If the user answers **yes**, `install.sh` writes an idempotent, marked block int
 - A daily dump job that runs `./mysql/dbScripts/dbDump.sh`
 - A daily prune job that removes `&lt;DB&gt;_*.sql.gz` older than 90 days
 
+## What we learned (durability + permissions)
+- The canonical host backups directory in the bundle is `./mysql/dbScripts/backups`.
+- The apache container should keep using `/var/www/private/mysql_backups` as its in-container path, but the host mount must point at `./mysql/dbScripts/backups`.
+- Restore logs are written by PHP as `www-data` inside the apache container (see `GIGHIVE_MYSQL_RESTORE_LOG_DIR=/var/www/private/restorelogs`).
+- For portable bundles (no ACL assumptions, no UID/GID mapping assumptions), the most reliable approach is:
+  - Make `./apache/externalConfigs/restorelogs` world-writable (`chmod 0777`) so restores can always write logs.
+  - Make backup dumps world-readable (`chmod 0644`) so the restore UI can always read dumps.
+- These permissions should be enforced during bundle install (not manually after deploy) to avoid regressions after re-tarring/re-extracting.
+- If/when we want to harden restore log permissions beyond `0777`, track the ACL-based refactor notes in `docs/refactor_acls_on_restore_logs.md`.
+- Admin media deletes currently remove the underlying file from disk; track the soft-delete refactor plan in `docs/refactor_db_database_admin_soft_deletes.md`.
+
 ## Notes
 - This design assumes the cron user can run Docker commands (e.g., is in the `docker` group).
 - Because cron runs on the host, backups persist as long as the bundle directory persists.
