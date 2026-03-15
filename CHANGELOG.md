@@ -1,4 +1,63 @@
 *** 
+releaseNotes20260314.txt
+Changes: Created replace_existing_media.py to replace videos, sync'd mime/audio_exts/video_exts functions with pload_media_by_hash.py and created docs for these changes.
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260314.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260314.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/images/jam/20050526.jpg
+	new file:   ansible/roles/docker/files/apache/webroot/tools/replace_existing_media.py
+	modified:   ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py
+	new file:   docs/change20250314_upload_media_jibe_php_path.md
+	new file:   docs/feature_iphone_video_zoom.md
+	new file:   docs/problem_server_did_not_honor_range_request.md
+	new file:   docs/process_replace_existing_media.md
+	new file:   docs/refactor_convert_legacy_database_csv_python.md
+
+ToDo: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+ToDo: Realize that the sha versions of stormpigs aren't backed up on popos
+ToDo: Create video for quick install
+ToDo: I do not like checksum duplication feature of the API upload path
+ToDo: Should I only rollout the one-shot-bundle to my customers?
+ToDo: Rename the vms to their full names
+ToDo: Consider adding session timeout and max session timeout
+ToDo: Consider generic media player addition to database.php
+ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+ToDo: We should expose any 413 errors directly to the IOS app
+ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?
+ToDo: integrate with cddb
+ToDo: Remove mysql_native_password=ON
+ToDo: Is it worthwhile to have an embed feature?
+ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+ToDo: Check azure build
+ToDo: Match cert with cloudflare, name only or something else needed?
+ToDo: database table name change to genericize songs 
+ToDo: investigate vids that didn't produce thumbnails 
+ToDo: rebuild prod baremetal with same ansible scripts as staging
+ToDo: Make sure ask-become-pass is run at first part of vbox_provision
+ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
+ToDo: create a canonical md versions for the site and convert using composer recommendation
+ToDo: cleaning the database won't clear out what has been uploaded to video and audio
+ToDo: remove vodcast.xml from webroot for gighive
+ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
+ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260302.txt
+Changes: Test videos
+
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,mysql_backup -v" ansible-playbook-prod-20260302.log
+
+*** 
 releaseNotes20260301.txt
 Changes: Fix backup/restore for one-shot-bundle
 
@@ -21,33 +80,6 @@ Changes to be committed:
 	new file:   docs/refactor_acls_on_restore_logs.md
 	new file:   docs/refactor_db_database_admin_soft_deletes.md
 	modified:   docs/setup_instructions_quickstart.md
-
-ToDo: Fix the popup window in the app when video playing.rather have a popup that can do full screen. 
-ToDo: Should I only rollout the one-shot-bundle to my customers?
-ToDo: Rename the vms to their full names
-ToDo: Consider adding session timeout and max session timeout
-ToDo: Consider generic media player addition
-ToDo: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
-ToDo: We should expose any 413 errors directly to the IOS app
-ToDo: Fix App Store: not just designed for iPad, what does "not verified" on laptop mean?
-ToDo: integrate with cddb
-ToDo: Remove mysql_native_password=ON
-ToDo: Is it worthwhile to have an embed feature?
-ToDo: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-ToDo: Check azure build
-ToDo: Match cert with cloudflare, name only or something else needed?
-ToDo: database table name change to genericize songs 
-ToDo: investigate vids that didn't produce thumbnails 
-ToDo: rebuild prod baremetal with same ansible scripts as staging
-ToDo: Make sure ask-become-pass is run at first part of vbox_provision
-ToDo: Investigate user agent: GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-ToDo: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-ToDo: Why is cert creation taking longer now after adding ffmpeg to install?
-ToDo: create a canonical md versions for the site and convert using composer recommendation
-ToDo: cleaning the database won't clear out what has been uploaded to video and audio
-ToDo: remove vodcast.xml from webroot for gighive
-ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
-ToDo: Should have "backup now" feature
 
 *** 
 releaseNotes20260228.txt

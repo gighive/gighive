@@ -25,10 +25,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-
+DEFAULT_ALLOWED_MIMES = {
+    "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/aac", "audio/flac", "audio/mp4",
+    "video/mp4", "video/quicktime", "video/x-matroska", "video/webm", "video/x-msvideo",
+}
 DEFAULT_AUDIO_EXTS = {"mp3", "wav", "aac", "flac", "m4a"}
 DEFAULT_VIDEO_EXTS = {"mp4", "mov", "mkv", "webm", "avi"}
 
+ALLOWED_MIMES = set(DEFAULT_ALLOWED_MIMES)
 AUDIO_EXTS = set(DEFAULT_AUDIO_EXTS)
 VIDEO_EXTS = set(DEFAULT_VIDEO_EXTS)
 
@@ -38,6 +42,15 @@ class FileRow:
     checksum_sha256: str
     file_type: str
     source_relpath: str
+
+
+@dataclass(frozen=True)
+class MediaConfig:
+    allowed_mimes: set
+    audio_exts: set
+    video_exts: set
+    source: str
+    message: str
 
 
 def eprint(*args: object) -> None:
@@ -110,44 +123,110 @@ def infer_type_from_ext(ext: str) -> str:
     return ""
 
 
-def _normalize_ext_set(items: object) -> Optional[set]:
+def _normalize_string_set(items: object) -> Optional[set]:
     if not isinstance(items, list):
         return None
     out = set()
     for x in items:
         if not isinstance(x, str):
             continue
-        v = x.strip().lower().lstrip(".")
+        v = x.strip().lower()
         if v:
             out.add(v)
     return out
 
 
-def load_ext_sets_from_group_vars(group_vars_path: str) -> Tuple[Optional[set], Optional[set], str]:
-    """Return (audio_exts, video_exts, message). None values indicate failure."""
+def _normalize_ext_set(items: object) -> Optional[set]:
+    raw = _normalize_string_set(items)
+    if raw is None:
+        return None
+    return {x.lstrip(".") for x in raw if x.lstrip(".")}
+
+
+def load_media_config_from_env() -> Tuple[Optional[MediaConfig], str]:
+    raw_allowed = os.getenv("UPLOAD_ALLOWED_MIMES_JSON")
+    raw_audio = os.getenv("UPLOAD_AUDIO_EXTS_JSON")
+    raw_video = os.getenv("UPLOAD_VIDEO_EXTS_JSON")
+
+    if not raw_allowed and not raw_audio and not raw_video:
+        return None, "env media config not set"
+
+    if not raw_allowed or not raw_audio or not raw_video:
+        return None, "env media config is partial; expected UPLOAD_ALLOWED_MIMES_JSON, UPLOAD_AUDIO_EXTS_JSON, and UPLOAD_VIDEO_EXTS_JSON"
+
+    try:
+        allowed = _normalize_string_set(json.loads(raw_allowed))
+        audio = _normalize_ext_set(json.loads(raw_audio))
+        video = _normalize_ext_set(json.loads(raw_video))
+    except Exception as e:
+        return None, f"failed to parse env media config: {e}"
+
+    if allowed is None or audio is None or video is None or not audio or not video:
+        return None, "env media config missing/invalid arrays"
+
+    return MediaConfig(allowed_mimes=allowed, audio_exts=audio, video_exts=video, source="env", message="ok"), "ok"
+
+
+def load_media_config_from_group_vars(group_vars_path: str) -> Tuple[Optional[MediaConfig], str]:
     try:
         import yaml  # type: ignore
     except Exception:
-        return None, None, "PyYAML not installed"
+        return None, "PyYAML not installed"
 
     try:
         with open(group_vars_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     except FileNotFoundError:
-        return None, None, f"group_vars file not found: {group_vars_path}"
+        return None, f"group_vars file not found: {group_vars_path}"
     except Exception as e:
-        return None, None, f"failed to parse group_vars: {e}"
+        return None, f"failed to parse group_vars: {e}"
 
     if not isinstance(data, dict):
-        return None, None, "group_vars did not parse to a mapping"
+        return None, "group_vars did not parse to a mapping"
 
+    allowed = _normalize_string_set(data.get("gighive_upload_allowed_mimes"))
     audio = _normalize_ext_set(data.get("gighive_upload_audio_exts"))
     video = _normalize_ext_set(data.get("gighive_upload_video_exts"))
 
     if audio is None or video is None or not audio or not video:
-        return None, None, "missing/invalid gighive_upload_audio_exts or gighive_upload_video_exts"
+        return None, "missing/invalid gighive_upload_audio_exts or gighive_upload_video_exts"
 
-    return audio, video, "ok"
+    if allowed is None:
+        allowed = set(DEFAULT_ALLOWED_MIMES)
+
+    return MediaConfig(
+        allowed_mimes=allowed,
+        audio_exts=audio,
+        video_exts=video,
+        source=f"group_vars:{group_vars_path}",
+        message="ok",
+    ), "ok"
+
+
+def resolve_media_config(group_vars_path: str, no_group_vars: bool) -> MediaConfig:
+    env_cfg, env_msg = load_media_config_from_env()
+    if env_cfg is not None:
+        return env_cfg
+
+    if not no_group_vars and group_vars_path:
+        yaml_cfg, yaml_msg = load_media_config_from_group_vars(group_vars_path)
+        if yaml_cfg is not None:
+            return yaml_cfg
+        return MediaConfig(
+            allowed_mimes=set(DEFAULT_ALLOWED_MIMES),
+            audio_exts=set(DEFAULT_AUDIO_EXTS),
+            video_exts=set(DEFAULT_VIDEO_EXTS),
+            source="defaults",
+            message=f"using built-in media defaults ({yaml_msg}; env fallback reason: {env_msg})",
+        )
+
+    return MediaConfig(
+        allowed_mimes=set(DEFAULT_ALLOWED_MIMES),
+        audio_exts=set(DEFAULT_AUDIO_EXTS),
+        video_exts=set(DEFAULT_VIDEO_EXTS),
+        source="defaults",
+        message=f"using built-in media defaults (--no-group-vars; env fallback reason: {env_msg})",
+    )
 
 
 def default_group_vars_path() -> str:
@@ -591,12 +670,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument(
         "--group-vars",
         default=os.getenv("GIGHIVE_GROUP_VARS") or default_group_vars_path(),
-        help="Path to Ansible group_vars file (default: gighive2 group_vars; override with GIGHIVE_GROUP_VARS)",
+        help="Path to Ansible group_vars fallback file (default: gighive2 group_vars; override with GIGHIVE_GROUP_VARS)",
     )
     p.add_argument(
         "--no-group-vars",
         action="store_true",
-        help="Disable reading extension lists from group_vars; use built-in defaults",
+        help="Disable group_vars fallback; use env config if available, otherwise built-in defaults",
     )
     p.add_argument("--ssh-target", default="ubuntu@gighive2", help="SSH target for destination VM (default: ubuntu@gighive2)")
     p.add_argument("--dest-audio", default="/home/ubuntu/audio", help="Destination host directory for audio (default: /home/ubuntu/audio)")
@@ -646,21 +725,26 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     args = p.parse_args(argv)
 
-    global AUDIO_EXTS, VIDEO_EXTS
-    if not args.no_group_vars and args.group_vars:
-        a, v, msg = load_ext_sets_from_group_vars(args.group_vars)
-        if a is not None and v is not None:
-            AUDIO_EXTS = a
-            VIDEO_EXTS = v
-            eprint(f"INFO: loaded extension lists from group_vars: {args.group_vars}")
-        else:
-            AUDIO_EXTS = set(DEFAULT_AUDIO_EXTS)
-            VIDEO_EXTS = set(DEFAULT_VIDEO_EXTS)
-            eprint(f"INFO: using built-in extension defaults ({msg})")
+    global ALLOWED_MIMES, AUDIO_EXTS, VIDEO_EXTS
+    media_cfg = resolve_media_config(args.group_vars, args.no_group_vars)
+    ALLOWED_MIMES = set(media_cfg.allowed_mimes)
+    AUDIO_EXTS = set(media_cfg.audio_exts)
+    VIDEO_EXTS = set(media_cfg.video_exts)
+    if media_cfg.source == "env":
+        eprint(
+            f"INFO: loaded media config from env "
+            f"(mimes={len(ALLOWED_MIMES)} audio_exts={len(AUDIO_EXTS)} video_exts={len(VIDEO_EXTS)})"
+        )
+    elif media_cfg.source.startswith("group_vars:"):
+        eprint(
+            f"INFO: loaded media config from {media_cfg.source[len('group_vars:'):]} "
+            f"(mimes={len(ALLOWED_MIMES)} audio_exts={len(AUDIO_EXTS)} video_exts={len(VIDEO_EXTS)})"
+        )
     else:
-        AUDIO_EXTS = set(DEFAULT_AUDIO_EXTS)
-        VIDEO_EXTS = set(DEFAULT_VIDEO_EXTS)
-        eprint("INFO: using built-in extension defaults (--no-group-vars)")
+        eprint(
+            f"INFO: {media_cfg.message} "
+            f"(mimes={len(ALLOWED_MIMES)} audio_exts={len(AUDIO_EXTS)} video_exts={len(VIDEO_EXTS)})"
+        )
 
     if not args.db_password:
         eprint("ERROR: missing DB password. Provide --db-password or set MYSQL_PASSWORD / DB_PASSWORD in env.")
