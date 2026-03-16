@@ -86,6 +86,7 @@
     path: /tmp/.ansible/tmp
     state: directory
     mode: '1777'
+  become: false
 
 - name: Fetch Docker’s GPG key into a keyring
   ansible.builtin.get_url:

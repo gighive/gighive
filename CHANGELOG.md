@@ -1,9 +1,6 @@
 *** 
 releaseNotes20260315.txt
-Changes: rebuild_mysql flag to false for gighive2, doc for server not honor problem debug
-
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
-Last run (lab: run from lab): gighive-one-shot-bundle
+Changes: Add become: false to /tmp creation in base/tasks/main.yml
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,10 +9,7 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv
-	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv.lastbackup
-	modified:   docs/problem_server_did_not_honor_range_request.md
+	modified:   ansible/roles/base/tasks/main.yml
 
 ToDo: If I leave the upload screen to go back to the splash page and then reenter the upload a file page, the upload page did not remember that i had an upload running.  so we need to persist the state of the upload.
 ToDo: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
@@ -47,6 +41,25 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260315.txt
+Changes: rebuild_mysql flag to false for gighive2, doc for server not honor problem debug
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
+Last run (lab: run from lab): gighive-one-shot-bundle
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv
+	new file:   ansible/roles/docker/files/mysql/dbScripts/loadutilities/database.csv.lastbackup
+	modified:   docs/problem_server_did_not_honor_range_request.md
 
 *** 
 releaseNotes20260314.txt
