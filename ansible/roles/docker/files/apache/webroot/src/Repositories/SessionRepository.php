@@ -199,6 +199,8 @@ SQL;
         $sql = <<<SQL
 SELECT
     f.file_id                           AS id,
+    sesh.session_id                      AS session_id,
+    s.song_id                            AS song_id,
     sesh.date                             AS date,
     sesh.org_name                         AS org_name,
     sesh.rating                           AS rating,
@@ -249,6 +251,8 @@ SQL;
         $sql = <<<SQL
 SELECT
     f.file_id                           AS id,
+    sesh.session_id                      AS session_id,
+    s.song_id                            AS song_id,
     sesh.date                             AS date,
     sesh.org_name                         AS org_name,
     sesh.rating                           AS rating,
@@ -297,6 +301,8 @@ SQL;
         $sql = <<<SQL
 SELECT
     f.file_id                           AS id,
+    sesh.session_id                      AS session_id,
+    s.song_id                            AS song_id,
     sesh.date                             AS date,
     sesh.org_name                         AS org_name,
     sesh.rating                           AS rating,

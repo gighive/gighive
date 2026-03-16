@@ -245,6 +245,7 @@
       ];
 
   if ($isAdmin) {
+      array_unshift($columns, ['key' => 'edit', 'label' => 'Edit', 'title' => 'Edit', 'search' => null]);
       array_unshift($columns, ['key' => 'delete', 'label' => 'Delete', 'title' => 'Delete', 'search' => null]);
   }
 
@@ -278,6 +279,9 @@
     <div class="header-block" style="margin-bottom:0.5rem;max-width:none;">
       <button type="button" id="deleteSelectedBtn" style="padding:6px 10px;border:1px solid #dc2626;border-radius:6px;background:transparent;color:var(--text);cursor:pointer;" disabled>Delete Media File(s)</button>
       <span id="deleteSelectedStatus" class="user-indicator" style="margin-left:0.5rem;"></span>
+      <button type="button" id="editSaveBtn" style="margin-left:0.75rem;padding:6px 10px;border:1px solid #0366d6;border-radius:6px;background:transparent;color:var(--text);cursor:pointer;" disabled>Save Edit</button>
+      <span id="editSaveStatus" class="user-indicator" style="margin-left:0.5rem;"></span>
+      <span id="editMusiciansCallout" class="user-indicator" style="margin-left:0.5rem;"></span>
     </div>
   <?php endif; ?>
   <?php if ($hasSearch): ?>
@@ -331,7 +335,7 @@
     </div>
   <?php endif; ?>
 
-  <form id="searchForm" method="get" action="database.php" onsubmit="alert('Enter pressed..searching');">
+  <form id="searchForm" method="get" action="database.php">
   <div style="margin:0 auto;">
   <table id="searchableTable" class="<?= $isGighive ? 'table-gighive' : 'table-defaultcodebase' ?>" data-sort-order="asc">
     <thead>
@@ -346,6 +350,8 @@
               >
                 <?php if ($colKey === 'delete'): ?>
                   <input type="checkbox" id="deleteSelectAll" aria-label="Select all" />
+                <?php elseif ($colKey === 'edit'): ?>
+                  <?= htmlspecialchars((string)$col['label'], ENT_QUOTES) ?>
                 <?php else: ?>
                   <?= htmlspecialchars((string)$col['label'], ENT_QUOTES) ?>
                 <?php endif; ?>
@@ -376,6 +382,8 @@
           class="media-row"
           data-date="<?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?>"
           data-org="<?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?>"
+          data-session-id="<?= htmlspecialchars((string)($r['session_id'] ?? ''), ENT_QUOTES) ?>"
+          data-song-id="<?= htmlspecialchars((string)($r['song_id'] ?? ''), ENT_QUOTES) ?>"
         >
           <?php foreach ($columns as $col): ?>
             <?php $key = (string)$col['key']; ?>
@@ -388,6 +396,17 @@
                   value="<?= htmlspecialchars((string)($deleteId > 0 ? $deleteId : ''), ENT_QUOTES) ?>"
                   aria-label="Select file for deletion"
                   <?= $deleteId > 0 ? '' : 'disabled' ?>
+                />
+              </td>
+            <?php elseif ($key === 'edit'): ?>
+              <td data-col="edit">
+                <?php $editId = (int)($r['id'] ?? 0); ?>
+                <input
+                  class="edit-checkbox"
+                  type="checkbox"
+                  value="<?= htmlspecialchars((string)($editId > 0 ? $editId : ''), ENT_QUOTES) ?>"
+                  aria-label="Select row for editing"
+                  <?= $editId > 0 ? '' : 'disabled' ?>
                 />
               </td>
             <?php elseif ($key === 'duration'): ?>
@@ -486,7 +505,32 @@
                     $value = (string)($r['checksumSha256'] ?? '');
                 }
               ?>
-              <td data-col="<?= htmlspecialchars($key, ENT_QUOTES) ?>"><?= htmlspecialchars($value, ENT_QUOTES) ?></td>
+              <?php if ($isAdmin && ($key === 'org' || (!$isGighive && ($key === 'rating' || $key === 'keywords' || $key === 'location' || $key === 'summary' || $key === 'musicians')) || $key === 'song_name')): ?>
+                <?php
+                  $inputName = '';
+                  if ($key === 'org') {
+                      $inputName = 'org_name';
+                  } elseif ($key === 'rating') {
+                      $inputName = 'rating';
+                  } elseif ($key === 'keywords') {
+                      $inputName = 'keywords';
+                  } elseif ($key === 'location') {
+                      $inputName = 'location';
+                  } elseif ($key === 'summary') {
+                      $inputName = 'summary';
+                  } elseif ($key === 'song_name') {
+                      $inputName = 'song_title';
+                  } elseif ($key === 'musicians') {
+                      $inputName = 'musicians_csv';
+                  }
+                ?>
+                <td data-col="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
+                  <span class="edit-cell-text"><?= htmlspecialchars($value, ENT_QUOTES) ?></span>
+                  <input class="edit-cell-input" type="text" data-field="<?= htmlspecialchars($inputName, ENT_QUOTES) ?>" value="<?= htmlspecialchars($value, ENT_QUOTES) ?>" style="display:none;width:100%;box-sizing:border-box;" />
+                </td>
+              <?php else: ?>
+                <td data-col="<?= htmlspecialchars($key, ENT_QUOTES) ?>"><?= htmlspecialchars($value, ENT_QUOTES) ?></td>
+              <?php endif; ?>
             <?php endif; ?>
           <?php endforeach; ?>
         </tr>
@@ -530,6 +574,315 @@
     const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
     const basicUser = <?= json_encode($user) ?>;
     const viewMode = <?= $isGighive ? json_encode('gighive') : json_encode('defaultcodebase') ?>;
+    const supportsExtendedSessionMetadata = viewMode === 'defaultcodebase';
+    const supportsMusiciansEdit = viewMode === 'defaultcodebase';
+
+    function debounce(fn, ms){
+      let t = null;
+      return function(){
+        const args = arguments;
+        if(t){ clearTimeout(t); }
+        t = setTimeout(()=>fn.apply(null, args), ms);
+      };
+    }
+
+    function setEditStatus(text){
+      const el = document.getElementById('editSaveStatus');
+      if(!el){ return; }
+      el.textContent = String(text || '');
+    }
+
+    function setMusiciansCallout(existing, added){
+      const el = document.getElementById('editMusiciansCallout');
+      if(!el){ return; }
+      const ex = Array.isArray(existing) ? existing : [];
+      const nw = Array.isArray(added) ? added : [];
+      let parts = [];
+      if(ex.length){ parts.push('Existing: ' + ex.join(', ')); }
+      if(nw.length){ parts.push('New: ' + nw.join(', ')); }
+      el.textContent = parts.join(' | ');
+    }
+
+    function setMusiciansCalloutMessage(text){
+      const el = document.getElementById('editMusiciansCallout');
+      if(!el){ return; }
+      el.textContent = String(text || '');
+    }
+
+    function clearMusiciansCallout(){
+      const el = document.getElementById('editMusiciansCallout');
+      if(el){ el.textContent = ''; }
+    }
+
+    function rowGetSessionId(row){
+      const v = row && row.dataset ? String(row.dataset.sessionId || '') : '';
+      return v;
+    }
+
+    function rowGetSongId(row){
+      const v = row && row.dataset ? String(row.dataset.songId || '') : '';
+      return v;
+    }
+
+    function setRowEditMode(row, active){
+      if(!row){ return; }
+      row.classList.toggle('row-editing', !!active);
+      const inputs = row.querySelectorAll('input.edit-cell-input');
+      const spans = row.querySelectorAll('span.edit-cell-text');
+      spans.forEach((s)=>{ s.style.display = active ? 'none' : ''; });
+      inputs.forEach((i)=>{ i.style.display = active ? '' : 'none'; });
+    }
+
+    function getActiveEditRow(){
+      const table = document.getElementById('searchableTable');
+      if(!table){ return null; }
+      const rows = Array.from(table.querySelectorAll('tbody tr.media-row'));
+      for(const r of rows){
+        const cb = r.querySelector('input.edit-checkbox');
+        if(cb && cb instanceof HTMLInputElement && cb.checked){
+          return r;
+        }
+      }
+      return null;
+    }
+
+    function clearOtherEditChecks(keepRow){
+      const table = document.getElementById('searchableTable');
+      if(!table){ return; }
+      const rows = Array.from(table.querySelectorAll('tbody tr.media-row'));
+      rows.forEach((r)=>{
+        const cb = r.querySelector('input.edit-checkbox');
+        if(!cb || !(cb instanceof HTMLInputElement)){ return; }
+        if(keepRow && r === keepRow){ return; }
+        cb.checked = false;
+        setRowEditMode(r, false);
+      });
+    }
+
+    function updateAllVisibleRowsForSession(sessionId, fields){
+      if(!sessionId){ return; }
+      const table = document.getElementById('searchableTable');
+      if(!table){ return; }
+      const rows = Array.from(table.querySelectorAll('tbody tr.media-row'));
+      rows.forEach((r)=>{
+        if(String(r.dataset.sessionId || '') !== String(sessionId)){ return; }
+        const mappings = [
+          ['org', 'org_name'],
+        ];
+        if(supportsExtendedSessionMetadata){
+          mappings.push(
+            ['rating', 'rating'],
+            ['keywords', 'keywords'],
+            ['location', 'location'],
+            ['summary', 'summary']
+          );
+        }
+        if(supportsMusiciansEdit){
+          mappings.push(['musicians', 'musicians']);
+        }
+        mappings.forEach(([col, field])=>{
+          if(typeof fields[field] !== 'string'){ return; }
+          const td = r.querySelector('td[data-col="' + col + '"]');
+          const span = td ? td.querySelector('span.edit-cell-text') : null;
+          const inp = td ? td.querySelector('input.edit-cell-input') : null;
+          if(span){ span.textContent = fields[field]; }
+          if(inp && inp instanceof HTMLInputElement){ inp.value = fields[field]; }
+        });
+        if(typeof fields.org_name === 'string'){
+          r.dataset.org = fields.org_name;
+        }
+      });
+    }
+
+
+    function updateAllVisibleRowsForSong(songId, songTitle){
+      if(!songId){ return; }
+      const table = document.getElementById('searchableTable');
+      if(!table){ return; }
+      const rows = Array.from(table.querySelectorAll('tbody tr.media-row'));
+      rows.forEach((r)=>{
+        if(String(r.dataset.songId || '') !== String(songId)){ return; }
+        const tdSong = r.querySelector('td[data-col="song_name"]');
+        const span = tdSong ? tdSong.querySelector('span.edit-cell-text') : null;
+        const inp = tdSong ? tdSong.querySelector('input.edit-cell-input') : null;
+        if(span){ span.textContent = songTitle; }
+        if(inp && inp instanceof HTMLInputElement){ inp.value = songTitle; }
+      });
+    }
+
+    async function previewMusicians(musiciansCsv){
+      if(!isAdmin){ return; }
+      const raw = String(musiciansCsv || '').trim();
+      if(raw === ''){
+        clearMusiciansCallout();
+        return;
+      }
+      try{
+        const resp = await fetch('/db/database_edit_musicians_preview.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ musicians_csv: raw }),
+          credentials: 'same-origin'
+        });
+        const data = await resp.json().catch(()=>null);
+        if(!resp.ok || !data || !data.success){
+          const errs = data && Array.isArray(data.errors) ? data.errors : [];
+          const msg = errs.length ? errs.join(' | ') : (data && (data.message || data.error) ? String(data.message || data.error) : '');
+          if(msg){
+            setMusiciansCalloutMessage(msg);
+          } else {
+            clearMusiciansCallout();
+          }
+          return;
+        }
+        setMusiciansCallout(data.existing || [], data.new || []);
+      }catch(e){
+        clearMusiciansCallout();
+      }
+    }
+
+    function enableAdminInlineEdit(){
+      if(!isAdmin){ return; }
+      const table = document.getElementById('searchableTable');
+      const saveBtn = document.getElementById('editSaveBtn');
+      if(!table){ return; }
+
+      const rows = Array.from(table.querySelectorAll('tbody tr.media-row'));
+      const setSaveEnabled = function(enabled){
+        if(!saveBtn || !(saveBtn instanceof HTMLButtonElement)){
+          return;
+        }
+        saveBtn.disabled = !enabled;
+      };
+
+      rows.forEach((row)=>{
+        const cb = row.querySelector('input.edit-checkbox');
+        if(!cb || !(cb instanceof HTMLInputElement)){
+          return;
+        }
+
+        cb.addEventListener('change', function(){
+          setEditStatus('');
+          clearMusiciansCallout();
+
+          if(this.checked){
+            clearOtherEditChecks(row);
+            setRowEditMode(row, true);
+            setSaveEnabled(true);
+
+            if(supportsMusiciansEdit){
+              const musInput = row.querySelector('td[data-col="musicians"] input.edit-cell-input');
+              if(musInput && musInput instanceof HTMLInputElement){
+                previewMusiciansDebounced(musInput.value);
+              }
+            }
+          } else {
+            setRowEditMode(row, false);
+            const still = getActiveEditRow();
+            setSaveEnabled(!!still);
+          }
+        });
+
+        if(supportsMusiciansEdit){
+          const musInput = row.querySelector('td[data-col="musicians"] input.edit-cell-input');
+          if(musInput && musInput instanceof HTMLInputElement){
+            musInput.addEventListener('input', function(){
+              if(!cb.checked){ return; }
+              previewMusiciansDebounced(this.value);
+            });
+          }
+        }
+      });
+
+      if(saveBtn && saveBtn instanceof HTMLButtonElement){
+        saveBtn.addEventListener('click', function(){
+          saveActiveEdit();
+        });
+      }
+    }
+
+    const previewMusiciansDebounced = debounce(previewMusicians, 450);
+
+    async function saveActiveEdit(){
+      if(!isAdmin){ return; }
+      const row = getActiveEditRow();
+      if(!row){ return; }
+      const sid = rowGetSessionId(row);
+      const gid = rowGetSongId(row);
+      const orgInput = row.querySelector('td[data-col="org"] input.edit-cell-input');
+      const songInput = row.querySelector('td[data-col="song_name"] input.edit-cell-input');
+      const orgName = orgInput && orgInput instanceof HTMLInputElement ? orgInput.value : '';
+      const songTitle = songInput && songInput instanceof HTMLInputElement ? songInput.value : '';
+      const payload = {
+        session_id: Number(sid),
+        song_id: Number(gid),
+        org_name: orgName,
+        song_title: songTitle,
+      };
+      if(supportsExtendedSessionMetadata){
+        const ratingInput = row.querySelector('td[data-col="rating"] input.edit-cell-input');
+        const keywordsInput = row.querySelector('td[data-col="keywords"] input.edit-cell-input');
+        const locationInput = row.querySelector('td[data-col="location"] input.edit-cell-input');
+        const summaryInput = row.querySelector('td[data-col="summary"] input.edit-cell-input');
+        payload.rating = ratingInput && ratingInput instanceof HTMLInputElement ? ratingInput.value : '';
+        payload.keywords = keywordsInput && keywordsInput instanceof HTMLInputElement ? keywordsInput.value : '';
+        payload.location = locationInput && locationInput instanceof HTMLInputElement ? locationInput.value : '';
+        payload.summary = summaryInput && summaryInput instanceof HTMLInputElement ? summaryInput.value : '';
+      }
+      if(supportsMusiciansEdit){
+        const musInput = row.querySelector('td[data-col="musicians"] input.edit-cell-input');
+        payload.musicians_csv = musInput && musInput instanceof HTMLInputElement ? musInput.value : '';
+      }
+
+      setEditStatus('Saving...');
+      const btn = document.getElementById('editSaveBtn');
+      if(btn && btn instanceof HTMLButtonElement){ btn.disabled = true; }
+
+      try{
+        const resp = await fetch('/db/database_edit_save.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          credentials: 'same-origin'
+        });
+        const data = await resp.json().catch(()=>null);
+        if(!resp.ok || !data || !data.success){
+          const errs = data && Array.isArray(data.errors) ? data.errors : [];
+          const msg = errs.length ? errs.join(' | ') : (data && (data.message || data.error) ? String(data.message || data.error) : 'Save failed');
+          setEditStatus(msg);
+          if(btn && btn instanceof HTMLButtonElement){ btn.disabled = false; }
+          return;
+        }
+
+        const savedOrg = String(data.org_name || '');
+        const savedSong = String(data.song_title || '');
+        const sessionFields = {
+          org_name: savedOrg,
+        };
+        if(supportsExtendedSessionMetadata){
+          sessionFields.rating = String(data.rating || '');
+          sessionFields.keywords = String(data.keywords || '');
+          sessionFields.location = String(data.location || '');
+          sessionFields.summary = String(data.summary || '');
+        }
+        if(supportsMusiciansEdit){
+          sessionFields.musicians = Array.isArray(data.musicians) ? data.musicians.join(', ') : '';
+        }
+        updateAllVisibleRowsForSession(sid, sessionFields);
+        updateAllVisibleRowsForSong(gid, savedSong);
+
+        const cb = row.querySelector('input.edit-checkbox');
+        if(cb && cb instanceof HTMLInputElement){ cb.checked = false; }
+        setRowEditMode(row, false);
+        clearMusiciansCallout();
+
+        setEditStatus('Saved');
+        if(btn && btn instanceof HTMLButtonElement){ btn.disabled = true; }
+      } catch(e){
+        setEditStatus('Save failed');
+        if(btn && btn instanceof HTMLButtonElement){ btn.disabled = false; }
+      }
+    }
 
     function getOrCreateClientId(){
       const key = 'gighive_client_id';
@@ -783,7 +1136,7 @@
       row.addEventListener('click',(e)=>e.stopPropagation());
     });
 
-    document.querySelectorAll('#searchForm thead input').forEach((input)=>{
+    document.querySelectorAll('#searchForm thead .th-search-row input[type="text"]').forEach((input)=>{
       input.addEventListener('click',(e)=>e.stopPropagation());
       input.addEventListener('keydown',(e)=>{
         if(e.key !== 'Enter'){return;}
@@ -793,7 +1146,6 @@
         if(typeof form.requestSubmit === 'function'){
           form.requestSubmit();
         }else{
-          alert('Enter pressed..searching');
           form.submit();
         }
       });
@@ -859,6 +1211,8 @@
 
     document.addEventListener('DOMContentLoaded',()=>{
       enableResizableColumns('searchableTable');
+
+      enableAdminInlineEdit();
 
       const table = document.getElementById('searchableTable');
 
