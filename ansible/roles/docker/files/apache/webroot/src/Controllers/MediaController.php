@@ -407,6 +407,8 @@ final class MediaController
         $viewRows = [];
         foreach ($rows as $row) {
             $id        = isset($row['id']) ? (string)$row['id'] : '';
+            $sessionId = isset($row['session_id']) ? (string)$row['session_id'] : '';
+            $songId    = isset($row['song_id']) ? (string)$row['song_id'] : '';
             $date      = (string)($row['date'] ?? '');
             $orgName   = (string)($row['org_name'] ?? '');
             $rating    = (string)($row['rating'] ?? '');
@@ -431,6 +433,8 @@ final class MediaController
 
             $viewRows[] = [
                 'id'        => $id,
+                'session_id' => $sessionId,
+                'song_id'   => $songId,
                 'idx'       => $counter++,
                 'date'      => $date,
                 'org_name'  => $orgName,

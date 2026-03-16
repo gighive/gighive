@@ -1,6 +1,18 @@
 *** 
 releaseNotes20260315.txt
 Changes: Add become: false to /tmp creation in base/tasks/main.yml
+=======
+Changes: Add ability to edit database.php page so that uploading new session files is easy in combination with Section 5 upload and upload_media_with_hash.py
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260315.log
+
+*** 
+releaseNotes20260315.txt
+Changes: rebuild_mysql flag to false for gighive2, doc for server not honor problem debug
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
+Last run (lab: run from lab): gighive-one-shot-bundle
 
 sodo@pop-os:~/gighive$ git status
 On branch master
