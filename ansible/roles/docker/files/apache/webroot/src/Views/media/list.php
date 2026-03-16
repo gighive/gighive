@@ -335,7 +335,7 @@
     </div>
   <?php endif; ?>
 
-  <form id="searchForm" method="get" action="database.php" onsubmit="alert('Enter pressed..searching');">
+  <form id="searchForm" method="get" action="database.php">
   <div style="margin:0 auto;">
   <table id="searchableTable" class="<?= $isGighive ? 'table-gighive' : 'table-defaultcodebase' ?>" data-sort-order="asc">
     <thead>
@@ -526,7 +526,7 @@
                 ?>
                 <td data-col="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
                   <span class="edit-cell-text"><?= htmlspecialchars($value, ENT_QUOTES) ?></span>
-                  <input class="edit-cell-input" type="text" name="<?= htmlspecialchars($inputName, ENT_QUOTES) ?>" value="<?= htmlspecialchars($value, ENT_QUOTES) ?>" style="display:none;width:100%;box-sizing:border-box;" />
+                  <input class="edit-cell-input" type="text" data-field="<?= htmlspecialchars($inputName, ENT_QUOTES) ?>" value="<?= htmlspecialchars($value, ENT_QUOTES) ?>" style="display:none;width:100%;box-sizing:border-box;" />
                 </td>
               <?php else: ?>
                 <td data-col="<?= htmlspecialchars($key, ENT_QUOTES) ?>"><?= htmlspecialchars($value, ENT_QUOTES) ?></td>
@@ -1136,7 +1136,7 @@
       row.addEventListener('click',(e)=>e.stopPropagation());
     });
 
-    document.querySelectorAll('#searchForm thead input').forEach((input)=>{
+    document.querySelectorAll('#searchForm thead .th-search-row input[type="text"]').forEach((input)=>{
       input.addEventListener('click',(e)=>e.stopPropagation());
       input.addEventListener('keydown',(e)=>{
         if(e.key !== 'Enter'){return;}
@@ -1146,7 +1146,6 @@
         if(typeof form.requestSubmit === 'function'){
           form.requestSubmit();
         }else{
-          alert('Enter pressed..searching');
           form.submit();
         }
       });
