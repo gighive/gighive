@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GigHive Documentation Knowledge Map</title>
+  <style>
+    :root {
+      --bg: #121a33;
+      --panel: #1a2347;
+      --panel-2: #202b57;
+      --line: #3352a3;
+      --text: #eef3ff;
+      --muted: #b8c3ea;
+      --accent: #4ea8ff;
+      --accent-2: #7a7cff;
+      --active: #2dd4bf;
+      --historical: #f59e0b;
+      --proposed: #a78bfa;
+      --superseded: #ef4444;
+      --reference: #4ea8ff;
+      --howto: #10b981;
+      --runbook: #22c55e;
+      --architecture: #8b5cf6;
+      --feature: #f97316;
+      --proposal: #a78bfa;
+      --change: #eab308;
+      --rca: #ef4444;
+      --debug: #06b6d4;
+      --index: #94a3b8;
+      --shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1c2852 0%, var(--bg) 48%);
+      color: var(--text);
+    }
+
+    a {
+      color: var(--accent);
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 240px;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .main-panel,
+    .side-panel {
+      background: rgba(26, 35, 71, 0.92);
+      border: 1px solid rgba(78, 168, 255, 0.22);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .main-panel {
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      min-height: calc(100vh - 28px);
+    }
+
+    .side-panel {
+      padding: 12px;
+      position: sticky;
+      top: 14px;
+      height: calc(100vh - 28px);
+      overflow: auto;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 1.9rem;
+      line-height: 1.15;
+    }
+
+    .title-block p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      max-width: 70ch;
+      line-height: 1.45;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button,
+    .button-link {
+      appearance: none;
+      border: 1px solid rgba(78, 168, 255, 0.28);
+      background: linear-gradient(180deg, rgba(78, 168, 255, 0.18), rgba(78, 168, 255, 0.08));
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.92rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover,
+    .button-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(78, 168, 255, 0.5);
+      background: linear-gradient(180deg, rgba(78, 168, 255, 0.26), rgba(78, 168, 255, 0.11));
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(240px, 320px) 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .search-wrap {
+      position: relative;
+    }
+
+    .search-wrap input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(78, 168, 255, 0.26);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      outline: none;
+    }
+
+    .search-wrap input::placeholder {
+      color: #9fb0df;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .legend-chip.is-active {
+      border-color: rgba(78, 168, 255, 0.72);
+      background: rgba(78, 168, 255, 0.16);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .canvas-shell {
+      position: relative;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px solid rgba(78, 168, 255, 0.16);
+      border-radius: 16px;
+      overflow: hidden;
+      min-height: 820px;
+    }
+
+    .canvas-toolbar {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 2;
+      display: flex;
+      gap: 8px;
+    }
+
+    .canvas-toolbar button {
+      padding: 8px 10px;
+      font-size: 0.82rem;
+    }
+
+    #graph {
+      width: 100%;
+      height: 100%;
+      min-height: 820px;
+      display: block;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    .panel-title {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .meta-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    .meta-card h3 {
+      margin: 0 0 6px;
+      font-size: 0.7rem;
+      color: #d7e2ff;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .route-list,
+    .info-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .route-list li,
+    .info-list li {
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      padding: 5px 7px;
+      border: 1px solid rgba(255,255,255,0.05);
+      line-height: 1.2;
+      font-size: 0.72rem;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 4px;
+    }
+
+    .pill {
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.05);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .pill.is-active {
+      border-color: rgba(78, 168, 255, 0.75);
+      box-shadow: inset 0 0 0 1px rgba(78, 168, 255, 0.32);
+    }
+
+    .pill.active { background: rgba(45, 212, 191, 0.15); color: #99f6e4; }
+    .pill.proposed { background: rgba(167, 139, 250, 0.15); color: #ddd6fe; }
+    .pill.historical { background: rgba(245, 158, 11, 0.15); color: #fde68a; }
+    .pill.superseded { background: rgba(239, 68, 68, 0.15); color: #fecaca; }
+
+    .node-circle {
+      stroke: rgba(255,255,255,0.2);
+      stroke-width: 1.5;
+    }
+
+    .node-label {
+      fill: var(--text);
+      font-size: 13px;
+      dominant-baseline: middle;
+      pointer-events: none;
+    }
+
+    .node-label.clickable,
+    .node-subtext.clickable {
+      pointer-events: auto;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .node-subtext {
+      fill: var(--muted);
+      font-size: 11px;
+      dominant-baseline: middle;
+      pointer-events: none;
+    }
+
+    .edge-line {
+      stroke: rgba(116, 146, 238, 0.65);
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .edge-line.secondary {
+      stroke: rgba(116, 146, 238, 0.26);
+      stroke-dasharray: 6 6;
+    }
+
+    .edge-label {
+      fill: #c6d5ff;
+      font-size: 10px;
+      text-anchor: middle;
+      paint-order: stroke;
+      stroke: rgba(18, 26, 51, 0.92);
+      stroke-width: 4px;
+      stroke-linejoin: round;
+    }
+
+    .node-group { cursor: pointer; }
+    .node-group.document { cursor: pointer; }
+    .node-group.selected .node-circle { stroke: #ffffff; stroke-width: 2.5; }
+
+    .footer-note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      line-height: 1.25;
+    }
+
+    .tiny-grid {
+      display: grid;
+      gap: 4px;
+    }
+
+    .tiny-row {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 6px;
+      align-items: start;
+      font-size: 0.68rem;
+      line-height: 1.15;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .tiny-row:last-child {
+      border-bottom: none;
+    }
+
+    .tiny-key {
+      color: #d7e2ff;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .tiny-value {
+      color: var(--muted);
+      min-width: 0;
+    }
+
+    .graph-surface {
+      cursor: grab;
+    }
+
+    .graph-surface.is-panning {
+      cursor: grabbing;
+    }
+
+    @media (max-width: 1200px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
+
+      .side-panel {
+        position: static;
+        height: auto;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        flex-direction: column;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="main-panel">
+      <div class="topbar">
+        <div class="title-block">
+          <h1>GigHive Documentation Knowledge Map</h1>
+          <p>Click nodes to expand and select. Drag the canvas to pan. Use the wheel or trackpad pinch to zoom. Click taxonomy pills to filter the visible graph.</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="search-wrap">
+          <input id="searchInput" type="text" placeholder="Filter by concern, type, file, audience, lifecycle, aspect">
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="canvas-shell">
+        <div class="canvas-toolbar">
+          <button id="zoomInBtn" type="button">Zoom in</button>
+          <button id="zoomOutBtn" type="button">Zoom out</button>
+          <button id="expandAllBtn" type="button">Expand all</button>
+          <button id="collapseAllBtn" type="button">Collapse to concerns</button>
+          <button id="resetBtn" type="button">Reset view</button>
+        </div>
+        <svg id="graph" viewBox="0 0 1800 1100" preserveAspectRatio="xMinYMin meet"></svg>
+      </div>
+    </section>
+
+    <aside class="side-panel">
+      <h2 class="panel-title">Selection Details</h2>
+      <p class="muted" id="selectionSummary">Select a node in the graph to inspect its route and classifications.</p>
+
+      <div class="meta-grid">
+        <section class="meta-card">
+          <h3>Route</h3>
+          <div class="tiny-grid" id="routeList"></div>
+        </section>
+
+        <section class="meta-card">
+          <h3>Taxonomy</h3>
+          <div class="tiny-grid" id="classificationList"></div>
+        </section>
+
+        <section class="meta-card">
+          <h3>Filters</h3>
+          <div id="nodeActions" class="pill-row"></div>
+        </section>
+      </div>
+
+      <p class="footer-note">Route format: <strong>Corpus -> Concern -> Type -> Document</strong>. The full path exposes the five classification groups: concern, type, lifecycle, audience, and aspect.</p>
+    </aside>
+  </div>
+
+  <script>
+    const data = {
+      id: "corpus",
+      label: "GigHive Docs Corpus",
+      kind: "root",
+      description: "The full documentation corpus organized by concern, type, and document.",
+      children: [
+        {
+          id: "infrastructure",
+          label: "Infrastructure",
+          kind: "concern",
+          children: [
+            { id: "infrastructure-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "ansible-file-interaction", label: "ANSIBLE_FILE_INTERACTION.md", kind: "document", concern: "infrastructure", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./ANSIBLE_FILE_INTERACTION.html" },
+              { id: "docker-compose-behavior", label: "DOCKER_COMPOSE_BEHAVIOR.md", kind: "document", concern: "infrastructure", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./DOCKER_COMPOSE_BEHAVIOR.html" },
+              { id: "mixing-hostvm-docker-versions", label: "MIXING_HOSTVM_DOCKER_VERSIONS.md", kind: "document", concern: "infrastructure", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./MIXING_HOSTVM_DOCKER_VERSIONS.html" },
+              { id: "role-base", label: "role_base.md", kind: "document", concern: "infrastructure", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./role_base.html" }
+            ] },
+            { id: "infrastructure-howto", label: "Howto", kind: "type", type: "howto", children: [
+              { id: "resize-request", label: "resizeRequestInstructions.md", kind: "document", concern: "infrastructure", type: "howto", lifecycle: "active", audience: ["operator"], aspect: "non_functional", href: "./resizeRequestInstructions.html" }
+            ] },
+            { id: "infrastructure-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "docker-image-build-change", label: "DOCKER_IMAGE_BUILD_CHANGE.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./DOCKER_IMAGE_BUILD_CHANGE.html" },
+              { id: "refactored-home", label: "refactored_gighive_home_and_scripts_dir.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_gighive_home_and_scripts_dir.html" }
+            ] },
+            { id: "infrastructure-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "bind-mount-guard", label: "refactor_bind_mount_guard_pattern.md", kind: "document", concern: "infrastructure", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_bind_mount_guard_pattern.html" }
+            ] },
+            { id: "infrastructure-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
+              { id: "feature-set-infrastructure", label: "feature_set.md", kind: "document", concern: "infrastructure", type: "architecture", lifecycle: "active", audience: ["architect", "developer", "operator"], aspect: "non_functional", href: "./feature_set.html" }
+            ] }
+          ]
+        },
+        {
+          id: "deployment",
+          label: "Deployment",
+          kind: "concern",
+          children: [
+            { id: "deployment-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "prereqs", label: "PREREQS.md", kind: "document", concern: "deployment", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./PREREQS.html" },
+              { id: "quickstart-vs-full", label: "process_download_quickstart_versus_full_build.md", kind: "document", concern: "deployment", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./process_download_quickstart_versus_full_build.html" },
+              { id: "lab-staging-config", label: "process_download_directory_for_tgz_lab_staging_configuration.md", kind: "document", concern: "deployment", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./process_download_directory_for_tgz_lab_staging_configuration.html" }
+            ] },
+            { id: "deployment-howto", label: "Howto", kind: "type", type: "howto", children: [
+              { id: "autoinstall", label: "autoinstall.md", kind: "document", concern: "deployment", type: "howto", lifecycle: "active", audience: ["operator"], aspect: "non_functional", href: "./autoinstall.html" },
+              { id: "setup-fullbuild", label: "setup_instructions_fullbuild.md", kind: "document", concern: "deployment", type: "howto", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./setup_instructions_fullbuild.html" },
+              { id: "setup-quickstart", label: "setup_instructions_quickstart.md", kind: "document", concern: "deployment", type: "howto", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./setup_instructions_quickstart.html" }
+            ] },
+            { id: "deployment-runbook", label: "Runbook", kind: "type", type: "runbook", children: [
+              { id: "rebuild-criteria", label: "process_download_quickstart_rebuild_criteria.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_download_quickstart_rebuild_criteria.html" },
+              { id: "one-shot-bundle", label: "process_one_shot_bundle_original_creation.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_original_creation.html" }
+            ] },
+            { id: "deployment-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "bootstrap-phase1", label: "BOOTSTRAP_PHASE1.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["operator", "architect", "developer"], aspect: "non_functional", href: "./BOOTSTRAP_PHASE1.html" },
+              { id: "migrate-bootstrap", label: "migrate-bootstrap-to-ansible.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["operator", "architect", "developer"], aspect: "non_functional", href: "./migrate-bootstrap-to-ansible.html" },
+              { id: "quickstart-m2", label: "process_quickstart_milestone2.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer", "operator"], aspect: "non_functional", href: "./process_quickstart_milestone2.html" }
+            ] },
+            { id: "deployment-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
+              { id: "tgz-design", label: "process_download_directory_for_tgz_design.md", kind: "document", concern: "deployment", type: "architecture", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "non_functional", href: "./process_download_directory_for_tgz_design.html" }
+            ] },
+            { id: "deployment-rca", label: "RCA", kind: "type", type: "rca", children: [
+              { id: "dot254", label: "problem_donot_use_dot254_address.md", kind: "document", concern: "deployment", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_donot_use_dot254_address.html" }
+            ] }
+          ]
+        },
+        {
+          id: "database",
+          label: "Database",
+          kind: "concern",
+          children: [
+            { id: "database-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "db-load-methods", label: "DATABASE_LOAD_METHODS.md", kind: "document", concern: "database", type: "reference", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./DATABASE_LOAD_METHODS.html" },
+              { id: "db-import-process", label: "database-import-process.md", kind: "document", concern: "database", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "mixed", href: "./database-import-process.html" },
+              { id: "mysql-init-load", label: "load_and_transform_mysql_initialization.md", kind: "document", concern: "database", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./load_and_transform_mysql_initialization.html" }
+            ] },
+            { id: "database-howto", label: "Howto", kind: "type", type: "howto", children: [
+              { id: "db-file-record-deletion", label: "database_file_record_deletion.md", kind: "document", concern: "database", type: "howto", lifecycle: "active", audience: ["admin", "developer"], aspect: "mixed", href: "./database_file_record_deletion.html" },
+              { id: "calc-duration-hash", label: "calculate_durationseconds_hash.md", kind: "document", concern: "database", type: "howto", lifecycle: "active", audience: ["developer", "operator"], aspect: "mixed", href: "./calculate_durationseconds_hash.html" }
+            ] },
+            { id: "database-runbook", label: "Runbook", kind: "type", type: "runbook", children: [
+              { id: "process-mysql-init", label: "process_mysql_init.md", kind: "document", concern: "database", type: "runbook", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./process_mysql_init.html" },
+              { id: "convert-legacy-db", label: "convert_legacy_database.md", kind: "document", concern: "database", type: "runbook", lifecycle: "active", audience: ["developer", "operator"], aspect: "mixed", href: "./convert_legacy_database.html" }
+            ] },
+            { id: "database-feature", label: "Feature", kind: "type", type: "feature", children: [
+              { id: "add-to-database", label: "addToDatabaseFeature.md", kind: "document", concern: "database", type: "feature", lifecycle: "proposed", audience: ["admin", "developer", "architect"], aspect: "functional", href: "./addToDatabaseFeature.html" },
+              { id: "admin-import-45", label: "admin_data_import_45.md", kind: "document", concern: "database", type: "feature", lifecycle: "active", audience: ["admin", "developer"], aspect: "functional", href: "./admin_data_import_45.html" }
+            ] },
+            { id: "database-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "db-simplification", label: "DATABASE_LOAD_METHODS_SIMPLIFICATION.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./DATABASE_LOAD_METHODS_SIMPLIFICATION.html" },
+              { id: "librarian-event", label: "pr_librarianAsset_musicianEvent.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./pr_librarianAsset_musicianEvent.html" }
+            ] },
+            { id: "database-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "add-media-info-columns", label: "ADD_MEDIA_INFO_COLUMNS.md", kind: "document", concern: "database", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./ADD_MEDIA_INFO_COLUMNS.html" },
+              { id: "librarian-event-impl", label: "pr_librarianAsset_musicianEvent_implementation.md", kind: "document", concern: "database", type: "change", lifecycle: "historical", audience: ["developer", "architect"], aspect: "mixed", href: "./pr_librarianAsset_musicianEvent_implementation.html" }
+            ] },
+            { id: "database-debug", label: "Debug", kind: "type", type: "debug", children: [
+              { id: "db-health-testing", label: "database-health-check-testing.md", kind: "document", concern: "database", type: "debug", lifecycle: "active", audience: ["qa", "developer", "operator"], aspect: "non_functional", href: "./database-health-check-testing.html" }
+            ] }
+          ]
+        },
+        {
+          id: "upload",
+          label: "Upload",
+          kind: "concern",
+          children: [
+            { id: "upload-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "upload-options", label: "UPLOAD_OPTIONS.md", kind: "document", concern: "upload", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "mixed", href: "./UPLOAD_OPTIONS.html" },
+              { id: "what-is-tus", label: "WHAT_IS_TUS.md", kind: "document", concern: "upload", type: "reference", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./WHAT_IS_TUS.html" },
+              { id: "chunked-file-config", label: "chunkedfileconfiguration.md", kind: "document", concern: "upload", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./chunkedfileconfiguration.html" }
+            ] },
+            { id: "upload-howto", label: "Howto", kind: "type", type: "howto", children: [
+              { id: "upload-by-hash", label: "uploadMediaByHash.md", kind: "document", concern: "upload", type: "howto", lifecycle: "active", audience: ["operator", "admin", "developer"], aspect: "mixed", href: "./uploadMediaByHash.html" }
+            ] },
+            { id: "upload-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
+              { id: "core-upload-implementation", label: "CORE_UPLOAD_IMPLEMENTATION.md", kind: "document", concern: "upload", type: "architecture", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./CORE_UPLOAD_IMPLEMENTATION.html" }
+            ] },
+            { id: "upload-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "tus-guide", label: "tus_implementation_guide.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "operator"], aspect: "mixed", href: "./tus_implementation_guide.html" },
+              { id: "tus-iphone", label: "tus_implementation_iphone.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./tus_implementation_iphone.html" },
+              { id: "upload-tests-refactor", label: "refactor_upload_tests.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "qa"], aspect: "mixed", href: "./refactor_upload_tests.html" }
+            ] },
+            { id: "upload-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "upload-php-path-change", label: "change20250314_upload_media_jibe_php_path.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./change20250314_upload_media_jibe_php_path.html" },
+              { id: "uploader-changes-20250926", label: "codingChanges/20250926uploaderchanges.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./codingChanges/20250926uploaderchanges.html" }
+            ] },
+            { id: "upload-debug", label: "Debug", kind: "type", type: "debug", children: [
+              { id: "tus-checks", label: "tus_checks_no_log.md", kind: "document", concern: "upload", type: "debug", lifecycle: "active", audience: ["developer", "qa"], aspect: "non_functional", href: "./tus_checks_no_log.html" }
+            ] }
+          ]
+        },
+        {
+          id: "media",
+          label: "Media",
+          kind: "concern",
+          children: [
+            { id: "media-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "media-formats", label: "mediaFormatsSupported.md", kind: "document", concern: "media", type: "reference", lifecycle: "active", audience: ["developer", "admin"], aspect: "mixed", href: "./mediaFormatsSupported.html" },
+              { id: "media-path-vars", label: "media_file_location_variables.md", kind: "document", concern: "media", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./media_file_location_variables.html" },
+              { id: "audio-video-logic", label: "audioVideoFullReducedLogic.md", kind: "document", concern: "media", type: "reference", lifecycle: "active", audience: ["developer"], aspect: "mixed", href: "./audioVideoFullReducedLogic.html" },
+              { id: "thumbnail-calc", label: "how_are_thumbnails_calculated.md", kind: "document", concern: "media", type: "reference", lifecycle: "active", audience: ["developer"], aspect: "mixed", href: "./how_are_thumbnails_calculated.html" }
+            ] },
+            { id: "media-howto", label: "Howto", kind: "type", type: "howto", children: [
+              { id: "admin-clear-media", label: "ADMIN_CLEAR_MEDIA.md", kind: "document", concern: "media", type: "howto", lifecycle: "active", audience: ["admin", "operator", "developer"], aspect: "mixed", href: "./ADMIN_CLEAR_MEDIA.html" }
+            ] },
+            { id: "media-runbook", label: "Runbook", kind: "type", type: "runbook", children: [
+              { id: "replace-existing-media", label: "process_replace_existing_media.md", kind: "document", concern: "media", type: "runbook", lifecycle: "active", audience: ["operator", "admin", "developer"], aspect: "mixed", href: "./process_replace_existing_media.html" }
+            ] },
+            { id: "media-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
+              { id: "picker-transcoding", label: "PICKER_TRANSCODING_METHOD.md", kind: "document", concern: "media", type: "architecture", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./PICKER_TRANSCODING_METHOD.html" },
+              { id: "streaming-work-impl-media", label: "howdoesstreamingwork_implementation.md", kind: "document", concern: "media", type: "architecture", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./howdoesstreamingwork_implementation.html" }
+            ] },
+            { id: "media-feature", label: "Feature", kind: "type", type: "feature", children: [
+              { id: "iphone-video-zoom", label: "feature_iphone_video_zoom.md", kind: "document", concern: "media", type: "feature", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./feature_iphone_video_zoom.html" }
+            ] },
+            { id: "media-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "rearch-prepare-video-cancel", label: "rearch_prepare_video_cancel.md", kind: "document", concern: "media", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./rearch_prepare_video_cancel.html" },
+              { id: "delete-for-uploader", label: "pr_delete_for_uploader.md", kind: "document", concern: "media", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./pr_delete_for_uploader.html" }
+            ] },
+            { id: "media-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "standalone-media-player", label: "pr_standalone_media_player.md", kind: "document", concern: "media", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./pr_standalone_media_player.html" },
+              { id: "delete-upload-iphone", label: "pr_delete_upload_iphone.md", kind: "document", concern: "media", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./pr_delete_upload_iphone.html" }
+            ] }
+          ]
+        },
+        {
+          id: "streaming",
+          label: "Streaming",
+          kind: "concern",
+          children: [
+            { id: "streaming-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "content-range-cf", label: "CONTENT_RANGE_CLOUDFLARE.md", kind: "document", concern: "streaming", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./CONTENT_RANGE_CLOUDFLARE.html" }
+            ] },
+            { id: "streaming-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
+              { id: "streaming-work-impl", label: "howdoesstreamingwork_implementation.md", kind: "document", concern: "streaming", type: "architecture", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./howdoesstreamingwork_implementation.html" }
+            ] },
+            { id: "streaming-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "range-request-fix", label: "RANGE_REQUEST_FIX.md", kind: "document", concern: "streaming", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "non_functional", href: "./RANGE_REQUEST_FIX.html" }
+            ] },
+            { id: "streaming-rca", label: "RCA", kind: "type", type: "rca", children: [
+              { id: "range-request-rca", label: "problem_server_did_not_honor_range_request.md", kind: "document", concern: "streaming", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_server_did_not_honor_range_request.html" }
+            ] }
+          ]
+        },
+        {
+          id: "security",
+          label: "Security",
+          kind: "concern",
+          children: [
+            { id: "security-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "security-overview", label: "SECURITY.md", kind: "document", concern: "security", type: "reference", lifecycle: "active", audience: ["developer", "operator", "admin"], aspect: "non_functional", href: "./SECURITY.html" },
+              { id: "apache-directives", label: "APACHE_DIRECTIVE_MATCHING_ORDER.md", kind: "document", concern: "security", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./APACHE_DIRECTIVE_MATCHING_ORDER.html" },
+              { id: "cert-naming", label: "cert_naming_consistency.md", kind: "document", concern: "security", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./cert_naming_consistency.html" }
+            ] },
+            { id: "security-howto", label: "Howto", kind: "type", type: "howto", children: [
+              { id: "cert-guidance", label: "cert_internal_no_warnings_guidance.md", kind: "document", concern: "security", type: "howto", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./cert_internal_no_warnings_guidance.html" }
+            ] },
+            { id: "security-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "security-upgrade", label: "security-upgrade.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator", "architect"], aspect: "non_functional", href: "./security-upgrade.html" },
+              { id: "hardening-sections45", label: "refactor_hardening_sections45.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "non_functional", href: "./refactor_hardening_sections45.html" }
+            ] },
+            { id: "security-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "security-remediations", label: "security_remediations_20260218.md", kind: "document", concern: "security", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./security_remediations_20260218.html" },
+              { id: "security-auth-changes", label: "codingChanges/20250926securityauthchanges.md", kind: "document", concern: "security", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "non_functional", href: "./codingChanges/20250926securityauthchanges.html" }
+            ] },
+            { id: "security-rca", label: "RCA", kind: "type", type: "rca", children: [
+              { id: "cached-errors", label: "problem_cached_error_messages.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cached_error_messages.html" },
+              { id: "cert-trust", label: "problem_cert_does_not_trust_gighive_internal.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cert_does_not_trust_gighive_internal.html" },
+              { id: "hsts-collision", label: "problem_hsts_collision.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_hsts_collision.html" }
+            ] }
+          ]
+        },
+        {
+          id: "authentication",
+          label: "Authentication",
+          kind: "concern",
+          children: [
+            { id: "authentication-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "security-realms", label: "security_apache_realms.md", kind: "document", concern: "authentication", type: "reference", lifecycle: "active", audience: ["developer", "operator", "admin"], aspect: "non_functional", href: "./security_apache_realms.html" }
+            ] },
+            { id: "authentication-howto", label: "Howto", kind: "type", type: "howto", children: [
+              { id: "user-provisioning", label: "user_provisioning.md", kind: "document", concern: "authentication", type: "howto", lifecycle: "active", audience: ["admin", "operator"], aspect: "non_functional", href: "./user_provisioning.html" }
+            ] },
+            { id: "authentication-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "jwt-migration", label: "JWT_AUTH_MIGRATION_MAPPING.md", kind: "document", concern: "authentication", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./JWT_AUTH_MIGRATION_MAPPING.html" }
+            ] },
+            { id: "authentication-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "htpasswd-changes", label: "HTPASSWD_CHANGES.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./HTPASSWD_CHANGES.html" },
+              { id: "passwords-page-change", label: "codingChanges/featureChangedPasswordsPage.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./codingChanges/featureChangedPasswordsPage.html" }
+            ] }
+          ]
+        },
+        {
+          id: "api",
+          label: "API",
+          kind: "concern",
+          children: [
+            { id: "api-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "api-current", label: "API_CURRENT_STATE.md", kind: "document", concern: "api", type: "reference", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./API_CURRENT_STATE.html" },
+              { id: "internal-endpoints", label: "internalEndpoints.md", kind: "document", concern: "api", type: "reference", lifecycle: "active", audience: ["developer"], aspect: "mixed", href: "./internalEndpoints.html" }
+            ] },
+            { id: "api-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
+              { id: "four-page-rearch", label: "FOUR_PAGE_REARCHITECTURE.md", kind: "document", concern: "api", type: "architecture", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./FOUR_PAGE_REARCHITECTURE.html" }
+            ] },
+            { id: "api-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "api-cleanup", label: "POTENTIAL_API_CLEANUP_IF_DESIRED.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./POTENTIAL_API_CLEANUP_IF_DESIRED.html" },
+              { id: "ai-platform", label: "ai_intelligence_platform.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./ai_intelligence_platform.html" }
+            ] }
+          ]
+        },
+        {
+          id: "operability",
+          label: "Operability",
+          kind: "concern",
+          children: [
+            { id: "operability-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "docs-readme", label: "README.md", kind: "document", concern: "operability", type: "index", lifecycle: "active", audience: ["developer", "operator"], aspect: "mixed", href: "./README.html" },
+              { id: "docs-index", label: "index.md", kind: "document", concern: "operability", type: "index", lifecycle: "active", audience: ["developer", "operator", "admin"], aspect: "mixed", href: "./index.html" },
+              { id: "terms", label: "APP_TERMS_OF_SERVICE.md", kind: "document", concern: "operability", type: "reference", lifecycle: "active", audience: ["admin", "maintainer"], aspect: "non_functional", href: "./APP_TERMS_OF_SERVICE.html" },
+              { id: "content-policy", label: "gighive_content_policy.md", kind: "document", concern: "operability", type: "reference", lifecycle: "active", audience: ["admin", "maintainer"], aspect: "non_functional", href: "./gighive_content_policy.html" }
+            ] },
+            { id: "operability-runbook", label: "Runbook", kind: "type", type: "runbook", children: [
+              { id: "one-shot-bundle-backups", label: "process_one_shot_bundle_original_creation_plus_backups.md", kind: "document", concern: "operability", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_original_creation_plus_backups.html" },
+              { id: "mysql-backups", label: "mysql_backups_procedure.md", kind: "document", concern: "operability", type: "runbook", lifecycle: "active", audience: ["operator"], aspect: "non_functional", href: "./mysql_backups_procedure.html" }
+            ] },
+            { id: "operability-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "license-strategy", label: "feature_future_strategy_licensing_communitypro_monetization.md", kind: "document", concern: "operability", type: "proposal", lifecycle: "proposed", audience: ["architect", "maintainer", "admin"], aspect: "non_functional", href: "./feature_future_strategy_licensing_communitypro_monetization.html" }
+            ] },
+            { id: "operability-rca", label: "RCA", kind: "type", type: "rca", children: [
+              { id: "dot254-operability", label: "problem_donot_use_dot254_address.md", kind: "document", concern: "operability", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_donot_use_dot254_address.html" }
+            ] }
+          ]
+        },
+        {
+          id: "observability",
+          label: "Observability",
+          kind: "concern",
+          children: [
+            { id: "observability-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "telemetry", label: "TELEMETRY.md", kind: "document", concern: "observability", type: "reference", lifecycle: "active", audience: ["developer", "operator", "architect"], aspect: "non_functional", href: "./TELEMETRY.html" },
+              { id: "ga-tracking", label: "media_google_analytics_tracking.md", kind: "document", concern: "observability", type: "reference", lifecycle: "active", audience: ["developer", "admin"], aspect: "non_functional", href: "./media_google_analytics_tracking.html" }
+            ] },
+            { id: "observability-debug", label: "Debug", kind: "type", type: "debug", children: [
+              { id: "video-perf-debug", label: "VIDEO_PERFORMANCE_DEBUG.md", kind: "document", concern: "observability", type: "debug", lifecycle: "active", audience: ["developer", "qa"], aspect: "non_functional", href: "./VIDEO_PERFORMANCE_DEBUG.html" },
+              { id: "db-health-obs", label: "database-health-check-testing.md", kind: "document", concern: "observability", type: "debug", lifecycle: "active", audience: ["qa", "developer", "operator"], aspect: "non_functional", href: "./database-health-check-testing.html" }
+            ] },
+            { id: "observability-feature", label: "Feature", kind: "type", type: "feature", children: [
+              { id: "ga-feature-mod", label: "media_google_analytics_feature_mod.md", kind: "document", concern: "observability", type: "feature", lifecycle: "proposed", audience: ["developer", "admin"], aspect: "mixed", href: "./media_google_analytics_feature_mod.html" }
+            ] }
+          ]
+        },
+        {
+          id: "performance",
+          label: "Performance",
+          kind: "concern",
+          children: [
+            { id: "performance-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "thumbnail-perf", label: "how_are_thumbnails_calculated.md", kind: "document", concern: "performance", type: "reference", lifecycle: "active", audience: ["developer"], aspect: "mixed", href: "./how_are_thumbnails_calculated.html" }
+            ] },
+            { id: "performance-debug", label: "Debug", kind: "type", type: "debug", children: [
+              { id: "video-perf-debug-perf", label: "VIDEO_PERFORMANCE_DEBUG.md", kind: "document", concern: "performance", type: "debug", lifecycle: "active", audience: ["developer", "qa"], aspect: "non_functional", href: "./VIDEO_PERFORMANCE_DEBUG.html" }
+            ] },
+            { id: "performance-rca", label: "RCA", kind: "type", type: "rca", children: [
+              { id: "range-request-rca-perf", label: "problem_server_did_not_honor_range_request.md", kind: "document", concern: "performance", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_server_did_not_honor_range_request.html" },
+              { id: "virtio-fix", label: "problem_virtio_ethtool_fix_2026019.md", kind: "document", concern: "performance", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_virtio_ethtool_fix_2026019.html" }
+            ] },
+            { id: "performance-feature", label: "Feature", kind: "type", type: "feature", children: [
+              { id: "iphone-zoom-performance", label: "feature_iphone_video_zoom.md", kind: "document", concern: "performance", type: "feature", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./feature_iphone_video_zoom.html" }
+            ] }
+          ]
+        },
+        {
+          id: "configuration",
+          label: "Configuration",
+          kind: "concern",
+          children: [
+            { id: "configuration-reference", label: "Reference", kind: "type", type: "reference", children: [
+              { id: "common", label: "COMMON.md", kind: "document", concern: "configuration", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./COMMON.html" },
+              { id: "flavor-contract", label: "FLAVOR_CONTRACT.md", kind: "document", concern: "configuration", type: "reference", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./FLAVOR_CONTRACT.html" },
+              { id: "mime-types", label: "mime-types.md", kind: "document", concern: "configuration", type: "reference", lifecycle: "active", audience: ["developer"], aspect: "non_functional", href: "./mime-types.html" }
+            ] },
+            { id: "configuration-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "uploader-conf-detail", label: "codingChanges/20250926uploaderConfDetail.md", kind: "document", concern: "configuration", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./codingChanges/20250926uploaderConfDetail.html" }
+            ] },
+            { id: "configuration-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "refactor-email-address", label: "refactor_email_address.md", kind: "document", concern: "configuration", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactor_email_address.html" },
+              { id: "quickstart-template-refactor", label: "refactor_quickstart_specific_template.md", kind: "document", concern: "configuration", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_quickstart_specific_template.html" }
+            ] }
+          ]
+        }
+      ]
+    };
+
+    const relationPairs = [
+      ["infrastructure", "deployment"],
+      ["deployment", "operability"],
+      ["deployment", "configuration"],
+      ["database", "media"],
+      ["upload", "media"],
+      ["upload", "api"],
+      ["upload", "observability"],
+      ["streaming", "media"],
+      ["streaming", "performance"],
+      ["security", "authentication"],
+      ["security", "deployment"],
+      ["api", "database"],
+      ["observability", "performance"]
+    ];
+
+    const graph = document.getElementById("graph");
+    const routeList = document.getElementById("routeList");
+    const classificationList = document.getElementById("classificationList");
+    const nodeActions = document.getElementById("nodeActions");
+    const selectionSummary = document.getElementById("selectionSummary");
+    const searchInput = document.getElementById("searchInput");
+    const zoomInBtn = document.getElementById("zoomInBtn");
+    const zoomOutBtn = document.getElementById("zoomOutBtn");
+    const expandAllBtn = document.getElementById("expandAllBtn");
+    const collapseAllBtn = document.getElementById("collapseAllBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const legend = document.getElementById("legend");
+    const STORAGE_KEY = "gighiveKnowledgeMapState";
+
+    const state = {
+      expanded: new Set(["corpus"]),
+      selectedId: "corpus",
+      filter: "",
+      taxonomyFilters: {
+        concern: new Set(),
+        type: new Set(),
+        lifecycle: new Set(),
+        audience: new Set(),
+        aspect: new Set()
+      },
+      viewport: {
+        scale: 1,
+        x: 30,
+        y: 40,
+        isPanning: false,
+        didPan: false,
+        panStartX: 0,
+        panStartY: 0,
+        originX: 0,
+        originY: 0
+      }
+    };
+
+    const typeColorMap = {
+      reference: getCssVar("--reference"),
+      howto: getCssVar("--howto"),
+      runbook: getCssVar("--runbook"),
+      architecture: getCssVar("--architecture"),
+      feature: getCssVar("--feature"),
+      proposal: getCssVar("--proposal"),
+      change: getCssVar("--change"),
+      rca: getCssVar("--rca"),
+      debug: getCssVar("--debug"),
+      index: getCssVar("--index")
+    };
+
+    bootstrap();
+
+    function bootstrap() {
+      buildParentLinks(data, null);
+      restoreState();
+      expandInitialConcerns();
+      renderLegend();
+      attachEvents();
+      initializePanZoom();
+      render();
+    }
+
+    function getCssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function buildParentLinks(node, parent) {
+      node.parent = parent;
+      if (!node.children) {
+        return;
+      }
+      node.children.forEach(child => buildParentLinks(child, node));
+    }
+
+    function expandInitialConcerns() {
+      if (state.expanded.size > 1) {
+        return;
+      }
+      data.children.forEach(concern => {
+        state.expanded.add(concern.id);
+      });
+    }
+
+    function attachEvents() {
+      searchInput.addEventListener("input", event => {
+        state.filter = event.target.value.trim().toLowerCase();
+        render();
+      });
+
+      zoomInBtn.addEventListener("click", () => zoomGraph(1.15));
+      zoomOutBtn.addEventListener("click", () => zoomGraph(1 / 1.15));
+
+      expandAllBtn.addEventListener("click", () => {
+        traverse(data, node => {
+          if (node.children?.length) {
+            state.expanded.add(node.id);
+          }
+        });
+        render();
+      });
+
+      collapseAllBtn.addEventListener("click", () => {
+        state.expanded.clear();
+        state.expanded.add("corpus");
+        expandInitialConcerns();
+        render();
+      });
+
+      resetBtn.addEventListener("click", () => {
+        state.filter = "";
+        searchInput.value = "";
+        state.selectedId = "corpus";
+        clearTaxonomyFilters();
+        state.expanded.clear();
+        state.expanded.add("corpus");
+        expandInitialConcerns();
+        state.viewport.scale = 1;
+        state.viewport.x = 30;
+        state.viewport.y = 40;
+        render();
+      });
+    }
+
+    function renderLegend() {
+      const items = [
+        ["Concern / Root", getCssVar("--accent-2")],
+        ["Reference", typeColorMap.reference],
+        ["Howto", typeColorMap.howto],
+        ["Runbook", typeColorMap.runbook],
+        ["Architecture", typeColorMap.architecture],
+        ["Feature", typeColorMap.feature],
+        ["Proposal", typeColorMap.proposal],
+        ["Change", typeColorMap.change],
+        ["RCA", typeColorMap.rca],
+        ["Debug", typeColorMap.debug]
+      ];
+
+      legend.innerHTML = items.map(([label, color]) => `
+        <button class="legend-chip ${isLegendActive(label) ? "is-active" : ""}" type="button" data-legend="${label}">
+          <span class="legend-dot" style="background:${color}"></span>${label}
+        </button>
+      `).join("");
+
+      Array.from(legend.querySelectorAll("[data-legend]")).forEach(button => {
+        button.addEventListener("click", () => toggleLegendFilter(button.dataset.legend));
+      });
+    }
+
+    function traverse(node, visitor) {
+      visitor(node);
+      (node.children || []).forEach(child => traverse(child, visitor));
+    }
+
+    function matchesFilter(node) {
+      const haystack = [
+        node.label,
+        node.kind,
+        node.concern,
+        node.type,
+        node.lifecycle,
+        node.aspect,
+        ...(node.audience || [])
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      if (state.filter && !haystack.includes(state.filter)) {
+        return (node.children || []).some(matchesFilter);
+      }
+
+      if (node.kind === "document") {
+        return matchesTaxonomyFilters(node);
+      }
+
+      const childMatch = (node.children || []).some(matchesFilter);
+      if (childMatch) {
+        return true;
+      }
+
+      if (!hasActiveTaxonomyFilters()) {
+        return true;
+      }
+
+      return matchesTaxonomyFilters(node);
+    }
+
+    function getVisibleTree(node, depth = 0) {
+      if (!matchesFilter(node)) {
+        return null;
+      }
+
+      const clone = { ...node, depth, children: [] };
+      const expanded = state.expanded.has(node.id) || Boolean(state.filter);
+
+      if (node.children?.length && expanded) {
+        node.children.forEach(child => {
+          const visibleChild = getVisibleTree(child, depth + 1);
+          if (visibleChild) {
+            clone.children.push(visibleChild);
+          }
+        });
+      }
+
+      return clone;
+    }
+
+    function gatherNodesByDepth(root) {
+      const levels = [];
+      traverse(root, node => {
+        if (!levels[node.depth]) {
+          levels[node.depth] = [];
+        }
+        levels[node.depth].push(node);
+      });
+      return levels;
+    }
+
+    function assignLayout(root) {
+      const levels = gatherNodesByDepth(root);
+      const width = 1800;
+      const levelX = [120, 430, 840, 1360];
+      levels.forEach((nodes, depth) => {
+        const gap = Math.max(72, Math.floor(980 / Math.max(nodes.length, 1)));
+        const totalHeight = (nodes.length - 1) * gap;
+        const startY = 550 - totalHeight / 2;
+        nodes.forEach((node, index) => {
+          node.x = levelX[Math.min(depth, levelX.length - 1)];
+          node.y = startY + index * gap;
+        });
+      });
+
+      root.x = 120;
+      root.y = 550;
+      return width;
+    }
+
+    function flatten(root) {
+      const nodes = [];
+      const edges = [];
+      traverse(root, node => {
+        nodes.push(node);
+        (node.children || []).forEach(child => {
+          edges.push({ from: node, to: child });
+        });
+      });
+      return { nodes, edges };
+    }
+
+    function render() {
+      const visibleTree = getVisibleTree(data);
+      assignLayout(visibleTree);
+      const { nodes, edges } = flatten(visibleTree);
+      drawGraph(nodes, edges);
+      updateDetails(findNodeById(data, state.selectedId) || data);
+      persistState();
+    }
+
+    function drawGraph(nodes, edges) {
+      const relationEdges = relationPairs
+        .map(([fromId, toId]) => ({ from: nodes.find(node => node.id === fromId), to: nodes.find(node => node.id === toId) }))
+        .filter(edge => edge.from && edge.to);
+
+      graph.innerHTML = `
+        <g id="surface" class="graph-surface" transform="translate(${state.viewport.x}, ${state.viewport.y}) scale(${state.viewport.scale})">
+          <g id="relationLayer"></g>
+          <g id="edgeLayer"></g>
+          <g id="edgeLabelLayer"></g>
+          <g id="nodeLayer"></g>
+        </g>
+      `;
+
+      const surface = graph.querySelector("#surface");
+      const relationLayer = surface.querySelector("#relationLayer");
+      const edgeLayer = surface.querySelector("#edgeLayer");
+      const edgeLabelLayer = surface.querySelector("#edgeLabelLayer");
+      const nodeLayer = surface.querySelector("#nodeLayer");
+
+      if (state.viewport.isPanning) {
+        surface.classList.add("is-panning");
+      }
+
+      relationEdges.forEach(edge => {
+        relationLayer.appendChild(svgEl("path", {
+          d: curvedPath(edge.from.x, edge.from.y, edge.to.x, edge.to.y),
+          class: "edge-line secondary"
+        }));
+      });
+
+      edges.forEach(edge => {
+        edgeLayer.appendChild(svgEl("path", {
+          d: elbowPath(edge.from.x, edge.from.y, edge.to.x, edge.to.y),
+          class: "edge-line"
+        }));
+
+        if (edge.to.kind === "document") {
+          const midX = (edge.from.x + edge.to.x) / 2 + 10;
+          const midY = (edge.from.y + edge.to.y) / 2 - 10;
+          const label = `${edge.to.lifecycle} | ${edge.to.aspect}`;
+          const text = svgEl("text", { x: midX, y: midY, class: "edge-label" });
+          text.textContent = label;
+          edgeLabelLayer.appendChild(text);
+        }
+      });
+
+      nodes.forEach(node => {
+        nodeLayer.appendChild(renderNode(node));
+      });
+    }
+
+    function renderNode(node) {
+      const g = svgEl("g", {
+        class: `node-group ${node.kind === "document" ? "document" : ""} ${state.selectedId === node.id ? "selected" : ""}`,
+        transform: `translate(${node.x}, ${node.y})`
+      });
+
+      const color = getNodeColor(node);
+      const radius = node.kind === "root" ? 26 : node.kind === "concern" ? 20 : node.kind === "type" ? 16 : 13;
+      const strokeColor = state.selectedId === node.id ? "#ffffff" : color;
+
+      g.appendChild(svgEl("circle", {
+        r: radius,
+        cx: 0,
+        cy: 0,
+        class: "node-circle",
+        fill: color,
+        stroke: strokeColor
+      }));
+
+      if (node.children?.length) {
+        const isOpen = state.expanded.has(node.id) || Boolean(state.filter);
+        const toggleText = svgEl("text", {
+          x: 0,
+          y: 1,
+          fill: "#081120",
+          "font-size": 14,
+          "font-weight": 700,
+          "text-anchor": "middle"
+        });
+        toggleText.textContent = isOpen ? "−" : "+";
+        g.appendChild(toggleText);
+      }
+
+      const labelX = node.kind === "document" ? 24 : 30;
+      const label = svgEl("text", {
+        x: labelX,
+        y: -5,
+        class: `node-label ${node.kind === "document" ? "clickable" : ""}`
+      });
+      label.textContent = node.label;
+      g.appendChild(label);
+
+      const sub = svgEl("text", {
+        x: labelX,
+        y: 13,
+        class: `node-subtext ${node.kind === "document" ? "clickable" : ""}`
+      });
+      sub.textContent = getNodeSubtext(node);
+      g.appendChild(sub);
+
+      const activateNode = event => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        state.selectedId = node.id;
+        if (node.children?.length) {
+          toggleExpanded(node.id);
+        }
+        render();
+      };
+
+      g.addEventListener("pointerup", event => {
+        if (state.viewport.didPan) {
+          return;
+        }
+        activateNode(event);
+      });
+
+      if (node.kind === "document") {
+        const openDocument = event => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (node.href) {
+            persistState();
+            window.location.href = node.href;
+          }
+        };
+
+        label.addEventListener("click", openDocument);
+        sub.addEventListener("click", openDocument);
+
+        g.addEventListener("dblclick", event => {
+          event.stopPropagation();
+          if (node.href) {
+            persistState();
+            window.location.href = node.href;
+          }
+        });
+      }
+
+      return g;
+    }
+
+    function getNodeColor(node) {
+      if (node.kind === "root") {
+        return getCssVar("--accent");
+      }
+      if (node.kind === "concern") {
+        return getCssVar("--accent-2");
+      }
+      if (node.kind === "type") {
+        return typeColorMap[node.type] || getCssVar("--index");
+      }
+      if (node.kind === "document") {
+        return typeColorMap[node.type] || getCssVar("--index");
+      }
+      return getCssVar("--index");
+    }
+
+    function getNodeSubtext(node) {
+      if (node.kind === "root") {
+        return "Expand a concern to explore";
+      }
+      if (node.kind === "concern") {
+        return "Knowledge area";
+      }
+      if (node.kind === "type") {
+        return `${node.children?.length || 0} node${node.children?.length === 1 ? "" : "s"}`;
+      }
+      if (node.kind === "document") {
+        return `${node.lifecycle} • ${node.aspect}`;
+      }
+      return "";
+    }
+
+    function elbowPath(x1, y1, x2, y2) {
+      const midX = x1 + (x2 - x1) * 0.45;
+      return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+    }
+
+    function curvedPath(x1, y1, x2, y2) {
+      const midX = (x1 + x2) / 2;
+      return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+    }
+
+    function svgEl(name, attrs = {}) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+      return el;
+    }
+
+    function findNodeById(node, id) {
+      if (node.id === id) {
+        return node;
+      }
+      for (const child of node.children || []) {
+        const found = findNodeById(child, id);
+        if (found) {
+          return found;
+        }
+      }
+      return null;
+    }
+
+    function getRoute(node) {
+      const route = [];
+      let current = node;
+      while (current) {
+        route.unshift(current);
+        current = current.parent;
+      }
+      return route;
+    }
+
+    function updateDetails(node) {
+      const route = getRoute(node);
+      selectionSummary.textContent = node.kind === "document"
+        ? `Selected document: ${node.label}`
+        : `Selected ${node.kind}: ${node.label}`;
+
+      routeList.innerHTML = route.map(part => `
+        <div class="tiny-row">
+          <div class="tiny-key">${escapeHtml(part.kind)}</div>
+          <div class="tiny-value">${escapeHtml(part.label)}</div>
+        </div>
+      `).join("");
+
+      if (node.kind === "document") {
+        classificationList.innerHTML = `
+          ${renderTaxonomyRow("concern", [node.concern])}
+          ${renderTaxonomyRow("type", [node.type])}
+          ${renderTaxonomyRow("lifecycle", [node.lifecycle])}
+          ${renderTaxonomyRow("audience", node.audience || [])}
+          ${renderTaxonomyRow("aspect", [node.aspect])}
+        `;
+        nodeActions.innerHTML = `
+          <a class="button-link" href="${node.href}">Open document</a>
+          <button type="button" data-action="clear-filters">Clear filters</button>
+        `;
+      } else if (node.kind === "type") {
+        classificationList.innerHTML = `
+          <div class="tiny-row"><div class="tiny-key">kind</div><div class="tiny-value">Type bucket</div></div>
+          ${renderTaxonomyRow("type", [node.type || node.label.toLowerCase()])}
+          <div class="tiny-row"><div class="tiny-key">docs</div><div class="tiny-value">${node.children?.length || 0}</div></div>
+        `;
+        nodeActions.innerHTML = `
+          ${renderFilterPill("type", node.type || node.label.toLowerCase())}
+          <button type="button" data-action="toggle-open">${state.expanded.has(node.id) ? "Collapse" : "Expand"}</button>
+        `;
+      } else if (node.kind === "concern") {
+        classificationList.innerHTML = `
+          <div class="tiny-row"><div class="tiny-key">kind</div><div class="tiny-value">Concern</div></div>
+          ${renderTaxonomyRow("concern", [node.label.toLowerCase()])}
+          <div class="tiny-row"><div class="tiny-key">types</div><div class="tiny-value">${node.children?.length || 0}</div></div>
+        `;
+        nodeActions.innerHTML = `
+          ${renderFilterPill("concern", node.label.toLowerCase())}
+          <button type="button" data-action="toggle-open">${state.expanded.has(node.id) ? "Collapse" : "Expand"}</button>
+        `;
+      } else {
+        classificationList.innerHTML = `
+          <div class="tiny-row"><div class="tiny-key">kind</div><div class="tiny-value">Corpus root</div></div>
+          <div class="tiny-row"><div class="tiny-key">coverage</div><div class="tiny-value">Concern -> Type -> Document</div></div>
+        `;
+        nodeActions.innerHTML = `<button type="button" data-action="expand-all">Expand all</button><button type="button" data-action="clear-filters">Clear filters</button>`;
+      }
+
+      Array.from(nodeActions.querySelectorAll("button[data-action]"))
+        .forEach(button => button.addEventListener("click", () => handleAction(button.dataset.action, node)));
+      Array.from(nodeActions.querySelectorAll("a.button-link"))
+        .forEach(link => link.addEventListener("click", () => persistState()));
+      Array.from(nodeActions.querySelectorAll("[data-filter-key]"))
+        .forEach(button => button.addEventListener("click", () => toggleTaxonomyFilter(button.dataset.filterKey, button.dataset.filterValue)));
+      Array.from(classificationList.querySelectorAll("[data-filter-key]"))
+        .forEach(button => button.addEventListener("click", () => toggleTaxonomyFilter(button.dataset.filterKey, button.dataset.filterValue)));
+    }
+
+    function handleAction(action, node) {
+      if (action === "toggle-open" && node.children?.length) {
+        toggleExpanded(node.id);
+        render();
+        return;
+      }
+
+      if (action === "expand-all") {
+        expandAllBtn.click();
+        return;
+      }
+
+      if (action === "clear-filters") {
+        clearTaxonomyFilters();
+        state.filter = "";
+        searchInput.value = "";
+        render();
+        return;
+      }
+    }
+
+    function renderTaxonomyRow(key, values) {
+      const cleanValues = values.filter(Boolean);
+      return `
+        <div class="tiny-row">
+          <div class="tiny-key">${escapeHtml(key)}</div>
+          <div class="tiny-value pill-row">
+            ${cleanValues.map(value => renderFilterPill(key, value)).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderFilterPill(key, value) {
+      const normalizedKey = String(key).toLowerCase();
+      const normalizedValue = String(value).toLowerCase();
+      const lifecycleClass = normalizedKey === "lifecycle" ? normalizedValue : "";
+      const activeClass = state.taxonomyFilters[normalizedKey]?.has(normalizedValue) ? "is-active" : "";
+      return `<button type="button" class="pill ${lifecycleClass} ${activeClass}" data-filter-key="${escapeHtml(normalizedKey)}" data-filter-value="${escapeHtml(normalizedValue)}">${escapeHtml(value)}</button>`;
+    }
+
+    function toggleTaxonomyFilter(key, value) {
+      const bucket = state.taxonomyFilters[key];
+      if (!bucket) {
+        return;
+      }
+      if (bucket.has(value)) {
+        bucket.delete(value);
+      } else {
+        bucket.add(value);
+      }
+      render();
+    }
+
+    function matchesTaxonomyFilters(node) {
+      if (!hasActiveTaxonomyFilters()) {
+        return true;
+      }
+
+      if (node.kind === "document") {
+        if (state.taxonomyFilters.concern.size && !state.taxonomyFilters.concern.has(String(node.concern || "").toLowerCase())) {
+          return false;
+        }
+        if (state.taxonomyFilters.type.size && !state.taxonomyFilters.type.has(String(node.type || "").toLowerCase())) {
+          return false;
+        }
+        if (state.taxonomyFilters.lifecycle.size && !state.taxonomyFilters.lifecycle.has(String(node.lifecycle || "").toLowerCase())) {
+          return false;
+        }
+        if (state.taxonomyFilters.aspect.size && !state.taxonomyFilters.aspect.has(String(node.aspect || "").toLowerCase())) {
+          return false;
+        }
+        if (state.taxonomyFilters.audience.size) {
+          const audiences = (node.audience || []).map(item => String(item).toLowerCase());
+          if (![...state.taxonomyFilters.audience].some(item => audiences.includes(item))) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      if (node.kind === "concern" && state.taxonomyFilters.concern.size) {
+        return state.taxonomyFilters.concern.has(String(node.label || "").toLowerCase());
+      }
+      if (node.kind === "type" && state.taxonomyFilters.type.size) {
+        return state.taxonomyFilters.type.has(String(node.type || node.label || "").toLowerCase());
+      }
+      return false;
+    }
+
+    function hasActiveTaxonomyFilters() {
+      return Object.values(state.taxonomyFilters).some(set => set.size > 0);
+    }
+
+    function clearTaxonomyFilters() {
+      Object.values(state.taxonomyFilters).forEach(set => set.clear());
+    }
+
+    function isLegendActive(label) {
+      if (label === "Concern / Root") {
+        return false;
+      }
+      return state.taxonomyFilters.type.has(label.toLowerCase());
+    }
+
+    function toggleLegendFilter(label) {
+      if (label === "Concern / Root") {
+        clearTaxonomyFilters();
+        render();
+        return;
+      }
+      toggleTaxonomyFilter("type", label.toLowerCase());
+    }
+
+    function initializePanZoom() {
+      graph.addEventListener("wheel", event => {
+        event.preventDefault();
+        const multiplier = event.deltaY < 0 ? 1.08 : 1 / 1.08;
+        zoomGraph(multiplier);
+      }, { passive: false });
+
+      graph.addEventListener("pointerdown", event => {
+        if (isNodeEvent(event)) {
+          return;
+        }
+        state.viewport.isPanning = true;
+        state.viewport.didPan = false;
+        state.viewport.panStartX = event.clientX;
+        state.viewport.panStartY = event.clientY;
+        state.viewport.originX = state.viewport.x;
+        state.viewport.originY = state.viewport.y;
+        graph.setPointerCapture(event.pointerId);
+        render();
+      });
+
+      graph.addEventListener("pointermove", event => {
+        if (!state.viewport.isPanning) {
+          return;
+        }
+        const deltaX = event.clientX - state.viewport.panStartX;
+        const deltaY = event.clientY - state.viewport.panStartY;
+        if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+          state.viewport.didPan = true;
+        }
+        state.viewport.x = state.viewport.originX + deltaX;
+        state.viewport.y = state.viewport.originY + deltaY;
+        render();
+      });
+
+      graph.addEventListener("pointerup", event => {
+        if (state.viewport.isPanning) {
+          state.viewport.isPanning = false;
+          state.viewport.didPan = false;
+          try {
+            graph.releasePointerCapture(event.pointerId);
+          } catch (error) {
+          }
+          render();
+        }
+      });
+
+      graph.addEventListener("pointerleave", () => {
+        if (state.viewport.isPanning) {
+          state.viewport.isPanning = false;
+          state.viewport.didPan = false;
+          render();
+        }
+      });
+    }
+
+    function zoomGraph(multiplier) {
+      state.viewport.scale = Math.max(0.55, Math.min(2.5, state.viewport.scale * multiplier));
+      render();
+    }
+
+    graph.addEventListener("click", event => {
+      if (isNodeEvent(event)) {
+        return;
+      }
+      state.selectedId = "corpus";
+      render();
+    });
+
+    window.addEventListener("pageshow", () => {
+      restoreState();
+      render();
+    });
+
+    function isNodeEvent(event) {
+      if (typeof event.composedPath === "function") {
+        return event.composedPath().some(item => item?.classList?.contains?.("node-group"));
+      }
+      return Boolean(event.target?.closest?.(".node-group"));
+    }
+
+    function persistState() {
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+          expanded: [...state.expanded],
+          selectedId: state.selectedId,
+          filter: state.filter,
+          taxonomyFilters: Object.fromEntries(
+            Object.entries(state.taxonomyFilters).map(([key, set]) => [key, [...set]])
+          ),
+          viewport: {
+            scale: state.viewport.scale,
+            x: state.viewport.x,
+            y: state.viewport.y
+          }
+        }));
+      } catch (error) {
+      }
+    }
+
+    function restoreState() {
+      try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        state.expanded = new Set(parsed.expanded || ["corpus"]);
+        state.selectedId = parsed.selectedId || "corpus";
+        state.filter = parsed.filter || "";
+        searchInput.value = state.filter;
+        Object.keys(state.taxonomyFilters).forEach(key => {
+          state.taxonomyFilters[key] = new Set(parsed.taxonomyFilters?.[key] || []);
+        });
+        state.viewport.scale = parsed.viewport?.scale || 1;
+        state.viewport.x = parsed.viewport?.x ?? 30;
+        state.viewport.y = parsed.viewport?.y ?? 40;
+      } catch (error) {
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
