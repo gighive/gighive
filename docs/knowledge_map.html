@@ -852,6 +852,7 @@
         y: 40,
         isPanning: false,
         didPan: false,
+        suppressBackgroundClick: false,
         panStartX: 0,
         panStartY: 0,
         originX: 0,
@@ -1011,7 +1012,7 @@
         return null;
       }
 
-      const clone = { ...node, depth, children: [] };
+      const clone = { ...node, depth, children: [], hasChildren: Boolean(node.children?.length) };
       const expanded = state.expanded.has(node.id) || Boolean(state.filter);
 
       if (node.children?.length && expanded) {
@@ -1148,7 +1149,7 @@
         stroke: strokeColor
       }));
 
-      if (node.children?.length) {
+      if (node.hasChildren) {
         const isOpen = state.expanded.has(node.id) || Boolean(state.filter);
         const toggleText = svgEl("text", {
           x: 0,
@@ -1181,30 +1182,23 @@
 
       const activateNode = event => {
         if (event) {
-          event.preventDefault();
           event.stopPropagation();
         }
         state.selectedId = node.id;
-        if (node.children?.length) {
+        if (node.hasChildren) {
           toggleExpanded(node.id);
         }
         render();
       };
 
-      g.addEventListener("pointerup", event => {
-        if (state.viewport.didPan) {
-          return;
-        }
-        activateNode(event);
-      });
+      g.addEventListener("click", activateNode);
 
       if (node.kind === "document") {
         const openDocument = event => {
-          event.preventDefault();
           event.stopPropagation();
           if (node.href) {
             persistState();
-            window.location.href = node.href;
+            window.open(node.href, "_blank");
           }
         };
 
@@ -1215,7 +1209,7 @@
           event.stopPropagation();
           if (node.href) {
             persistState();
-            window.location.href = node.href;
+            window.open(node.href, "_blank");
           }
         });
       }
@@ -1500,6 +1494,7 @@
         const deltaY = event.clientY - state.viewport.panStartY;
         if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
           state.viewport.didPan = true;
+          state.viewport.suppressBackgroundClick = true;
         }
         state.viewport.x = state.viewport.originX + deltaX;
         state.viewport.y = state.viewport.originY + deltaY;
@@ -1534,6 +1529,10 @@
 
     graph.addEventListener("click", event => {
       if (isNodeEvent(event)) {
+        return;
+      }
+      if (state.viewport.suppressBackgroundClick) {
+        state.viewport.suppressBackgroundClick = false;
         return;
       }
       state.selectedId = "corpus";
