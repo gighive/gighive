@@ -393,6 +393,25 @@
       cursor: grabbing;
     }
 
+    .debug-panel {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 2;
+      min-width: 280px;
+      max-width: min(520px, calc(100% - 24px));
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(8, 17, 32, 0.88);
+      border: 1px solid rgba(78, 168, 255, 0.25);
+      box-shadow: var(--shadow);
+      font-size: 0.72rem;
+      line-height: 1.35;
+      color: var(--text);
+      white-space: pre-wrap;
+      pointer-events: none;
+    }
+
     @media (max-width: 1200px) {
       .page {
         grid-template-columns: 1fr;
@@ -445,6 +464,7 @@
           <button id="resetBtn" type="button">Reset view</button>
         </div>
         <svg id="graph" viewBox="0 0 1800 1100" preserveAspectRatio="xMinYMin meet"></svg>
+        <div id="debugPanel" class="debug-panel">booting diagnostics…</div>
       </div>
     </section>
 
@@ -833,6 +853,7 @@
     const collapseAllBtn = document.getElementById("collapseAllBtn");
     const resetBtn = document.getElementById("resetBtn");
     const legend = document.getElementById("legend");
+    const debugPanel = document.getElementById("debugPanel");
     const STORAGE_KEY = "gighiveKnowledgeMapState";
 
     const state = {
@@ -873,6 +894,18 @@
       index: getCssVar("--index")
     };
 
+    const debugState = {
+      lastAction: "boot",
+      lastNodeId: "",
+      lastExpandedBefore: false,
+      lastExpandedAfter: false,
+      lastRenderSelected: "",
+      lastRenderExpandedSize: 0,
+      lastError: "",
+      lastEventTarget: "",
+      lastEventType: ""
+    };
+
     bootstrap();
 
     function bootstrap() {
@@ -895,6 +928,51 @@
         return;
       }
       node.children.forEach(child => buildParentLinks(child, node));
+    }
+
+    function updateDebugPanel() {
+      debugPanel.textContent = [
+        `action: ${debugState.lastAction}`,
+        `event: ${debugState.lastEventType || "-"}`,
+        `target: ${debugState.lastEventTarget || "-"}`,
+        `node: ${debugState.lastNodeId || "-"}`,
+        `expanded before: ${String(debugState.lastExpandedBefore)}`,
+        `expanded after: ${String(debugState.lastExpandedAfter)}`,
+        `selected: ${debugState.lastRenderSelected || "-"}`,
+        `expanded count: ${debugState.lastRenderExpandedSize}`,
+        `panning: ${String(state.viewport.isPanning)}`,
+        `suppress background: ${String(state.viewport.suppressBackgroundClick)}`,
+        `error: ${debugState.lastError || "-"}`
+      ].join("\n");
+    }
+
+    function describeEventTarget(target) {
+      if (!target) {
+        return "";
+      }
+      const parts = [target.tagName || target.nodeName || "unknown"];
+      if (target.id) {
+        parts.push(`#${target.id}`);
+      }
+      const className = typeof target.getAttribute === "function" ? target.getAttribute("class") : "";
+      if (className) {
+        parts.push(`.${className}`);
+      }
+      return parts.join("");
+    }
+
+    function toggleExpanded(nodeId) {
+      const wasExpanded = state.expanded.has(nodeId);
+      debugState.lastAction = "toggleExpanded";
+      debugState.lastNodeId = nodeId;
+      debugState.lastExpandedBefore = wasExpanded;
+      if (wasExpanded) {
+        state.expanded.delete(nodeId);
+      } else {
+        state.expanded.add(nodeId);
+      }
+      debugState.lastExpandedAfter = state.expanded.has(nodeId);
+      updateDebugPanel();
     }
 
     function expandInitialConcerns() {
@@ -1075,6 +1153,9 @@
       const { nodes, edges } = flatten(visibleTree);
       drawGraph(nodes, edges);
       updateDetails(findNodeById(data, state.selectedId) || data);
+      debugState.lastRenderSelected = state.selectedId;
+      debugState.lastRenderExpandedSize = state.expanded.size;
+      updateDebugPanel();
       persistState();
     }
 
@@ -1140,24 +1221,40 @@
       const radius = node.kind === "root" ? 26 : node.kind === "concern" ? 20 : node.kind === "type" ? 16 : 13;
       const strokeColor = state.selectedId === node.id ? "#ffffff" : color;
 
-      g.appendChild(svgEl("circle", {
+      const hitRadius = Math.max(radius + 10, 24);
+      const hitCircle = svgEl("circle", {
+        r: hitRadius,
+        cx: 0,
+        cy: 0,
+        fill: "rgba(0,0,0,0.001)",
+        stroke: "rgba(0,0,0,0.001)",
+        "stroke-width": 0,
+        "pointer-events": "visiblePainted"
+      });
+      g.appendChild(hitCircle);
+
+      const circle = svgEl("circle", {
         r: radius,
         cx: 0,
         cy: 0,
         class: "node-circle",
         fill: color,
-        stroke: strokeColor
-      }));
+        stroke: strokeColor,
+        "pointer-events": "none"
+      });
+      g.appendChild(circle);
 
+      let toggleText = null;
       if (node.hasChildren) {
         const isOpen = state.expanded.has(node.id) || Boolean(state.filter);
-        const toggleText = svgEl("text", {
+        toggleText = svgEl("text", {
           x: 0,
           y: 1,
           fill: "#081120",
           "font-size": 14,
           "font-weight": 700,
-          "text-anchor": "middle"
+          "text-anchor": "middle",
+          "pointer-events": "none"
         });
         toggleText.textContent = isOpen ? "−" : "+";
         g.appendChild(toggleText);
@@ -1183,7 +1280,10 @@
       const activateNode = event => {
         if (event) {
           event.stopPropagation();
+          debugState.lastEventType = event.type;
+          debugState.lastEventTarget = describeEventTarget(event.target);
         }
+        debugState.lastAction = "activateNode";
         state.selectedId = node.id;
         if (node.hasChildren) {
           toggleExpanded(node.id);
@@ -1191,7 +1291,11 @@
         render();
       };
 
-      g.addEventListener("click", activateNode);
+      hitCircle.addEventListener("click", activateNode);
+      if (!node.kind || node.kind !== "document") {
+        label.addEventListener("click", activateNode);
+        sub.addEventListener("click", activateNode);
+      }
 
       if (node.kind === "document") {
         const openDocument = event => {
@@ -1531,8 +1635,12 @@
       if (isNodeEvent(event)) {
         return;
       }
+      debugState.lastAction = "backgroundClick";
+      debugState.lastEventType = event.type;
+      debugState.lastEventTarget = describeEventTarget(event.target);
       if (state.viewport.suppressBackgroundClick) {
         state.viewport.suppressBackgroundClick = false;
+        updateDebugPanel();
         return;
       }
       state.selectedId = "corpus";
@@ -1587,9 +1695,19 @@
         state.viewport.scale = parsed.viewport?.scale || 1;
         state.viewport.x = parsed.viewport?.x ?? 30;
         state.viewport.y = parsed.viewport?.y ?? 40;
+        debugState.lastAction = "restoreState";
+        debugState.lastExpandedAfter = false;
+        updateDebugPanel();
       } catch (error) {
+        debugState.lastError = String(error?.message || error);
+        updateDebugPanel();
       }
     }
+
+    window.addEventListener("error", event => {
+      debugState.lastError = String(event.error?.message || event.message || event.error || "unknown error");
+      updateDebugPanel();
+    });
 
     function escapeHtml(value) {
       return String(value)
