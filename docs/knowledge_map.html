@@ -490,6 +490,7 @@
       </div>
 
       <p class="footer-note">Route format: <strong>Corpus -> Concern -> Type -> Document</strong>. The full path exposes the five classification groups: concern, type, lifecycle, audience, and aspect.</p>
+      <p class="footer-note">Mouse click behavior: single click = <em>select/toggle</em>; double click = <em>isolate this node</em>; triple click = <em>invert all</em>.</p>
     </aside>
   </div>
 
@@ -860,12 +861,17 @@
       expanded: new Set(["corpus"]),
       selectedId: "corpus",
       filter: "",
+      activeConcerns: new Set(),
+      activeTypesByConcern: {},
       taxonomyFilters: {
         concern: new Set(),
         type: new Set(),
         lifecycle: new Set(),
         audience: new Set(),
         aspect: new Set()
+      },
+      interaction: {
+        clickTimer: null
       },
       viewport: {
         scale: 1,
@@ -910,6 +916,7 @@
 
     function bootstrap() {
       buildParentLinks(data, null);
+      initializeActiveScopes();
       restoreState();
       expandInitialConcerns();
       renderLegend();
@@ -928,6 +935,16 @@
         return;
       }
       node.children.forEach(child => buildParentLinks(child, node));
+    }
+
+    function initializeActiveScopes() {
+      state.activeConcerns = new Set((data.children || []).map(concern => concern.id));
+      state.activeTypesByConcern = Object.fromEntries(
+        (data.children || []).map(concern => [
+          concern.id,
+          new Set((concern.children || []).map(typeNode => typeNode.id))
+        ])
+      );
     }
 
     function updateDebugPanel() {
@@ -975,6 +992,105 @@
       updateDebugPanel();
     }
 
+    function getConcernNode(node) {
+      let current = node;
+      while (current && current.kind !== "concern") {
+        current = current.parent;
+      }
+      return current;
+    }
+
+    function getTypeNode(node) {
+      let current = node;
+      while (current && current.kind !== "type") {
+        current = current.parent;
+      }
+      return current;
+    }
+
+    function getConcernTypeIds(concernId) {
+      const concernNode = findNodeById(data, concernId);
+      return new Set((concernNode?.children || []).map(typeNode => typeNode.id));
+    }
+
+    function isActiveInScope(node) {
+      if (node.kind === "root") {
+        return true;
+      }
+
+      const concernNode = node.kind === "concern" ? node : getConcernNode(node);
+      if (!concernNode || !state.activeConcerns.has(concernNode.id)) {
+        return false;
+      }
+
+      if (node.kind === "concern") {
+        return true;
+      }
+
+      const typeNode = node.kind === "type" ? node : getTypeNode(node);
+      if (!typeNode) {
+        return true;
+      }
+
+      return state.activeTypesByConcern[concernNode.id]?.has(typeNode.id) ?? true;
+    }
+
+    function isolateNodeScope(node) {
+      debugState.lastAction = "isolateNodeScope";
+      debugState.lastNodeId = node.id;
+      if (node.kind === "concern") {
+        state.activeConcerns = new Set([node.id]);
+        state.activeTypesByConcern[node.id] = getConcernTypeIds(node.id);
+        state.selectedId = node.id;
+        state.expanded.add("corpus");
+        state.expanded.add(node.id);
+        return;
+      }
+
+      if (node.kind === "type") {
+        const concernNode = getConcernNode(node);
+        if (!concernNode) {
+          return;
+        }
+        state.activeConcerns.add(concernNode.id);
+        state.activeTypesByConcern[concernNode.id] = new Set([node.id]);
+        state.selectedId = node.id;
+        state.expanded.add("corpus");
+        state.expanded.add(concernNode.id);
+        return;
+      }
+    }
+
+    function invertNodeScope(node) {
+      debugState.lastAction = "invertNodeScope";
+      debugState.lastNodeId = node.id;
+      if (node.kind === "concern") {
+        const allConcernIds = (data.children || []).map(concern => concern.id);
+        state.activeConcerns = new Set(allConcernIds.filter(id => !state.activeConcerns.has(id)));
+        state.selectedId = node.id;
+        return;
+      }
+
+      if (node.kind === "type") {
+        const concernNode = getConcernNode(node);
+        if (!concernNode) {
+          return;
+        }
+        const allTypeIds = (concernNode.children || []).map(typeNode => typeNode.id);
+        const activeTypeIds = state.activeTypesByConcern[concernNode.id] || new Set();
+        state.activeTypesByConcern[concernNode.id] = new Set(allTypeIds.filter(id => !activeTypeIds.has(id)));
+        state.activeConcerns.add(concernNode.id);
+        state.selectedId = node.id;
+      }
+    }
+
+    function clearPendingNodeClick() {
+      if (state.interaction.clickTimer) {
+        window.clearTimeout(state.interaction.clickTimer);
+        state.interaction.clickTimer = null;
+      }
+    }
+
     function expandInitialConcerns() {
       if (state.expanded.size > 1) {
         return;
@@ -1010,9 +1126,11 @@
       });
 
       resetBtn.addEventListener("click", () => {
+        clearPendingNodeClick();
         state.filter = "";
         searchInput.value = "";
         state.selectedId = "corpus";
+        initializeActiveScopes();
         clearTaxonomyFilters();
         state.expanded.clear();
         state.expanded.add("corpus");
@@ -1086,6 +1204,10 @@
     }
 
     function getVisibleTree(node, depth = 0) {
+      if (!isActiveInScope(node)) {
+        return null;
+      }
+
       if (!matchesFilter(node)) {
         return null;
       }
@@ -1291,10 +1413,45 @@
         render();
       };
 
-      hitCircle.addEventListener("click", activateNode);
+      const handleScopedNodeClick = event => {
+        if (event) {
+          event.stopPropagation();
+          debugState.lastEventType = event.type;
+          debugState.lastEventTarget = describeEventTarget(event.target);
+        }
+
+        clearPendingNodeClick();
+
+        if (node.kind !== "concern" && node.kind !== "type") {
+          activateNode(event);
+          return;
+        }
+
+        if (event.detail >= 3) {
+          invertNodeScope(node);
+          render();
+          return;
+        }
+
+        if (event.detail === 2) {
+          state.interaction.clickTimer = window.setTimeout(() => {
+            isolateNodeScope(node);
+            render();
+            state.interaction.clickTimer = null;
+          }, 260);
+          return;
+        }
+
+        state.interaction.clickTimer = window.setTimeout(() => {
+          activateNode(event);
+          state.interaction.clickTimer = null;
+        }, 260);
+      };
+
+      hitCircle.addEventListener("click", handleScopedNodeClick);
       if (!node.kind || node.kind !== "document") {
-        label.addEventListener("click", activateNode);
-        sub.addEventListener("click", activateNode);
+        label.addEventListener("click", handleScopedNodeClick);
+        sub.addEventListener("click", handleScopedNodeClick);
       }
 
       if (node.kind === "document") {
@@ -1665,6 +1822,10 @@
           expanded: [...state.expanded],
           selectedId: state.selectedId,
           filter: state.filter,
+          activeConcerns: [...state.activeConcerns],
+          activeTypesByConcern: Object.fromEntries(
+            Object.entries(state.activeTypesByConcern).map(([key, set]) => [key, [...set]])
+          ),
           taxonomyFilters: Object.fromEntries(
             Object.entries(state.taxonomyFilters).map(([key, set]) => [key, [...set]])
           ),
@@ -1689,6 +1850,14 @@
         state.selectedId = parsed.selectedId || "corpus";
         state.filter = parsed.filter || "";
         searchInput.value = state.filter;
+        if (parsed.activeConcerns) {
+          state.activeConcerns = new Set(parsed.activeConcerns);
+        }
+        if (parsed.activeTypesByConcern) {
+          state.activeTypesByConcern = Object.fromEntries(
+            Object.entries(parsed.activeTypesByConcern).map(([key, values]) => [key, new Set(values || [])])
+          );
+        }
         Object.keys(state.taxonomyFilters).forEach(key => {
           state.taxonomyFilters[key] = new Set(parsed.taxonomyFilters?.[key] || []);
         });

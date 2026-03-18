@@ -23,11 +23,14 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/roles/base/tasks/main.yml
 
-ToDo: If I leave the upload screen to go back to the splash page and then reenter the upload a file page, the upload page did not remember that i had an upload running.  so we need to persist the state of the upload.
+ToDo: Should app clear out saved files if deleted?
+ToDo: Update bundle to include new media files for edit feature
+ToDo: Remove checksum duplication feature of the API upload path
+ToDo: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
 ToDo: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+ToDo: Test password requirements
 ToDo: Realize that the sha versions of stormpigs aren't backed up on popos
 ToDo: Create video for quick install
-ToDo: I do not like checksum duplication feature of the API upload path
 ToDo: Should I only rollout the one-shot-bundle to my customers?
 ToDo: Rename the vms to their full names
 ToDo: Consider adding session timeout and max session timeout
