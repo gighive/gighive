@@ -2199,3 +2199,17 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-02-27T18:04:00-05:00
   - add your last response to docs/mysql_bind_mount_behavior.md as it is interesting.  secondly, what is best practice given that the csvs are for the mysql initialization process?
+
+## 2026-03-19
+
+- 2026-03-19T09:40:00-04:00
+  - ansible makes most sense as it is already embedded in my workflow.  here is how i trigger the dev version of gighive2 today (the vm): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log. the gighive-one-shot-bundle is triggered by the manual process here: gighive-one-shot-bundle/install.sh and that is described in the .md doc: docs/setup_instructions_quickstart.md
+
+- 2026-03-19T09:46:00-04:00
+  - for the gighive2 vm observability, should you also check for the presence of running virtualbox processes on pop-os in addition to ports up/down?
+
+- 2026-03-19T09:47:00-04:00
+  - also, would it help to consult ansible/roles/vbox_vm_autostart in making this plan?
+
+- 2026-03-19T09:55:00-04:00
+  - boil this down into a concise plan of what we need to do to make the switch between bundle and virtualbox vm happen via ansible playbook trigger.  make it no longer than ten bullet points.
