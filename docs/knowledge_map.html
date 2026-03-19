@@ -699,7 +699,8 @@
               { id: "security-auth-changes", label: "codingChanges/20250926securityauthchanges.md", kind: "document", concern: "security", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "non_functional", href: "./codingChanges/20250926securityauthchanges.html" }
             ] },
             { id: "security-rca", label: "RCA", kind: "type", type: "rca", children: [
-              { id: "cached-errors", label: "problem_cached_error_messages.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cached_error_messages.html" },
+              { id: "cached-errors", label: "problem_cloudflare_cached_error_messages.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cloudflare_cached_error_messages.html" },
+              { id: "cloudflare-caching-media", label: "problem_cloudflare_caching_media.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cloudflare_caching_media.html" },
               { id: "cert-trust", label: "problem_cert_does_not_trust_gighive_internal.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cert_does_not_trust_gighive_internal.html" },
               { id: "hsts-collision", label: "problem_hsts_collision.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_hsts_collision.html" }
             ] }
@@ -717,7 +718,8 @@
               { id: "user-provisioning", label: "user_provisioning.md", kind: "document", concern: "authentication", type: "howto", lifecycle: "active", audience: ["admin", "operator"], aspect: "non_functional", href: "./user_provisioning.html" }
             ] },
             { id: "authentication-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
-              { id: "jwt-migration", label: "JWT_AUTH_MIGRATION_MAPPING.md", kind: "document", concern: "authentication", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./JWT_AUTH_MIGRATION_MAPPING.html" }
+              { id: "jwt-migration", label: "JWT_AUTH_MIGRATION_MAPPING.md", kind: "document", concern: "authentication", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./JWT_AUTH_MIGRATION_MAPPING.html" },
+              { id: "edge-aware-auth-model", label: "refactor_edge_aware_authentication_model.md", kind: "document", concern: "authentication", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "operator"], aspect: "non_functional", href: "./refactor_edge_aware_authentication_model.html" }
             ] },
             { id: "authentication-change", label: "Change", kind: "type", type: "change", children: [
               { id: "htpasswd-changes", label: "HTPASSWD_CHANGES.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./HTPASSWD_CHANGES.html" },

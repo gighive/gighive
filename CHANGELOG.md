@@ -1,28 +1,13 @@
 *** 
 releaseNotes20260315.txt
-Changes: Add become: false to /tmp creation in base/tasks/main.yml
-=======
-Changes: Add ability to edit database.php page so that uploading new session files is easy in combination with Section 5 upload and upload_media_with_hash.py
+Changes: Add become: false to /tmp creation in base/tasks/main.yml. Add ability to edit database.php page so that uploading new session files is easy in combination with Section 5 upload and upload_media_with_hash.py
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260315.log
 
-*** 
-releaseNotes20260315.txt
-Changes: rebuild_mysql flag to false for gighive2, doc for server not honor problem debug
-
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
-Last run (lab: run from lab): gighive-one-shot-bundle
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/base/tasks/main.yml
-
+ToDo: Test latest tarball
+ToDo: Can i provide a link to the Media Details page in the app?
+ToDo: Can i skin the app based on domain?
 ToDo: Should app clear out saved files if deleted?
 ToDo: Update bundle to include new media files for edit feature
 ToDo: Remove checksum duplication feature of the API upload path
@@ -56,6 +41,22 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260315.txt
+Changes: rebuild_mysql flag to false for gighive2, doc for server not honor problem debug
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
+Last run (lab: run from lab): gighive-one-shot-bundle
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
 
 *** 
 releaseNotes20260315.txt
