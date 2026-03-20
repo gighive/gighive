@@ -2213,3 +2213,90 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-03-19T09:55:00-04:00
   - boil this down into a concise plan of what we need to do to make the switch between bundle and virtualbox vm happen via ansible playbook trigger.  make it no longer than ten bullet points.
+
+- 2026-03-19T14:54:00-04:00
+  - yes, what i will do operationally is put the new bundle on the staging server (staging.gighive.app, just like it says in the quick start instructions) in order for the automation to grab, standup and test.
+
+- 2026-03-19T15:01:00-04:00
+  - for phase 1, the only place i will run the switch_runtime.yml is from my pop-os development server and only use the gighive2_vm configuration (ansible/inventories/group_vars/gighive2/gighive2.yml) for the flip between it and the gighive-one-shot-bundle.  in phase 3, the gighive-one-shot-bundle tar will be brought down from the staging server, but can be uncompressed/expanded in my user's home directory (/home/sodo).
+
+- 2026-03-19T15:02:00-04:00
+  - yes, break down phase 1
+
+- 2026-03-19T15:07:00-04:00
+  - yes add phase 1 to docs/process_test_bundle_switch_gighive2.md.  we will add the other phases as well to that document, but start off with phase 1 as the content.
+
+- 2026-03-19T15:08:00-04:00
+  - now tell me about the phase 2 implementation 
+
+- 2026-03-19T15:14:00-04:00
+  - add Phase 2 to the doc.  what does phase 3 implementation look like?
+
+- 2026-03-19T15:16:00-04:00
+  - phase 3 looks good, add to document.  work on phase 4 implementation for install.sh
+
+- 2026-03-19T15:25:00-04:00
+  - add phase 4 to the doc.  is that the final stage of the implementation?
+
+- 2026-03-19T15:31:00-04:00
+  - define phase 5 and add to document
+
+- 2026-03-19T15:34:00-04:00
+  - go ahead
+
+- 2026-03-19T15:37:00-04:00
+  - go ahead
+
+- 2026-03-19T15:38:00-04:00
+  - what is phase 8?
+
+- 2026-03-19T15:39:00-04:00
+  - ok go ahead
+
+- 2026-03-19T15:49:00-04:00
+  - Seems like a lot of work and maybe overkill.  can you review for duplicative steps/redundancies or simplification?  or are we already at a simplified state (as much as possible)?
+
+- 2026-03-19T15:54:00-04:00
+  - yes
+
+- 2026-03-19T16:00:00-04:00
+  - extract the high level steps for each 1-4 .. give me a list of those steps, no more than 4 bullets per phase
+
+- 2026-03-19T16:02:00-04:00
+  - Beautiful!  Put that short list of steps at the tope of the .md file as the high level phases.
+
+- 2026-03-19T16:04:00-04:00
+  - yep let's do phase 1
+
+- 2026-03-19T16:10:00-04:00
+  - i got the error: TASK [switch_runtime : Assert docker is available in PATH] fatal: [baremetal]: FAILED! - ansible controller does not have docker installed, docker runs inside the gighive2 VM
+
+- 2026-03-19T16:19:00-04:00
+  - ok i installed docker and reran the ansible playbook..looks good! (Phase 1 status output confirmed working)
+
+- 2026-03-19T16:24:00-04:00
+  - the gighive2 server is up and running: unauth'd page: https://gighive2.gighive.internal/, auth'd page: https://viewer:secretviewer@gighive2.gighive.internal/db/database.php
+
+- 2026-03-19T16:26:00-04:00
+  - note you can use the ip of 192.168.1.50 to check that the site is up, but you'd need to do a curl -k as the server cert will fail. the same authentication applies for the database.php page. but the home page has no auth.
+
+- 2026-03-19T16:28:00-04:00
+  - yep, works! (Phase 1 status output fully confirmed: vm_state=running, app=True, bundle dir_exists=False)
+
+- 2026-03-19T16:30:00-04:00
+  - do phase 2 please
+
+- 2026-03-19T16:36:00-04:00
+  - here is the location of the bundle and sha256 hash on staging: https://stagingvm.gighive.internal/downloads/gighive-one-shot-bundle.tgz https://stagingvm.gighive.internal/downloads/gighive-one-shot-bundle.tgz.sha256 Do you need to update the yml?
+
+- 2026-03-19T16:38:00-04:00
+  - for right now, let's keep it to the internal name
+
+- 2026-03-19T16:40:00-04:00
+  - actually, keep the staging.gighive.app url, that's fine. i ran switch_target_mode=gighive_bundle and got a get_url failure because ~/.netrc access is too permissive
+
+- 2026-03-19T16:50:00-04:00
+  - worked! containerd and docker are now active on the Pop!_OS controller and docker info looks healthy
+
+- 2026-03-19T16:52:00-04:00
+  - since my gighive2 vm is already running, i don't think the script should be running docker compose up yet during Phase 2

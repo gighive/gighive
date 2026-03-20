@@ -1,0 +1,12 @@
+---
+- name: Start extracted bundle runtime with docker compose
+  ansible.builtin.command: docker compose up -d --build
+  args:
+    chdir: "{{ switch_bundle_extract_dir }}"
+  register: switch_bundle_compose_up
+  changed_when: >-
+    not (
+      (switch_bundle_containers_running | default(false) | bool) and
+      (switch_bundle_health_ok | default(false) | bool)
+    )
+  failed_when: switch_bundle_compose_up.rc != 0

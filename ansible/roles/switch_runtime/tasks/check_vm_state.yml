@@ -1,0 +1,43 @@
+---
+- name: Get VM info (machinereadable) for {{ switch_vm_name }}
+  ansible.builtin.command: >
+    /usr/bin/VBoxManage showvminfo "{{ switch_vm_name }}" --machinereadable
+  become: true
+  become_user: "{{ switch_vbox_user }}"
+  environment:
+    HOME: "{{ switch_vbox_home }}"
+    VBOX_USER_HOME: "{{ switch_vbox_user_home_config }}"
+  register: switch_vm_showvminfo
+  changed_when: false
+  failed_when: false
+
+- name: Get list of running VMs
+  ansible.builtin.command: /usr/bin/VBoxManage list runningvms
+  become: true
+  become_user: "{{ switch_vbox_user }}"
+  environment:
+    HOME: "{{ switch_vbox_home }}"
+    VBOX_USER_HOME: "{{ switch_vbox_user_home_config }}"
+  register: switch_vbox_runningvms
+  changed_when: false
+  failed_when: false
+
+- name: Parse VMState from showvminfo output
+  ansible.builtin.set_fact:
+    switch_vm_state: >-
+      {{
+        (switch_vm_showvminfo.stdout_lines
+          | select('match', '^VMState=')
+          | list | first | default('VMState="unknown"'))
+          | regex_replace('^VMState="?([^"]*)"?$', '\1')
+      }}
+  when: switch_vm_showvminfo.rc == 0
+
+- name: Set switch_vm_state to not_found if showvminfo failed
+  ansible.builtin.set_fact:
+    switch_vm_state: "not_found"
+  when: switch_vm_showvminfo.rc != 0
+
+- name: Determine whether {{ switch_vm_name }} is in running VMs list
+  ansible.builtin.set_fact:
+    switch_vm_is_running: "{{ switch_vm_name in (switch_vbox_runningvms.stdout | default('')) }}"

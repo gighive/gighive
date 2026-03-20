@@ -1,0 +1,15 @@
+---
+- name: Fail with manual bootstrap instructions when bundle mode requires initialization
+  ansible.builtin.fail:
+    msg: |
+      Bundle runtime has been downloaded and extracted, but first-time bootstrap is still required.
+
+      Run the following manually:
+        cd {{ switch_bundle_extract_dir }} && ./install.sh
+
+      After install.sh completes, rerun:
+        ansible-playbook ansible/playbooks/switch_runtime.yml -i ansible/inventories/inventory_gighive2.yml -e switch_target_mode=gighive_bundle
+  when:
+    - switch_target_mode == 'gighive_bundle'
+    - switch_bundle_structure_ok | default(false) | bool
+    - not (switch_bundle_initialized | default(false) | bool)

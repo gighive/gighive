@@ -1,0 +1,41 @@
+---
+- name: Switch GigHive runtime between gighive2 VM and one-shot bundle
+  hosts: baremetal
+  gather_facts: false
+  connection: local
+
+  vars:
+    switch_target_mode: "status"
+    switch_vm_inventory_host: "gighive_vm"
+    switch_bundle_home: "/home/sodo"
+    switch_bundle_download_dir: "{{ switch_bundle_home }}/gighive-bundle-downloads"
+    switch_bundle_extract_dir: "{{ switch_bundle_home }}/gighive-one-shot-bundle-runtime"
+    switch_bundle_download_base_url: "https://staging.gighive.app/downloads"
+    switch_bundle_tgz_name: "gighive-one-shot-bundle.tgz"
+    switch_bundle_sha_name: "gighive-one-shot-bundle.tgz.sha256"
+    switch_bundle_tgz_path: "{{ switch_bundle_download_dir }}/{{ switch_bundle_tgz_name }}"
+    switch_bundle_sha_path: "{{ switch_bundle_download_dir }}/{{ switch_bundle_sha_name }}"
+    switch_bundle_local_health_url: "https://127.0.0.1/"
+    switch_bundle_host_ports:
+      - 443
+      - 3306
+    switch_vm_poweroff_retries: 24
+    switch_vm_poweroff_delay_seconds: 5
+    switch_vm_start_retries: 24
+    switch_vm_start_delay_seconds: 5
+    switch_host_port_wait_timeout: 30
+    switch_vm_post_start_ssh_timeout_seconds: 60
+    switch_vm_post_start_app_retries: 18
+    switch_vm_post_start_app_delay_seconds: 5
+
+  pre_tasks:
+    - name: Assert switch_target_mode is valid
+      ansible.builtin.assert:
+        that:
+          - switch_target_mode in ['status', 'gighive2_vm', 'gighive_bundle']
+        fail_msg: >-
+          switch_target_mode must be one of: status, gighive2_vm, gighive_bundle
+          (got: {{ switch_target_mode }})
+
+  roles:
+    - switch_runtime

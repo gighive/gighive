@@ -1,0 +1,13 @@
+---
+- name: Request ACPI power button for {{ switch_vm_name }} when VM is running
+  ansible.builtin.command: >
+    /usr/bin/VBoxManage controlvm "{{ switch_vm_name }}" acpipowerbutton
+  become: true
+  become_user: "{{ switch_vbox_user }}"
+  environment:
+    HOME: "{{ switch_vbox_home }}"
+    VBOX_USER_HOME: "{{ switch_vbox_user_home_config }}"
+  register: switch_vm_poweroff_request
+  changed_when: switch_vm_is_running | default(false) | bool
+  failed_when: false
+  when: switch_vm_is_running | default(false) | bool

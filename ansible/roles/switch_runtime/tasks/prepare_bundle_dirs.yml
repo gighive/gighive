@@ -1,0 +1,16 @@
+---
+- name: Ensure bundle download directory exists
+  ansible.builtin.file:
+    path: "{{ switch_bundle_download_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Stat bundle download tarball
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_tgz_path }}"
+  register: switch_bundle_tgz_stat
+
+- name: Stat bundle download sha file
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_sha_path }}"
+  register: switch_bundle_sha_stat

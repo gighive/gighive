@@ -1,0 +1,76 @@
+---
+- name: Assert gighive_vm inventory host is defined
+  ansible.builtin.assert:
+    that:
+      - switch_vm_inventory_host in hostvars
+    fail_msg: >-
+      Inventory host '{{ switch_vm_inventory_host }}' not found.
+      Run with: -i ansible/inventories/inventory_gighive2.yml
+
+- name: Derive switch_vm_name from gighive_vm hostvars
+  ansible.builtin.set_fact:
+    switch_vm_name: "{{ hostvars[switch_vm_inventory_host].vm_name }}"
+
+- name: Derive switch_vm_ip from gighive_vm hostvars
+  ansible.builtin.set_fact:
+    switch_vm_ip: "{{ hostvars[switch_vm_inventory_host].ansible_host }}"
+
+- name: Assert switch_vm_name is set
+  ansible.builtin.assert:
+    that:
+      - (switch_vm_name | default('') | trim) | length > 0
+    fail_msg: "vm_name is not set for inventory host '{{ switch_vm_inventory_host }}'"
+
+- name: Assert switch_vm_ip is set
+  ansible.builtin.assert:
+    that:
+      - (switch_vm_ip | default('') | trim) | length > 0
+    fail_msg: "ansible_host (IP) is not set for inventory host '{{ switch_vm_inventory_host }}'"
+
+- name: Stat switch_bundle_home directory
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_home }}"
+  register: switch_bundle_home_stat
+
+- name: Assert switch_bundle_home exists and is a directory
+  ansible.builtin.assert:
+    that:
+      - switch_bundle_home_stat.stat.exists
+      - switch_bundle_home_stat.stat.isdir
+    fail_msg: "switch_bundle_home directory does not exist: {{ switch_bundle_home }}"
+
+- name: Assert VBoxManage is available in PATH
+  ansible.builtin.command: which VBoxManage
+  register: switch_vboxmanage_which
+  changed_when: false
+  failed_when: switch_vboxmanage_which.rc != 0
+
+- name: Assert docker is available in PATH
+  ansible.builtin.command: which docker
+  register: switch_docker_which
+  changed_when: false
+  failed_when: switch_docker_which.rc != 0
+
+- name: Assert docker compose is available
+  ansible.builtin.command: docker compose version
+  register: switch_docker_compose_version
+  changed_when: false
+  failed_when: switch_docker_compose_version.rc != 0
+
+- name: Assert switch_bundle_download_base_url is set
+  ansible.builtin.assert:
+    that:
+      - (switch_bundle_download_base_url | default('') | trim) | length > 0
+    fail_msg: "switch_bundle_download_base_url is not set"
+
+- name: Print preflight summary
+  ansible.builtin.debug:
+    msg:
+      - "switch_target_mode         : {{ switch_target_mode }}"
+      - "switch_vm_name             : {{ switch_vm_name }}"
+      - "switch_vm_ip               : {{ switch_vm_ip }}"
+      - "switch_bundle_home         : {{ switch_bundle_home }}"
+      - "switch_bundle_download_dir : {{ switch_bundle_download_dir }}"
+      - "switch_bundle_extract_dir  : {{ switch_bundle_extract_dir }}"
+      - "switch_bundle_download_url : {{ switch_bundle_download_base_url }}"
+      - "docker compose             : {{ switch_docker_compose_version.stdout | trim }}"

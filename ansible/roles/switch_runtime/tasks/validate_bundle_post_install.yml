@@ -1,0 +1,8 @@
+---
+- name: Validate required bundle bootstrap files exist after install
+  ansible.builtin.assert:
+    that:
+      - switch_bundle_initialized | bool
+    fail_msg: >-
+      Bundle bootstrap is incomplete. Expected generated files are missing under
+      {{ switch_bundle_extract_dir }}.

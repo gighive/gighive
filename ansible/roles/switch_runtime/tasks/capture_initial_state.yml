@@ -1,0 +1,12 @@
+---
+- name: Capture initial runtime state facts
+  ansible.builtin.set_fact:
+    switch_initial_vm_state: "{{ switch_vm_state | default('unknown') }}"
+    switch_initial_vm_running: "{{ switch_vm_is_running | default(false) }}"
+    switch_initial_vm_ping_ok: "{{ switch_vm_ping_ok | default(false) }}"
+    switch_initial_vm_ssh_ok: "{{ switch_vm_ssh_ok | default(false) }}"
+    switch_initial_vm_app_ok: "{{ switch_vm_app_ok | default(false) }}"
+    switch_initial_bundle_running: "{{ switch_bundle_containers_running | default(false) }}"
+    switch_initial_bundle_health_ok: "{{ switch_bundle_health_ok | default(false) }}"
+    switch_initial_bundle_initialized: "{{ switch_bundle_initialized | default(false) }}"
+    switch_initial_host_ports_in_use: "{{ switch_host_ports_in_use | default([]) }}"

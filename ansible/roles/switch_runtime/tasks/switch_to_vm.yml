@@ -1,0 +1,31 @@
+---
+- name: Stop bundle runtime before switching to VM when compose is inspectable
+  ansible.builtin.include_tasks: bundle_compose_down.yml
+  when: switch_bundle_compose_inspectable | default(false) | bool
+
+- name: Refresh bundle container state after compose down
+  ansible.builtin.include_tasks: check_bundle_containers.yml
+
+- name: Record switch action for bundle to VM transition
+  ansible.builtin.set_fact:
+    switch_action_taken: "bundle_to_vm"
+
+- name: Assert bundle containers are stopped before starting VM
+  ansible.builtin.assert:
+    that:
+      - not (switch_bundle_containers_running | default(false) | bool)
+    fail_msg: >-
+      Bundle containers still appear to be running after docker compose down.
+      Refusing to start {{ switch_vm_name }} while bundle runtime is active.
+
+- name: Wait for bundle host ports to be free before starting VM
+  ansible.builtin.include_tasks: check_host_ports.yml
+
+- name: Start gighive2 VM after bundle shutdown
+  ansible.builtin.include_tasks: start_gighive2_vm.yml
+
+- name: Wait for gighive2 VM to report running
+  ansible.builtin.include_tasks: wait_for_vm_running.yml
+
+- name: Wait for gighive2 VM SSH and app services after VM start
+  ansible.builtin.include_tasks: wait_for_vm_services.yml

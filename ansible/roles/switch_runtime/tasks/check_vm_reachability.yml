@@ -1,0 +1,32 @@
+---
+- name: Ping gighive2 VM IP
+  ansible.builtin.command: "ping -c 1 -W 2 {{ switch_vm_ip }}"
+  register: switch_vm_ping
+  changed_when: false
+  failed_when: false
+
+- name: Check SSH reachability on gighive2 VM
+  ansible.builtin.wait_for:
+    host: "{{ switch_vm_ip }}"
+    port: 22
+    timeout: 5
+    state: started
+  register: switch_vm_ssh_reachable
+  ignore_errors: true
+
+- name: Check app health on gighive2 VM (curl -k, home page, no auth)
+  ansible.builtin.command: >
+    curl -sk -o /dev/null -w "%{http_code}" --max-time 5 https://{{ switch_vm_ip }}/
+  register: switch_vm_app_health
+  changed_when: false
+  failed_when: false
+
+- name: Summarise VM reachability
+  ansible.builtin.set_fact:
+    switch_vm_ping_ok: "{{ switch_vm_ping.rc == 0 }}"
+    switch_vm_ssh_ok: "{{ not (switch_vm_ssh_reachable.failed | default(true)) }}"
+    switch_vm_app_ok: >-
+      {{
+        switch_vm_app_health.rc == 0 and
+        switch_vm_app_health.stdout | default('0') | int in [200, 301, 302, 401, 403]
+      }}

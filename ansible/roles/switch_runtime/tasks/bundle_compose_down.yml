@@ -1,0 +1,8 @@
+---
+- name: Stop extracted bundle runtime with docker compose
+  ansible.builtin.command: docker compose down
+  args:
+    chdir: "{{ switch_bundle_extract_dir }}"
+  register: switch_bundle_compose_down
+  changed_when: switch_bundle_containers_running | default(false) | bool
+  failed_when: switch_bundle_compose_down.rc != 0

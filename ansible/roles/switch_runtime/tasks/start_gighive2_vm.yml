@@ -1,0 +1,13 @@
+---
+- name: Start {{ switch_vm_name }} headless when it is not already running
+  ansible.builtin.command: >
+    /usr/bin/VBoxManage startvm "{{ switch_vm_name }}" --type headless
+  become: true
+  become_user: "{{ switch_vbox_user }}"
+  environment:
+    HOME: "{{ switch_vbox_home }}"
+    VBOX_USER_HOME: "{{ switch_vbox_user_home_config }}"
+  register: switch_vm_start_command
+  changed_when: true
+  failed_when: switch_vm_start_command.rc != 0
+  when: not (switch_vm_is_running | default(false) | bool)
