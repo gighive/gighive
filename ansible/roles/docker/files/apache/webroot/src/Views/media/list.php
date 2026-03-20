@@ -761,6 +761,17 @@
           return;
         }
 
+        const editInputs = Array.from(row.querySelectorAll('input.edit-cell-input'));
+        editInputs.forEach((input) => {
+          if(!(input instanceof HTMLInputElement)){ return; }
+          input.addEventListener('keydown', function(e){
+            if(e.key !== 'Enter'){ return; }
+            if(!cb.checked){ return; }
+            e.preventDefault();
+            saveActiveEdit();
+          });
+        });
+
         cb.addEventListener('change', function(){
           setEditStatus('');
           clearMusiciansCallout();
@@ -876,8 +887,10 @@
         setRowEditMode(row, false);
         clearMusiciansCallout();
 
-        setEditStatus('Saved');
+        setEditStatus('Saved. Reloading...');
         if(btn && btn instanceof HTMLButtonElement){ btn.disabled = true; }
+        setTimeout(() => { window.location.reload(); }, 150);
+        return;
       } catch(e){
         setEditStatus('Save failed');
         if(btn && btn instanceof HTMLButtonElement){ btn.disabled = false; }
