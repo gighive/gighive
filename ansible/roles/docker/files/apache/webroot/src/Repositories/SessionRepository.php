@@ -230,7 +230,7 @@ LEFT JOIN musicians m
   ON seshmus.musician_id = m.musician_id
 $whereSql
 GROUP BY sesh.session_id, s.song_id, f.file_id
-ORDER BY sesh.date DESC
+ORDER BY sesh.date DESC, sesh.session_id ASC, f.seq ASC, f.file_id ASC
 LIMIT :limit OFFSET :offset
 SQL;
 
@@ -282,7 +282,7 @@ LEFT JOIN musicians m
   ON seshmus.musician_id = m.musician_id
 $whereSql
 GROUP BY sesh.session_id, s.song_id, f.file_id
-ORDER BY sesh.date DESC
+ORDER BY sesh.date DESC, sesh.session_id ASC, f.seq ASC, f.file_id ASC
 SQL;
 
         $stmt = $this->pdo->prepare($sql);
@@ -331,7 +331,7 @@ LEFT JOIN session_musicians seshmus
 LEFT JOIN musicians m
   ON seshmus.musician_id = m.musician_id
 GROUP BY sesh.session_id, s.song_id, f.file_id
-ORDER BY sesh.date DESC
+ORDER BY sesh.date DESC, sesh.session_id ASC, f.seq ASC, f.file_id ASC
 SQL;
 
         $stmt = $this->pdo->query($sql);
