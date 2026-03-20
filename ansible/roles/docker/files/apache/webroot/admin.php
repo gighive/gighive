@@ -1652,7 +1652,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
     return dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
   }
 
-  const _relpathCollator = new Intl.Collator(undefined, { numeric: false, sensitivity: 'variant' });
+  const _relpathCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'variant' });
 
   function titleFromPath(path) {
     const p = String(path || '');

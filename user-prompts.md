@@ -2300,3 +2300,43 @@ song_files loaded: 647. but the script did not work (below).  can we put in more
 
 - 2026-03-19T16:52:00-04:00
   - since my gighive2 vm is already running, i don't think the script should be running docker compose up yet during Phase 2
+
+- 2026-03-20T15:12:00-04:00
+  - what docs md file deals with ansible/roles/docker/files/apache/webroot/admin.php and section 5 of admin.php?
+
+- 2026-03-20T15:18:00-04:00
+  - i have a list of files that i just added to the database using section  5 of ansible/roles/docker/files/apache/webroot/admin.php: sodo@pop-os:~/20260318$ ll 20260318/
+total 3463812
+-rw-rw-r-- 1 sodo sodo 403023718 Mar 20 14:29 StormPigs20260318_10_defyingtheodds.mp4
+-rw-rw-r-- 1 sodo sodo 386437969 Mar 20 14:29 StormPigs20260318_11_pindrop.mp4
+-rw-rw-r-- 1 sodo sodo 275183517 Mar 20 14:29 StormPigs20260318_12_fairytale.mp4
+-rw-rw-r-- 1 sodo sodo 408628759 Mar 20 14:29 StormPigs20260318_1_splittheson.mp4
+-rw-rw-r-- 1 sodo sodo 226752219 Mar 20 14:29 StormPigs20260318_2_36thstreetboogie.mp4
+-rw-rw-r-- 1 sodo sodo 482858892 Mar 20 14:29 StormPigs20260318_3_canyoufeelit.mp4
+-rw-rw-r-- 1 sodo sodo 177828009 Mar 20 14:29 StormPigs20260318_4_babyimamazed.mp4
+-rw-rw-r-- 1 sodo sodo 373394523 Mar 20 14:29 StormPigs20260318_5_viewfromhalfwaydown.mp4
+-rw-rw-r-- 1 sodo sodo 221411656 Mar 20 14:29 StormPigs20260318_6_serialkillerwitch.mp4
+-rw-rw-r-- 1 sodo sodo 140475322 Mar 20 14:29 StormPigs20260318_7_trappedbodycountrymusic.mp4
+-rw-rw-r-- 1 sodo sodo 348448943 Mar 20 14:29 StormPigs20260318_8_stretchitout.mp4
+-rw-rw-r-- 1 sodo sodo 102443163 Mar 20 14:29 StormPigs20260318_9_rickieleeinterlude.mp4  I thought these would have been loaded into the database in numeric order, so that *_1_* comes first, *_2_* comes second and so on through *_12_* as the last file.  but this doesn't seem to be the case.  I want to fix this behavior so that files should get ordered in this manner.  please see how section 5 is doing it's work and figure out why we made the upload the way it is.  maybe consulting those 4 md files will help us undddrstand.
+
+- 2026-03-20T15:20:00-04:00
+  - yes, as long as this just effects loads goiiiing forward from this point on , that's fine
+
+- 2026-03-20T15:23:00-04:00
+  - there issssanother issue on ansible/roles/docker/files/apache/webroot/db/database.php where after an update to a row using the edit feature for administrators, the rows for the session go blank and i have to reload the page to see the changes.  can we make an autoreload happen after Save Edit is pressed?
+
+- 2026-03-20T15:23:00-04:00
+  - do it
+
+- 2026-03-20T15:25:00-04:00
+  - also, there is another problem with the page where multi-line edits don't seem to work.  can you speculate why?  make no changes, just advise.
+
+- 2026-03-20T15:27:00-04:00
+  - actually a more important thing to fix is, can we implement a feature where Save Edit is triggered by pressing Enter after editing an open input type="text" cell?
+
+- 2026-03-20T15:28:00-04:00
+  - yes, and because this triggers Save Edit button, it will also refresh the page so we immediately see the updates to the rows, is that correct?
+
+- 2026-03-20T15:28:00-04:00
+  - ok make the changes
