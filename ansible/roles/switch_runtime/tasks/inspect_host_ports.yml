@@ -1,0 +1,31 @@
+---
+- name: Probe required bundle host ports on the controller
+  ansible.builtin.command: >-
+    ss -H -ltn 'sport = :{{ item }}'
+  loop: "{{ switch_bundle_host_ports }}"
+  register: switch_host_port_probes
+  changed_when: false
+  failed_when: false
+
+- name: Summarise required bundle host port occupancy
+  ansible.builtin.set_fact:
+    switch_host_ports_in_use: >-
+      {{
+        switch_host_port_probes.results
+        | default([])
+        | selectattr('stdout', 'defined')
+        | selectattr('stdout', 'truthy')
+        | map(attribute='item')
+        | list
+      }}
+    switch_host_ports_busy: >-
+      {{
+        (
+          switch_host_port_probes.results
+          | default([])
+          | selectattr('stdout', 'defined')
+          | selectattr('stdout', 'truthy')
+          | list
+          | length
+        ) > 0
+      }}

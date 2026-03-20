@@ -1,21 +1,57 @@
 *** 
-releaseNotes20260315.txt
-Changes: Add become: false to /tmp creation in base/tasks/main.yml. Add ability to edit database.php page so that uploading new session files is easy in combination with Section 5 upload and upload_media_with_hash.py
+releaseNotes20260319.txt
+Changes: New bundle / gighive2 switch tester 
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260315.log
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
 
-ToDo: Test latest tarball
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/playbooks/switch_runtime.yml
+	new file:   ansible/roles/switch_runtime/tasks/bundle_compose_down.yml
+	new file:   ansible/roles/switch_runtime/tasks/bundle_compose_up.yml
+	new file:   ansible/roles/switch_runtime/tasks/capture_initial_state.yml
+	new file:   ansible/roles/switch_runtime/tasks/check_bundle_containers.yml
+	new file:   ansible/roles/switch_runtime/tasks/check_bundle_health.yml
+	new file:   ansible/roles/switch_runtime/tasks/check_bundle_initialized.yml
+	new file:   ansible/roles/switch_runtime/tasks/check_host_ports.yml
+	new file:   ansible/roles/switch_runtime/tasks/check_switch_guardrails.yml
+	new file:   ansible/roles/switch_runtime/tasks/check_vm_processes.yml
+	new file:   ansible/roles/switch_runtime/tasks/check_vm_reachability.yml
+	new file:   ansible/roles/switch_runtime/tasks/check_vm_state.yml
+	new file:   ansible/roles/switch_runtime/tasks/compute_final_result.yml
+	new file:   ansible/roles/switch_runtime/tasks/derive_vbox_context.yml
+	new file:   ansible/roles/switch_runtime/tasks/emit_bootstrap_instructions.yml
+	new file:   ansible/roles/switch_runtime/tasks/inspect_host_ports.yml
+	new file:   ansible/roles/switch_runtime/tasks/main.yml
+	new file:   ansible/roles/switch_runtime/tasks/manage_bundle_artifacts.yml
+	new file:   ansible/roles/switch_runtime/tasks/preflight.yml
+	new file:   ansible/roles/switch_runtime/tasks/prepare_bundle_dirs.yml
+	new file:   ansible/roles/switch_runtime/tasks/print_failure_diagnostics.yml
+	new file:   ansible/roles/switch_runtime/tasks/start_gighive2_vm.yml
+	new file:   ansible/roles/switch_runtime/tasks/status.yml
+	new file:   ansible/roles/switch_runtime/tasks/stop_gighive2_vm.yml
+	new file:   ansible/roles/switch_runtime/tasks/switch_to_bundle.yml
+	new file:   ansible/roles/switch_runtime/tasks/switch_to_vm.yml
+	new file:   ansible/roles/switch_runtime/tasks/validate_bundle_post_install.yml
+	new file:   ansible/roles/switch_runtime/tasks/wait_for_vm_poweroff.yml
+	new file:   ansible/roles/switch_runtime/tasks/wait_for_vm_running.yml
+	new file:   ansible/roles/switch_runtime/tasks/wait_for_vm_services.yml
+	modified:   docs/knowledge_map.html
+	new file:   docs/process_test_bundle_switch_gighive2.md
+	modified:   user-prompts.md
+
+ToDo: Create video for quick install
+ToDo: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
 ToDo: Can i provide a link to the Media Details page in the app?
 ToDo: Can i skin the app based on domain?
 ToDo: Should app clear out saved files if deleted?
-ToDo: Update bundle to include new media files for edit feature
-ToDo: Remove checksum duplication feature of the API upload path
 ToDo: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
 ToDo: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
 ToDo: Test password requirements
 ToDo: Realize that the sha versions of stormpigs aren't backed up on popos
-ToDo: Create video for quick install
 ToDo: Should I only rollout the one-shot-bundle to my customers?
 ToDo: Rename the vms to their full names
 ToDo: Consider adding session timeout and max session timeout
@@ -41,6 +77,30 @@ ToDo: cleaning the database won't clear out what has been uploaded to video and 
 ToDo: remove vodcast.xml from webroot for gighive
 ToDo: vault index[IM]* php files u/p vault, same for MediaController.php, same for upload.php
 ToDo: Should have "backup now" feature
+
+*** 
+releaseNotes20260316.txt
+Changes: Add become: false to /tmp creation in base/tasks/main.yml. Add ability to edit database.php page so that uploading new session files is easy in combination with Section 5 upload and upload_media_with_hash.py
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
+
+sodo@pop-os:~/gighive$ git show --name-only --pretty="" 2b0ab4ba49b02796c71439b1c8cd5bc5d8c5b238
+CHANGELOG.md
+ansible/inventories/group_vars/gighive/gighive.yml
+ansible/inventories/group_vars/prod/prod.yml
+ansible/roles/docker/files/apache/webroot/db/database_edit_musicians_preview.php
+ansible/roles/docker/files/apache/webroot/db/database_edit_save.php
+ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
+ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+docs/feature_edit_database_interactively.md
+
+*** 
+releaseNotes20260315.txt
+Changes: Add become: false to /tmp creation in base/tasks/main.yml. Add ability to edit database.php page so that uploading new session files is easy in combination with Section 5 upload and upload_media_with_hash.py
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260315.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260315.log
 
 *** 
 releaseNotes20260315.txt

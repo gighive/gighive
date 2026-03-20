@@ -1,0 +1,9 @@
+---
+- name: Wait for bundle host ports to be free
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ item }}"
+    state: stopped
+    timeout: "{{ switch_host_port_wait_timeout }}"
+  loop: "{{ switch_bundle_host_ports }}"
+  register: switch_host_port_waits

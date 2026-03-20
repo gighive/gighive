@@ -1,0 +1,17 @@
+---
+- name: Check bundle home page health when containers appear to be running
+  ansible.builtin.command: >
+    curl -sk -o /dev/null -w "%{http_code}" --max-time 5 {{ switch_bundle_local_health_url }}
+  register: switch_bundle_health_check
+  changed_when: false
+  failed_when: false
+  when: switch_bundle_containers_running | default(false) | bool
+
+- name: Set bundle health fact
+  ansible.builtin.set_fact:
+    switch_bundle_health_ok: >-
+      {{
+        (switch_bundle_health_check is defined) and
+        (switch_bundle_health_check.rc | default(1) == 0) and
+        (switch_bundle_health_check.stdout | default('0') | int in [200, 301, 302, 401, 403])
+      }}

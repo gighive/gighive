@@ -1,0 +1,125 @@
+---
+- name: Download bundle tarball when bundle mode is requested
+  ansible.builtin.get_url:
+    url: "{{ switch_bundle_download_base_url }}/{{ switch_bundle_tgz_name }}"
+    dest: "{{ switch_bundle_tgz_path }}"
+    mode: "0644"
+    force: false
+    use_netrc: false
+  register: switch_bundle_tgz_download
+  when: switch_target_mode == 'gighive_bundle'
+
+- name: Download bundle sha file when bundle mode is requested
+  ansible.builtin.get_url:
+    url: "{{ switch_bundle_download_base_url }}/{{ switch_bundle_sha_name }}"
+    dest: "{{ switch_bundle_sha_path }}"
+    mode: "0644"
+    force: false
+    use_netrc: false
+  register: switch_bundle_sha_download
+  when: switch_target_mode == 'gighive_bundle'
+
+- name: Refresh bundle tarball stat after optional download
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_tgz_path }}"
+  register: switch_bundle_tgz_stat_after
+
+- name: Refresh bundle sha stat after optional download
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_sha_path }}"
+  register: switch_bundle_sha_stat_after
+
+- name: Set bundle artifact presence facts
+  ansible.builtin.set_fact:
+    switch_bundle_tgz_exists: "{{ switch_bundle_tgz_stat_after.stat.exists | default(false) }}"
+    switch_bundle_sha_exists: "{{ switch_bundle_sha_stat_after.stat.exists | default(false) }}"
+
+- name: Verify bundle checksum when both files are present
+  ansible.builtin.command: sha256sum -c "{{ switch_bundle_sha_path }}"
+  args:
+    chdir: "{{ switch_bundle_download_dir }}"
+  register: switch_bundle_checksum_verify
+  changed_when: false
+  failed_when: false
+  when:
+    - switch_bundle_tgz_exists | bool
+    - switch_bundle_sha_exists | bool
+
+- name: Set bundle checksum validity fact
+  ansible.builtin.set_fact:
+    switch_bundle_checksum_ok: >-
+      {{
+        (switch_bundle_checksum_verify is defined) and
+        (switch_bundle_checksum_verify.rc | default(1) == 0)
+      }}
+
+- name: Stat extracted runtime marker files before optional re-extraction
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ switch_bundle_extract_dir }}"
+    - "{{ switch_bundle_extract_dir }}/install.sh"
+    - "{{ switch_bundle_extract_dir }}/docker-compose.yml"
+  register: switch_bundle_extract_pre_stats
+
+- name: Set extracted runtime refresh requirement fact
+  ansible.builtin.set_fact:
+    switch_bundle_extract_needs_refresh: >-
+      {{
+        (switch_target_mode == 'gighive_bundle') and
+        (switch_bundle_checksum_ok | bool) and
+        (
+          (switch_bundle_tgz_download.changed | default(false)) or
+          (switch_bundle_sha_download.changed | default(false)) or
+          not (switch_bundle_extract_pre_stats.results[0].stat.exists | default(false)) or
+          not (switch_bundle_extract_pre_stats.results[1].stat.exists | default(false)) or
+          not (switch_bundle_extract_pre_stats.results[2].stat.exists | default(false))
+        )
+      }}
+
+- name: Remove existing extracted runtime before re-extracting in bundle mode
+  ansible.builtin.file:
+    path: "{{ switch_bundle_extract_dir }}"
+    state: absent
+  become: true
+  when:
+    - switch_bundle_extract_needs_refresh | bool
+
+- name: Recreate extracted runtime directory in bundle mode
+  ansible.builtin.file:
+    path: "{{ switch_bundle_extract_dir }}"
+    state: directory
+    owner: "{{ switch_vbox_user }}"
+    group: "{{ switch_vbox_user }}"
+    mode: "0755"
+  become: true
+  when:
+    - switch_bundle_extract_needs_refresh | bool
+
+- name: Extract bundle tarball into extracted runtime directory
+  ansible.builtin.unarchive:
+    src: "{{ switch_bundle_tgz_path }}"
+    dest: "{{ switch_bundle_extract_dir }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+  when:
+    - switch_bundle_extract_needs_refresh | bool
+
+- name: Stat expected extracted install.sh
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}/install.sh"
+  register: switch_bundle_install_sh_stat
+
+- name: Stat expected extracted docker-compose.yml
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}/docker-compose.yml"
+  register: switch_bundle_compose_file_stat
+
+- name: Set extracted structure validity fact
+  ansible.builtin.set_fact:
+    switch_bundle_structure_ok: >-
+      {{
+        (switch_bundle_install_sh_stat.stat.exists | default(false)) and
+        (switch_bundle_compose_file_stat.stat.exists | default(false))
+      }}

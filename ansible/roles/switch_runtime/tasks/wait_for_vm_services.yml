@@ -1,0 +1,20 @@
+---
+- name: Wait for SSH reachability on {{ switch_vm_name }} after VM start
+  ansible.builtin.wait_for:
+    host: "{{ switch_vm_ip }}"
+    port: 22
+    timeout: "{{ switch_vm_post_start_ssh_timeout_seconds }}"
+    state: started
+  register: switch_vm_post_start_ssh
+
+- name: Wait for app health on {{ switch_vm_name }} after VM start
+  ansible.builtin.command: >
+    curl -sk -o /dev/null -w "%{http_code}" --max-time 5 https://{{ switch_vm_ip }}/
+  register: switch_vm_post_start_app
+  changed_when: false
+  failed_when: false
+  retries: "{{ switch_vm_post_start_app_retries }}"
+  delay: "{{ switch_vm_post_start_app_delay_seconds }}"
+  until: >-
+    switch_vm_post_start_app.rc == 0 and
+    (switch_vm_post_start_app.stdout | default('0') | int in [200, 301, 302, 401, 403])

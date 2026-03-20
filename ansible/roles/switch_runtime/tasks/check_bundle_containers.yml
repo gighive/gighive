@@ -1,0 +1,40 @@
+---
+- name: Check if bundle extract directory exists
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}"
+  register: switch_bundle_extract_stat
+
+- name: Set switch_bundle_extract_exists fact
+  ansible.builtin.set_fact:
+    switch_bundle_extract_exists: "{{ switch_bundle_extract_stat.stat.exists | default(false) }}"
+
+- name: Set default bundle compose inspectability fact
+  ansible.builtin.set_fact:
+    switch_bundle_compose_inspectable: false
+
+- name: Check docker compose ps in bundle runtime directory
+  ansible.builtin.command: docker compose ps --format json
+  args:
+    chdir: "{{ switch_bundle_extract_dir }}"
+  register: switch_bundle_compose_ps
+  changed_when: false
+  failed_when: false
+  when: switch_bundle_extract_exists | bool
+
+- name: Set bundle compose inspectability fact after compose ps
+  ansible.builtin.set_fact:
+    switch_bundle_compose_inspectable: "{{ switch_bundle_compose_ps.rc | default(1) == 0 }}"
+  when: switch_bundle_extract_exists | bool
+
+- name: Set switch_bundle_containers_running fact
+  ansible.builtin.set_fact:
+    switch_bundle_containers_running: >-
+      {{
+        (switch_bundle_extract_exists | bool) and
+        (switch_bundle_compose_ps is defined) and
+        (switch_bundle_compose_ps.rc | default(1) == 0) and
+        (
+          (switch_bundle_compose_ps.stdout | default(''))
+          is regex('(?is).*("State"\s*:\s*"running"|"Status"\s*:\s*"running").*')
+        )
+      }}

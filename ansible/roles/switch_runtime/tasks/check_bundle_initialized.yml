@@ -1,0 +1,24 @@
+---
+- name: Stat extracted bundle env file
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}/apache/externalConfigs/.env"
+  register: switch_bundle_apache_env_stat
+
+- name: Stat extracted bundle mysql env file
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}/mysql/externalConfigs/.env.mysql"
+  register: switch_bundle_mysql_env_stat
+
+- name: Stat extracted bundle htpasswd file
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}/apache/externalConfigs/gighive.htpasswd"
+  register: switch_bundle_htpasswd_stat
+
+- name: Set bundle initialization fact
+  ansible.builtin.set_fact:
+    switch_bundle_initialized: >-
+      {{
+        (switch_bundle_apache_env_stat.stat.exists | default(false)) and
+        (switch_bundle_mysql_env_stat.stat.exists | default(false)) and
+        (switch_bundle_htpasswd_stat.stat.exists | default(false))
+      }}
