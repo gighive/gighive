@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260320.txt
-Changes: New bundle / gighive2 switch tester 
+Changes: db/database.php order fix (add session_id to order statement) 
 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260320.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260320.log
@@ -12,9 +12,7 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/admin.php
-	new file:   ansible/roles/docker/files/apache/webroot/images/jam/20260318.jpg
-	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
 	modified:   user-prompts.md
 
 TODO
@@ -50,6 +48,25 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260320.txt
+Changes: UI fixes on db/database.php for edits
+
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260320.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260320.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	new file:   ansible/roles/docker/files/apache/webroot/images/jam/20260318.jpg
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260319.txt
