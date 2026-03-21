@@ -32,7 +32,7 @@ The public telemetry endpoint is fronted by Cloudflare.
 
 The telemetry receiver itself is not intended to be exposed directly to the public internet.
 
-Instead, it should remain bound locally on the staging host and be reached only through the reverse-proxied public hostname.
+Instead, it should remain bound on the staging host network interface so it can be reached from the separate proxy path.
 
 ## Origin Host
 
@@ -47,13 +47,13 @@ This is acceptable because:
 
 ## Receiver Binding
 
-The telemetry receiver should bind only to localhost on the staging host.
+The telemetry receiver should bind on the staging host network interface so it can be reached from the separate proxy path.
 
 Example:
 
-- `127.0.0.1:8088`
+- `0.0.0.0:8088`
 
-This prevents the receiver service from being directly reachable from the public network.
+This allows the receiver service to be reached from the proxy path while still being restricted by firewall or private-network rules.
 
 ## Public Exposure Model
 
@@ -75,7 +75,7 @@ Cloudflare will sit in front of the telemetry endpoint.
 ### Benefits
 
 - HTTPS termination and proxying are already part of the existing setup
-- the telemetry receiver can stay local-only on the staging host
+- the telemetry receiver can remain off the public hostname while being reachable from the proxy path
 - Cloudflare can provide coarse country information via request headers
 
 ### Country capture
@@ -231,7 +231,7 @@ Conceptually:
 
 The exact reverse-proxy implementation can be handled by the existing front-end path used on staging.
 
-Because the Cloudflare proxy runs on a separate server, the telemetry receiver cannot remain bound to `127.0.0.1` only.
+Because the Cloudflare proxy runs on a separate server, the telemetry receiver should bind on `0.0.0.0:8088` and be restricted by firewall or private-network rules.
 
 ## Security Considerations
 
@@ -247,7 +247,7 @@ Because the Cloudflare proxy runs on a separate server, the telemetry receiver c
 
 ### Local health-check target
 
-- `127.0.0.1:8088`
+- `0.0.0.0:8088`
 
 ### Exposure model
 
@@ -292,7 +292,7 @@ For example, the receiver could later move from staging to another host while ke
 
 ### Local health-check target
 
-- `127.0.0.1:8088`
+- `0.0.0.0:8088`
 
 ### Exposure model
 
