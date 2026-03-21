@@ -5,8 +5,8 @@ telemetry_receiver_bind_host: "127.0.0.1"
 telemetry_receiver_bind_port: "8088"
 telemetry_receiver_db_name: installation_telemetry
 telemetry_receiver_db_user: telemetry_app
-telemetry_receiver_db_password: change_me_telemetry_app
-telemetry_receiver_mysql_root_password: change_me_telemetry_root
+telemetry_receiver_db_password: musiclibrary
+telemetry_receiver_mysql_root_password: musiclibrary
 telemetry_receiver_db_host: telemetry_db
 telemetry_receiver_db_port: "3306"
 telemetry_receiver_db_container_name: telemetry_db

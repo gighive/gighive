@@ -2445,3 +2445,9 @@ FROM files
 WHERE session_id IN (139,141);
 "
 mysql: [Warning] Using a password on the command line interface can be insecure.
+
+- 2026-03-21T10:06:00-04:00
+  - if not already in the .md, add these two validation steps with the .env var name for the password
+
+- 2026-03-21T10:08:00-04:00
+  - the three docker compose examples under the one you just added seem redundant.  please remove them if you agree..less noise that way
