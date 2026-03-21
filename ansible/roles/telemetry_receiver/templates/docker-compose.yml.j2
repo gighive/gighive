@@ -1,0 +1,30 @@
+services:
+  telemetry_receiver:
+    container_name: "{{ telemetry_receiver_app_container_name }}"
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    image: "{{ telemetry_receiver_php_image }}"
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      TZ: "{{ telemetry_receiver_timezone }}"
+    ports:
+      - "{{ telemetry_receiver_bind_host }}:{{ telemetry_receiver_bind_port }}:80"
+    volumes:
+      - ./web:/var/www/html:ro
+    depends_on:
+      - telemetry_db
+
+  telemetry_db:
+    container_name: "{{ telemetry_receiver_db_container_name }}"
+    image: "{{ telemetry_receiver_mysql_image }}"
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      TZ: "{{ telemetry_receiver_timezone }}"
+    volumes:
+      - ./data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro

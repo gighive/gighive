@@ -2343,3 +2343,105 @@ total 3463812
 
 - 2026-03-20T15:56:00-04:00
   - yes, make the change
+
+- 2026-03-20T16:16:00-04:00
+  - ubuntu@gighive:~$ docker exec -i $CONTAINER mysql -t -u root -p$MYSQL_ROOT_PASSWORD $DATABASE_NAME -e "
+SELECT
+    sesh.session_id,
+    sesh.org_name,
+    ss.song_id,
+    s.title AS song_title,
+    sf.file_id,
+    f.seq,
+    f.file_name
+FROM sessions sesh
+JOIN session_songs ss
+  ON sesh.session_id = ss.session_id
+JOIN songs s
+  ON ss.song_id = s.song_id
+JOIN song_files sf
+  ON s.song_id = sf.song_id
+JOIN files f
+  ON sf.file_id = f.file_id
+WHERE sesh.date = '2026-03-18'
+ORDER BY sesh.session_id, f.file_id, ss.song_id;
+"
+mysql: [Warning] Using a password on the command line interface can be insecure.
++------------+-----------+---------+---------------------------------------------+---------+------+-------------------------------------------------+
+| session_id | org_name  | song_id | song_title                                  | file_id | seq  | file_name                                       |
++------------+-----------+---------+---------------------------------------------+---------+------+-------------------------------------------------+
+|        139 | StormPigs |     754 | StormPigs20260318_2_36thstreetboogie        |     701 |    2 | StormPigs20260318_2_36thstreetboogie.mp4        |
+|        139 | StormPigs |     755 | StormPigs20260318_3_canyoufeelit            |     702 |    3 | StormPigs20260318_3_canyoufeelit.mp4            |
+|        139 | StormPigs |     756 | StormPigs20260318_4_babyimamazed            |     703 |    4 | StormPigs20260318_4_babyimamazed.mp4            |
+|        139 | StormPigs |     757 | StormPigs20260318_5_viewfromhalfwaydown     |     704 |    5 | StormPigs20260318_5_viewfromhalfwaydown.mp4     |
+|        139 | StormPigs |     758 | StormPigs20260318_6_serialkillerwitch       |     705 |    6 | StormPigs20260318_6_serialkillerwitch.mp4       |
+|        139 | StormPigs |     759 | StormPigs20260318_7_trappedbodycountrymusic |     706 |    7 | StormPigs20260318_7_trappedbodycountrymusic.mp4 |
+|        139 | StormPigs |     760 | StormPigs20260318_8_stretchitout            |     707 |    8 | StormPigs20260318_8_stretchitout.mp4            |
+|        139 | StormPigs |     751 | StormPigs20260318_10_defyingtheodds         |     709 |   10 | StormPigs20260318_10_defyingtheodds.mp4         |
+|        139 | StormPigs |     752 | StormPigs20260318_11_pindrop                |     710 |   11 | StormPigs20260318_11_pindrop.mp4                |
+|        139 | StormPigs |     753 | StormPigs20260318_12_fairytale              |     711 |   12 | StormPigs20260318_12_fairytale.mp4              |
+|        141 | default   |     762 | StormPigs20260318_1_splittheson             |     700 |    1 | StormPigs20260318_1_splittheson.mp4             |
+|        141 | default   |     754 | StormPigs20260318_2_36thstreetboogie        |     701 |    2 | StormPigs20260318_2_36thstreetboogie.mp4        |
+|        141 | default   |     755 | StormPigs20260318_3_canyoufeelit            |     702 |    3 | StormPigs20260318_3_canyoufeelit.mp4            |
+|        141 | default   |     756 | StormPigs20260318_4_babyimamazed            |     703 |    4 | StormPigs20260318_4_babyimamazed.mp4            |
+|        141 | default   |     757 | StormPigs20260318_5_viewfromhalfwaydown     |     704 |    5 | StormPigs20260318_5_viewfromhalfwaydown.mp4     |
+|        141 | default   |     758 | StormPigs20260318_6_serialkillerwitch       |     705 |    6 | StormPigs20260318_6_serialkillerwitch.mp4       |
+|        141 | default   |     759 | StormPigs20260318_7_trappedbodycountrymusic |     706 |    7 | StormPigs20260318_7_trappedbodycountrymusic.mp4 |
+|        141 | default   |     760 | StormPigs20260318_8_stretchitout            |     707 |    8 | StormPigs20260318_8_stretchitout.mp4            |
+|        141 | default   |     763 | StormPigs20260318_9_rickieleeinterlude      |     708 |    9 | StormPigs20260318_9_rickieleeinterlude.mp4      |
+|        141 | default   |     751 | StormPigs20260318_10_defyingtheodds         |     709 |   10 | StormPigs20260318_10_defyingtheodds.mp4         |
+|        141 | default   |     752 | StormPigs20260318_11_pindrop                |     710 |   11 | StormPigs20260318_11_pindrop.mp4                |
+|        141 | default   |     753 | StormPigs20260318_12_fairytale              |     711 |   12 | StormPigs20260318_12_fairytale.mp4              |
++------------+-----------+---------+---------------------------------------------+---------+------+-------------------------------------------------+
+
+- 2026-03-20T16:26:00-04:00
+  - we eventually want to go the model described in this doc: docs/pr_librarianAsset_musicianEvent.md, what's the best solution as intermediate stop-gap?
+
+- 2026-03-20T16:32:00-04:00
+  - please put a plan in place for this in docs/db_fix_event_metadata_duplication.md, provide rationale, concrete implementation steps, do an analysis of all files that will be effected by this change under ansible/roles/docker/files and add the files that will need to change in the .md file
+
+- 2026-03-20T16:41:00-04:00
+  - ubuntu@gighive:~$ docker exec -i $CONTAINER mysql -t -u root -p$MYSQL_ROOT_PASSWORD $DATABASE_NAME -e "
+START TRANSACTION;
+
+DELETE FROM session_musicians
+WHERE session_id IN (139, 141);
+
+DELETE FROM session_songs
+WHERE session_id IN (139, 141);
+
+DELETE FROM files
+WHERE session_id = 141;
+
+DELETE FROM sessions
+WHERE session_id IN (139, 141);
+
+DELETE sf
+FROM song_files sf
+LEFT JOIN files f
+  ON f.file_id = sf.file_id
+LEFT JOIN songs s
+  ON s.song_id = sf.song_id
+WHERE f.file_id IS NULL
+   OR s.song_id IS NULL;
+
+DELETE s
+FROM songs s
+LEFT JOIN session_songs ss
+  ON ss.song_id = s.song_id
+LEFT JOIN song_files sf
+  ON sf.song_id = s.song_id
+WHERE ss.song_id IS NULL
+  AND sf.song_id IS NULL;
+
+COMMIT;
+
+SELECT 'remaining_sessions' AS section, session_id, org_name, date
+FROM sessions
+WHERE session_id IN (139,141);
+
+SELECT 'remaining_files' AS section, file_id, session_id, seq, file_name
+FROM files
+WHERE session_id IN (139,141);
+"
+mysql: [Warning] Using a password on the command line interface can be insecure.

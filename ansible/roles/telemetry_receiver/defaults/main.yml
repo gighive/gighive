@@ -1,0 +1,21 @@
+---
+telemetry_receiver_home: "{{ gighive_home }}/telemetry_receiver"
+telemetry_receiver_project_name: telemetry_receiver
+telemetry_receiver_bind_host: "127.0.0.1"
+telemetry_receiver_bind_port: "8088"
+telemetry_receiver_db_name: installation_telemetry
+telemetry_receiver_db_user: telemetry_app
+telemetry_receiver_db_password: change_me_telemetry_app
+telemetry_receiver_mysql_root_password: change_me_telemetry_root
+telemetry_receiver_db_host: telemetry_db
+telemetry_receiver_db_port: "3306"
+telemetry_receiver_db_container_name: telemetry_db
+telemetry_receiver_app_container_name: telemetry_receiver_app
+telemetry_receiver_mysql_image: "mysql:8.4"
+telemetry_receiver_php_image: "telemetry-receiver-php:1.0"
+telemetry_receiver_timezone: "{{ gighive_timezone | default('America/New_York') }}"
+telemetry_receiver_site_name: "GigHive Telemetry"
+telemetry_receiver_log_table: installation_events
+telemetry_receiver_allowed_event_names:
+  - install_attempt
+  - install_success
