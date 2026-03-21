@@ -1,19 +1,19 @@
 *** 
 releaseNotes20260320.txt
-Changes: db/database.php order fix (add session_id to order statement) 
-
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260320.log
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260320.log
+Changes: Event metadata was buggered for multiple loads of same session.  These are planning / remediation updates only..no code changes.
 
 sodo@pop-os:~/gighive$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260320.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260320.log
+
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
-	modified:   user-prompts.md
+	new file:   docs/db_fix_event_metadata_duplication.md
+	new file:   docs/find_and_delete_dupe_sessions.sql
 
 TODO
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
@@ -31,6 +31,7 @@ App: not just designed for iPad, what does "not verified" on laptop mean?
 App: Share link feature in media page
 App: Is it worthwhile to have an embed feature?
 App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+Media: fix the order of StormPigs20050526_10_IDoneBeCooked
 Product: Should I only rollout the one-shot-bundle to my customers?
 Feature: Consider generic media player addition to database.php
 Feature: Should have "backup now" feature
@@ -48,6 +49,23 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260320.txt
+Changes: db/database.php order fix (add session_id to order statement) 
+
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260320.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260320.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260320.txt
