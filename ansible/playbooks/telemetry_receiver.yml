@@ -1,0 +1,9 @@
+---
+- name: Deploy installation telemetry receiver
+  hosts: target_vms
+  become: true
+  collections:
+    - community.docker
+  roles:
+    - role: telemetry_receiver
+      tags: [ telemetry_receiver ]

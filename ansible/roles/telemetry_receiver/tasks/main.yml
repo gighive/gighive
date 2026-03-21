@@ -1,0 +1,54 @@
+---
+- name: Ensure telemetry receiver home exists
+  ansible.builtin.file:
+    path: "{{ telemetry_receiver_home }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure telemetry receiver directories exist
+  ansible.builtin.file:
+    path: "{{ telemetry_receiver_home }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - php
+    - web
+    - mysql/init
+    - data
+
+- name: Render telemetry receiver env file
+  ansible.builtin.template:
+    src: telemetry.env.j2
+    dest: "{{ telemetry_receiver_home }}/.env"
+    mode: "0600"
+
+- name: Render telemetry receiver compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ telemetry_receiver_home }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Copy telemetry receiver PHP Dockerfile
+  ansible.builtin.copy:
+    src: php/Dockerfile
+    dest: "{{ telemetry_receiver_home }}/php/Dockerfile"
+    mode: "0644"
+
+- name: Copy telemetry receiver endpoint
+  ansible.builtin.copy:
+    src: web/index.php
+    dest: "{{ telemetry_receiver_home }}/web/index.php"
+    mode: "0644"
+
+- name: Copy telemetry receiver schema
+  ansible.builtin.copy:
+    src: mysql/init/01-schema.sql
+    dest: "{{ telemetry_receiver_home }}/mysql/init/01-schema.sql"
+    mode: "0644"
+
+- name: Start telemetry receiver stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ telemetry_receiver_home }}"
+    project_name: "{{ telemetry_receiver_project_name }}"
+    state: present
+    build: always
