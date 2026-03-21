@@ -380,7 +380,29 @@ Expected result:
 
 This validates that the receiver is reachable on the VM interface for a separate proxy host.
 
-5. Query the stored telemetry rows from the Docker host:
+5. Insert the same test telemetry event through the public HTTPS hostname:
+
+```bash
+curl -i -X POST https://telemetry.gighive.app \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "event_name": "install_attempt",
+    "app_version": "1.2.0",
+    "install_channel": "quickstart",
+    "install_method": "virtualbox",
+    "app_flavor": "gighive",
+    "timestamp": "2026-03-21T13:00:00Z",
+    "install_id": "550e8400-e29b-41d4-a716-446655440002"
+  }'
+```
+
+Expected result:
+
+- `HTTP/2 204`
+
+This validates the production-style access path through `https://telemetry.gighive.app`, with the public HTTPS endpoint routed to the staging telemetry origin.
+
+6. Query the stored telemetry rows from the Docker host:
 
 ```bash
 docker exec telemetry_db mysql -u telemetry_app -p<MYSQL_PASSWORD_VALUE> installation_telemetry -e "SELECT id, event_name, app_version, install_channel, install_method, app_flavor, install_id, event_timestamp, country_code, created_at FROM installation_events ORDER BY id DESC LIMIT 20;"

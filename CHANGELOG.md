@@ -1,8 +1,6 @@
 *** 
 releaseNotes20260321.txt
-Changes: Telemetry endpoint design, change to external available port
-
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml" ansible-playbook-telemetry-20260321.log
+Changes: Telemetry documentation
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -11,9 +9,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/telemetry_receiver/defaults/main.yml
-	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
 	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	modified:   docs/knowledge_map.html
 	modified:   user-prompts.md
 
 TODO
@@ -50,6 +47,24 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260321.txt
+Changes: Telemetry endpoint design, change to external available port
+
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml" ansible-playbook-telemetry-20260321.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/telemetry_receiver/defaults/main.yml
+	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260321.txt
