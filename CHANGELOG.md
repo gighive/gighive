@@ -1,9 +1,6 @@
 *** 
 releaseNotes20260321.txt
-Changes: Telemetry endpoint design
-
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260320.log
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260320.log
+Changes: Telemetry endpoint design, initial bug fix
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,17 +9,14 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   ansible/playbooks/telemetry_receiver.yml
-	new file:   ansible/roles/telemetry_receiver/defaults/main.yml
-	new file:   ansible/roles/telemetry_receiver/files/mysql/init/01-schema.sql
-	new file:   ansible/roles/telemetry_receiver/files/php/Dockerfile
-	new file:   ansible/roles/telemetry_receiver/files/web/index.php
-	new file:   ansible/roles/telemetry_receiver/tasks/main.yml
-	new file:   ansible/roles/telemetry_receiver/templates/docker-compose.yml.j2
-	new file:   ansible/roles/telemetry_receiver/templates/telemetry.env.j2
-	modified:   docs/TELEMETRY.md
-	new file:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	modified:   ansible/roles/telemetry_receiver/defaults/main.yml
+	modified:   ansible/roles/telemetry_receiver/files/php/Dockerfile
+	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
 	modified:   user-prompts.md
+
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260320.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260320.log
 
 TODO
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
@@ -58,6 +52,32 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260321.txt
+Changes: Telemetry endpoint design
+
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests -v" ansible-playbook-gighive-20260320.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-prod-20260320.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/playbooks/telemetry_receiver.yml
+	new file:   ansible/roles/telemetry_receiver/defaults/main.yml
+	new file:   ansible/roles/telemetry_receiver/files/mysql/init/01-schema.sql
+	new file:   ansible/roles/telemetry_receiver/files/php/Dockerfile
+	new file:   ansible/roles/telemetry_receiver/files/web/index.php
+	new file:   ansible/roles/telemetry_receiver/tasks/main.yml
+	new file:   ansible/roles/telemetry_receiver/templates/docker-compose.yml.j2
+	new file:   ansible/roles/telemetry_receiver/templates/telemetry.env.j2
+	modified:   docs/TELEMETRY.md
+	new file:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260320.txt

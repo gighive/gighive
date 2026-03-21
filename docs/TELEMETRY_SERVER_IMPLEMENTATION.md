@@ -306,27 +306,57 @@ For example, the receiver could later move from staging to another host while ke
 
 To inspect captured telemetry directly from the staging host, run MySQL queries inside the telemetry database container.
 
-From the telemetry receiver project directory:
+### Validation steps
+
+The following two commands were validated in the lab environment.
+
+1. Insert a test telemetry event locally:
 
 ```bash
-docker compose exec telemetry_db mysql -u telemetry_app -p installation_telemetry -e "SELECT id, event_name, app_version, install_channel, install_method, app_flavor, install_id, event_timestamp, country_code, created_at FROM installation_events ORDER BY id DESC LIMIT 50;"
+curl -i -X POST http://127.0.0.1:8088 \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "event_name": "install_attempt",
+    "app_version": "1.2.0",
+    "install_channel": "quickstart",
+    "install_method": "virtualbox",
+    "app_flavor": "gighive",
+    "timestamp": "2026-03-21T13:00:00Z",
+    "install_id": "550e8400-e29b-41d4-a716-446655440000"
+  }'
 ```
 
-If you are not already in the telemetry receiver project directory, use the absolute project path on the host.
+Expected result:
 
-Example:
+- `HTTP/1.1 204 No Content`
+
+2. Query the stored telemetry rows from the Docker host:
 
 ```bash
-docker compose -f /home/ubuntu/gighive/telemetry_receiver/docker-compose.yml exec telemetry_db mysql -u telemetry_app -p installation_telemetry -e "SELECT id, event_name, app_version, install_channel, install_method, app_flavor, install_id, event_timestamp, country_code, created_at FROM installation_events ORDER BY id DESC LIMIT 50;"
+docker exec telemetry_db mysql -u telemetry_app -p${MYSQL_PASSWORD} installation_telemetry -e "SELECT id, event_name, app_version, install_channel, install_method, app_flavor, install_id, event_timestamp, country_code, created_at FROM installation_events ORDER BY id DESC LIMIT 20;"
 ```
 
-Useful summary query:
+The password used by the MySQL client is the value of:
+
+- `MYSQL_PASSWORD`
+
+### Reset steps for a clean lab retest
+
+If the telemetry database was initialized with stale credentials or state during lab testing, reset the telemetry stack data directory on the Docker host and redeploy.
+
+On the lab VM:
 
 ```bash
-docker compose exec telemetry_db mysql -u telemetry_app -p installation_telemetry -e "SELECT event_name, install_channel, COUNT(*) AS total FROM installation_events GROUP BY event_name, install_channel ORDER BY event_name, install_channel;"
+cd /home/ubuntu/gighive/telemetry_receiver
+sudo docker compose down
+sudo rm -rf /home/ubuntu/gighive/telemetry_receiver/data
 ```
 
-MySQL will prompt for the telemetry app password when you run these commands.
+Then rerun the telemetry deployment from the Ansible control host:
+
+```bash
+ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/telemetry_receiver.yml
+```
 
 ### Deployment method
 
