@@ -1,0 +1,37 @@
+---
+- name: Print installation tracking payload in debug mode
+  ansible.builtin.debug:
+    var: installation_tracking_payload
+  when:
+    - gighive_enable_installation_tracking | bool
+    - gighive_enable_installation_tracking_debug | bool
+
+- name: Send installation tracking event
+  ansible.builtin.uri:
+    url: "{{ gighive_installation_tracking_endpoint }}"
+    method: POST
+    body_format: json
+    body: "{{ installation_tracking_payload }}"
+    status_code:
+      - 200
+      - 201
+      - 202
+    timeout: "{{ gighive_installation_tracking_timeout_seconds | int }}"
+    return_content: false
+  register: installation_tracking_send_result
+  failed_when: false
+  when:
+    - gighive_enable_installation_tracking | bool
+    - not (gighive_enable_installation_tracking_debug | bool)
+
+- name: Report installation tracking send failure concisely
+  ansible.builtin.debug:
+    msg: >-
+      installation_tracking {{ installation_tracking_payload.event_name }} send failed
+      with status={{ installation_tracking_send_result.status | default('n/a') }}
+      msg={{ installation_tracking_send_result.msg | default('n/a') }}
+  when:
+    - gighive_enable_installation_tracking | bool
+    - not (gighive_enable_installation_tracking_debug | bool)
+    - installation_tracking_send_result is defined
+    - (installation_tracking_send_result.status | default(0) | int) not in [200, 201, 202]

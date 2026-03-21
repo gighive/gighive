@@ -45,6 +45,13 @@ ansible_remote_tmp: "/tmp/.ansible/tmp"
 app_flavor: gighive
 database_full: false
 
+gighive_enable_installation_tracking: true
+gighive_installation_tracking_endpoint: "https://telemetry.gighive.app"
+gighive_enable_installation_tracking_debug: false
+gighive_installation_tracking_timeout_seconds: 3
+gighive_install_channel: "full"
+gighive_install_method: "virtualbox"
+
 ga4_measurement_id_defaultcodebase: ""
 ga4_measurement_id_gighive: "G-6NH4RPQB76"
 
