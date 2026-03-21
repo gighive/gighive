@@ -1,0 +1,4 @@
+---
+- name: Installation tracking role entrypoint
+  ansible.builtin.debug:
+    msg: "Use tasks_from=attempt.yml or tasks_from=success.yml when including the installation_tracking role."

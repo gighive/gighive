@@ -384,6 +384,8 @@ Users can disable tracking by:
 
 Like other transparent telemetry systems, GigHive should support a mode that prints the exact client payload locally without sending it.
 
+In debug mode, the client should not send the request, so the telemetry receiver does not receive the event and no telemetry database row is created.
+
 Example output:
 
 ```text

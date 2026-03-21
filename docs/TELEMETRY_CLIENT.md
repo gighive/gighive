@@ -145,7 +145,7 @@ The full build client is responsible for:
 - emitting `install_success` only after the full build completes successfully
 - ensuring telemetry failures do not fail the Ansible run
 
-### Implementation readiness drivers
+### Full-build implementation readiness drivers
 
 The full-build `installation_tracking` plan is ready to implement because the key design choices have already been resolved.
 
@@ -202,29 +202,36 @@ The quickstart client is responsible for:
 - emitting `install_success` only after the quickstart flow completes successfully
 - ensuring telemetry failures do not fail the quickstart install
 
-### Recommended quickstart flow
+### Quickstart implementation readiness drivers
 
-1. Start the quickstart installer.
-2. Determine whether telemetry is enabled.
-3. Resolve `app_version`, `install_method`, `app_flavor`, and `install_channel=quickstart`.
-4. Generate one random `install_id` for the quickstart run.
-5. Write telemetry configuration into `gighive-one-shot-bundle/apache/externalConfigs/.env`.
-6. Emit `install_attempt`.
-7. Continue the normal Docker Compose quickstart installation flow.
-8. After final success criteria are satisfied, emit `install_success`.
-9. Ignore telemetry send failures for install success purposes.
+The quickstart telemetry implementation plan is ready because the key design choices have already been resolved.
 
-### Recommended implementation approach
+- the telemetry inputs are defined: `app_version` from `gighive-one-shot-bundle/VERSION`, `install_method=docker-compose`, default `app_flavor=gighive`, and `install_channel=quickstart`
+- the execution pattern is defined: one helper for payload assembly, one helper for sending, one early `install_attempt`, and one final `install_success`
+- the file plan is defined: update `gighive-one-shot-bundle/install.sh`, add `gighive-one-shot-bundle/lib/installation_tracking.sh`, update `gighive-one-shot-bundle/apache/externalConfigs/.env`, and maintain `gighive-one-shot-bundle/VERSION`
+- the runtime behavior is defined: telemetry is best-effort, debug mode prints the payload instead of sending it, timeout behavior remains short, and telemetry failures must not fail the installer
+- the shell-specific correctness risks are defined: generate `install_id` once in main script scope and protect the sender helper from `set -e` propagation
 
-The cleanest quickstart implementation is:
+### Files changed or added
 
-- keep install orchestration in `gighive-one-shot-bundle/install.sh`
-- place telemetry send logic in a small helper script or shell function
-- call that telemetry logic twice
-  - once for `install_attempt`
-  - once for `install_success`
+- update `gighive-one-shot-bundle/install.sh`
+- add `gighive-one-shot-bundle/lib/installation_tracking.sh`
+- update `gighive-one-shot-bundle/apache/externalConfigs/.env`
+- add or maintain `gighive-one-shot-bundle/VERSION`
 
-This keeps the quickstart installer readable while preserving a clear separation between installation orchestration and telemetry sending.
+### Recommended quickstart steps
+
+1. Add the quickstart telemetry helper logic inside `gighive-one-shot-bundle` and keep install orchestration in `gighive-one-shot-bundle/install.sh`.
+2. Define the quickstart telemetry inputs: read `app_version` from the quickstart bundle `VERSION` file that is copied from the main repo and suffixed with `_quickstart`, `install_method=docker-compose`, default `app_flavor=gighive`, `install_channel=quickstart`, endpoint, enable flag, debug flag, and timeout.
+3. Generate one random `install_id` once in the main script scope of `install.sh` using `uuidgen`, not inside a helper function, so the same value is available for both `install_attempt` and `install_success`.
+4. Add one payload assembly function that builds the shared JSON payload shape for either `install_attempt` or `install_success`.
+5. Add one sender helper function that honors enable/debug flags, posts to `https://telemetry.gighive.app`, uses a short timeout, and explicitly protects against `set -e` propagation so telemetry send failures never abort the installer.
+6. Write telemetry configuration into `gighive-one-shot-bundle/apache/externalConfigs/.env` for runtime visibility.
+7. Emit `install_attempt` near the beginning of `gighive-one-shot-bundle/install.sh` after the telemetry values are resolved but before the main Docker Compose quickstart work begins.
+8. Continue the normal Docker Compose quickstart installation flow.
+9. After final success criteria are satisfied, emit `install_success`.
+10. Keep telemetry send failures best-effort so they do not affect quickstart install success.
+11. Test enabled mode, debug mode, opt-out, timeout behavior, and failure isolation.
 
 ## Payload Assembly
 
@@ -247,11 +254,12 @@ Regardless of channel, the telemetry client must build the same payload shape.
 ## Debug Mode
 
 If debug mode is enabled:
-
-- print the payload locally
-- do not send the request
-
-Example behavior:
+ 
+ - print the payload locally
+ - do not send the request
+ - do not create a telemetry database row because the server never receives the event
+ 
+ Example behavior:
 
 ```text
 [telemetry] install tracking enabled

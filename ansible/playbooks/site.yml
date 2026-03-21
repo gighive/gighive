@@ -91,6 +91,15 @@
     media_path: /var/www/media
     modsec_enable: true
     crs_enable: false
+  pre_tasks:
+    - name: Report install_attempt telemetry
+      ansible.builtin.include_role:
+        name: installation_tracking
+        tasks_from: attempt.yml
+        apply:
+          tags:
+            - installation_tracking
+      tags: [ installation_tracking ]
   roles:
     - role: base
       tags: [ base ]
@@ -111,6 +120,15 @@
       when: run_upload_tests | bool
     - role: mysql_backup
       tags: [ mysql_backup ]
+  post_tasks:
+    - name: Report install_success telemetry
+      ansible.builtin.include_role:
+        name: installation_tracking
+        tasks_from: success.yml
+        apply:
+          tags:
+            - installation_tracking
+      tags: [ installation_tracking ]
 
 # 3) Optional: global postflight snapshot (final state)
 - name: Postflight varscope

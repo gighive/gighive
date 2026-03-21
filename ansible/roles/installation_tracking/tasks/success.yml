@@ -1,0 +1,8 @@
+---
+- name: Prepare install_success telemetry payload
+  ansible.builtin.include_tasks: prepare_event.yml
+  vars:
+    installation_tracking_event_name: install_success
+
+- name: Emit install_success telemetry
+  ansible.builtin.include_tasks: send_event.yml

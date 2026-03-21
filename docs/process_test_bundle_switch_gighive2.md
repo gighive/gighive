@@ -3,7 +3,15 @@
 ## Assumptions
 
 - A new bundle has been created.
+
+```bash
+tar -czf gighive-one-shot-bundle.tgz gighive-one-shot-bundle/
+```
 - A SHA file has been generated for that bundle.
+
+```bash
+sha256sum gighive-one-shot-bundle.tgz > gighive-one-shot-bundle.tgz.sha256
+```
 - The bundle and SHA file have been copied to the staging server with:
 
 ```bash

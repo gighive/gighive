@@ -1,0 +1,16 @@
+---
+- name: Generate install_id for this Ansible-driven install run
+  ansible.builtin.set_fact:
+    installation_tracking_install_id: "{{ lookup('pipe', 'uuidgen') | trim }}"
+  when: installation_tracking_install_id is not defined
+
+- name: Build installation tracking event payload
+  ansible.builtin.set_fact:
+    installation_tracking_payload:
+      event_name: "{{ installation_tracking_event_name }}"
+      app_version: "{{ lookup('file', repo_root ~ '/VERSION') | trim }}"
+      install_channel: "{{ gighive_install_channel }}"
+      install_method: "{{ gighive_install_method }}"
+      app_flavor: "{{ app_flavor | default('gighive') }}"
+      timestamp: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+      install_id: "{{ installation_tracking_install_id }}"

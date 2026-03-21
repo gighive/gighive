@@ -1,19 +1,31 @@
 *** 
 releaseNotes20260321.txt
-Changes: Telemetry client, implementation plan complete
- 
+Changes: Telemetry client implementation and documentation
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260321.log
+Last run (bundle: run from dev): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive_bundle
+
 sodo@pop-os:~/gighive$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
 	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/docker/templates/.env.j2
+	new file:   ansible/roles/installation_tracking/defaults/main.yml
+	new file:   ansible/roles/installation_tracking/tasks/attempt.yml
+	new file:   ansible/roles/installation_tracking/tasks/main.yml
+	new file:   ansible/roles/installation_tracking/tasks/prepare_event.yml
+	new file:   ansible/roles/installation_tracking/tasks/send_event.yml
+	new file:   ansible/roles/installation_tracking/tasks/success.yml
 	modified:   docs/TELEMETRY.md
-	new file:   docs/TELEMETRY_CLIENT.md
-	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
-	new file:   docs/VERSIONING.md
-	new file:   docs/refactor_version_number_to_semantic.md
+	modified:   docs/TELEMETRY_CLIENT.md
+	modified:   docs/knowledge_map.html
+	modified:   docs/process_test_bundle_switch_gighive2.md
 
 TODO
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
@@ -49,6 +61,23 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260321.txt
+Changes: Telemetry client, implementation plan complete
+ 
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/TELEMETRY.md
+	new file:   docs/TELEMETRY_CLIENT.md
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	new file:   docs/VERSIONING.md
+	new file:   docs/refactor_version_number_to_semantic.md
 
 *** 
 releaseNotes20260321.txt
