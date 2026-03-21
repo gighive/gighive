@@ -222,45 +222,42 @@ This keeps it separate from the main GigHive Docker project.
 
 ## Reverse Proxying
 
-The telemetry receiver should be reverse-proxied from the public hostname to the local-only telemetry service.
+The telemetry receiver should be reverse-proxied from the public hostname to the telemetry VM over the VM network.
 
 Conceptually:
 
 - public: `https://telemetry.gighive.app`
-- local origin target: `http://127.0.0.1:8088`
+- proxy origin target: `http://<telemetry-vm-ip>:8088`
 
 The exact reverse-proxy implementation can be handled by the existing front-end path used on staging.
+
+Because the Cloudflare proxy runs on a separate server, the telemetry receiver cannot remain bound to `127.0.0.1` only.
 
 ## Security Considerations
 
 ### Transport
 
 - use HTTPS only for public telemetry requests
-- keep the origin receiver local-only where possible
+- restrict the origin receiver to the proxy host or private network where possible
 
 ### Input validation
 
 - accept only POST
 - accept only the expected JSON schema
-- allow only known event names
-- allow only known install channel values
-- reject malformed timestamps
 
-### Database handling
+### Local health-check target
 
-- use a dedicated telemetry database
-- do not expose database credentials publicly
-- store secrets in inventory or protected deployment configuration
+- `127.0.0.1:8088`
 
-### Rate limiting
+### Exposure model
 
-This endpoint is expected to receive low traffic, but it should still be protected against abuse at the proxy or application layer if needed.
+- Cloudflare-proxied dedicated subdomain
+- reverse proxy from the separate proxy server to the telemetry VM on port `8088`
+- firewall or network restriction so only the proxy path can reach the telemetry port
 
-### Logging
+### Database
 
-Application logs should avoid echoing full request bodies if not needed.
-
-Raw IP addresses should not be treated as telemetry data.
+- dedicated MySQL telemetry database
 
 ## Operational Notes
 
@@ -289,14 +286,19 @@ For example, the receiver could later move from staging to another host while ke
 
 - staging server
 
-### Local receiver bind
+### Telemetry receiver bind
+
+- `0.0.0.0:8088`
+
+### Local health-check target
 
 - `127.0.0.1:8088`
 
 ### Exposure model
 
 - Cloudflare-proxied dedicated subdomain
-- reverse proxy or tunnel to the local receiver
+- reverse proxy from the separate proxy server to the telemetry VM on port `8088`
+- firewall or network restriction so only the proxy path can reach the telemetry port
 
 ### Database
 
@@ -308,9 +310,35 @@ To inspect captured telemetry directly from the staging host, run MySQL queries 
 
 ### Validation steps
 
-The following two commands were validated in the lab environment.
+The following steps were validated in the lab and staging environments.
 
-1. Insert a test telemetry event locally:
+1. Confirm that the telemetry containers are running:
+
+```bash
+docker ps
+```
+
+2. Verify that the PHP container can connect to MySQL:
+
+```bash
+docker exec telemetry_receiver_app php -r '
+$dsn = "mysql:host=" . getenv("DB_HOST") . ";port=" . getenv("DB_PORT") . ";dbname=" . getenv("MYSQL_DATABASE") . ";charset=utf8mb4";
+try {
+    $pdo = new PDO($dsn, getenv("MYSQL_USER"), getenv("MYSQL_PASSWORD"), [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ]);
+    echo "DB_OK\n";
+} catch (Throwable $e) {
+    echo "DB_FAIL: " . $e->getMessage() . "\n";
+}
+'
+```
+
+Expected result:
+
+- `DB_OK`
+
+3. Insert a test telemetry event locally from the telemetry VM:
 
 ```bash
 curl -i -X POST http://127.0.0.1:8088 \
@@ -330,10 +358,32 @@ Expected result:
 
 - `HTTP/1.1 204 No Content`
 
-2. Query the stored telemetry rows from the Docker host:
+4. Insert the same test telemetry event through the VM network address:
 
 ```bash
-docker exec telemetry_db mysql -u telemetry_app -p${MYSQL_PASSWORD} installation_telemetry -e "SELECT id, event_name, app_version, install_channel, install_method, app_flavor, install_id, event_timestamp, country_code, created_at FROM installation_events ORDER BY id DESC LIMIT 20;"
+curl -i -X POST http://<telemetry-vm-ip>:8088 \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "event_name": "install_attempt",
+    "app_version": "1.2.0",
+    "install_channel": "quickstart",
+    "install_method": "virtualbox",
+    "app_flavor": "gighive",
+    "timestamp": "2026-03-21T13:00:00Z",
+    "install_id": "550e8400-e29b-41d4-a716-446655440001"
+  }'
+```
+
+Expected result:
+
+- `HTTP/1.1 204 No Content`
+
+This validates that the receiver is reachable on the VM interface for a separate proxy host.
+
+5. Query the stored telemetry rows from the Docker host:
+
+```bash
+docker exec telemetry_db mysql -u telemetry_app -p<MYSQL_PASSWORD_VALUE> installation_telemetry -e "SELECT id, event_name, app_version, install_channel, install_method, app_flavor, install_id, event_timestamp, country_code, created_at FROM installation_events ORDER BY id DESC LIMIT 20;"
 ```
 
 The password used by the MySQL client is the value of:

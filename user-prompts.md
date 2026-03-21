@@ -2451,3 +2451,12 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 
 - 2026-03-21T10:08:00-04:00
   - the three docker compose examples under the one you just added seem redundant.  please remove them if you agree..less noise that way
+
+- 2026-03-21T10:59:00-04:00
+  - 1) please add steps 1/2/3 to Validation steps in the .md file.  2) i don't think my tunnel from cloudflare into the endpoint will work because the endpoint is bound to a localhost address, correct?  ghive:~$ docker ps
+
+- 2026-03-21T11:02:00-04:00
+  - make changes for option 1 please
+
+- 2026-03-21T11:03:00-04:00
+  - please add the validation steps to point to the non-localhost address as well, 2) i will test on the lab instance first

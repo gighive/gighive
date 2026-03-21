@@ -1,7 +1,8 @@
 ---
 telemetry_receiver_home: "{{ gighive_home }}/telemetry_receiver"
 telemetry_receiver_project_name: telemetry_receiver
-telemetry_receiver_bind_host: "127.0.0.1"
+telemetry_receiver_bind_host: "0.0.0.0"
+telemetry_receiver_probe_host: "127.0.0.1"
 telemetry_receiver_bind_port: "8088"
 telemetry_receiver_db_name: installation_telemetry
 telemetry_receiver_db_user: telemetry_app

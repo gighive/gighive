@@ -65,13 +65,13 @@
 
 - name: Wait for telemetry receiver port to listen locally
   ansible.builtin.wait_for:
-    host: "{{ telemetry_receiver_bind_host }}"
+    host: "{{ telemetry_receiver_probe_host }}"
     port: "{{ telemetry_receiver_bind_port | int }}"
     timeout: 30
 
 - name: Verify telemetry receiver HTTP endpoint responds locally
   ansible.builtin.uri:
-    url: "http://{{ telemetry_receiver_bind_host }}:{{ telemetry_receiver_bind_port }}/"
+    url: "http://{{ telemetry_receiver_probe_host }}:{{ telemetry_receiver_bind_port }}/"
     method: GET
     status_code:
       - 405
