@@ -301,6 +301,59 @@ This works for both installation paths:
   - write values directly into `gighive-one-shot-bundle/apache/externalConfigs/.env`
   - typically from `gighive-one-shot-bundle/install.sh`
 
+## Why Full Install and Quickstart Need Separate Client Implementations
+
+GigHive should keep one telemetry data contract, but it still needs two separate client-side implementations because the two installation paths execute in different environments and are controlled by different tooling.
+
+### Full install
+
+The full install path is driven by Ansible.
+
+That means telemetry for the full install should be emitted from Ansible-managed tasks or helper scripts invoked by those tasks.
+
+The full install path is responsible for:
+
+- generating one `install_id` for the Ansible-driven install run
+- rendering telemetry-related values into `apache/externalConfigs/.env`
+- emitting `install_attempt` near the beginning of the install flow
+- emitting `install_success` only after the full install completes successfully
+
+### Quickstart
+
+The quickstart path is driven by the Docker Compose quickstart bundle installer, typically `gighive-one-shot-bundle/install.sh`.
+
+That means telemetry for quickstart should be emitted from the quickstart installer flow or a helper it calls, not from the full-install Ansible path.
+
+The quickstart path is responsible for:
+
+- generating one `install_id` for the quickstart install run
+- writing telemetry-related values into `gighive-one-shot-bundle/apache/externalConfigs/.env`
+- emitting `install_attempt` near the beginning of the quickstart flow
+- emitting `install_success` only after the quickstart flow completes successfully
+
+### Why this split is necessary
+
+- the full install and quickstart paths do not share the same entrypoint
+- they do not use the same orchestration tool
+- they create runtime configuration in different ways
+- they have different success boundaries and failure paths
+
+Because of that, one implementation cannot simply be dropped into both flows without adding coupling or hidden assumptions.
+
+### What must stay identical across both implementations
+
+Although the client implementations are separate, they must emit the same payload shape and follow the same behavior rules.
+
+Both implementations must:
+
+- use the same endpoint
+- honor `GIGHIVE_ENABLE_INSTALLATION_TRACKING`
+- honor debug mode
+- send the same fields
+- preserve repeated same-`install_id` events
+- treat telemetry as best-effort only
+- never fail the installation if telemetry sending fails
+
 ## Opt-Out Mechanism
 
 Users can disable tracking by:

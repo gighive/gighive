@@ -1,7 +1,7 @@
 *** 
 releaseNotes20260321.txt
-Changes: Telemetry documentation
-
+Changes: Telemetry client, implementation plan complete
+ 
 sodo@pop-os:~/gighive$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
@@ -9,9 +9,11 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   docs/TELEMETRY.md
+	new file:   docs/TELEMETRY_CLIENT.md
 	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
-	modified:   docs/knowledge_map.html
-	modified:   user-prompts.md
+	new file:   docs/VERSIONING.md
+	new file:   docs/refactor_version_number_to_semantic.md
 
 TODO
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
@@ -47,6 +49,21 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260321.txt
+Changes: Telemetry documentation
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	modified:   docs/knowledge_map.html
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260321.txt
