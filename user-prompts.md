@@ -2460,3 +2460,22 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 
 - 2026-03-21T11:03:00-04:00
   - please add the validation steps to point to the non-localhost address as well, 2) i will test on the lab instance first
+
+- 2026-03-21T11:25:00-04:00
+  - yay!  ubuntu@gighive:~$ curl -i -X POST https://telemetry.gighive.app \
+    -H 'Content-Type: application/json' \
+    -d '{
+      "event_name": "install_attempt",
+      "app_version": "1.2.0",
+      "install_channel": "quickstart",
+      "install_method": "virtualbox",
+      "app_flavor": "gighive",
+      "timestamp": "2026-03-21T13:00:00Z",
+      "install_id": "550e8400-e29b-41d4-a716-446655440002"
+    }'
+
+- 2026-03-21T11:47:00-04:00
+  - oh gotcha.  insert the https curl call into the .md file after step 4 please, so we know that's the way we are going to use telemetry in production (pointed at the staging server, of course)
+
+- 2026-03-21T11:49:00-04:00
+  - please add these new and updated .md files regarding telemetry to our knowledge_map.html
