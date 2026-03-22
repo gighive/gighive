@@ -12,13 +12,14 @@ Changes to be committed:
 	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
 	new file:   ansible/roles/docker/files/one_shot_bundle/rotate_basic_auth.sh
 	modified:   docs/TELEMETRY_ENDUSER.md
+	modified:   docs/PREREQS.md
 	modified:   docs/knowledge_map.html
 	new file:   docs/security_reset_quickstart_user_passwords.md
 	modified:   docs/setup_instructions_quickstart.md
 
 TODO
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Problem: bundle admin.php can't update passwords
+Testing: Test the one-shot-bundle comparitor in dry--run mode..like to see where the diffs are now
 Problem: admin.php passwords doesn't use common min security requirements
 Tutorial: Create video for quick install
 Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
