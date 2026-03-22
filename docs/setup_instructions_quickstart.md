@@ -5,9 +5,9 @@ description: Quickstart install instructions (one-shot bundle)
 
 These are instructions to get up and running with Gighive for users with Docker already installed.
 
-## Requirements
+## Prerequisites
 
-1. Have a running Docker installation.
+- Read the [PREREQS](PREREQS.md).
 
 ## Download and verify integrity of tarball
 
