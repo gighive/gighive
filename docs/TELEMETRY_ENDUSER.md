@@ -34,7 +34,7 @@ This helps answer questions like:
 
 ## Opt out
 
-- Installation telemetry can be disabled before install in both the full-build and quickstart setup flows
+- Installation telemetry can be disabled before install in both the [full-build setup flow](setup_instructions_fullbuild.html) and the [quickstart setup flow](setup_instructions_quickstart.html)
 
 ## Behavior
 

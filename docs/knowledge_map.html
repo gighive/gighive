@@ -566,7 +566,7 @@
           kind: "concern",
           children: [
             { id: "database-reference", label: "Reference", kind: "type", type: "reference", children: [
-              { id: "db-load-methods", label: "DATABASE_LOAD_METHODS.md", kind: "document", concern: "database", type: "reference", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./DATABASE_LOAD_METHODS.html" },
+              { id: "db-load-via-admin", label: "database_load_via_admin_php.md", kind: "document", concern: "database", type: "reference", lifecycle: "active", audience: ["admin", "operator"], aspect: "mixed", href: "./database_load_via_admin_php.html" },
               { id: "db-import-process", label: "database-import-process.md", kind: "document", concern: "database", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "mixed", href: "./database-import-process.html" },
               { id: "mysql-init-load", label: "load_and_transform_mysql_initialization.md", kind: "document", concern: "database", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./load_and_transform_mysql_initialization.html" }
             ] },
@@ -735,10 +735,11 @@
           children: [
             { id: "api-reference", label: "Reference", kind: "type", type: "reference", children: [
               { id: "api-current", label: "API_CURRENT_STATE.md", kind: "document", concern: "api", type: "reference", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./API_CURRENT_STATE.html" },
-              { id: "internal-endpoints", label: "internalEndpoints.md", kind: "document", concern: "api", type: "reference", lifecycle: "active", audience: ["developer"], aspect: "mixed", href: "./internalEndpoints.html" }
+              { id: "internal-endpoints", label: "internalEndpoints.md", kind: "document", concern: "api", type: "reference", lifecycle: "active", audience: ["developer"], aspect: "mixed", href: "./internalEndpoints.html" },
+              { id: "iphone-app", label: "iphone_app.md", kind: "document", concern: "api", type: "reference", lifecycle: "active", audience: ["admin", "operator", "user"], aspect: "functional", href: "./iphone_app.html" }
             ] },
             { id: "api-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
-              { id: "four-page-rearch", label: "FOUR_PAGE_REARCHITECTURE.md", kind: "document", concern: "api", type: "architecture", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./FOUR_PAGE_REARCHITECTURE.html" }
+              { id: "iphone-four-page-rearch", label: "IPHONE_FOUR_PAGE_REARCHITECTURE.md", kind: "document", concern: "api", type: "architecture", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./IPHONE_FOUR_PAGE_REARCHITECTURE.html" }
             ] },
             { id: "api-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "api-cleanup", label: "POTENTIAL_API_CLEANUP_IF_DESIRED.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./POTENTIAL_API_CLEANUP_IF_DESIRED.html" },
@@ -755,7 +756,9 @@
               { id: "docs-readme", label: "README.md", kind: "document", concern: "operability", type: "index", lifecycle: "active", audience: ["developer", "operator"], aspect: "mixed", href: "./README.html" },
               { id: "docs-index", label: "index.md", kind: "document", concern: "operability", type: "index", lifecycle: "active", audience: ["developer", "operator", "admin"], aspect: "mixed", href: "./index.html" },
               { id: "terms", label: "APP_TERMS_OF_SERVICE.md", kind: "document", concern: "operability", type: "reference", lifecycle: "active", audience: ["admin", "maintainer"], aspect: "non_functional", href: "./APP_TERMS_OF_SERVICE.html" },
-              { id: "content-policy", label: "gighive_content_policy.md", kind: "document", concern: "operability", type: "reference", lifecycle: "active", audience: ["admin", "maintainer"], aspect: "non_functional", href: "./gighive_content_policy.html" }
+              { id: "content-policy", label: "gighive_content_policy.md", kind: "document", concern: "operability", type: "reference", lifecycle: "active", audience: ["admin", "maintainer"], aspect: "non_functional", href: "./gighive_content_policy.html" },
+              { id: "licenses", label: "LICENSE.md", kind: "document", concern: "operability", type: "reference", lifecycle: "active", audience: ["admin", "maintainer", "operator"], aspect: "non_functional", href: "./LICENSE.html" },
+              { id: "privacy-policy", label: "privacy.md", kind: "document", concern: "operability", type: "reference", lifecycle: "active", audience: ["admin", "maintainer", "operator"], aspect: "non_functional", href: "./privacy.html" }
             ] },
             { id: "operability-runbook", label: "Runbook", kind: "type", type: "runbook", children: [
               { id: "one-shot-bundle-backups", label: "process_one_shot_bundle_original_creation_plus_backups.md", kind: "document", concern: "operability", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_original_creation_plus_backups.html" },
@@ -776,6 +779,8 @@
           children: [
             { id: "observability-reference", label: "Reference", kind: "type", type: "reference", children: [
               { id: "telemetry", label: "TELEMETRY.md", kind: "document", concern: "observability", type: "reference", lifecycle: "active", audience: ["developer", "operator", "architect"], aspect: "non_functional", href: "./TELEMETRY.html" },
+              { id: "telemetry-client", label: "TELEMETRY_CLIENT.md", kind: "document", concern: "observability", type: "reference", lifecycle: "active", audience: ["developer", "operator", "architect"], aspect: "non_functional", href: "./TELEMETRY_CLIENT.html" },
+              { id: "telemetry-enduser", label: "TELEMETRY_ENDUSER.md", kind: "document", concern: "observability", type: "reference", lifecycle: "active", audience: ["admin", "operator", "user"], aspect: "non_functional", href: "./TELEMETRY_ENDUSER.html" },
               { id: "telemetry-server-implementation", label: "TELEMETRY_SERVER_IMPLEMENTATION.md", kind: "document", concern: "observability", type: "reference", lifecycle: "active", audience: ["developer", "operator", "architect"], aspect: "non_functional", href: "./TELEMETRY_SERVER_IMPLEMENTATION.html" },
               { id: "ga-tracking", label: "media_google_analytics_tracking.md", kind: "document", concern: "observability", type: "reference", lifecycle: "active", audience: ["developer", "admin"], aspect: "non_functional", href: "./media_google_analytics_tracking.html" }
             ] },

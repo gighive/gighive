@@ -178,37 +178,31 @@ img {
     <ul>
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
         <li><a href="README.html">🚀 Setup Guide</a></li>
+        <li><a href="setup_instructions_quickstart.html">⚡ Quickstart Setup</a></li>
         <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
     </ul>
     
     <h3>🗄️ Database</h3>
     <ul>
-        <li><a href="DATABASE_LOAD_METHODS.html">📥 Database Load Options</a></li>
-        <li><a href="database-import-process.html">📥 Database Import Process</a></li>
-    </ul>
-    
-    <h3>🐳 Docker</h3>
-    <ul>
-        <li><a href="DOCKER_COMPOSE_BEHAVIOR.html">⚙️ Docker Behavior</a></li>
+        <li><a href="database_load_via_admin_php.html">📥 Database Load via Admin Page</a></li>
     </ul>
     
     <h3>🎥 Streaming</h3>
     <ul>
-        <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits / Call Flow</a></li>
-        <li><a href="CONTENT_RANGE_CLOUDFLARE.html">☁️ Cloudflare Caching Limits</a></li>
+        <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits</a></li>
     </ul>
     
     <h3>📱 iPhone App</h3>
     <ul>
-        <li><a href="FOUR_PAGE_REARCHITECTURE.html">🏗️ 4-Page Rearchitecture</a></li>
+        <li><a href="iphone_app.html">📱 GigHive iPhone App</a></li>
     </ul>
     
     <h3>📄 Legal & Policies</h3>
     <ul>
         <li><a href="APP_TERMS_OF_SERVICE.html">📜 App Terms of Service</a></li>
         <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
-        <li><a href="LICENSE_AGPLv3.html">📜 AGPL v3 License</a></li>
-        <li><a href="LICENSE_COMMERCIAL.html">💼 Commercial License</a></li>
+        <li><a href="LICENSE.html">📜 Licenses</a></li>
+        <li><a href="privacy.html">� Privacy Policy</a></li>
     </ul>
     
     <h3>🔗 Links</h3>
@@ -237,9 +231,6 @@ img {
     
     <h3>🔮 Coming Soon</h3>
     <ul>
-        <li><a href="migrate-bootstrap-to-ansible.html">🔄 Migrate Bootstrap</a></li>
-        <li><a href="WHAT_IS_TUS.html">❓ What is TUS</a></li>
-        <li><a href="tus_implementation_guide.html">📤 TUS Implementation</a></li>
         <li><a href="security-upgrade.html">🔒 Security Upgrade</a></li>
     </ul>
     
@@ -364,7 +355,6 @@ These are shown in this <a href="images/architecture.png">architecture diagram</
 ### License
 GigHive is dual-licensed:
 
-- **[AGPL v3 License](LICENSE_AGPLv3.html)**: Open source, free for personal use with strong copyleft protection for use as a SaaS.
-- **[Commercial License](LICENSE_COMMERCIAL.html)**: Required for SaaS, multi-tenant, or commercial use without AGPL obligations.
+- **[Licenses](LICENSE.html)**: Covers both the AGPL v3 license and the commercial license model.
 
-👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
+ 👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">

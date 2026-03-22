@@ -53,7 +53,7 @@ Choose one of the following:
 
 ## Quickstart (one-shot bundle)
 
-[setup_instructions_quickstart.html](setup_instructions_quickstart.html)
+[Quickstart Setup](setup_instructions_quickstart.html)
 
 ## Full build (normal Ansible/Terraform workflow)
 
@@ -116,8 +116,7 @@ Choose one of the following:
 ### License
 GigHive is dual-licensed:
 
-- **[AGPL v3 License](LICENSE_AGPLv3.md)**: Open source, free for personal use with strong copyleft protection for use as a SaaS.
-- **[Commercial License](LICENSE_COMMERCIAL.md)**: Required for SaaS, multi-tenant, or commercial use without AGPL obligations.
+**[Licenses](LICENSE.md)**: Covers both the AGPL v3 license and the commercial license model.
 
 ---
 
