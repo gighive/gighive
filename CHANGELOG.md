@@ -1,8 +1,6 @@
 *** 
 releaseNotes20260322.txt
-Changes: Telemetry end user instructions
-
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests" ansible-playbook-gighive2-20260321.log
+Changes: Massive documentation update and hamburger menu fix
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -11,11 +9,17 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	new file:   docs/TELEMETRY_ENDUSER.md
-	modified:   docs/privacy.md
-	modified:   docs/setup_instructions_fullbuild.md
-	modified:   docs/setup_instructions_quickstart.md
+	modified:   docs/APP_TERMS_OF_SERVICE.md
+	renamed:    docs/DATABASE_LOAD_METHODS.md -> docs/DATABASE_LOAD_METHODS_DETAILED.md
+	renamed:    docs/FOUR_PAGE_REARCHITECTURE.md -> docs/IPHONE_FOUR_PAGE_REARCHITECTURE.md
+	new file:   docs/LICENSE.md
+	modified:   docs/README.md
+	modified:   docs/TELEMETRY_ENDUSER.md
+	new file:   docs/database_load_via_admin_php.md
+	modified:   docs/index.md
+	new file:   docs/iphone_app.md
+	modified:   docs/knowledge_map.html
+	renamed:    docs/CONTENT_RANGE_CLOUDFLARE.md -> docs/problem_content_range_cloudflare.md
 
 TODO
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
@@ -51,6 +55,23 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260322.txt
+Changes: Telemetry end user instructions
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	new file:   docs/TELEMETRY_ENDUSER.md
+	modified:   docs/privacy.md
+	modified:   docs/setup_instructions_fullbuild.md
+	modified:   docs/setup_instructions_quickstart.md
 
 *** 
 releaseNotes20260321.txt
