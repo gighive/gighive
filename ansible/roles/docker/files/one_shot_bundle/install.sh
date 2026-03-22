@@ -196,6 +196,9 @@ docker run --rm \
     /usr/local/apache2/bin/htpasswd -b  /work/gighive.htpasswd viewer "$VIEWER_PASSWORD"
   '
 
+sudo chown www-data:www-data "${HTPASSWD_HOST_FILE}"
+sudo chmod 0640 "${HTPASSWD_HOST_FILE}"
+
 APACHE_ENV_FILE="apache/externalConfigs/.env"
 MYSQL_ENV_FILE="mysql/externalConfigs/.env.mysql"
 
