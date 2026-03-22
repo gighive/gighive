@@ -73,6 +73,7 @@ vi ansible/inventories/inventory_bootstrap.yml
 ```
 
 5. Execute the Ansible playbook that will install Gighive (15 minutes).
+OPTIONAL: GigHive sends the [**bare minimum of information for debugging purposes**](TELEMETRY_ENDUSER.md). If you do not want GigHive to send this minimal installation telemetry, change `gighive_enable_installation_tracking` to `false` in `ansible/inventories/group_vars/gighive/gighive.yml` before installation.
 ```bash
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
 ```
@@ -113,10 +114,12 @@ or, if you have azure.env configured with these exports, just:
 source ./azure.env
 ```
 
+OPTIONAL: GigHive sends the [**bare minimum of information for debugging purposes**](TELEMETRY_ENDUSER.md). If you do not want GigHive to send this minimal installation telemetry, change `gighive_enable_installation_tracking` to `false` in `ansible/inventories/group_vars/gighive/gighive.yml` before installation.
+
 2. Provision infrastructure.  Run ./2bootstrap.sh. Watch for and respond to these prompts:
-  - apply Terraform plan 
-  - update the ansible inventory file
-  - run the ansible build
+   - apply Terraform plan 
+   - update the ansible inventory file
+   - run the ansible build
 ```bash
 ./2bootstrap.sh
 ```
