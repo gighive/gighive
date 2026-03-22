@@ -47,6 +47,8 @@ Expand the tarball
 tar -xzf gighive-one-shot-bundle.tgz
 ```
 
+OPTIONAL: GigHive sends the [**bare minimum of information for debugging purposes**](TELEMETRY_ENDUSER.md). If you do not want GigHive to send this minimal installation telemetry, edit `gighive-one-shot-bundle/install.sh` and set `GIGHIVE_ENABLE_INSTALLATION_TRACKING` to `false` before running `./install.sh`.
+
 Run the installer to install gighive
 ```bash
 cd gighive-one-shot-bundle
