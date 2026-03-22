@@ -26,7 +26,8 @@ These are instructions to get up and running with Gighive for users with Docker 
     ```
 4. Confirm the outputs match.
 
-The outputs should match, but they do not need to match the example SHA below because the bundles are subject to change.
+    The outputs should match, but they do not need to match the example SHA below because the bundles are subject to change.
+
     ```bash
     sodo@pop-os:~/gighive$ cat gighive-one-shot-bundle.tgz.sha256
     d7d4d03adf70f5c023000a8a884355e9442d01a20b57fc2a45a69f50b6537500  gighive-one-shot-bundle.tgz
@@ -43,7 +44,7 @@ The outputs should match, but they do not need to match the example SHA below be
     ```
 2. Optional: disable installation telemetry before running the installer.
 
-GigHive sends the [**bare minimum of information for debugging purposes**](TELEMETRY_ENDUSER.md). If you do not want GigHive to send this minimal installation telemetry, edit `gighive-one-shot-bundle/install.sh` and set `GIGHIVE_ENABLE_INSTALLATION_TRACKING` to `false` before running `./install.sh`.
+    GigHive sends the [**bare minimum of information for debugging purposes**](TELEMETRY_ENDUSER.md). If you do not want GigHive to send this minimal installation telemetry, edit `gighive-one-shot-bundle/install.sh` and set `GIGHIVE_ENABLE_INSTALLATION_TRACKING` to `false` before running `./install.sh`.
 3. Run the installer to install Gighive.
     ```bash
     cd gighive-one-shot-bundle
@@ -51,11 +52,11 @@ GigHive sends the [**bare minimum of information for debugging purposes**](TELEM
     ```
 4. During `./install.sh`, set BasicAuth passwords for the following users.
 
-These are written to `apache/externalConfigs/gighive.htpasswd`.
+    These are written to `apache/externalConfigs/gighive.htpasswd`.
 
-- `admin`
-- `uploader`
-- `viewer`
+    - `admin`
+    - `uploader`
+    - `viewer`
 
 5. Wait a minute or two for `mysqlServer` and `apacheWebServer` containers to spin up fully.
 
