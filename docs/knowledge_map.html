@@ -545,7 +545,7 @@
             { id: "deployment-runbook", label: "Runbook", kind: "type", type: "runbook", children: [
               { id: "rebuild-criteria", label: "process_download_quickstart_rebuild_criteria.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_download_quickstart_rebuild_criteria.html" },
               { id: "one-shot-bundle", label: "process_one_shot_bundle_original_creation.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_original_creation.html" },
-              { id: "test-bundle-switch-gighive2", label: "process_test_bundle_switch_gighive2.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "developer", "maintainer"], aspect: "non_functional", href: "./process_test_bundle_switch_gighive2.html" }
+              { id: "test-bundle-switch-gighive2", label: "process_one_shot_bundle_switch_with_gighive2.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "developer", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_switch_with_gighive2.html" }
             ] },
             { id: "deployment-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "bootstrap-phase1", label: "BOOTSTRAP_PHASE1.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["operator", "architect", "developer"], aspect: "non_functional", href: "./BOOTSTRAP_PHASE1.html" },
@@ -664,17 +664,15 @@
           label: "Streaming",
           kind: "concern",
           children: [
-            { id: "streaming-reference", label: "Reference", kind: "type", type: "reference", children: [
-              { id: "content-range-cf", label: "CONTENT_RANGE_CLOUDFLARE.md", kind: "document", concern: "streaming", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./CONTENT_RANGE_CLOUDFLARE.html" }
+            { id: "streaming-rca", label: "RCA", kind: "type", type: "rca", children: [
+              { id: "range-request-rca", label: "problem_server_did_not_honor_range_request.md", kind: "document", concern: "streaming", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_server_did_not_honor_range_request.html" },
+              { id: "content-range-cf", label: "problem_content_range_cloudflare.md", kind: "document", concern: "streaming", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_content_range_cloudflare.html" }
             ] },
             { id: "streaming-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
               { id: "streaming-work-impl", label: "howdoesstreamingwork_implementation.md", kind: "document", concern: "streaming", type: "architecture", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./howdoesstreamingwork_implementation.html" }
             ] },
             { id: "streaming-change", label: "Change", kind: "type", type: "change", children: [
               { id: "range-request-fix", label: "RANGE_REQUEST_FIX.md", kind: "document", concern: "streaming", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "non_functional", href: "./RANGE_REQUEST_FIX.html" }
-            ] },
-            { id: "streaming-rca", label: "RCA", kind: "type", type: "rca", children: [
-              { id: "range-request-rca", label: "problem_server_did_not_honor_range_request.md", kind: "document", concern: "streaming", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_server_did_not_honor_range_request.html" }
             ] }
           ]
         },

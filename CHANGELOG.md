@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260322.txt
-Changes: Fix perms issue with admin.php pwd reset, create shell to reset basic auth for quickstart and update docs for quickstart user / db reset
+Changes: Documentation updates, quickstart fix
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -9,13 +9,9 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
-	new file:   ansible/roles/docker/files/one_shot_bundle/rotate_basic_auth.sh
-	modified:   docs/PREREQS.md
-	modified:   docs/privacy.md
-	modified:   docs/TELEMETRY_ENDUSER.md
+	modified:   docs/README.md
 	modified:   docs/knowledge_map.html
-	new file:   docs/security_reset_quickstart_user_passwords.md
+	renamed:    docs/process_test_bundle_switch_gighive2.md -> docs/process_one_shot_bundle_switch_with_gighive2.md
 	modified:   docs/setup_instructions_quickstart.md
 
 TODO
@@ -55,6 +51,26 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260322.txt
+Changes: Fix perms issue with admin.php pwd reset, create shell to reset basic auth for quickstart and update docs for quickstart user / db reset
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
+	new file:   ansible/roles/docker/files/one_shot_bundle/rotate_basic_auth.sh
+	modified:   docs/PREREQS.md
+	modified:   docs/privacy.md
+	modified:   docs/TELEMETRY_ENDUSER.md
+	modified:   docs/knowledge_map.html
+	new file:   docs/security_reset_quickstart_user_passwords.md
+	modified:   docs/setup_instructions_quickstart.md
 
 *** 
 releaseNotes20260322.txt

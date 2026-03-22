@@ -57,7 +57,7 @@ Choose one of the following:
 
 ## Full build (normal Ansible/Terraform workflow)
 
-[setup_instructions_fullbuild.html](setup_instructions_fullbuild.html)
+[Full Build Setup](setup_instructions_fullbuild.html)
 
 ## Benefits and Drawbacks of Quickstart vs Full Build
 
