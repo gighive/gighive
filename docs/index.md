@@ -179,12 +179,11 @@ img {
         <li><a href="PREREQS.html">📋 Prerequisites</a></li>
         <li><a href="README.html">🚀 Setup Guide</a></li>
         <li><a href="setup_instructions_quickstart.html">⚡ Quickstart Setup</a></li>
-        <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
     </ul>
     
-    <h3>🗄️ Database</h3>
+    <h3>� iPhone App</h3>
     <ul>
-        <li><a href="database_load_via_admin_php.html">📥 Database Load via Admin Page</a></li>
+        <li><a href="iphone_app.html">� GigHive iPhone App</a></li>
     </ul>
     
     <h3>🎥 Streaming</h3>
@@ -192,17 +191,17 @@ img {
         <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits</a></li>
     </ul>
     
-    <h3>📱 iPhone App</h3>
+    <h3>�️ Database</h3>
     <ul>
-        <li><a href="iphone_app.html">📱 GigHive iPhone App</a></li>
+        <li><a href="database_load_options.html">� Database Load Options</a></li>
     </ul>
     
     <h3>📄 Legal & Policies</h3>
     <ul>
-        <li><a href="APP_TERMS_OF_SERVICE.html">📜 App Terms of Service</a></li>
         <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
+        <li><a href="privacy.html">🔒 Privacy Policy</a></li>
         <li><a href="LICENSE.html">📜 Licenses</a></li>
-        <li><a href="privacy.html">� Privacy Policy</a></li>
+        <li><a href="APP_TERMS_OF_SERVICE.html">📜 App Terms of Service</a></li>
     </ul>
     
     <h3>🔗 Links</h3>
@@ -220,13 +219,12 @@ img {
     
     <h3>🔮 Advanced / Internals</h3>
     <ul>
+        <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
         <li><a href="feature_set.html">⭐ Architectural Feature Set</a></li>
         <li><a href="DEPENDENCIES.html">📦 Dependencies</a></li>
-        <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
         <li><a href="MIXING_HOSTVM_DOCKER_VERSIONS.html">🔄 Mixing Host/Container Versions</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
-        <li><a href="howdoesstreamingwork_implementation.html">⚙️ Streaming Implementation</a></li>
-        <li><a href="PICKER_TRANSCODING_METHOD.html">🎬 Picker Transcoding</a></li>
+        <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
     </ul>
     
     <h3>🔮 Coming Soon</h3>

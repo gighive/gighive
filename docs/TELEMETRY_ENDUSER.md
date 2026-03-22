@@ -1,8 +1,6 @@
 # GigHive Installation Telemetry
 
-GigHive sends a small amount of installation telemetry so the project can understand how often installs are started and completed.
-
-This helps answer questions like:
+GigHive sends a small amount of installation telemetry so the project can understand how often installs are started and completed. This helps answer questions like:
 
 - did an install start and later finish successfully?
 - are some installs being retried multiple times?
@@ -23,6 +21,7 @@ This helps answer questions like:
 - media files
 - uploaded content
 - database contents
+- user IP
 - user passwords
 - region, state, or city
 - precise location
@@ -30,7 +29,7 @@ This helps answer questions like:
 ## Location data
 
 - GigHive derives only `country_code` on the telemetry server side
-- GigHive does not collect region/state information
+- GigHive does not collect any location information below country, like region/state/city/address
 
 ## Opt out
 
