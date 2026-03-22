@@ -1,5 +1,57 @@
 *** 
 releaseNotes20260322.txt
+Changes: Continue documentation update and hamburger menu fix
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/TELEMETRY_ENDUSER.md
+	new file:   docs/database_load_options.md
+	modified:   docs/index.md
+	modified:   docs/knowledge_map.html
+
+TODO
+Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Tutorial: Create video for quick install
+Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: database table name change to genericize songs 
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Can i provide a link to the Media Details page in the app?
+App: Bolster search fields for 'pigs version
+App: Can i skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: Share link feature in media page
+App: Is it worthwhile to have an embed feature?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+Media: fix the order of StormPigs20050526_10_IDoneBeCooked
+Product: Should I only rollout the one-shot-bundle to my customers?
+Product: Update the licensing 
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails 
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
+Maintenance: remove vodcast.xml from webroot for gighive
+Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260322.txt
 Changes: Massive documentation update and hamburger menu fix
 
 sodo@pop-os:~/gighive$ git status
@@ -20,41 +72,6 @@ Changes to be committed:
 	new file:   docs/iphone_app.md
 	modified:   docs/knowledge_map.html
 	renamed:    docs/CONTENT_RANGE_CLOUDFLARE.md -> docs/problem_content_range_cloudflare.md
-
-TODO
-Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Tutorial: Create video for quick install
-Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: database table name change to genericize songs 
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Can i provide a link to the Media Details page in the app?
-App: Bolster search fields for 'pigs version
-App: Can i skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: Share link feature in media page
-App: Is it worthwhile to have an embed feature?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-Media: fix the order of StormPigs20050526_10_IDoneBeCooked
-Product: Should I only rollout the one-shot-bundle to my customers?
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails 
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
-Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
-Maintenance: remove vodcast.xml from webroot for gighive
-Backup: Realize that the sha versions of stormpigs aren't backed up on popos
 
 *** 
 releaseNotes20260322.txt
