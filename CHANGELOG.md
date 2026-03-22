@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260322.txt
-Changes: Continue documentation update and hamburger menu fix
+Changes: Fix perms issue with admin.php pwd reset, create shell to reset basic auth for quickstart and update docs for quickstart user / db reset
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -9,13 +9,17 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
+	new file:   ansible/roles/docker/files/one_shot_bundle/rotate_basic_auth.sh
 	modified:   docs/TELEMETRY_ENDUSER.md
-	new file:   docs/database_load_options.md
-	modified:   docs/index.md
 	modified:   docs/knowledge_map.html
+	new file:   docs/security_reset_quickstart_user_passwords.md
+	modified:   docs/setup_instructions_quickstart.md
 
 TODO
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Problem: bundle admin.php can't update passwords
+Problem: admin.php passwords doesn't use common min security requirements
 Tutorial: Create video for quick install
 Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 Db: Fix edit page to separate words in the song
@@ -49,6 +53,22 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260322.txt
+Changes: Continue documentation update and hamburger menu fix
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/TELEMETRY_ENDUSER.md
+	new file:   docs/database_load_options.md
+	modified:   docs/index.md
+	modified:   docs/knowledge_map.html
 
 *** 
 releaseNotes20260322.txt

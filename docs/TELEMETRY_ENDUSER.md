@@ -1,12 +1,12 @@
 # GigHive Installation Telemetry
 
-GigHive sends a small amount of installation telemetry so the project can understand how often installs are started and completed. This helps answer questions like:
+GigHive collects a small amount of installation telemetry so the project can understand how often installs are started and completed. This helps answer questions like:
 
 - did an install start and later finish successfully?
 - are some installs being retried multiple times?
 - do repeated retries cluster by version, install channel, method, or country?
 
-## What GigHive sends
+## What GigHive collects
 
 - `install_attempt` and `install_success` events
 - app version
@@ -16,7 +16,7 @@ GigHive sends a small amount of installation telemetry so the project can unders
 - timestamp
 - a random install ID
 
-## What GigHive does not send
+## What GigHive does not collect
 
 - media files
 - uploaded content
