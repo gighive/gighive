@@ -11,8 +11,9 @@ Changes to be committed:
 	modified:   CHANGELOG.md
 	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
 	new file:   ansible/roles/docker/files/one_shot_bundle/rotate_basic_auth.sh
-	modified:   docs/TELEMETRY_ENDUSER.md
 	modified:   docs/PREREQS.md
+	modified:   docs/privacy.md
+	modified:   docs/TELEMETRY_ENDUSER.md
 	modified:   docs/knowledge_map.html
 	new file:   docs/security_reset_quickstart_user_passwords.md
 	modified:   docs/setup_instructions_quickstart.md
