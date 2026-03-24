@@ -1,0 +1,114 @@
+---
+
+- name: Stat one-shot bundle inputs manifest on controller (if present)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
+  register: _one_shot_bundle_inputs_manifest_stat
+
+- name: Report one-shot bundle baseline manifest presence (controller)
+  ansible.builtin.debug:
+    msg: >-
+      One-shot bundle baseline manifest exists: {{ _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false) | bool }}
+      (path: {{ one_shot_bundle_inputs_fingerprint_path }}.json)
+
+- name: Load previous one-shot bundle inputs manifest (if present)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.slurp:
+    src: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
+  register: _one_shot_bundle_inputs_manifest_prev_slurp
+  when: _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
+
+- name: Parse previous one-shot bundle inputs manifest (if present)
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_manifest_prev: "{{ (_one_shot_bundle_inputs_manifest_prev_slurp.content | b64decode | from_json) }}"
+  when: _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
+
+- name: Initialize empty previous manifest when missing
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_manifest_prev: {}
+  when: not (_one_shot_bundle_inputs_manifest_stat.stat.exists | default(false))
+
+- name: Stat one-shot bundle input paths on controller
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ one_shot_bundle_input_paths | default([]) }}"
+  register: _one_shot_bundle_inputs_paths_stat
+
+- name: Find files under monitored input directories on controller
+  delegate_to: localhost
+  become: false
+  ansible.builtin.find:
+    paths: "{{ item.stat.path }}"
+    file_type: file
+    recurse: true
+    hidden: true
+    patterns: "*"
+    excludes:
+      - "._*"
+      - ".DS_Store"
+  loop: "{{ _one_shot_bundle_inputs_paths_stat.results | selectattr('stat.isdir','defined') | selectattr('stat.isdir') | list }}"
+  loop_control:
+    label: "{{ item.stat.path }}"
+  register: _one_shot_bundle_inputs_find_results
+
+- name: Initialize current manifest dict
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_manifest_now: {}
+
+- name: Add directory file entries to current manifest mapping path->mtime+size
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_manifest_now: >-
+      {{
+        _one_shot_bundle_inputs_manifest_now
+        | combine(((item.mtime | string) ~ ':' ~ (item.size | string)) | community.general.dict_kv(item.path))
+      }}
+  loop: "{{ (_one_shot_bundle_inputs_find_results.results | default([])) | map(attribute='files') | list | flatten }}"
+
+- name: Add individual file entries to current manifest mapping path->mtime+size
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_manifest_now: >-
+      {{
+        _one_shot_bundle_inputs_manifest_now
+        | combine(((item.stat.mtime | string) ~ ':' ~ (item.stat.size | string)) | community.general.dict_kv(item.stat.path))
+      }}
+  loop: "{{ _one_shot_bundle_inputs_paths_stat.results | selectattr('stat.isreg','defined') | selectattr('stat.isreg') | list }}"
+  when: item.stat.exists | default(false)
+
+- name: Compute added/removed paths
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_added: "{{ _one_shot_bundle_inputs_manifest_now.keys() | difference(_one_shot_bundle_inputs_manifest_prev.keys()) | sort }}"
+    _one_shot_bundle_inputs_removed: "{{ _one_shot_bundle_inputs_manifest_prev.keys() | difference(_one_shot_bundle_inputs_manifest_now.keys()) | sort }}"
+
+- name: Initialize changed paths list
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_changed: []
+
+- name: Compute changed paths (same path, different fingerprint)
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_changed: "{{ _one_shot_bundle_inputs_changed + [item] }}"
+  loop: "{{ _one_shot_bundle_inputs_manifest_now.keys() | intersect(_one_shot_bundle_inputs_manifest_prev.keys()) | list }}"
+  when: _one_shot_bundle_inputs_manifest_now[item] != _one_shot_bundle_inputs_manifest_prev[item]
+
+- name: Determine whether one-shot bundle inputs changed (controller source)
+  ansible.builtin.set_fact:
+    _one_shot_bundle_inputs_has_diffs: >-
+      {{
+        (_one_shot_bundle_inputs_added | length) > 0
+        or (_one_shot_bundle_inputs_removed | length) > 0
+        or (_one_shot_bundle_inputs_changed | length) > 0
+      }}
+
+- name: Show one-shot bundle input diffs (controller source)
+  ansible.builtin.debug:
+    msg:
+      added: "{{ _one_shot_bundle_inputs_added | default([]) | sort }}"
+      removed: "{{ _one_shot_bundle_inputs_removed | default([]) | sort }}"
+      changed: "{{ _one_shot_bundle_inputs_changed | default([]) | sort }}"
+  when:
+    - _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
+    - (_one_shot_bundle_inputs_added | length) > 0 or (_one_shot_bundle_inputs_removed | length) > 0 or (_one_shot_bundle_inputs_changed | length) > 0
