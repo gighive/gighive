@@ -130,6 +130,16 @@
             - installation_tracking
       tags: [ installation_tracking ]
 
+- name: One-shot bundle staging and publishing
+  hosts: target_vms
+  become: yes
+  collections:
+    - community.general
+  roles:
+    - role: one_shot_bundle
+      when: serve_one_shot_installer_downloads | default(false)
+      tags: [ one_shot_bundle ]
+
 # 3) Optional: global postflight snapshot (final state)
 - name: Postflight varscope
   hosts: all

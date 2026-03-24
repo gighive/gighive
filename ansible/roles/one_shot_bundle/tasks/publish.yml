@@ -1,0 +1,165 @@
+---
+
+- name: Stat one-shot bundle tarball on controller (controller source)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ one_shot_bundle_controller_src }}"
+  register: _one_shot_bundle_controller_stat
+
+- name: Fail if one-shot bundle is missing on controller (controller source)
+  ansible.builtin.fail:
+    msg: >-
+      One-shot bundle tarball is required but was not found on the Ansible controller:
+      {{ one_shot_bundle_controller_src }}
+
+      You answered "no" to the rebuild prompt (or rebuild did not run), so there is no artifact available to publish.
+  when:
+    - not (_one_shot_bundle_controller_stat.stat.exists | default(false))
+    - not (_one_shot_bundle_do_rebuild | default(false))
+
+- name: Create one-shot bundle sha256 on controller (controller source)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command: sha256sum "{{ one_shot_bundle_controller_src }}"
+  register: _one_shot_bundle_sha256
+  changed_when: false
+
+- name: Parse one-shot bundle sha256 (controller source)
+  ansible.builtin.set_fact:
+    _one_shot_bundle_controller_sha256: "{{ (_one_shot_bundle_sha256.stdout | default('') ).split()[0] | default('') }}"
+
+- name: Write one-shot bundle sha256 file on controller (controller source)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    content: "{{ _one_shot_bundle_controller_sha256 }}  {{ one_shot_bundle_filename }}\n"
+    dest: "{{ one_shot_bundle_controller_src }}.sha256"
+    mode: "0644"
+
+- name: Define expected one-shot bundle sha256 file content (controller source)
+  ansible.builtin.set_fact:
+    _one_shot_bundle_expected_sha256_content: "{{ _one_shot_bundle_controller_sha256 }}  {{ one_shot_bundle_filename }}\n"
+
+- name: Stat one-shot bundle tarball in downloads directory (target)
+  ansible.builtin.stat:
+    path: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
+    checksum_algorithm: sha256
+  register: _one_shot_bundle_target_tgz_stat
+
+- name: Stat one-shot bundle sha256 file in downloads directory (target)
+  ansible.builtin.stat:
+    path: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}.sha256"
+  register: _one_shot_bundle_target_sha256_stat
+
+- name: Load one-shot bundle sha256 file content from target (when present)
+  ansible.builtin.slurp:
+    src: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}.sha256"
+  register: _one_shot_bundle_target_sha256_slurp
+  when: _one_shot_bundle_target_sha256_stat.stat.exists | default(false)
+
+- name: Normalize one-shot bundle sha256 file content from target
+  ansible.builtin.set_fact:
+    _one_shot_bundle_target_sha256_content: >-
+      {{
+        (_one_shot_bundle_target_sha256_slurp.content | default('') | b64decode)
+        if (_one_shot_bundle_target_sha256_stat.stat.exists | default(false))
+        else ''
+      }}
+
+- name: Decide whether to publish one-shot bundle tarball to target downloads directory
+  ansible.builtin.set_fact:
+    _one_shot_bundle_should_publish_tgz: >-
+      {{
+        (_one_shot_bundle_do_rebuild | default(false))
+        or (not (_one_shot_bundle_target_tgz_stat.stat.exists | default(false)))
+        or (not (_one_shot_bundle_target_sha256_stat.stat.exists | default(false)))
+        or ((_one_shot_bundle_target_tgz_stat.stat.checksum | default('')) != (_one_shot_bundle_controller_sha256 | default('')))
+      }}
+
+- name: Decide whether to publish one-shot bundle sha256 file to target downloads directory
+  ansible.builtin.set_fact:
+    _one_shot_bundle_should_publish_sha256: >-
+      {{
+        (_one_shot_bundle_do_rebuild | default(false))
+        or (not (_one_shot_bundle_target_sha256_stat.stat.exists | default(false)))
+        or ((_one_shot_bundle_target_sha256_content | default('')) != (_one_shot_bundle_expected_sha256_content | default('')))
+        or (_one_shot_bundle_should_publish_tgz | default(false))
+      }}
+
+- name: Decide whether any one-shot bundle publishing is needed
+  ansible.builtin.set_fact:
+    _one_shot_bundle_should_publish_any: >-
+      {{
+        (_one_shot_bundle_should_publish_tgz | default(false))
+        or (_one_shot_bundle_should_publish_sha256 | default(false))
+      }}
+
+- name: Prompt whether to publish one-shot bundle artifacts to target downloads directory
+  ansible.builtin.pause:
+    prompt: >-
+      Publishing is needed to update {{ docker_dir }}/apache/downloads.
+      Do you want to publish the one-shot bundle now? (yes/no)
+  register: _one_shot_bundle_publish_prompt
+  when: _one_shot_bundle_should_publish_any | default(false)
+
+- name: Interpret one-shot bundle publish answer
+  ansible.builtin.set_fact:
+    _one_shot_bundle_do_publish: "{{ (_one_shot_bundle_publish_prompt.user_input | default('no') | lower) in ['y','yes'] }}"
+  when: _one_shot_bundle_should_publish_any | default(false)
+
+- name: Warn if publishing is needed but was declined
+  ansible.builtin.debug:
+    msg: >-
+      One-shot bundle publishing is needed to keep the target downloads directory up to date,
+      but you answered "no" to the publish prompt.
+
+      Required updates:
+      - publish tgz: {{ _one_shot_bundle_should_publish_tgz | default(false) }}
+      - publish sha256: {{ _one_shot_bundle_should_publish_sha256 | default(false) }}
+
+      Target path:
+      - {{ docker_dir }}/apache/downloads/
+  when:
+    - _one_shot_bundle_should_publish_any | default(false)
+    - not (_one_shot_bundle_do_publish | default(false))
+
+- name: Copy one-shot bundle tarball from controller into downloads directory (controller source)
+  ansible.builtin.copy:
+    src: "{{ one_shot_bundle_controller_src }}"
+    dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when:
+    - _one_shot_bundle_should_publish_tgz | default(false)
+    - _one_shot_bundle_do_publish | default(false)
+
+- name: Copy one-shot bundle sha256 file from controller into downloads directory (controller source)
+  ansible.builtin.copy:
+    src: "{{ one_shot_bundle_controller_src }}.sha256"
+    dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}.sha256"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when:
+    - _one_shot_bundle_should_publish_sha256 | default(false)
+    - _one_shot_bundle_do_publish | default(false)
+
+- name: Advance one-shot bundle baseline manifest after successful rebuild (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    content: "{{ _one_shot_bundle_inputs_manifest_now | to_nice_json }}\n"
+    dest: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
+    mode: "0644"
+  when: _one_shot_bundle_do_rebuild | default(false)
+
+- name: Advance one-shot bundle baseline fingerprint after successful rebuild (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    content: "{{ (_one_shot_bundle_inputs_manifest_now | to_nice_json | hash('sha256')) }}\n"
+    dest: "{{ one_shot_bundle_inputs_fingerprint_path }}"
+    mode: "0644"
+  when: _one_shot_bundle_do_rebuild | default(false)

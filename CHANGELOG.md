@@ -1,6 +1,10 @@
 *** 
-releaseNotes20260322.txt
-Changes: Documentation updates, quickstart fix
+releaseNotes20260324.txt
+Changes: Move one-shot-bundle into it's own role, update documentation and setup PatC labvm
+
+Last run (dev: switch to enable gighive2 vm): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive2_vm
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,one_shot_bundle" ansible-playbook-gighive2-20260324.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,installation_tracking" ../ansible-playbook-lab-20260324.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -9,12 +13,16 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   docs/README.md
-	modified:   docs/knowledge_map.html
-	renamed:    docs/process_test_bundle_switch_gighive2.md -> docs/process_one_shot_bundle_switch_with_gighive2.md
-	modified:   docs/setup_instructions_quickstart.md
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	deleted:    ansible/roles/docker/tasks/one_shot_bundle.yml
+	renamed:    ansible/roles/docker/tasks/one_shot_bundle_dispatch.yml -> ansible/roles/one_shot_bundle/tasks/main.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/publish.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/rebuild.yml
 
 TODO
+Testing: Test dual uploads with app with Pam and me
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
 Testing: Test the one-shot-bundle comparitor in dry--run mode..like to see where the diffs are now
 Problem: admin.php passwords doesn't use common min security requirements
@@ -51,6 +59,22 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260322.txt
+Changes: Documentation updates, quickstart fix
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/README.md
+	modified:   docs/knowledge_map.html
+	renamed:    docs/process_test_bundle_switch_gighive2.md -> docs/process_one_shot_bundle_switch_with_gighive2.md
+	modified:   docs/setup_instructions_quickstart.md
 
 *** 
 releaseNotes20260322.txt

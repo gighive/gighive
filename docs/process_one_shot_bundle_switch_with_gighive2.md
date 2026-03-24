@@ -66,8 +66,73 @@ This document captures the phased implementation plan for an Ansible-driven swit
   - `ansible/inventories/inventory_gighive2.yml`
   - `ansible/inventories/group_vars/gighive2/gighive2.yml`
 - The bundle under test will be downloaded from `staging.gighive.app`.
-- The downloaded bundle may be extracted and expanded under `/home/sodo`.
-- The repo source directory `gighive-one-shot-bundle/` should not be edited, overwritten, or used as the runtime install target.
+  - The downloaded bundle may be extracted and expanded under `/home/sodo`.
+  - The repo source directory `gighive-one-shot-bundle/` should not be edited, overwritten, or used as the runtime install target.
+
+## One-shot bundle change-detection manifest
+
+The one-shot bundle publish/rebuild flow uses a controller-side JSON manifest as a baseline for deciding whether the monitored bundle inputs have changed.
+
+- Canonical base path:
+  - `{{ repo_root }}/ansible/roles/docker/files/apache/downloads/.one_shot_bundle_inputs.sha256`
+- JSON manifest path:
+  - `{{ repo_root }}/ansible/roles/docker/files/apache/downloads/.one_shot_bundle_inputs.sha256.json`
+
+### What it does
+
+During the monitoring step, Ansible:
+
+- checks whether the JSON manifest already exists
+- loads and parses it when present
+- scans the current monitored one-shot bundle input paths
+- computes added, removed, and changed paths
+- sets `_one_shot_bundle_inputs_has_diffs` based on that comparison
+
+That diff result is then used to decide whether the bundle rebuild prompt should be shown.
+
+### Important lifecycle detail
+
+The JSON manifest is not rewritten on every playbook run.
+
+- It is **read and compared** during the monitor phase.
+- It is **written forward only after a successful rebuild**.
+
+  After a successful rebuild, the publish flow updates:
+
+  - `{{ one_shot_bundle_inputs_fingerprint_path }}.json`
+  - `{{ one_shot_bundle_inputs_fingerprint_path }}`
+
+  So if a run enters the one-shot bundle play but all relevant tasks are skipped, that run does not update the JSON manifest.
+
+### What the manifest is compared against
+
+The JSON manifest is not compared to the target `downloads/` directory.
+
+Instead, it is compared to the current monitored one-shot bundle input paths on the controller. In practice, the monitor step:
+
+- loads the previous JSON manifest from the controller
+- scans the current controller-side input paths listed in `one_shot_bundle_input_paths`
+- compares the current controller snapshot to the stored JSON baseline
+
+Those monitored inputs include controller-side source paths such as:
+
+- `{{ repo_root }}/ansible/roles/docker/templates`
+- `{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle`
+- `{{ repo_root }}/ansible/roles/docker/files/apache/Dockerfile`
+- `{{ repo_root }}/ansible/roles/docker/files/apache/externalConfigs`
+- `{{ repo_root }}/ansible/roles/docker/files/apache/overlays`
+- `{{ repo_root }}/assets/audio`
+- `{{ repo_root }}/assets/video`
+
+So the manifest comparison answers the question: “Have the controller-side source inputs for the one-shot bundle changed since the last successful rebuild?”
+
+It does not answer:
+
+- whether `{{ docker_dir }}/apache/downloads/` on the target changed
+- whether the already-published tarball on the target changed
+- whether the extracted runtime bundle directory changed
+
+One important logging nuance: if a playbook run shows the one-shot bundle monitor task as `skipping`, then no new monitor scan/compare happened during that run. In that case, the run did not produce a new “no change” result; it simply did not perform the comparison.
 
 ## High Level Phases
 

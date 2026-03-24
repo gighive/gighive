@@ -69,16 +69,6 @@
     enabled: yes
   tags: docker
 
-- name: Stage one-shot installer tarball for downloads (staging only)
-  become: true
-  block:
-    - name: Stage one-shot installer tarball for downloads (staging only)
-      ansible.builtin.include_tasks: one_shot_bundle.yml
-  when: serve_one_shot_installer_downloads | default(false)
-  tags:
-    - docker
-    - downloads
-
 - name: Render bind-mounted docker config files
   block:
     # Ensure the host path exists where docker-compose will mount from
