@@ -1,4 +1,78 @@
 *** 
+releaseNotes20260325.txt
+Changes: Simplified one_shot_bundle to monitor diff and then output, removed buried vars into group_vars, sync'd new vars, tested new bundle, fixed doc and added skills.md
+
+Last run (staging: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-20260325.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   .windsurf/workflows/tmp.md
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/defaults/main.yml
+	new file:   ansible/roles/docker/files/one_shot_bundle/backup_and_replace.sh
+	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
+	new file:   ansible/roles/docker/files/one_shot_bundle/instructions_quickstart.sh
+	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	deleted:    ansible/roles/security_basic_auth/defaults/main.yml
+	modified:   docs/PREREQS.md
+	modified:   docs/index.md
+	modified:   docs/knowledge_map.html
+	new file:   docs/process_one_shot_bundle_new.md
+	renamed:    docs/process_download_directory_for_tgz_design.md -> docs/process_one_shot_download_directory_for_tgz_design.md
+	renamed:    docs/process_download_directory_for_tgz_lab_staging_configuration.md -> docs/process_one_shot_download_directory_for_tgz_lab_staging_configuration.md
+	renamed:    docs/process_download_quickstart_rebuild_criteria.md -> docs/process_one_shot_download_quickstart_rebuild_criteria.md
+	renamed:    docs/process_download_quickstart_versus_full_build.md -> docs/process_one_shot_download_quickstart_versus_full_build.md
+	new file:   skills.md
+
+TODO
+Testing: Test the one-shot-bundle comparitor in dry--run mode..like to see where the diffs are now
+Testing: App breaks on upload when changing to Messages 
+Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Problem: admin.php passwords doesn't use common min security requirements
+Tutorial: Create video for quick install
+Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: database table name change to genericize songs 
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Can i provide a link to the Media Details page in the app?
+App: Bolster search fields for 'pigs version
+App: Can i skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: Share link feature in media page
+App: Is it worthwhile to have an embed feature?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+Media: fix the order of StormPigs20050526_10_IDoneBeCooked
+Product: Should I only rollout the one-shot-bundle to my customers?
+Product: Update the licensing 
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails 
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
+Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
+Maintenance: remove vodcast.xml from webroot for gighive
+Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
 releaseNotes20260324.txt
 Changes: Streamlined switch_runtime and planned for db_update_media_created, telemetry_db_time_mismatch and refactor unified ingestion core 
 
@@ -50,46 +124,6 @@ Changes to be committed:
 	modified:   docs/knowledge_map.html
 	modified:   docs/process_one_shot_bundle_switch_with_gighive2.md
 	new file:   docs/refactor_unified_ingestion_core.md
-
-TODO
-Testing: Test dual uploads with app with Pam and me
-Testing: App breaks on upload when changing to Messages 
-Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Testing: Test the one-shot-bundle comparitor in dry--run mode..like to see where the diffs are now
-Problem: admin.php passwords doesn't use common min security requirements
-Tutorial: Create video for quick install
-Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: database table name change to genericize songs 
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Can i provide a link to the Media Details page in the app?
-App: Bolster search fields for 'pigs version
-App: Can i skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: Share link feature in media page
-App: Is it worthwhile to have an embed feature?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-Media: fix the order of StormPigs20050526_10_IDoneBeCooked
-Product: Should I only rollout the one-shot-bundle to my customers?
-Product: Update the licensing 
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails 
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
-Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
-Maintenance: remove vodcast.xml from webroot for gighive
-Backup: Realize that the sha versions of stormpigs aren't backed up on popos
 
 *** 
 releaseNotes20260324.txt

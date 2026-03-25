@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage:
   ./install.sh [--non-interactive]
-               [--site-url URL]
+               [--site-url URL OF LOCAL MACHINE]
                [--audio-dir PATH]
                [--video-dir PATH]
                [--admin-password PASS]
@@ -160,7 +160,7 @@ prompt_secret() {
 }
 
 # Required inputs
-prompt SITE_URL "SITE_URL (example: https://192.168.1.252)"
+prompt SITE_URL "SITE_URL, use IP of local machine you're on (example: https://192.168.1.252)"
 prompt AUDIO_DIR "Host path for audio dir (will be created if missing)"
 prompt VIDEO_DIR "Host path for video dir (will be created if missing)"
 prompt_secret ADMIN_PASSWORD "BasicAuth password for user 'admin'" "$MIN_PASSWORD_LEN"

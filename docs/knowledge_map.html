@@ -534,8 +534,8 @@
           children: [
             { id: "deployment-reference", label: "Reference", kind: "type", type: "reference", children: [
               { id: "prereqs", label: "PREREQS.md", kind: "document", concern: "deployment", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./PREREQS.html" },
-              { id: "quickstart-vs-full", label: "process_download_quickstart_versus_full_build.md", kind: "document", concern: "deployment", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./process_download_quickstart_versus_full_build.html" },
-              { id: "lab-staging-config", label: "process_download_directory_for_tgz_lab_staging_configuration.md", kind: "document", concern: "deployment", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./process_download_directory_for_tgz_lab_staging_configuration.html" }
+              { id: "quickstart-vs-full", label: "process_one_shot_download_quickstart_versus_full_build.md", kind: "document", concern: "deployment", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./process_one_shot_download_quickstart_versus_full_build.html" },
+              { id: "lab-staging-config", label: "process_one_shot_download_directory_for_tgz_lab_staging_configuration.md", kind: "document", concern: "deployment", type: "reference", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./process_one_shot_download_directory_for_tgz_lab_staging_configuration.html" }
             ] },
             { id: "deployment-howto", label: "Howto", kind: "type", type: "howto", children: [
               { id: "autoinstall", label: "autoinstall.md", kind: "document", concern: "deployment", type: "howto", lifecycle: "active", audience: ["operator"], aspect: "non_functional", href: "./autoinstall.html" },
@@ -543,8 +543,9 @@
               { id: "setup-quickstart", label: "setup_instructions_quickstart.md", kind: "document", concern: "deployment", type: "howto", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./setup_instructions_quickstart.html" }
             ] },
             { id: "deployment-runbook", label: "Runbook", kind: "type", type: "runbook", children: [
-              { id: "rebuild-criteria", label: "process_download_quickstart_rebuild_criteria.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_download_quickstart_rebuild_criteria.html" },
+              { id: "rebuild-criteria", label: "process_one_shot_download_quickstart_rebuild_criteria.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_one_shot_download_quickstart_rebuild_criteria.html" },
               { id: "one-shot-bundle", label: "process_one_shot_bundle_original_creation.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_original_creation.html" },
+              { id: "one-shot-bundle-new", label: "process_one_shot_bundle_new.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "developer", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_new.html" },
               { id: "test-bundle-switch-gighive2", label: "process_one_shot_bundle_switch_with_gighive2.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "developer", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_switch_with_gighive2.html" }
             ] },
             { id: "deployment-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
@@ -553,7 +554,7 @@
               { id: "quickstart-m2", label: "process_quickstart_milestone2.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer", "operator"], aspect: "non_functional", href: "./process_quickstart_milestone2.html" }
             ] },
             { id: "deployment-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
-              { id: "tgz-design", label: "process_download_directory_for_tgz_design.md", kind: "document", concern: "deployment", type: "architecture", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "non_functional", href: "./process_download_directory_for_tgz_design.html" }
+              { id: "tgz-design", label: "process_one_shot_download_directory_for_tgz_design.md", kind: "document", concern: "deployment", type: "architecture", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "non_functional", href: "./process_one_shot_download_directory_for_tgz_design.html" }
             ] },
             { id: "deployment-rca", label: "RCA", kind: "type", type: "rca", children: [
               { id: "dot254", label: "problem_donot_use_dot254_address.md", kind: "document", concern: "deployment", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_donot_use_dot254_address.html" }

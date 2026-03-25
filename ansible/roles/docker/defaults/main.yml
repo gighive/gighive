@@ -22,5 +22,3 @@ docker_packages:
   - docker-ce-cli
   - containerd.io
   - docker-compose-plugin
-
-apache_docker_image: "ubuntu-apache-img:1.00"
