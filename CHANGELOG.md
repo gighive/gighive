@@ -1,10 +1,10 @@
 *** 
 releaseNotes20260324.txt
-Changes: Move one-shot-bundle into it's own role, update documentation and setup PatC labvm
+Changes: Streamlined switch_runtime and planned for db_update_media_created, telemetry_db_time_mismatch and refactor unified ingestion core 
 
 Last run (dev: switch to enable gighive2 vm): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive2_vm
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,one_shot_bundle" ansible-playbook-gighive2-20260324.log
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,installation_tracking" ../ansible-playbook-lab-20260324.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260324.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260324.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -13,16 +13,47 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/playbooks/site.yml
-	modified:   ansible/roles/docker/tasks/main.yml
-	deleted:    ansible/roles/docker/tasks/one_shot_bundle.yml
-	renamed:    ansible/roles/docker/tasks/one_shot_bundle_dispatch.yml -> ansible/roles/one_shot_bundle/tasks/main.yml
-	new file:   ansible/roles/one_shot_bundle/tasks/monitor.yml
-	new file:   ansible/roles/one_shot_bundle/tasks/publish.yml
-	new file:   ansible/roles/one_shot_bundle/tasks/rebuild.yml
+	new file:   ansible/roles/switch_runtime/tasks/1_setup_and_discovery.yml
+	renamed:    ansible/roles/switch_runtime/tasks/manage_bundle_artifacts.yml -> ansible/roles/switch_runtime/tasks/2_bundle_readiness.yml
+	new file:   ansible/roles/switch_runtime/tasks/3_switch_execution.yml
+	new file:   ansible/roles/switch_runtime/tasks/4_finalize_and_reporting.yml
+	deleted:    ansible/roles/switch_runtime/tasks/bundle_compose_down.yml
+	deleted:    ansible/roles/switch_runtime/tasks/bundle_compose_up.yml
+	deleted:    ansible/roles/switch_runtime/tasks/capture_initial_state.yml
+	deleted:    ansible/roles/switch_runtime/tasks/check_bundle_containers.yml
+	deleted:    ansible/roles/switch_runtime/tasks/check_bundle_health.yml
+	deleted:    ansible/roles/switch_runtime/tasks/check_bundle_initialized.yml
+	deleted:    ansible/roles/switch_runtime/tasks/check_host_ports.yml
+	deleted:    ansible/roles/switch_runtime/tasks/check_switch_guardrails.yml
+	deleted:    ansible/roles/switch_runtime/tasks/check_vm_processes.yml
+	deleted:    ansible/roles/switch_runtime/tasks/check_vm_reachability.yml
+	deleted:    ansible/roles/switch_runtime/tasks/check_vm_state.yml
+	deleted:    ansible/roles/switch_runtime/tasks/compute_final_result.yml
+	deleted:    ansible/roles/switch_runtime/tasks/derive_vbox_context.yml
+	deleted:    ansible/roles/switch_runtime/tasks/emit_bootstrap_instructions.yml
+	deleted:    ansible/roles/switch_runtime/tasks/inspect_host_ports.yml
+	modified:   ansible/roles/switch_runtime/tasks/main.yml
+	deleted:    ansible/roles/switch_runtime/tasks/preflight.yml
+	deleted:    ansible/roles/switch_runtime/tasks/prepare_bundle_dirs.yml
+	deleted:    ansible/roles/switch_runtime/tasks/print_failure_diagnostics.yml
+	deleted:    ansible/roles/switch_runtime/tasks/start_gighive2_vm.yml
+	deleted:    ansible/roles/switch_runtime/tasks/status.yml
+	deleted:    ansible/roles/switch_runtime/tasks/stop_gighive2_vm.yml
+	deleted:    ansible/roles/switch_runtime/tasks/switch_to_bundle.yml
+	deleted:    ansible/roles/switch_runtime/tasks/switch_to_vm.yml
+	deleted:    ansible/roles/switch_runtime/tasks/validate_bundle_post_install.yml
+	deleted:    ansible/roles/switch_runtime/tasks/wait_for_vm_poweroff.yml
+	deleted:    ansible/roles/switch_runtime/tasks/wait_for_vm_running.yml
+	deleted:    ansible/roles/switch_runtime/tasks/wait_for_vm_services.yml
+	new file:   docs/TELEMETRY_DB_TIME_MISMATCH.md
+	new file:   docs/db_update_media_created.md
+	modified:   docs/knowledge_map.html
+	modified:   docs/process_one_shot_bundle_switch_with_gighive2.md
+	new file:   docs/refactor_unified_ingestion_core.md
 
 TODO
 Testing: Test dual uploads with app with Pam and me
+Testing: App breaks on upload when changing to Messages 
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
 Testing: Test the one-shot-bundle comparitor in dry--run mode..like to see where the diffs are now
 Problem: admin.php passwords doesn't use common min security requirements
@@ -59,6 +90,30 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260324.txt
+Changes: Move one-shot-bundle into it's own role, update documentation and setup PatC labvm
+
+Last run (dev: switch to enable gighive2 vm): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive2_vm
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260324.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260324.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	deleted:    ansible/roles/docker/tasks/one_shot_bundle.yml
+	renamed:    ansible/roles/docker/tasks/one_shot_bundle_dispatch.yml -> ansible/roles/one_shot_bundle/tasks/main.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/publish.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/rebuild.yml
+	modified:   docs/process_one_shot_bundle_switch_with_gighive2.md
 
 *** 
 releaseNotes20260322.txt

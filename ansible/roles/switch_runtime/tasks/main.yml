@@ -1,83 +1,34 @@
 ---
 - name: Execute switch runtime workflow with failure diagnostics
   block:
-    - name: Run preflight checks
-      ansible.builtin.include_tasks: preflight.yml
+    - name: Run setup and discovery phase
+      ansible.builtin.include_tasks: 1_setup_and_discovery.yml
 
-    - name: Derive VirtualBox execution context
-      ansible.builtin.include_tasks: derive_vbox_context.yml
+    - name: Run bundle readiness phase
+      ansible.builtin.include_tasks: 2_bundle_readiness.yml
 
-    - name: Prepare bundle directories
-      ansible.builtin.include_tasks: prepare_bundle_dirs.yml
+    - name: Run switch execution phase
+      ansible.builtin.include_tasks: 3_switch_execution.yml
 
-    - name: Manage bundle artifacts
-      ansible.builtin.include_tasks: manage_bundle_artifacts.yml
-
-    - name: Check bundle bootstrap state
-      ansible.builtin.include_tasks: check_bundle_initialized.yml
-
-    - name: Check VM state via VBoxManage
-      ansible.builtin.include_tasks: check_vm_state.yml
-
-    - name: Check bundle containers
-      ansible.builtin.include_tasks: check_bundle_containers.yml
-
-    - name: Check bundle health
-      ansible.builtin.include_tasks: check_bundle_health.yml
-
-    - name: Inspect host port occupancy
-      ansible.builtin.include_tasks: inspect_host_ports.yml
-
-    - name: Check VirtualBox host processes
-      ansible.builtin.include_tasks: check_vm_processes.yml
-
-    - name: Check VM reachability
-      ansible.builtin.include_tasks: check_vm_reachability.yml
-
-    - name: Capture initial runtime state
-      ansible.builtin.include_tasks: capture_initial_state.yml
-
-    - name: Emit bootstrap instructions when bundle mode requires initialization
-      ansible.builtin.include_tasks: emit_bootstrap_instructions.yml
-
-    - name: Check switch guardrails for state-changing modes
-      ansible.builtin.include_tasks: check_switch_guardrails.yml
-      when: switch_target_mode in ['gighive_bundle', 'gighive2_vm']
-
-    - name: Switch from VM to bundle when requested
-      ansible.builtin.include_tasks: switch_to_bundle.yml
-      when: switch_target_mode == 'gighive_bundle'
-
-    - name: Switch from bundle to VM when requested
-      ansible.builtin.include_tasks: switch_to_vm.yml
-      when: switch_target_mode == 'gighive2_vm'
-
-    - name: Refresh VM state via VBoxManage after optional switch
-      ansible.builtin.include_tasks: check_vm_state.yml
-
-    - name: Refresh bundle containers after optional switch
-      ansible.builtin.include_tasks: check_bundle_containers.yml
-
-    - name: Refresh host port occupancy after optional switch
-      ansible.builtin.include_tasks: inspect_host_ports.yml
-
-    - name: Refresh VirtualBox host processes after optional switch
-      ansible.builtin.include_tasks: check_vm_processes.yml
-
-    - name: Refresh VM reachability after optional switch
-      ansible.builtin.include_tasks: check_vm_reachability.yml
-
-    - name: Refresh bundle health after optional switch
-      ansible.builtin.include_tasks: check_bundle_health.yml
-
-    - name: Compute final runtime result facts
-      ansible.builtin.include_tasks: compute_final_result.yml
-
-    - name: Print status summary
-      ansible.builtin.include_tasks: status.yml
+    - name: Run finalize and reporting phase
+      ansible.builtin.include_tasks: 4_finalize_and_reporting.yml
   rescue:
     - name: Print switch failure diagnostics
-      ansible.builtin.include_tasks: print_failure_diagnostics.yml
+      ansible.builtin.debug:
+        msg:
+          - "============================================================"
+          - "  GigHive Runtime Failure Diagnostics"
+          - "============================================================"
+          - "  mode requested       : {{ switch_target_mode }}"
+          - "  action taken         : {{ switch_action_taken | default('none') }}"
+          - "  failed task          : {{ ansible_failed_task.name | default('unknown') }}"
+          - "  failure detail       : {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default(ansible_failed_result.stdout | default('unknown'))) }}"
+          - "  initial vm_state     : {{ switch_initial_vm_state | default('unknown') }}"
+          - "  initial vm_running   : {{ switch_initial_vm_running | default(false) }}"
+          - "  initial bundle_run   : {{ switch_initial_bundle_running | default(false) }}"
+          - "  initial bundle_ok    : {{ switch_initial_bundle_health_ok | default(false) }}"
+          - "  initial host ports   : {{ switch_initial_host_ports_in_use | default([]) | join(', ') if (switch_initial_host_ports_in_use | default([]) | length > 0) else 'none' }}"
+          - "============================================================"
 
     - name: Re-raise workflow failure
       ansible.builtin.fail:
