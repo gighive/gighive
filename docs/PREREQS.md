@@ -61,6 +61,8 @@ Use this path if you are doing a full environment build, repeatable deployment, 
 - Azure-based deployments require Terraform in addition to Ansible.
 - VirtualBox / image-generation workflows may require `xorriso`.
 - Full build is the better fit when you want infrastructure automation, customization, or a reproducible environment setup.
+- [DEPENDENCIES.md](DEPENDENCIES.md)
+- [feature_set.md](feature_set.md)
 
 ---
 

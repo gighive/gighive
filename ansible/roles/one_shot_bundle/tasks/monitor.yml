@@ -1,35 +1,12 @@
 ---
 
-- name: Stat one-shot bundle inputs manifest on controller (if present)
-  delegate_to: localhost
-  become: false
-  ansible.builtin.stat:
-    path: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
-  register: _one_shot_bundle_inputs_manifest_stat
-
-- name: Report one-shot bundle baseline manifest presence (controller)
-  ansible.builtin.debug:
-    msg: >-
-      One-shot bundle baseline manifest exists: {{ _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false) | bool }}
-      (path: {{ one_shot_bundle_inputs_fingerprint_path }}.json)
-
-- name: Load previous one-shot bundle inputs manifest (if present)
-  delegate_to: localhost
-  become: false
-  ansible.builtin.slurp:
-    src: "{{ one_shot_bundle_inputs_fingerprint_path }}.json"
-  register: _one_shot_bundle_inputs_manifest_prev_slurp
-  when: _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
-
-- name: Parse previous one-shot bundle inputs manifest (if present)
+- name: Set one-shot bundle path prefixes for source-to-bundle comparison
   ansible.builtin.set_fact:
-    _one_shot_bundle_inputs_manifest_prev: "{{ (_one_shot_bundle_inputs_manifest_prev_slurp.content | b64decode | from_json) }}"
-  when: _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
-
-- name: Initialize empty previous manifest when missing
-  ansible.builtin.set_fact:
-    _one_shot_bundle_inputs_manifest_prev: {}
-  when: not (_one_shot_bundle_inputs_manifest_stat.stat.exists | default(false))
+    _one_shot_bundle_install_src: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/install.sh"
+    _one_shot_bundle_one_shot_bundle_prefix: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle"
+    _one_shot_bundle_files_prefix: "{{ repo_root }}/ansible/roles/docker/files/"
+    _one_shot_bundle_templates_prefix: "{{ repo_root }}/ansible/roles/docker/templates/"
+    _one_shot_bundle_assets_prefix: "{{ repo_root }}/assets/"
 
 - name: Stat one-shot bundle input paths on controller
   delegate_to: localhost
@@ -56,59 +33,221 @@
     label: "{{ item.stat.path }}"
   register: _one_shot_bundle_inputs_find_results
 
-- name: Initialize current manifest dict
+- name: Initialize source manifest dict
   ansible.builtin.set_fact:
-    _one_shot_bundle_inputs_manifest_now: {}
+    _one_shot_bundle_source_manifest: {}
 
-- name: Add directory file entries to current manifest mapping path->mtime+size
+- name: Add directory file entries to source manifest mapping bundle_path->mtime+size
   ansible.builtin.set_fact:
-    _one_shot_bundle_inputs_manifest_now: >-
+    _one_shot_bundle_source_manifest: >-
       {{
-        _one_shot_bundle_inputs_manifest_now
-        | combine(((item.mtime | string) ~ ':' ~ (item.size | string)) | community.general.dict_kv(item.path))
+        _one_shot_bundle_source_manifest
+        | combine(((item.mtime | string) ~ ':' ~ (item.size | string)) | community.general.dict_kv(_one_shot_bundle_dest_file | trim))
       }}
   loop: "{{ (_one_shot_bundle_inputs_find_results.results | default([])) | map(attribute='files') | list | flatten }}"
+  loop_control:
+    label: "{{ item.path }}"
+  vars:
+    _p: "{{ item.path }}"
+    _one_shot_bundle_dest_file: >-
+      {% if _p == _one_shot_bundle_install_src %}
+      install.sh
+      {% elif _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
+      {{ _p[(_one_shot_bundle_one_shot_bundle_prefix ~ '/') | length:] }}
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2') %}
+      docker-compose.yml
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') %}
+      apache/externalConfigs/entrypoint.sh
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.j2') %}
+      apache/externalConfigs/.env
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.mysql.j2') %}
+      mysql/externalConfigs/.env.mysql
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'apache2.conf.j2') %}
+      apache/externalConfigs/apache2.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'default-ssl.conf.j2') %}
+      apache/externalConfigs/default-ssl.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'gighive.htpasswd.j2') %}
+      apache/externalConfigs/gighive.htpasswd
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'modsecurity.conf.j2') %}
+      apache/externalConfigs/modsecurity.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'openssl_san.cnf.j2') %}
+      apache/externalConfigs/openssl_san.cnf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'php-fpm.conf.j2') %}
+      apache/externalConfigs/php-fpm.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'security2.conf.j2') %}
+      apache/externalConfigs/security2.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'www.conf.j2') %}
+      apache/externalConfigs/www.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'crs-setup.conf.j2') %}
+      apache/externalConfigs/crs/crs-setup.conf
+      {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
+      {{ _p[_one_shot_bundle_files_prefix | length:] }}
+      {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}
+      _host_audio/{{ _p[(_one_shot_bundle_assets_prefix ~ 'audio/') | length:] }}
+      {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'video/') %}
+      _host_video/{{ _p[(_one_shot_bundle_assets_prefix ~ 'video/') | length:] }}
+      {% else %}
+      {{ _p | basename }}
+      {% endif %}
 
-- name: Add individual file entries to current manifest mapping path->mtime+size
+- name: Add individual file entries to source manifest mapping bundle_path->mtime+size
   ansible.builtin.set_fact:
-    _one_shot_bundle_inputs_manifest_now: >-
+    _one_shot_bundle_source_manifest: >-
       {{
-        _one_shot_bundle_inputs_manifest_now
-        | combine(((item.stat.mtime | string) ~ ':' ~ (item.stat.size | string)) | community.general.dict_kv(item.stat.path))
+        _one_shot_bundle_source_manifest
+        | combine(((item.stat.mtime | string) ~ ':' ~ (item.stat.size | string)) | community.general.dict_kv(_one_shot_bundle_dest_file | trim))
       }}
   loop: "{{ _one_shot_bundle_inputs_paths_stat.results | selectattr('stat.isreg','defined') | selectattr('stat.isreg') | list }}"
+  loop_control:
+    label: "{{ item.stat.path }}"
+  vars:
+    _p: "{{ item.stat.path }}"
+    _one_shot_bundle_dest_file: >-
+      {% if _p == _one_shot_bundle_install_src %}
+      install.sh
+      {% elif _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
+      {{ _p[(_one_shot_bundle_one_shot_bundle_prefix ~ '/') | length:] }}
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2') %}
+      docker-compose.yml
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') %}
+      apache/externalConfigs/entrypoint.sh
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.j2') %}
+      apache/externalConfigs/.env
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.mysql.j2') %}
+      mysql/externalConfigs/.env.mysql
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'apache2.conf.j2') %}
+      apache/externalConfigs/apache2.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'default-ssl.conf.j2') %}
+      apache/externalConfigs/default-ssl.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'gighive.htpasswd.j2') %}
+      apache/externalConfigs/gighive.htpasswd
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'modsecurity.conf.j2') %}
+      apache/externalConfigs/modsecurity.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'openssl_san.cnf.j2') %}
+      apache/externalConfigs/openssl_san.cnf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'php-fpm.conf.j2') %}
+      apache/externalConfigs/php-fpm.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'security2.conf.j2') %}
+      apache/externalConfigs/security2.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'www.conf.j2') %}
+      apache/externalConfigs/www.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'crs-setup.conf.j2') %}
+      apache/externalConfigs/crs/crs-setup.conf
+      {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
+      {{ _p[_one_shot_bundle_files_prefix | length:] }}
+      {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}
+      _host_audio/{{ _p[(_one_shot_bundle_assets_prefix ~ 'audio/') | length:] }}
+      {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'video/') %}
+      _host_video/{{ _p[(_one_shot_bundle_assets_prefix ~ 'video/') | length:] }}
+      {% else %}
+      {{ _p | basename }}
+      {% endif %}
   when: item.stat.exists | default(false)
 
-- name: Compute added/removed paths
-  ansible.builtin.set_fact:
-    _one_shot_bundle_inputs_added: "{{ _one_shot_bundle_inputs_manifest_now.keys() | difference(_one_shot_bundle_inputs_manifest_prev.keys()) | sort }}"
-    _one_shot_bundle_inputs_removed: "{{ _one_shot_bundle_inputs_manifest_prev.keys() | difference(_one_shot_bundle_inputs_manifest_now.keys()) | sort }}"
+- name: Stat assembled one-shot bundle directory on controller
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ one_shot_bundle_bundle_dir }}"
+  register: _one_shot_bundle_bundle_dir_stat
 
-- name: Initialize changed paths list
-  ansible.builtin.set_fact:
-    _one_shot_bundle_inputs_changed: []
+- name: Find files under assembled one-shot bundle directory on controller
+  delegate_to: localhost
+  become: false
+  ansible.builtin.find:
+    paths: "{{ one_shot_bundle_bundle_dir }}"
+    file_type: file
+    recurse: true
+    hidden: true
+    patterns: "*"
+    excludes:
+      - "._*"
+      - ".DS_Store"
+  register: _one_shot_bundle_bundle_find_results
+  when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
 
-- name: Compute changed paths (same path, different fingerprint)
+- name: Initialize assembled bundle manifest dict
   ansible.builtin.set_fact:
-    _one_shot_bundle_inputs_changed: "{{ _one_shot_bundle_inputs_changed + [item] }}"
-  loop: "{{ _one_shot_bundle_inputs_manifest_now.keys() | intersect(_one_shot_bundle_inputs_manifest_prev.keys()) | list }}"
-  when: _one_shot_bundle_inputs_manifest_now[item] != _one_shot_bundle_inputs_manifest_prev[item]
+    _one_shot_bundle_bundle_manifest: {}
 
-- name: Determine whether one-shot bundle inputs changed (controller source)
+- name: Add assembled bundle file entries to manifest mapping bundle_path->mtime+size
+  ansible.builtin.set_fact:
+    _one_shot_bundle_bundle_manifest: >-
+      {{
+        _one_shot_bundle_bundle_manifest
+        | combine(((item.mtime | string) ~ ':' ~ (item.size | string)) | community.general.dict_kv(_one_shot_bundle_bundle_relative_path))
+      }}
+  loop: "{{ _one_shot_bundle_bundle_find_results.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path }}"
+  vars:
+    _one_shot_bundle_bundle_relative_path: "{{ item.path | regex_replace('^' ~ one_shot_bundle_bundle_dir ~ '/', '') }}"
+  when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+
+- name: Report missing assembled one-shot bundle directory on controller
+  ansible.builtin.debug:
+    msg: >-
+      The assembled one-shot bundle directory does not exist at
+      {{ one_shot_bundle_bundle_dir }}.
+      Source-to-bundle drift comparison could not be performed.
+  when: not (_one_shot_bundle_bundle_dir_stat.stat.exists | default(false))
+
+- name: Compute source files missing from assembled bundle
+  ansible.builtin.set_fact:
+    _one_shot_bundle_missing_from_bundle: "{{ _one_shot_bundle_source_manifest.keys() | difference(_one_shot_bundle_bundle_manifest.keys()) | sort }}"
+    _one_shot_bundle_extra_in_bundle: "{{ _one_shot_bundle_bundle_manifest.keys() | difference(_one_shot_bundle_source_manifest.keys()) | sort }}"
+  when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+
+- name: Initialize changed paths between source and assembled bundle
+  ansible.builtin.set_fact:
+    _one_shot_bundle_changed_between_source_and_bundle: []
+  when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+
+- name: Compute changed paths between source and assembled bundle
+  ansible.builtin.set_fact:
+    _one_shot_bundle_changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle + [item] }}"
+  loop: "{{ _one_shot_bundle_source_manifest.keys() | intersect(_one_shot_bundle_bundle_manifest.keys()) | list }}"
+  when:
+    - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+    - _one_shot_bundle_source_manifest[item] != _one_shot_bundle_bundle_manifest[item]
+
+- name: Determine whether one-shot bundle source-to-bundle drift exists (controller source)
   ansible.builtin.set_fact:
     _one_shot_bundle_inputs_has_diffs: >-
       {{
-        (_one_shot_bundle_inputs_added | length) > 0
-        or (_one_shot_bundle_inputs_removed | length) > 0
-        or (_one_shot_bundle_inputs_changed | length) > 0
+        (_one_shot_bundle_missing_from_bundle | default([]) | length) > 0
+        or (_one_shot_bundle_extra_in_bundle | default([]) | length) > 0
+        or (_one_shot_bundle_changed_between_source_and_bundle | default([]) | length) > 0
       }}
+  when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
 
-- name: Show one-shot bundle input diffs (controller source)
+- name: Compute unchanged paths between source and assembled bundle
+  ansible.builtin.set_fact:
+    _one_shot_bundle_unchanged_between_source_and_bundle: >-
+      {{
+        (_one_shot_bundle_source_manifest.keys() | intersect(_one_shot_bundle_bundle_manifest.keys()) | list)
+        | difference(_one_shot_bundle_changed_between_source_and_bundle | default([]))
+        | sort
+      }}
+  when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+
+- name: Show one-shot bundle source-to-bundle diff counts (controller source)
   ansible.builtin.debug:
     msg:
-      added: "{{ _one_shot_bundle_inputs_added | default([]) | sort }}"
-      removed: "{{ _one_shot_bundle_inputs_removed | default([]) | sort }}"
-      changed: "{{ _one_shot_bundle_inputs_changed | default([]) | sort }}"
+      files_that_did_not_change: "{{ _one_shot_bundle_unchanged_between_source_and_bundle | default([]) | length }}"
+      missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | length }}"
+      extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | length }}"
+      changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | length }}"
   when:
-    - _one_shot_bundle_inputs_manifest_stat.stat.exists | default(false)
-    - (_one_shot_bundle_inputs_added | length) > 0 or (_one_shot_bundle_inputs_removed | length) > 0 or (_one_shot_bundle_inputs_changed | length) > 0
+    - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+    - (_one_shot_bundle_missing_from_bundle | default([]) | length) > 0 or (_one_shot_bundle_extra_in_bundle | default([]) | length) > 0 or (_one_shot_bundle_changed_between_source_and_bundle | default([]) | length) > 0
+
+- name: Show one-shot bundle source-to-bundle diffs (controller source)
+  ansible.builtin.debug:
+    msg:
+      missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | sort }}"
+      extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | sort }}"
+      changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | sort }}"
+  when:
+    - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+    - (_one_shot_bundle_missing_from_bundle | default([]) | length) > 0 or (_one_shot_bundle_extra_in_bundle | default([]) | length) > 0 or (_one_shot_bundle_changed_between_source_and_bundle | default([]) | length) > 0

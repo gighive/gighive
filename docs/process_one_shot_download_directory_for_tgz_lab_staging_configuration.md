@@ -166,6 +166,20 @@ one_shot_bundle_source: url
 
 This avoids “staging vs lab” ambiguity and allows different behavior while still sharing the same `group_vars/gighive/gighive.yml`.
 
+### Why these two vars were placed in inventory
+
+These two vars were kept in inventory because they control per-host operational behavior, not shared bundle metadata.
+
+- `serve_one_shot_installer_downloads` answers whether a given host should expose `/downloads` at all.
+- `one_shot_bundle_source` answers how that specific host should obtain the tarball.
+
+That distinction mattered because staging and lab were expected to share the same `group_vars/gighive/gighive.yml` while still behaving differently:
+
+- staging should serve `/downloads` and usually source the tarball from the controller
+- lab should serve `/downloads` but fetch the tarball from the staging URL
+
+Placing these vars in inventory avoided turning staging-specific or lab-specific behavior into a shared default for every host in the `gighive` family.
+
 ---
 
 # Ansible Implementation Details

@@ -339,6 +339,7 @@ gighive_htpasswd_marker_path: "{{ gighive_htpasswd_host_path }}.seeded"
 
 # --- Apache container ---
 apache_container_name: apacheWebServer
+apache_docker_image: "ubuntu-apache-img:1.00"
 
 # --- MySQL db/user ---
 mysql_database: music_db
@@ -398,3 +399,14 @@ one_shot_bundle_input_paths:
   - "{{ repo_root }}/assets/video"
 
 one_shot_bundle_inputs_fingerprint_path: "{{ repo_root }}/ansible/roles/docker/files/apache/downloads/.one_shot_bundle_inputs.sha256"
+ 
+one_shot_bundle_monitor_only: true
+ 
+# --- security_basic_auth vars ---
+apache_group: "{{ www_group | default('www-data') }}"
+gighive_protected_paths: "{{ protected_paths | default(['app','db','debug','src','vendor']) }}"
+apache_reload_cmd: "{{ apache_graceful_cmd | default('/usr/local/apache2/bin/httpd -k graceful') }}"
+gighive_admin_user: "{{ admin_user | default('admin') }}"
+gighive_viewer_user: "{{ viewer_user | default('viewer') }}"
+gighive_admin_password: "CHANGE_ME_ADMIN"
+gighive_viewer_password: "CHANGE_ME_VIEWER"

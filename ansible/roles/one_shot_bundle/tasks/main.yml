@@ -13,11 +13,16 @@
     - name: Monitor one-shot bundle inputs
       ansible.builtin.include_tasks: monitor.yml
 
+    - name: Output fresh one-shot bundle (controller source)
+      ansible.builtin.include_tasks: output_bundle.yml
+
     - name: Rebuild one-shot bundle (optional)
       ansible.builtin.include_tasks: rebuild.yml
+      when: not (one_shot_bundle_monitor_only | default(false))
 
     - name: Publish one-shot bundle artifacts + advance baseline (optional)
       ansible.builtin.include_tasks: publish.yml
+      when: not (one_shot_bundle_monitor_only | default(false))
   when: (one_shot_bundle_source | default('controller')) == 'controller'
 
 - name: One-shot bundle (url source)

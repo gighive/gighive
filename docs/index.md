@@ -220,8 +220,6 @@ img {
     <h3>🔮 Advanced / Internals</h3>
     <ul>
         <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
-        <li><a href="feature_set.html">⭐ Architectural Feature Set</a></li>
-        <li><a href="DEPENDENCIES.html">📦 Dependencies</a></li>
         <li><a href="MIXING_HOSTVM_DOCKER_VERSIONS.html">🔄 Mixing Host/Container Versions</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
