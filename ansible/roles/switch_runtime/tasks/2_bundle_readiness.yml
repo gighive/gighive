@@ -123,3 +123,66 @@
         (switch_bundle_install_sh_stat.stat.exists | default(false)) and
         (switch_bundle_compose_file_stat.stat.exists | default(false))
       }}
+
+- name: Stat extracted bundle env file
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}/apache/externalConfigs/.env"
+  register: switch_bundle_apache_env_stat
+
+- name: Stat extracted bundle mysql env file
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}/mysql/externalConfigs/.env.mysql"
+  register: switch_bundle_mysql_env_stat
+
+- name: Stat extracted bundle htpasswd file
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}/apache/externalConfigs/gighive.htpasswd"
+  register: switch_bundle_htpasswd_stat
+
+- name: Set bundle initialization fact
+  ansible.builtin.set_fact:
+    switch_bundle_initialized: >-
+      {{
+        (switch_bundle_apache_env_stat.stat.exists | default(false)) and
+        (switch_bundle_mysql_env_stat.stat.exists | default(false)) and
+        (switch_bundle_htpasswd_stat.stat.exists | default(false))
+      }}
+
+- name: Fail with manual bootstrap instructions when bundle mode requires initialization
+  ansible.builtin.fail:
+    msg: |
+      Bundle runtime has been downloaded and extracted, but first-time bootstrap is still required.
+
+      Run the following manually:
+        cd {{ switch_bundle_extract_dir }} && ./install.sh
+
+      After install.sh completes, rerun:
+        ansible-playbook ansible/playbooks/switch_runtime.yml -i ansible/inventories/inventory_gighive2.yml -e switch_target_mode=gighive_bundle
+  when:
+    - switch_target_mode == 'gighive_bundle'
+    - switch_bundle_structure_ok | default(false) | bool
+    - not (switch_bundle_initialized | default(false) | bool)
+
+- name: Validate required bundle bootstrap files exist after install
+  ansible.builtin.assert:
+    that:
+      - switch_bundle_initialized | bool
+    fail_msg: >-
+      Bundle bootstrap is incomplete. Expected generated files are missing under
+      {{ switch_bundle_extract_dir }}.
+  when:
+    - switch_target_mode in ['gighive_bundle', 'gighive2_vm']
+    - switch_bundle_structure_ok | default(false) | bool
+    - switch_bundle_initialized | default(false) | bool
+
+- name: Capture initial runtime state facts
+  ansible.builtin.set_fact:
+    switch_initial_vm_state: "{{ switch_vm_state | default('unknown') }}"
+    switch_initial_vm_running: "{{ switch_vm_is_running | default(false) }}"
+    switch_initial_vm_ping_ok: "{{ switch_vm_ping_ok | default(false) }}"
+    switch_initial_vm_ssh_ok: "{{ switch_vm_ssh_ok | default(false) }}"
+    switch_initial_vm_app_ok: "{{ switch_vm_app_ok | default(false) }}"
+    switch_initial_bundle_running: "{{ switch_bundle_containers_running | default(false) }}"
+    switch_initial_bundle_health_ok: "{{ switch_bundle_health_ok | default(false) }}"
+    switch_initial_bundle_initialized: "{{ switch_bundle_initialized | default(false) }}"
+    switch_initial_host_ports_in_use: "{{ switch_host_ports_in_use | default([]) }}"

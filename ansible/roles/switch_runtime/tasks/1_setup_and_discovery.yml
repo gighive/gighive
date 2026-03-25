@@ -1,0 +1,335 @@
+---
+- name: Assert gighive_vm inventory host is defined
+  ansible.builtin.assert:
+    that:
+      - switch_vm_inventory_host in hostvars
+    fail_msg: >-
+      Inventory host '{{ switch_vm_inventory_host }}' not found.
+      Run with: -i ansible/inventories/inventory_gighive2.yml
+
+- name: Derive switch_vm_name from gighive_vm hostvars
+  ansible.builtin.set_fact:
+    switch_vm_name: "{{ hostvars[switch_vm_inventory_host].vm_name }}"
+
+- name: Derive switch_vm_ip from gighive_vm hostvars
+  ansible.builtin.set_fact:
+    switch_vm_ip: "{{ hostvars[switch_vm_inventory_host].ansible_host }}"
+
+- name: Assert switch_vm_name is set
+  ansible.builtin.assert:
+    that:
+      - (switch_vm_name | default('') | trim) | length > 0
+    fail_msg: "vm_name is not set for inventory host '{{ switch_vm_inventory_host }}'"
+
+- name: Assert switch_vm_ip is set
+  ansible.builtin.assert:
+    that:
+      - (switch_vm_ip | default('') | trim) | length > 0
+    fail_msg: "ansible_host (IP) is not set for inventory host '{{ switch_vm_inventory_host }}'"
+
+- name: Stat switch_bundle_home directory
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_home }}"
+  register: switch_bundle_home_stat
+
+- name: Assert switch_bundle_home exists and is a directory
+  ansible.builtin.assert:
+    that:
+      - switch_bundle_home_stat.stat.exists
+      - switch_bundle_home_stat.stat.isdir
+    fail_msg: "switch_bundle_home directory does not exist: {{ switch_bundle_home }}"
+
+- name: Assert VBoxManage is available in PATH
+  ansible.builtin.command: which VBoxManage
+  register: switch_vboxmanage_which
+  changed_when: false
+  failed_when: switch_vboxmanage_which.rc != 0
+
+- name: Assert docker is available in PATH
+  ansible.builtin.command: which docker
+  register: switch_docker_which
+  changed_when: false
+  failed_when: switch_docker_which.rc != 0
+
+- name: Assert docker compose is available
+  ansible.builtin.command: docker compose version
+  register: switch_docker_compose_version
+  changed_when: false
+  failed_when: switch_docker_compose_version.rc != 0
+
+- name: Assert switch_bundle_download_base_url is set
+  ansible.builtin.assert:
+    that:
+      - (switch_bundle_download_base_url | default('') | trim) | length > 0
+    fail_msg: "switch_bundle_download_base_url is not set"
+
+- name: Print preflight summary
+  ansible.builtin.debug:
+    msg:
+      - "switch_target_mode         : {{ switch_target_mode }}"
+      - "switch_vm_name             : {{ switch_vm_name }}"
+      - "switch_vm_ip               : {{ switch_vm_ip }}"
+      - "switch_bundle_home         : {{ switch_bundle_home }}"
+      - "switch_bundle_download_dir : {{ switch_bundle_download_dir }}"
+      - "switch_bundle_extract_dir  : {{ switch_bundle_extract_dir }}"
+      - "switch_bundle_download_url : {{ switch_bundle_download_base_url }}"
+      - "docker compose             : {{ switch_docker_compose_version.stdout | trim }}"
+
+- name: Derive switch_vbox_user from controller login environment
+  ansible.builtin.set_fact:
+    switch_vbox_user: >-
+      {{
+        (lookup('env', 'SUDO_USER') | default('') | trim)
+          if (lookup('env', 'SUDO_USER') | default('') | trim) | length > 0
+          else (lookup('env', 'USER') | default('') | trim)
+      }}
+
+- name: Fallback to id -un for switch_vbox_user if env vars not set
+  ansible.builtin.command: id -un
+  register: switch_vbox_user_id
+  changed_when: false
+  become: false
+  when: (switch_vbox_user | default('') | trim) | length == 0
+
+- name: Set switch_vbox_user from id -un fallback
+  ansible.builtin.set_fact:
+    switch_vbox_user: "{{ switch_vbox_user_id.stdout | trim }}"
+  when:
+    - (switch_vbox_user | default('') | trim) | length == 0
+    - switch_vbox_user_id is defined
+    - (switch_vbox_user_id.stdout | default('') | trim) | length > 0
+
+- name: Assert switch_vbox_user is resolved
+  ansible.builtin.assert:
+    that:
+      - (switch_vbox_user | default('') | trim) | length > 0
+    fail_msg: >-
+      Could not determine the VirtualBox controller user from
+      SUDO_USER, USER, or id -un
+
+- name: Lookup switch_vbox_user passwd entry
+  ansible.builtin.command: "getent passwd {{ switch_vbox_user }}"
+  register: switch_vbox_passwd
+  changed_when: false
+
+- name: Derive switch_vbox_uid and switch_vbox_home from passwd
+  ansible.builtin.set_fact:
+    switch_vbox_uid: "{{ switch_vbox_passwd.stdout.split(':')[2] | default('') }}"
+    switch_vbox_home: "{{ switch_vbox_passwd.stdout.split(':')[5] | default('') }}"
+
+- name: Assert switch_vbox_uid and switch_vbox_home are resolvable
+  ansible.builtin.assert:
+    that:
+      - (switch_vbox_uid | default('') | trim) | length > 0
+      - (switch_vbox_home | default('') | trim) | length > 0
+    fail_msg: >-
+      Could not resolve uid/home for switch_vbox_user={{ switch_vbox_user }}
+      via getent passwd
+
+- name: Set switch_vbox_user_home_config (VBOX_USER_HOME)
+  ansible.builtin.set_fact:
+    switch_vbox_user_home_config: "{{ switch_vbox_home }}/.config/VirtualBox"
+
+- name: Print derived VBox context
+  ansible.builtin.debug:
+    msg:
+      - "switch_vbox_user             : {{ switch_vbox_user }}"
+      - "switch_vbox_uid              : {{ switch_vbox_uid }}"
+      - "switch_vbox_home             : {{ switch_vbox_home }}"
+      - "switch_vbox_user_home_config : {{ switch_vbox_user_home_config }}"
+
+- name: Ensure bundle download directory exists
+  ansible.builtin.file:
+    path: "{{ switch_bundle_download_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Stat bundle download tarball
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_tgz_path }}"
+  register: switch_bundle_tgz_stat
+
+- name: Stat bundle download sha file
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_sha_path }}"
+  register: switch_bundle_sha_stat
+
+- name: Check if bundle extract directory exists
+  ansible.builtin.stat:
+    path: "{{ switch_bundle_extract_dir }}"
+  register: switch_bundle_extract_stat
+
+- name: Set switch_bundle_extract_exists fact
+  ansible.builtin.set_fact:
+    switch_bundle_extract_exists: "{{ switch_bundle_extract_stat.stat.exists | default(false) }}"
+
+- name: Set default bundle compose inspectability fact
+  ansible.builtin.set_fact:
+    switch_bundle_compose_inspectable: false
+
+- name: Check docker compose ps in bundle runtime directory
+  ansible.builtin.command: docker compose ps --format json
+  args:
+    chdir: "{{ switch_bundle_extract_dir }}"
+  register: switch_bundle_compose_ps
+  changed_when: false
+  failed_when: false
+  when: switch_bundle_extract_exists | bool
+
+- name: Set bundle compose inspectability fact after compose ps
+  ansible.builtin.set_fact:
+    switch_bundle_compose_inspectable: "{{ switch_bundle_compose_ps.rc | default(1) == 0 }}"
+  when: switch_bundle_extract_exists | bool
+
+- name: Set switch_bundle_containers_running fact
+  ansible.builtin.set_fact:
+    switch_bundle_containers_running: >-
+      {{
+        (switch_bundle_extract_exists | bool) and
+        (switch_bundle_compose_ps is defined) and
+        (switch_bundle_compose_ps.rc | default(1) == 0) and
+        (
+          (switch_bundle_compose_ps.stdout | default(''))
+          is regex('(?is).*("State"\s*:\s*"running"|"Status"\s*:\s*"running").*')
+        )
+      }}
+
+- name: Check bundle home page health when containers appear to be running
+  ansible.builtin.command: >
+    curl -sk -o /dev/null -w "%{http_code}" --max-time 5 {{ switch_bundle_local_health_url }}
+  register: switch_bundle_health_check
+  changed_when: false
+  failed_when: false
+  when: switch_bundle_containers_running | default(false) | bool
+
+- name: Set bundle health fact
+  ansible.builtin.set_fact:
+    switch_bundle_health_ok: >-
+      {{
+        (switch_bundle_health_check is defined) and
+        (switch_bundle_health_check.rc | default(1) == 0) and
+        (switch_bundle_health_check.stdout | default('0') | int in [200, 301, 302, 401, 403])
+      }}
+
+- name: Probe required bundle host ports on the controller
+  ansible.builtin.command: >-
+    ss -H -ltn 'sport = :{{ item }}'
+  loop: "{{ switch_bundle_host_ports }}"
+  register: switch_host_port_probes
+  changed_when: false
+  failed_when: false
+
+- name: Summarise required bundle host port occupancy
+  ansible.builtin.set_fact:
+    switch_host_ports_in_use: >-
+      {{
+        switch_host_port_probes.results
+        | default([])
+        | selectattr('stdout', 'defined')
+        | selectattr('stdout', 'truthy')
+        | map(attribute='item')
+        | list
+      }}
+    switch_host_ports_busy: >-
+      {{
+        (
+          switch_host_port_probes.results
+          | default([])
+          | selectattr('stdout', 'defined')
+          | selectattr('stdout', 'truthy')
+          | list
+          | length
+        ) > 0
+      }}
+
+- name: Check for VBoxHeadless processes on Pop!_OS host
+  ansible.builtin.command: pgrep -a VBoxHeadless
+  register: switch_vbox_headless_procs
+  changed_when: false
+  failed_when: false
+
+- name: Check for VirtualBoxVM processes on Pop!_OS host
+  ansible.builtin.command: pgrep -a VirtualBoxVM
+  register: switch_vbox_vm_procs
+  changed_when: false
+  failed_when: false
+
+- name: Summarise VirtualBox host processes
+  ansible.builtin.set_fact:
+    switch_vbox_headless_running: "{{ switch_vbox_headless_procs.rc == 0 }}"
+    switch_vbox_vm_proc_running: "{{ switch_vbox_vm_procs.rc == 0 }}"
+
+- name: Get VM info (machinereadable) for {{ switch_vm_name }}
+  ansible.builtin.command: >
+    /usr/bin/VBoxManage showvminfo "{{ switch_vm_name }}" --machinereadable
+  become: true
+  become_user: "{{ switch_vbox_user }}"
+  environment:
+    HOME: "{{ switch_vbox_home }}"
+    VBOX_USER_HOME: "{{ switch_vbox_user_home_config }}"
+  register: switch_vm_showvminfo
+  changed_when: false
+  failed_when: false
+
+- name: Get list of running VMs
+  ansible.builtin.command: /usr/bin/VBoxManage list runningvms
+  become: true
+  become_user: "{{ switch_vbox_user }}"
+  environment:
+    HOME: "{{ switch_vbox_home }}"
+    VBOX_USER_HOME: "{{ switch_vbox_user_home_config }}"
+  register: switch_vbox_runningvms
+  changed_when: false
+  failed_when: false
+
+- name: Parse VMState from showvminfo output
+  ansible.builtin.set_fact:
+    switch_vm_state: >-
+      {{
+        (switch_vm_showvminfo.stdout_lines
+          | select('match', '^VMState=')
+          | list | first | default('VMState="unknown"'))
+          | regex_replace('^VMState="?([^"]*)"?$', '\1')
+      }}
+  when: switch_vm_showvminfo.rc == 0
+
+- name: Set switch_vm_state to not_found if showvminfo failed
+  ansible.builtin.set_fact:
+    switch_vm_state: "not_found"
+  when: switch_vm_showvminfo.rc != 0
+
+- name: Determine whether {{ switch_vm_name }} is in running VMs list
+  ansible.builtin.set_fact:
+    switch_vm_is_running: "{{ switch_vm_name in (switch_vbox_runningvms.stdout | default('')) }}"
+
+- name: Ping gighive2 VM IP
+  ansible.builtin.command: "ping -c 1 -W 2 {{ switch_vm_ip }}"
+  register: switch_vm_ping
+  changed_when: false
+  failed_when: false
+
+- name: Check SSH reachability on gighive2 VM
+  ansible.builtin.wait_for:
+    host: "{{ switch_vm_ip }}"
+    port: 22
+    timeout: 5
+    state: started
+  register: switch_vm_ssh_reachable
+  ignore_errors: true
+
+- name: Check app health on gighive2 VM (curl -k, home page, no auth)
+  ansible.builtin.command: >
+    curl -sk -o /dev/null -w "%{http_code}" --max-time 5 https://{{ switch_vm_ip }}/
+  register: switch_vm_app_health
+  changed_when: false
+  failed_when: false
+
+- name: Summarise VM reachability
+  ansible.builtin.set_fact:
+    switch_vm_ping_ok: "{{ switch_vm_ping.rc == 0 }}"
+    switch_vm_ssh_ok: "{{ not (switch_vm_ssh_reachable.failed | default(true)) }}"
+    switch_vm_app_ok: >-
+      {{
+        switch_vm_app_health.rc == 0 and
+        switch_vm_app_health.stdout | default('0') | int in [200, 301, 302, 401, 403]
+      }}

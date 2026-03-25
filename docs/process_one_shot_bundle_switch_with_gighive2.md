@@ -146,7 +146,7 @@ One important logging nuance: if a playbook run shows the one-shot bundle monito
 - Download `.tgz` + `.sha256` from staging, verify checksum, extract under `/home/sodo`
 - Detect bootstrap state; if uninitialized, stop and print manual `install.sh` instructions
 - After bootstrap, validate generated config files and running containers
-- Provide `docker compose up` / `docker compose down` as repeat runtime controls with improved rerun behavior
+- Prepare the extracted bundle runtime so switch execution can safely reuse it with improved rerun behavior
 
 **Phase 3: Bidirectional Switch Execution**
 - VM→bundle: stop VM, wait for clean poweroff/unlock, verify ports free, compose up
@@ -157,7 +157,7 @@ One important logging nuance: if a playbook run shows the one-shot bundle monito
 - Add fail-fast guardrails before any state-changing action
 - Standardize operator output: mode requested → initial state → actions taken → final state → health result
 
-**Implementation Notes**
+### Implementation Notes
 - `gighive_bundle` can now reuse an already-running healthy bundle instead of forcing `docker compose up`
 - failure diagnostics now include the failed task, failure detail, and initial runtime snapshot
 - repeated runs are faster because artifact download/extraction and compose operations are more idempotent
@@ -221,13 +221,12 @@ Fail early if any of the following are missing or invalid:
 
 ### Suggested Task Layout
 
-- `tasks/preflight.yml`
-- `tasks/derive_vbox_context.yml`
-- `tasks/check_vm_state.yml`
-- `tasks/check_vm_processes.yml`
-- `tasks/check_vm_reachability.yml`
-- `tasks/check_bundle_containers.yml`
-- `tasks/status.yml`
+- `tasks/main.yml`
+- `tasks/1_setup_and_discovery.yml`
+
+`main.yml` orchestrates the numbered task files in sequence. `1_setup_and_discovery.yml`
+contains the preflight, VirtualBox context derivation, and initial VM/bundle/port
+inspection work for the role.
 
 ### Failure Conditions to Detect Clearly
 
@@ -248,7 +247,7 @@ A `switch_runtime.yml` with fixed scope, stable variable contract, reliable pref
 
 ### Goal
 
-Handle everything on the bundle side: download and verify the artifact from staging, extract it under `/home/sodo`, detect whether first-time bootstrap is needed, and provide compose-based start/stop control after bootstrap.
+ Handle everything on the bundle side: download and verify the artifact from staging, extract it under `/home/sodo`, detect whether first-time bootstrap is needed, and ensure the extracted runtime is ready before any switch is attempted.
 
 ### What This Phase Delivers
 
@@ -260,7 +259,7 @@ Handle everything on the bundle side: download and verify the artifact from stag
 - detect whether `install.sh` bootstrap has already been completed
 - if bootstrap is required, stop and print exact manual instructions
 - after bootstrap, validate generated config files
-- `docker compose up -d --build` and `docker compose down` as the runtime controls
+- a validated extracted runtime that switch execution can safely start or stop later
 
 ### Bundle Variables
 
@@ -306,16 +305,11 @@ Once completed manually, subsequent runs use Compose directly.
 
 ### Suggested Task Layout
 
-- `tasks/prepare_bundle_dirs.yml`
-- `tasks/download_bundle.yml`
-- `tasks/verify_bundle_checksum.yml`
-- `tasks/extract_bundle.yml`
-- `tasks/check_bundle_initialized.yml`
-- `tasks/emit_bootstrap_instructions.yml`
-- `tasks/validate_bundle_post_install.yml`
-- `tasks/bundle_compose_up.yml`
-- `tasks/bundle_compose_down.yml`
-- `tasks/check_bundle_health.yml`
+- `tasks/2_bundle_readiness.yml`
+
+This grouped task file contains bundle directory preparation, artifact download/checksum
+handling, extraction, bootstrap detection, manual bootstrap instructions, and
+post-bootstrap validation.
 
 ### Failure Conditions to Detect Clearly
 
@@ -360,14 +354,10 @@ Implement the actual VM↔bundle flip in both directions, reusing tasks from Pha
 
 ### Suggested Task Layout
 
-Reuses Phase 1 and Phase 2 tasks, plus:
-
-- `tasks/stop_gighive2_vm.yml`
-- `tasks/wait_for_vm_poweroff.yml`
-- `tasks/check_host_ports.yml`
-- `tasks/start_gighive2_vm.yml`
-- `tasks/wait_for_vm_running.yml`
-- `tasks/check_vm_app_health.yml`
+Reuses the facts established by Phases 1 and 2, plus:
+- `tasks/3_switch_execution.yml`
+This grouped task file contains guardrails, VM stop/start operations, bundle
+compose up/down operations, host port waits, and the direction-specific switch logic.
 
 ### Failure Conditions to Detect Clearly
 
@@ -420,9 +410,11 @@ Make the switch workflow safe, repeatable, and self-diagnosing for day-to-day us
 
 ### Suggested Task Layout
 
-- `tasks/check_switch_guardrails.yml`
-- `tasks/print_state_summary.yml`
-- `tasks/print_failure_diagnostics.yml`
+- `tasks/4_finalize_and_reporting.yml`
+
+This grouped task file refreshes post-switch state, computes the final readiness/result
+facts, and prints the runtime status summary. Failure diagnostics remain in
+`tasks/main.yml` under the play-level `rescue` flow.
 
 ### Deliverable
 
