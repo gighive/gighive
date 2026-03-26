@@ -1,7 +1,9 @@
 *** 
 releaseNotes20260325.txt
-Changes: Simplified one_shot_bundle to monitor diff and then output, removed buried vars into group_vars, sync'd new vars, tested new bundle, fixed doc and added skills.md
+Changes: one_shot_bundle updates, doc updates and plan for upload from manifest new page 
 
+# Check dry-run mode, then active "diff" mode
+Last run (staging: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --check --diff" ansible-playbook-gighive-20260325.log
 Last run (staging: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-20260325.log
 
 sodo@pop-os:~/gighive$ git status
@@ -10,31 +12,16 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	new file:   .windsurf/workflows/tmp.md
+	modified:   .gitignore
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/roles/docker/defaults/main.yml
-	new file:   ansible/roles/docker/files/one_shot_bundle/backup_and_replace.sh
-	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
-	new file:   ansible/roles/docker/files/one_shot_bundle/instructions_quickstart.sh
 	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
 	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
-	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
-	deleted:    ansible/roles/security_basic_auth/defaults/main.yml
-	modified:   docs/PREREQS.md
-	modified:   docs/index.md
+	new file:   docs/feature_admin_upload_from_manifest_page_design.md
 	modified:   docs/knowledge_map.html
-	new file:   docs/process_one_shot_bundle_new.md
-	renamed:    docs/process_download_directory_for_tgz_design.md -> docs/process_one_shot_download_directory_for_tgz_design.md
-	renamed:    docs/process_download_directory_for_tgz_lab_staging_configuration.md -> docs/process_one_shot_download_directory_for_tgz_lab_staging_configuration.md
-	renamed:    docs/process_download_quickstart_rebuild_criteria.md -> docs/process_one_shot_download_quickstart_rebuild_criteria.md
-	renamed:    docs/process_download_quickstart_versus_full_build.md -> docs/process_one_shot_download_quickstart_versus_full_build.md
-	new file:   skills.md
+	new file:   docs/problem_one_shot_bundle_media_group_perms_issues.md
+	modified:   user-prompts.md
 
 TODO
-Testing: Test the one-shot-bundle comparitor in dry--run mode..like to see where the diffs are now
 Testing: App breaks on upload when changing to Messages 
 Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
 Problem: admin.php passwords doesn't use common min security requirements
@@ -71,6 +58,42 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260325.txt
+Changes: Simplified one_shot_bundle to monitor diff and then output, removed buried vars into group_vars, sync'd new vars, tested new bundle, fixed doc and added skills.md
+
+# Check dry-run mode, then active "diff" mode
+Last run (staging: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --check --diff" ansible-playbook-gighive-20260325.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   .windsurf/workflows/tmp.md
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/defaults/main.yml
+	new file:   ansible/roles/docker/files/one_shot_bundle/backup_and_replace.sh
+	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
+	new file:   ansible/roles/docker/files/one_shot_bundle/instructions_quickstart.sh
+	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	deleted:    ansible/roles/security_basic_auth/defaults/main.yml
+	modified:   docs/PREREQS.md
+	modified:   docs/index.md
+	modified:   docs/knowledge_map.html
+	new file:   docs/process_one_shot_bundle_new.md
+	renamed:    docs/process_download_directory_for_tgz_design.md -> docs/process_one_shot_download_directory_for_tgz_design.md
+	renamed:    docs/process_download_directory_for_tgz_lab_staging_configuration.md -> docs/process_one_shot_download_directory_for_tgz_lab_staging_configuration.md
+	renamed:    docs/process_download_quickstart_rebuild_criteria.md -> docs/process_one_shot_download_quickstart_rebuild_criteria.md
+	renamed:    docs/process_download_quickstart_versus_full_build.md -> docs/process_one_shot_download_quickstart_versus_full_build.md
+	new file:   skills.md
 
 *** 
 releaseNotes20260324.txt

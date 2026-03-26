@@ -33,6 +33,9 @@ xcuserdata/
 *.xcuserstate
 #user-prompts.md
 
+# Windsurf tmp
+.windsurf/workflows/tmp.md
+
 # Docker volumes (if any)
 volumes/
 

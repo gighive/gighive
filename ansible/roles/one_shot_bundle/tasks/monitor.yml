@@ -36,6 +36,7 @@
 - name: Initialize source manifest dict
   ansible.builtin.set_fact:
     _one_shot_bundle_source_manifest: {}
+    _one_shot_bundle_source_details: {}
 
 - name: Add directory file entries to source manifest mapping bundle_path->mtime+size
   ansible.builtin.set_fact:
@@ -43,6 +44,11 @@
       {{
         _one_shot_bundle_source_manifest
         | combine(((item.mtime | string) ~ ':' ~ (item.size | string)) | community.general.dict_kv(_one_shot_bundle_dest_file | trim))
+      }}
+    _one_shot_bundle_source_details: >-
+      {{
+        _one_shot_bundle_source_details
+        | combine(({"path": item.path, "mode": item.mode, "size": item.size, "mtime": item.mtime}) | community.general.dict_kv(_one_shot_bundle_dest_file | trim))
       }}
   loop: "{{ (_one_shot_bundle_inputs_find_results.results | default([])) | map(attribute='files') | list | flatten }}"
   loop_control:
@@ -96,6 +102,11 @@
       {{
         _one_shot_bundle_source_manifest
         | combine(((item.stat.mtime | string) ~ ':' ~ (item.stat.size | string)) | community.general.dict_kv(_one_shot_bundle_dest_file | trim))
+      }}
+    _one_shot_bundle_source_details: >-
+      {{
+        _one_shot_bundle_source_details
+        | combine(({"path": item.stat.path, "mode": item.stat.mode, "size": item.stat.size, "mtime": item.stat.mtime}) | community.general.dict_kv(_one_shot_bundle_dest_file | trim))
       }}
   loop: "{{ _one_shot_bundle_inputs_paths_stat.results | selectattr('stat.isreg','defined') | selectattr('stat.isreg') | list }}"
   loop_control:
@@ -169,6 +180,7 @@
 - name: Initialize assembled bundle manifest dict
   ansible.builtin.set_fact:
     _one_shot_bundle_bundle_manifest: {}
+    _one_shot_bundle_bundle_details: {}
 
 - name: Add assembled bundle file entries to manifest mapping bundle_path->mtime+size
   ansible.builtin.set_fact:
@@ -176,6 +188,11 @@
       {{
         _one_shot_bundle_bundle_manifest
         | combine(((item.mtime | string) ~ ':' ~ (item.size | string)) | community.general.dict_kv(_one_shot_bundle_bundle_relative_path))
+      }}
+    _one_shot_bundle_bundle_details: >-
+      {{
+        _one_shot_bundle_bundle_details
+        | combine(({"path": item.path, "mode": item.mode, "size": item.size, "mtime": item.mtime}) | community.general.dict_kv(_one_shot_bundle_bundle_relative_path))
       }}
   loop: "{{ _one_shot_bundle_bundle_find_results.files | default([]) }}"
   loop_control:
@@ -201,6 +218,8 @@
 - name: Initialize changed paths between source and assembled bundle
   ansible.builtin.set_fact:
     _one_shot_bundle_changed_between_source_and_bundle: []
+    _one_shot_bundle_changed_between_source_and_bundle_details: []
+    _one_shot_bundle_changed_between_source_and_bundle_ls_details: []
   when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
 
 - name: Compute changed paths between source and assembled bundle
@@ -210,6 +229,79 @@
   when:
     - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
     - _one_shot_bundle_source_manifest[item] != _one_shot_bundle_bundle_manifest[item]
+
+- name: Compute changed path details between source and assembled bundle
+  ansible.builtin.set_fact:
+    _one_shot_bundle_changed_between_source_and_bundle_details: >-
+      {{
+        _one_shot_bundle_changed_between_source_and_bundle_details
+        + [
+            {
+              "bundle_relative_path": item,
+              "source": _one_shot_bundle_source_details[item] | default({}),
+              "bundle": _one_shot_bundle_bundle_details[item] | default({})
+            }
+          ]
+      }}
+  loop: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | sort }}"
+  when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+
+- name: Capture ls output for changed source files in assembled bundle comparison
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  ansible.builtin.command:
+    argv:
+      - ls
+      - -ld
+      - --time-style=long-iso
+      - "{{ item.source.path }}"
+  loop: "{{ _one_shot_bundle_changed_between_source_and_bundle_details | default([]) }}"
+  loop_control:
+    label: "{{ item.bundle_relative_path }}"
+  register: _one_shot_bundle_changed_source_ls_results
+  when:
+    - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+    - (_one_shot_bundle_changed_between_source_and_bundle_details | default([]) | length) > 0
+
+- name: Capture ls output for changed assembled bundle files
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  ansible.builtin.command:
+    argv:
+      - ls
+      - -ld
+      - --time-style=long-iso
+      - "{{ item.bundle.path }}"
+  loop: "{{ _one_shot_bundle_changed_between_source_and_bundle_details | default([]) }}"
+  loop_control:
+    label: "{{ item.bundle_relative_path }}"
+  register: _one_shot_bundle_changed_bundle_ls_results
+  when:
+    - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+    - (_one_shot_bundle_changed_between_source_and_bundle_details | default([]) | length) > 0
+
+- name: Combine ls output for changed source-to-bundle files
+  ansible.builtin.set_fact:
+    _one_shot_bundle_changed_between_source_and_bundle_ls_details: >-
+      {{
+        _one_shot_bundle_changed_between_source_and_bundle_ls_details
+        + [
+            {
+              "bundle_relative_path": item.bundle_relative_path,
+              "source_ls": (_one_shot_bundle_changed_source_ls_results.results[index].stdout | default('')),
+              "bundle_ls": (_one_shot_bundle_changed_bundle_ls_results.results[index].stdout | default(''))
+            }
+          ]
+      }}
+  loop: "{{ _one_shot_bundle_changed_between_source_and_bundle_details | default([]) }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.bundle_relative_path }}"
+  when:
+    - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
+    - (_one_shot_bundle_changed_between_source_and_bundle_details | default([]) | length) > 0
 
 - name: Determine whether one-shot bundle source-to-bundle drift exists (controller source)
   ansible.builtin.set_fact:
