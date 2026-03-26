@@ -1,25 +1,6 @@
 *** 
-releaseNotes20260325.txt
-Changes: one_shot_bundle updates, doc updates and plan for upload from manifest new page 
-
-# Check dry-run mode, then active "diff" mode
-Last run (staging: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --check --diff" ansible-playbook-gighive-20260325.log
-Last run (staging: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-20260325.log
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   .gitignore
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
-	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
-	new file:   docs/feature_admin_upload_from_manifest_page_design.md
-	modified:   docs/knowledge_map.html
-	new file:   docs/problem_one_shot_bundle_media_group_perms_issues.md
-	modified:   user-prompts.md
+releaseNotes20260326.txt
+Changes: Feature to create a new admin media upload page
 
 TODO
 Testing: App breaks on upload when changing to Messages 
@@ -58,6 +39,31 @@ Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioV
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260325.txt
+Changes: one_shot_bundle updates, doc updates and plan for upload from manifest new page 
+releaseNotes20260325.txt
+Changes: one_shot_bundle updates, doc updates and plan for upload from manifest new page 
+
+# Check dry-run mode, then active "diff" mode
+Last run (staging: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --check --diff" ansible-playbook-gighive-20260325.log
+Last run (staging: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-20260325.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	new file:   docs/feature_admin_upload_from_manifest_page_design.md
+	modified:   docs/knowledge_map.html
+	new file:   docs/problem_one_shot_bundle_media_group_perms_issues.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260325.txt

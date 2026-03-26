@@ -1,12 +1,17 @@
-# Feature Design: admin_upload_from_manifest.php
+# Feature Design: admin_media_import.php
 
 ## Summary
 
-This document captures the agreed design for a new browser-based manifest upload workflow page:
+This document captures the agreed design for a new browser-based media import workflow page:
 
-- `admin_upload_from_manifest.php`
+- `admin_media_import.php`
 
-The goal is to replace the current manual Part II shell/Python workflow for Sections 4/5 with a manifest-aware browser experience while preserving the existing manifest/hash generation model.
+The goal is to replace the current manual Part II shell/Python workflow with a manifest-aware browser experience while preserving the existing manifest/hash generation model.
+
+The page hosts both steps of the workflow:
+
+- Step 1: Create Manifest and Hashes
+- Step 2: Upload Media
 
 The page is intentionally planned as a new dedicated workflow page. Changes to `admin.php` are explicitly deferred until after this page exists and is working.
 
@@ -14,25 +19,37 @@ The page is intentionally planned as a new dedicated workflow page. Changes to `
 
 Build a new page:
 
-- `admin_upload_from_manifest.php`
+- `admin_media_import.php`
 
 Do not edit `admin.php` yet.
 
 Deferred follow-up task:
 
-- after `admin_upload_from_manifest.php` is implemented and working, add an entry point from `admin.php`
+- after `admin_media_import.php` is implemented and working, add an entry point from `admin.php`
+
+## Authentication and authorization
+
+`admin_media_import.php` and all supporting backend endpoints are restricted to `admin` users only.
+
+This is consistent with the existing manifest endpoints (`import_manifest_status.php`, `import_manifest_jobs.php`, `import_manifest_cancel.php`) which use the same pattern:
+
+```php
+if ($user !== 'admin') { http_response_code(403); exit; }
+```
 
 ## Page structure
 
-Keep the UI simple for the first implementation with two separate sections on the new page:
+The new page has two separate workflow sections:
 
-- `Section 4: Refresh the Database from a Folder Manifest (destructive)`
-- `Section 5: Add to the Database from a Folder Manifest (non-destructive)`
+- `Reload Database from Folder (destructive)`
+- `Add to Database from Folder (non-destructive)`
 
-Each section will have two buttons:
+Each section has two buttons:
 
 - `Create Manifest and Hashes`
 - `Upload Media`
+
+The numbered section labels (Section 4, Section 5) from `admin.php` are intentionally dropped on this standalone page. Descriptive names are used instead.
 
 ## High-level workflow
 
@@ -63,6 +80,8 @@ Current persisted manifest job files/patterns already include:
 - `result.json`
 - `cancel.json`
 
+The manifest job and the upload job share the same `job_id` and the same job directory. Upload-specific artifacts are added alongside the existing manifest artifacts. The `job_id` is the implicit join key between manifest and upload state — no separate linkage field is needed.
+
 This existing persisted job-status pattern should be followed for the new upload workflow wherever possible.
 
 ## Source of truth
@@ -85,6 +104,19 @@ Its responsibilities are:
 - generate/import manifest metadata
 - persist manifest job state
 
+### JavaScript state machine migration
+
+The existing Step 1 logic in `admin.php` is driven by two JavaScript state machines:
+
+- `_scanFolderImportRunState` — for the destructive reload section
+- `_scanFolderAddRunState` — for the non-destructive add section
+
+Each state machine manages `idle`, `hashing`, `uploading`, `stopping` states and handles UI transitions, progress polling, cancellation, and error handling.
+
+Migrating these state machines to `admin_media_import.php` is a first-class part of Phase 1 implementation work, not an afterthought.
+
+Step 2 will introduce additional upload state machine logic alongside the migrated Step 1 state machines.
+
 ### Duplicate hash handling
 
 `checksum_sha256` remains the authoritative key.
@@ -93,12 +125,15 @@ However, `source_relpath` must still be shown to the user for reassurance and hu
 
 If multiple files in the selected folder have the same checksum, step 1 must not silently continue.
 
-Instead, at the end of hashing it should:
+Instead, before the duplicate resolution dialog is shown:
 
-- summarize duplicate checksum groups
-- show the associated `source_relpath` entries for each duplicate checksum group
-- ask the user:
-  - `Which one should we keep?`
+- the pending hashing job is saved to the server under the same job directory
+- a new file `duplicates.json` is written containing all duplicate checksum groups and their associated `source_relpath` values
+- the job state is set to `awaiting_duplicate_resolution`
+
+Only then is the user shown the duplicate resolution dialog asking:
+
+- `Which one should we keep?`
 
 Meaning:
 
@@ -106,7 +141,18 @@ Meaning:
 
 Only the chosen file should survive into the finalized manifest for that checksum.
 
-This makes duplicate resolution a step 1 concern rather than deferring ambiguity into step 2.
+Step 1 is not complete and the manifest is not submitted to the server until all duplicate checksum groups have been resolved by the user.
+
+#### Duplicate resolution recovery
+
+If the user closes the browser before resolving duplicates, the pending job with `awaiting_duplicate_resolution` state is already persisted on the server.
+
+When the user returns to the page:
+
+- the pending job is preselected via the recovery controls
+- the page shows the duplicate resolution dialog directly from the saved `duplicates.json`
+- the user does not need to re-select their local folder
+- the user simply resumes from where they left off
 
 ## Step 2: Upload Media
 
@@ -187,11 +233,68 @@ A file can be:
 
 So artifact-specific state should be preserved internally even if a simpler summary is shown in the UI.
 
+### already_present display
+
+User-facing display rules for `already_present`:
+
+- **Fully complete** (media + thumbnail + DB all satisfied): show `Already present`
+- **Incomplete** (media present but one or more artifacts missing): show inline what is missing, e.g. `Already present — missing: thumbnail, db` or `Already present — missing: db`
+- **Detail view**: an inline toggle that expands to show per-artifact states (media / thumbnail / DB). This is not a separate page — it is hidden text toggled in place on the same row.
+
+### Post-upload state: thumbnail_done and db_done
+
+After a TUS upload completes, the server performs post-processing:
+
+1. generate the thumbnail
+2. update the database record
+
+These are server-side operations. The browser cannot know when they complete without polling.
+
+The browser learns `thumbnail_done` and `db_done` states by polling the upload job status endpoint, following the same polling pattern as the existing Step 1 manifest job status polling.
+
+The upload job status endpoint must expose per-file states so the browser can update the UI item-by-item as each file's post-processing completes.
+
+### Resume behavior
+
+When a user resumes an upload job after a crash or browser close, the upload batch must not restart from the beginning.
+
+On resume:
+
+- each manifest entry is checked against the persisted `upload_status.json`
+- any file already in a terminal success state (`uploaded`, `thumbnail_done`, `db_done`, `already_present`) is skipped
+- only files in `pending`, `failed`, or `uploading` states are processed
+
+This applies both to automatic TUS reconnect and to user-initiated resume after a crash.
+
+This is the same idempotent resume pattern already used in the Step 1 manifest job.
+
 ## Upload failure behavior
 
-If one file fails during step 2, the batch should not simply hard-stop or blindly continue.
+### TUS-level failures vs. batch-level failures
 
-On the first failure, the system should pause and offer these choices:
+There are two distinct failure levels in the upload flow:
+
+**Level 1 — TUS-level (transparent, automatic)**
+
+- connection dropped mid-upload
+- browser paused or suspended temporarily
+- short network interruption
+
+TUS handles these transparently via its resumable protocol. The user should never see a decision dialog for Level 1 failures.
+
+**Level 2 — Batch-level (permanent, requires user decision)**
+
+- file checksum does not match the manifest after upload completes
+- server rejects the file (wrong type, oversized, etc.)
+- thumbnail generation fails on the server
+- DB write fails on the server
+- TUS upload finalized but post-processing failed
+
+Only Level 2 failures trigger the user decision dialog.
+
+### Batch failure decision dialog
+
+On the first Level 2 (permanent) failure, the system should pause and offer these choices:
 
 - `Retry this file`
 - `Skip this file and continue one-by-one`
@@ -204,7 +307,7 @@ The agreed default action for the rest is:
 
 Then summarize failures at the end.
 
-This makes long-running jobs practical while still allowing user control once the first problem occurs.
+This makes long-running jobs practical while still allowing user control once the first permanent problem occurs.
 
 ## Recovery and resiliency
 
@@ -220,51 +323,83 @@ The browser should be able to reconnect later and recover the state from the bac
 
 ### Return/reconnect UX
 
-When a user returns to the page after a crash, reload, or long-running background work, the page should show:
+When a user returns to the page after a crash, reload, or long-running background work, the page automatically detects the current job state by polling the backend on load and renders the appropriate view.
 
-- a short summary of what was done
-  - for example: `N files uploaded`
-- a link to a PHP page showing detailed upload results
-- a clear continue button based on the stage where work stopped or failed
+There are three possible states:
+
+**Still running**
+
+- show live polling status as if the user never left
+- display progress bar, current file, elapsed time, and counts so far
+- no manual action required
+
+**Completed successfully**
+
+- show a summary: e.g. `N files uploaded`
+- show an inline toggle or link to detailed upload results
+- no continue button needed
+
+**Stopped or failed**
+
+- show a summary of what was done before the stop or failure
+- show a clear continue button based on the stage where work stopped:
   - `Continue with manifest/hashing`
   - or `Continue with upload`
 
-The reconnect experience should be summary-first, with details available on demand.
+The reconnect experience is summary-first, with detail available on demand via an inline toggle.
 
 ## Persisted upload job state
 
 The current manifest import workflow already persists status files under the job directory and exposes them through status endpoints.
 
-The new upload workflow should follow the same persisted file-based pattern under the same manifest job directory where practical.
+The new upload workflow follows the same persisted file-based pattern under the same manifest job directory.
 
-Suggested upload-specific persisted artifacts may include files such as:
+Upload-specific persisted artifacts include:
 
-- `upload_status.json`
-- `upload_result.json`
-- `upload_cancel.json`
-- `upload_meta.json`
+- `duplicates.json` — duplicate checksum groups pending resolution (written before showing the resolution dialog)
+- `upload_status.json` — per-file upload state, polled by the browser
+- `upload_result.json` — final upload job result
+- `upload_cancel.json` — cancellation signal
+- `upload_meta.json` — upload job metadata
 
-The exact filenames can be decided during implementation, but the pattern should mirror the manifest job model:
+All of these live under `/var/www/private/import_jobs/<job_id>/` alongside the existing manifest artifacts.
+
+The pattern mirrors the manifest job model:
 
 - persisted JSON state
 - pollable by browser
 - recoverable after refresh/crash
 
+## Upload Media button states
+
+The `Upload Media` button has four distinct states:
+
+| Job upload state | Button behavior |
+|---|---|
+| No successful manifest yet | Disabled — `Upload Media` |
+| Manifest exists, no upload job yet | Enabled — `Upload Media` |
+| Upload job in progress | Disabled — `Upload in Progress…` with link to live progress |
+| Upload job complete | Disabled — `Uploads Complete` with option to re-run via recovery controls |
+
+## Job preselection
+
+There are two distinct preselection rules, applied to two different UI controls:
+
+### Upload Media button preselection
+
+Preselect the most recent successful manifest job for that section that does not yet have a completed upload job.
+
+This ensures the button is pointed at the most relevant unfinished work.
+
+### Recovery controls preselection
+
+Preselect the most recent incomplete or failed job for that section, regardless of whether it is a manifest job or an upload job.
+
+This ensures recovery controls are pointed at the most relevant interrupted work.
+
+If a `job_id` is explicitly supplied in the URL, that job overrides both preselection rules and becomes the focus for that section.
+
 ## Section behavior on the new page
-
-### Job preselection
-
-The page should preselect the most appropriate job for the user.
-
-In practice this likely means:
-
-- the most recent relevant job
-
-If a `job_id` is explicitly supplied in the URL, that job should be the focus.
-
-### Upload Media button enablement
-
-`Upload Media` must be disabled until a successful manifest exists for that section/job.
 
 ### User reassurance before action
 
@@ -301,63 +436,60 @@ Users should be able to:
 - continue uploads later
 - resume from persisted backend state
 
-## Default page behavior
-
-The new page should default to preselecting the most appropriate job for the user in each section.
-
-That likely means:
-
-- the most recent relevant job
-
-A strong emphasis was placed on resiliency and return-to-page recovery. For that reason, preselecting the most appropriate recent job is desirable.
-
-If a `job_id` is present in the URL, it should override the default focus behavior.
-
 ## What is deferred
 
 The following is intentionally deferred from the first implementation scope:
 
 - editing `admin.php`
-- wiring `admin.php` to point to `admin_upload_from_manifest.php`
+- wiring `admin.php` to point to `admin_media_import.php`
 
 That is a return task after the new page is built and validated.
 
 ## Proposed implementation phases
 
+All phases are internal development sequencing. They all ship together in one change window. Phases are not independent production releases.
+
 ### Phase 1
 
-Create `admin_upload_from_manifest.php` with:
+Create `admin_media_import.php` with:
 
-- two sections
-- the step 1 manifest/hash workflow surfaced there
+- two sections with descriptive labels
+- the step 1 manifest/hash workflow migrated from `admin.php`
+- migration of `_scanFolderImportRunState` and `_scanFolderAddRunState` JavaScript state machines from `admin.php` — this is first-class Phase 1 work
+- duplicate detection with hard block on manifest submission if duplicates are present (resolution dialog added in Phase 2)
 - job summaries and recovery UI
 
 ### Phase 2
 
-Add duplicate checksum resolution at end of step 1:
+Add full duplicate checksum resolution at end of step 1:
 
+- save `duplicates.json` and set `awaiting_duplicate_resolution` state before showing dialog
 - group duplicates by checksum
 - display associated `source_relpath` values
 - require keep-choice before finalizing manifest
+- support recovery of unresolved duplicate state after browser close
 
 ### Phase 3
 
 Add step 2 manifest-aware upload flow:
 
 - load manifest by `job_id`
-- use TUS
+- use TUS for upload transport
 - match by checksum
 - show `source_relpath` as reassurance
-- persist upload progress using the same job-directory style pattern
+- persist upload progress under the same job directory (`upload_status.json`, etc.)
+- implement per-file post-processing polling for `thumbnail_done` and `db_done`
+- implement resume behavior: skip terminal success states on reconnect
 
 ### Phase 4
 
-Add reconnect/recovery behavior:
+Add full reconnect/recovery behavior:
 
-- summary on return
-- details link
-- continue button based on failure point
-- paused failure-decision UI for batch upload failures
+- three-state reconnect model (still running / completed / stopped+failed)
+- auto-detection of job state on page load via backend polling
+- inline detail toggle for per-file results
+- paused failure-decision UI for batch Level 2 failures
+- `already_present` inline missing-artifact display
 
 ### Phase 5
 
@@ -370,9 +502,13 @@ Deferred return task:
 Key invariants to preserve:
 
 - `manifest.json` remains the source of truth for step 2
-- `job_id` is the canonical identifier
+- `job_id` is the canonical identifier and the implicit join key between manifest and upload artifacts
 - checksum is authoritative for matching
 - `source_relpath` remains visible for human reassurance
 - duplicate checksum ambiguity must be resolved before step 2
+- pending duplicate resolution state must be persisted to the server before the dialog is shown
 - upload jobs must remain recoverable after browser loss/reload
-- success means all required post-processing is satisfied, not merely bytes uploaded
+- on resume, only pending/failed/uploading files are processed — terminal success states are skipped
+- TUS handles transient connection failures transparently; user decision dialogs are only shown for permanent (Level 2) failures
+- success means all required post-processing is satisfied (media + thumbnail + DB), not merely bytes uploaded
+- all endpoints and the page itself are admin-only
