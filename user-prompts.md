@@ -2479,3 +2479,49 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 
 - 2026-03-21T11:49:00-04:00
   - please add these new and updated .md files regarding telemetry to our knowledge_map.html
+
+## 2026-03-25
+
+- 2026-03-25T18:53:00-04:00
+  - macbook2025:20050526 sodo$ export MYSQL_PASSWORD='Sn012Trust@!'
+python3 ~/Downloads/upload_media_by_hash.py \
+  --source-root "$HOME/Downloads/20050526/" \
+  --ssh-target ubuntu@192.168.1.235 \
+  --db-host gighive \
+  --db-user appuser \
+  --db-name music_db
+INFO: using built-in media defaults (PyYAML not installed; env fallback reason: env media config not set) (mimes=12 audio_exts=5 video_exts=5)
+Required command not found in PATH: mysql
+
+- 2026-03-25T18:55:00-04:00
+  - macbook2025:20050526 sodo$ brew install mysql-client
+==> Auto-updating Homebrew...
+Adjust how often this is run with `$HOMEBREW_AUTO_UPDATE_SECS` or disable with
+`$HOMEBREW_NO_AUTO_UPDATE=1`. Hide these hints with `$HOMEBREW_NO_ENV_HINTS=1` (see `man brew`).
+==> Downloading https://ghcr.io/v2/homebrew/core/portable-ruby/blobs/sha256:cef6f881f516d2cdbd0a5bfc7e20318da8b047cf2674ee27c5d4858d3ecd6430
+##################################################################################################################################################################################################### 100.0%
+==> Pouring portable-ruby-4.0.1.arm64_big_sur.bottle.tar.gz
+==> Auto-updated Homebrew!
+...==> mysql-client
+mysql-client is keg-only, which means it was not symlinked into /opt/homebrew,
+because it conflicts with mysql (which contains client libraries).
+
+If you need to have mysql-client first in your PATH, run:
+  echo 'export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"' >> /Users/sodo/.bash_profile
+
+For compilers to find mysql-client you may need to set:
+  export LDFLAGS="-L/opt/homebrew/opt/mysql-client/lib"
+  export CPPFLAGS="-I/opt/homebrew/opt/mysql-client/include"
+
+For pkgconf to find mysql-client you may need to set:
+  export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig"
+macbook2025:20050526 sodo$ echo 'export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"' >> ~/.zshrc
+macbook2025:20050526 sodo$ source ~/.zshrc
+macbook2025:20050526 sodo$ mysql-client
+-bash: mysql-client: command not found
+
+- 2026-03-25T18:56:00-04:00
+  - macbook2025:20050526 sodo$ mysql --version
+which mysql
+mysql  Ver 9.6.0 for macos15.7 on arm64 (Homebrew)
+/opt/homebrew/opt/mysql-client/bin/mysql
