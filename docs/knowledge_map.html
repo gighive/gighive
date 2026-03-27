@@ -586,7 +586,8 @@
             { id: "database-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "db-simplification", label: "DATABASE_LOAD_METHODS_SIMPLIFICATION.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./DATABASE_LOAD_METHODS_SIMPLIFICATION.html" },
               { id: "librarian-event", label: "pr_librarianAsset_musicianEvent.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./pr_librarianAsset_musicianEvent.html" },
-              { id: "db-media-created-at", label: "db_update_media_created.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./db_update_media_created.html" }
+              { id: "db-media-created-at", label: "db_update_media_created.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./db_update_media_created.html" },
+              { id: "db-ui-personas-refactor", label: "refactor_db_ui_based_on_personas.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./refactor_db_ui_based_on_personas.html" }
             ] },
             { id: "database-change", label: "Change", kind: "type", type: "change", children: [
               { id: "add-media-info-columns", label: "ADD_MEDIA_INFO_COLUMNS.md", kind: "document", concern: "database", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./ADD_MEDIA_INFO_COLUMNS.html" },
@@ -614,7 +615,7 @@
               { id: "core-upload-implementation", label: "CORE_UPLOAD_IMPLEMENTATION.md", kind: "document", concern: "upload", type: "architecture", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./CORE_UPLOAD_IMPLEMENTATION.html" }
             ] },
             { id: "upload-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
-              { id: "admin-media-import", label: "feature_admin_upload_from_manifest_page_design.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "admin", "architect"], aspect: "functional", href: "./feature_admin_upload_from_manifest_page_design.html" },
+              { id: "admin-media-import", label: "feature_admin_upload_from_manifest_page_design.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "historical", audience: ["developer", "admin", "architect"], aspect: "functional", href: "./feature_admin_upload_from_manifest_page_design.html" },
               { id: "tus-guide", label: "tus_implementation_guide.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "operator"], aspect: "mixed", href: "./tus_implementation_guide.html" },
               { id: "tus-iphone", label: "tus_implementation_iphone.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./tus_implementation_iphone.html" },
               { id: "upload-tests-refactor", label: "refactor_upload_tests.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "qa"], aspect: "mixed", href: "./refactor_upload_tests.html" },
@@ -659,7 +660,8 @@
             ] },
             { id: "media-change", label: "Change", kind: "type", type: "change", children: [
               { id: "standalone-media-player", label: "pr_standalone_media_player.md", kind: "document", concern: "media", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./pr_standalone_media_player.html" },
-              { id: "delete-upload-iphone", label: "pr_delete_upload_iphone.md", kind: "document", concern: "media", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./pr_delete_upload_iphone.html" }
+              { id: "delete-upload-iphone", label: "pr_delete_upload_iphone.md", kind: "document", concern: "media", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./pr_delete_upload_iphone.html" },
+              { id: "admin-clear-media-files", label: "admin_clear_media.md", kind: "document", concern: "media", type: "change", lifecycle: "historical", audience: ["admin", "developer", "operator"], aspect: "mixed", href: "./admin_clear_media.html" }
             ] }
           ]
         },

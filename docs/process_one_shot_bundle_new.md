@@ -201,6 +201,62 @@ The current implementation:
 - reports the output directory
 - validates the output using the same four categories
 
+### Check Mode Clarification
+
+If the playbook is run with `--check`, the `/tmp/gighive-one-shot-bundle` output directory is not actually refreshed.
+
+Even though the role evaluates the steps that would normally:
+
+- remove any existing `/tmp/gighive-one-shot-bundle`
+- recreate it
+- write the mapped output files into it
+
+check mode prevents those filesystem changes from being applied.
+
+That means an already existing `/tmp/gighive-one-shot-bundle` can remain in place with stale contents from an earlier non-check run.
+
+Operationally, this means:
+
+- `--check` is useful for previewing what the role would do
+- `--check` should not be treated as proof that `/tmp/gighive-one-shot-bundle` was regenerated
+- if a fresh `/tmp` output is needed for inspection, run without `--check`
+
+Manual deletion of `/tmp/gighive-one-shot-bundle` before rerunning is optional. A normal non-check run already removes and recreates that directory. Deleting it first can still be useful as an operator convenience when you want an obvious clean-start signal.
+
+### File Equivalence Versus Timestamp Equivalence
+
+For direct-copy files in `/tmp/gighive-one-shot-bundle`, matching file content does not necessarily imply matching filesystem timestamps.
+
+In the current implementation, a file in `/tmp` can be content-identical to its source file in the repo while still showing a different `mtime`.
+
+This means:
+
+- matching `sha256` hashes are the reliable signal that two files are effectively the same in content
+- differing `mtime` values do not by themselves prove that the `/tmp` file is stale or incorrect
+- `ll` output alone is not sufficient to decide whether a copied `/tmp` file differs from its source
+
+Operationally, if a direct-copy file in `/tmp` and its repo source have the same hash, the bundle output should be treated as correct even if their timestamps differ.
+
+### Why `/tmp` Timestamps Can Remain Older Than Expected
+
+If `/tmp/gighive-one-shot-bundle` already exists from an earlier non-check run, an output file inside it can retain an older timestamp when the later run does not need to materially rewrite that file.
+
+That means an older `mtime` in `/tmp` can simply reflect the last time that destination file instance was actually rewritten, rather than indicating a current content mismatch.
+
+### Planned Timestamp-Preservation Refinement
+
+The current implementation does not consistently preserve source `mtime` when producing `/tmp/gighive-one-shot-bundle`.
+
+If timestamp preservation is added, it should be scoped narrowly to direct-copy files only.
+
+That means:
+
+- direct-copy files sourced from repo-controlled non-template files should preserve source timestamps where practical
+- template-rendered outputs should not be treated as timestamp-equivalent to their `.j2` sources
+- timestamp equality should be documented as a helpful signal for copied files, not as a universal rule for all bundle outputs
+
+This distinction matters because rendered outputs are newly materialized files whose source-of-truth relationship is not the same as a plain file copy.
+
 ## Current Special Handling Already Added
 
 A special case was added for:

@@ -93,7 +93,8 @@ try {
             continue;
         }
 
-        $resPath = $dir . '/result.json';
+        $resPath    = $dir . '/result.json';
+        $statusPath = $dir . '/status.json';
         $state = 'unknown';
         $message = '';
         $success = null;
@@ -105,6 +106,13 @@ try {
                 if ($success === true) $state = 'ok';
                 else if ($success === false) $state = 'error';
                 $message = (string)($res['message'] ?? ($res['error'] ?? ''));
+            }
+        } elseif (is_file($statusPath) && is_readable($statusPath)) {
+            $statusRaw = file_get_contents($statusPath);
+            $status = json_decode($statusRaw ?: '', true);
+            if (is_array($status)) {
+                $state   = (string)($status['state']   ?? 'unknown');
+                $message = (string)($status['message'] ?? '');
             }
         }
 
@@ -151,20 +159,27 @@ try {
 
     $lastJob = $allJobs ? $allJobs[0] : null;
 
-    // For the Recovery UI, return only jobs that are not ok (error/unknown).
+    // For the Recovery UI, return only jobs that are not ok (error/unknown/running/etc.).
     $jobs = array_values(array_filter($allJobs, static function ($j) {
         return (string)($j['state'] ?? 'unknown') !== 'ok';
     }));
     $jobs = array_slice($jobs, 0, $limit);
 
+    // For the Upload Media button, return the most recent successfully completed jobs.
+    $recentJobs = array_values(array_filter($allJobs, static function ($j) {
+        return (string)($j['state'] ?? 'unknown') === 'ok';
+    }));
+    $recentJobs = array_slice($recentJobs, 0, $limit);
+
     http_response_code(200);
     header('Content-Type: application/json');
     echo json_encode([
-        'success' => true,
-        'mode' => $mode,
-        'jobs' => $jobs,
-        'last_job' => $lastJob,
-        'counts' => $counts,
+        'success'     => true,
+        'mode'        => $mode,
+        'jobs'        => $jobs,
+        'recent_jobs' => $recentJobs,
+        'last_job'    => $lastJob,
+        'counts'      => $counts,
     ]);
 
 } catch (Throwable $e) {

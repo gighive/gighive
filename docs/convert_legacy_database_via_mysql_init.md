@@ -2,7 +2,7 @@
 
 This document describes the workflow for taking a legacy `database.csv`, generating the fully-normalized CSV set used by the **MySQL init** seeding process, and then copying/inspecting media on the web server using `upload_media_by_hash.py`.
 
-This workflow is an alternative to the Admin UI “Section 3B” import. Instead of uploading CSVs through the admin, you pre-place the normalized CSVs into:
+This workflow is an alternative to the Admin UI “Section B” import on `admin_database_load_import.php`. Instead of uploading CSVs through the admin, you pre-place the normalized CSVs into:
 
 - `ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full/`
 

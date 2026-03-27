@@ -5,9 +5,9 @@ usage() {
   cat <<'USAGE' >&2
 Usage:
   run_resize_request.sh -i <inventory_file> <request_file>
-  run_resize_request.sh -i <inventory_file> --request-host <vm_host> [--request-dir <dir>] --latest
-  run_resize_request.sh -i <inventory_file> --request-host <vm_host> [--request-dir <dir>] <remote_request_filename>
-  run_resize_request.sh -i <inventory_file> [--request-host <vm_host> [--request-dir <dir>] (--latest|<remote_request_filename>)] --dry-run
+  run_resize_request.sh -i <inventory_file> --request-host <vm_host> [--request-inventory-host <inventory_host>] [--request-dir <dir>] --latest
+  run_resize_request.sh -i <inventory_file> --request-host <vm_host> [--request-inventory-host <inventory_host>] [--request-dir <dir>] <remote_request_filename>
+  run_resize_request.sh -i <inventory_file> [--request-host <vm_host> [--request-inventory-host <inventory_host>] [--request-dir <dir>] (--latest|<remote_request_filename>)] --dry-run
 
 Examples:
   ./ansible/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml \
@@ -23,7 +23,8 @@ inventory_file=""
 latest=false
 dry_run=false
 request_host=""
-request_dir="/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/resizerequests"
+request_inventory_host=""
+request_dir=""
 
 request_id=""
 cache_root="${HOME}/.cache/gighive/resize_requests"
@@ -38,6 +39,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --request-host)
       request_host="${2:-}"
+      shift 2
+      ;;
+    --request-inventory-host)
+      request_inventory_host="${2:-}"
       shift 2
       ;;
     --request-dir)
@@ -61,6 +66,59 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+ansible_get_var() {
+  local host="$1"
+  local var_name="$2"
+  local out=""
+  local value=""
+
+  # Extract first matching var value from ansible's -o output.
+  # Works for both inventory hostnames and groups (will take the first host result).
+  out="$(ansible -i "$inventory_file" "$host" -m ansible.builtin.debug -a "var=${var_name}" -o 2>/dev/null || true)"
+
+  if [[ -z "$out" ]]; then
+    return 0
+  fi
+
+  value="$(echo "$out" \
+    | sed -n "s/.*\"${var_name}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" \
+    | awk 'NF { print; exit }')"
+
+  if [[ -z "$value" || "$value" == "VARIABLE IS NOT DEFINED!" ]]; then
+    return 0
+  fi
+
+  echo "$value"
+}
+
+if [[ -n "$request_host" && -z "$request_inventory_host" ]]; then
+  request_inventory_host="$request_host"
+fi
+
+# Derive the remote request directory from Ansible inventory vars.
+# Tries gighive_resize_requests_host_path first; if unresolvable (docker_dir
+# is a set_fact, not a group_var), falls back to gighive_home + known suffix.
+derive_request_dir() {
+  local inv_host="$1"
+  local dir=""
+
+  dir="$(ansible_get_var "$inv_host" "gighive_resize_requests_host_path" || true)"
+  # Reject if empty or still contains an unresolved Jinja template
+  if [[ -z "$dir" || "$dir" == *"{{"* ]]; then
+    dir=""
+  fi
+
+  if [[ -z "$dir" ]]; then
+    local gighive_home=""
+    gighive_home="$(ansible_get_var "$inv_host" "gighive_home" || true)"
+    if [[ -n "$gighive_home" && "$gighive_home" != *"{{"* ]]; then
+      dir="${gighive_home}/ansible/roles/docker/files/apache/externalConfigs/resizerequests"
+    fi
+  fi
+
+  echo "$dir"
+}
 
 mkdir -p "$processed_dir"
 
@@ -98,6 +156,18 @@ if [[ "$latest" == "true" ]]; then
     exit 2
   fi
 
+  if [[ -z "$request_dir" ]]; then
+    if [[ -z "$request_inventory_host" ]]; then
+      echo "Error: unable to derive request dir without --request-inventory-host (or --request-host)" >&2
+      exit 2
+    fi
+    request_dir="$(derive_request_dir "$request_inventory_host" || true)"
+    if [[ -z "$request_dir" ]]; then
+      echo "Error: unable to derive request dir for ${request_inventory_host}. Pass --request-dir explicitly." >&2
+      exit 2
+    fi
+  fi
+
   remote_latest="$(ssh "ubuntu@${request_host}" "ls -1t ${request_dir}/req-*.json 2>/dev/null | head -n 1" 2>/dev/null || true)"
   if [[ -z "$remote_latest" ]]; then
     echo "Error: no request files found on ${request_host}:${request_dir}" >&2
@@ -116,6 +186,19 @@ else
       usage
       exit 2
     fi
+
+    if [[ -z "$request_dir" ]]; then
+      if [[ -z "$request_inventory_host" ]]; then
+        echo "Error: unable to derive request dir without --request-inventory-host (or --request-host)" >&2
+        exit 2
+      fi
+      request_dir="$(derive_request_dir "$request_inventory_host" || true)"
+      if [[ -z "$request_dir" ]]; then
+        echo "Error: unable to derive request dir for ${request_inventory_host}. Pass --request-dir explicitly." >&2
+        exit 2
+      fi
+    fi
+
     if [[ "$request_file" == /* ]]; then
       remote_path="$request_file"
     else
@@ -178,13 +261,25 @@ if [[ -z "$inventory_host" ]]; then
 fi
 
 print_guest_summary() {
+  local ssh_host=""
+  local ssh_user=""
+
+  ssh_host="$(ansible_get_var "$inventory_host" "ansible_host" || true)"
+  ssh_user="$(ansible_get_var "$inventory_host" "ansible_user" || true)"
+  if [[ -z "$ssh_user" ]]; then
+    ssh_user="ubuntu"
+  fi
+  if [[ -z "$ssh_host" ]]; then
+    ssh_host="$inventory_host"
+  fi
+
   echo
   echo "--- Guest disk/filesystem summary ---"
-  if ssh "ubuntu@${inventory_host}" 'df -h /; echo; lsblk' 2>/dev/null; then
+  if ssh "${ssh_user}@${ssh_host}" 'df -h /; echo; lsblk' 2>/dev/null; then
     echo
     return 0
   fi
-  echo "Warning: unable to fetch guest summary via SSH (ubuntu@${inventory_host})" >&2
+  echo "Warning: unable to fetch guest summary via SSH (${ssh_user}@${ssh_host})" >&2
   echo
   return 0
 }
@@ -254,7 +349,7 @@ ansible_cmd=(
 )
 
 guest_cmd=(
-  ssh "ubuntu@${inventory_host}" 'sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1'
+  ssh "$( (ansible_get_var "$inventory_host" "ansible_user" || true) | head -n 1 | sed -e 's/^$/ubuntu/' )@$( (ansible_get_var "$inventory_host" "ansible_host" || true) | head -n 1 | sed -e "s/^$/${inventory_host}/" )" 'sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1'
 )
 
 if [[ "$dry_run" == "true" ]]; then

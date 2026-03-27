@@ -1,5 +1,9 @@
 # Feature Design: admin_media_import.php
 
+> **Note (2026-03):** `admin_media_import.php` has been renamed to
+> `admin_database_load_import_media_from_folder.php`. All references to the old filename
+> in this document are historical and refer to the same page under its new name.
+
 ## Summary
 
 This document captures the agreed design for a new browser-based media import workflow page:
@@ -346,11 +350,201 @@ There are three possible states:
   - `Continue with manifest/hashing`
   - or `Continue with upload`
 
-The reconnect experience is summary-first, with detail available on demand via an inline toggle.
+ The reconnect experience is summary-first, with detail available on demand via an inline toggle.
 
-## Persisted upload job state
+ ## Failure Diagnostics and Retry Mechanism
 
-The current manifest import workflow already persists status files under the job directory and exposes them through status endpoints.
+ Step 2 should surface as much actionable failure context as possible in the existing upload logging viewport so operators can understand whether a failure is transient, recoverable, or terminal without leaving the page.
+
+ ### Goals
+
+ - capture enough diagnostics at the time of failure to explain what happened
+ - classify failures into retryable vs non-retryable categories
+ - preserve this information under the existing `job_id`
+ - present a clear `Retry Upload` path that the operator can use after resolving the blocking issue
+ - avoid forcing the operator to inspect Docker logs unless deeper investigation is still needed
+
+ ### Diagnostics to surface in the Step 2 logging viewport
+
+ On failure, the browser log viewport should merge client-side and server-side diagnostics into a concise but information-rich sequence.
+
+ Preferred diagnostic fields to surface include:
+
+ - `job_id`
+ - `checksum_sha256`
+ - `source_relpath`
+ - `upload_id` when known
+ - TUS endpoint and upload URL/ID (combined; method alone is always PATCH and need not be logged separately)
+ - HTTP status code
+ - normalized failure code
+ - human-readable failure message
+ - retryable flag
+ - retry attempt count
+ - timestamp of first and latest failure for that file
+
+ Where available, the viewport should also show structured environment diagnostics gathered by the backend at or near failure time, for example:
+
+ - upload storage filesystem path and mount point
+ - available bytes / percent used for the upload storage path
+ - PHP temp/upload directory free space when relevant
+ - whether the target media file already exists on disk
+ - whether the thumbnail target already exists for videos
+ - whether the DB row exists and whether it appears partially finalized
+ - whether the TUS hook payload file exists for the upload ID
+
+ These diagnostics should be emitted as structured trace entries rather than only freeform strings so the viewport can render a concise message while still allowing detail inspection.
+
+ ### Failure classification model
+
+ Each per-file Step 2 failure should be classified into a normalized category.
+
+ Recommended fields on each file entry in `upload_status.json`:
+
+ - `retryable` — boolean
+ - `failure_code` — normalized machine-readable code
+ - `last_error` — most recent human-readable error
+ - `last_failed_at` — ISO timestamp
+ - `retry_count` — integer
+ - `diagnostics` — structured object with the most relevant failure context
+
+ Recommended initial `failure_code` set:
+
+ - `disk_full`
+ - `tus_5xx`
+ - `tus_4xx`
+ - `network_error`
+ - `timeout`
+ - `local_file_missing`
+ - `checksum_mismatch`
+ - `finalize_error`
+ - `thumbnail_error`
+ - `db_error`
+ - `invalid_manifest_state`
+
+ Initial retryability guidance:
+
+ - retryable: `disk_full`, `tus_5xx`, `network_error`, `timeout`, `thumbnail_error`
+ - not retryable: `local_file_missing`, `invalid_manifest_state`, `checksum_mismatch`
+ - `tus_4xx`: retryable except HTTP 409, which indicates a conflicting upload state and is a logic error, not a transient fault
+ - context-dependent:
+   - `finalize_error`: retryable if caused by a transient condition (DB connection failure, lock timeout); not retryable if a validation error
+   - `db_error`: retryable if a transient connection failure; not retryable if a constraint violation
+
+ The system should classify using the most specific known cause. For example, `no space left on device` should map to `disk_full` instead of a generic `tus_5xx`.
+
+ A maximum of 3 retries per file is recommended. Once a file exceeds this count its `retryable` flag is set to `false` and it is treated as terminal regardless of `failure_code`. This prevents infinite retry loops on persistent infrastructure failures.
+
+ ### Server-side diagnostic capture
+
+ The backend should gather failure diagnostics from the application-controlled context immediately after a Step 2 failure is detected.
+
+ Preferred sources:
+
+ - existing per-file failure history already recorded in `upload_status.json` (read before writing the updated failure state, to preserve accumulated context across retries)
+ - manifest entry context from `manifest.json`
+ - finalize-state checks against the filesystem and DB
+ - filesystem free-space checks for the configured TUS data path and target media paths
+ - existence checks for hook outputs associated with the TUS upload ID
+
+ There are two distinct server-visible failure paths with different diagnostic capture opportunities:
+
+ **TUS upload failure (PATCH returns 5xx/4xx):** The failure is detected in the browser via the tus-js-client error callback. The server cannot directly observe this event. Server-side environment checks (filesystem free space, hook file existence) should be performed when the backend receives the next status poll after a client-reported failure.
+
+ **Finalize failure (`import_manifest_upload_finalize.php` returns an error):** The server detects this directly. Environment checks and diagnostic context should be captured at the time the finalize request fails and written into the trace and `upload_status.json` immediately.
+
+ This design does not require the web application to shell out to Docker or inspect container logs directly during request handling. The page should surface diagnostics that the application can safely and consistently obtain from its own runtime environment and mounted paths.
+
+ If later needed, deeper container/runtime diagnostics can remain an operator-level task outside the page.
+
+ ### Browser/client diagnostic capture
+
+ The browser should continue logging:
+
+ - TUS start
+ - progress milestones
+ - retry attempts
+ - TUS error objects
+ - finalize request/response status
+ - polling status changes
+
+ On TUS or finalize failure, the browser should append a client trace entry that includes:
+
+ - request phase
+ - HTTP status code if available
+ - TUS upload URL or upload ID if available
+ - file checksum / `source_relpath`
+ - retryability as a best-effort client assessment based on HTTP status code and TUS error detail
+ - whether automatic TUS retries were exhausted
+
+ The client's retryability assessment is a first pass only. The server's classification, returned via the next status poll, is authoritative and overrides the client's judgment. The viewport should reflect the server classification once available.
+
+ ### Persisted state behavior on failure and resume
+
+ `upload_status.json` should become the canonical persisted state for retry/recovery decisions.
+
+ Resume rules should be:
+
+ - terminal success states are skipped
+ - `pending` files are eligible to upload
+ - `failed` files with `retryable=true` are eligible to retry
+ - `failed` files with `retryable=false` are shown as blocked until operator action changes the underlying condition or job inputs
+ - any `uploading` state found in an existing `upload_status.json` during resume is unconditionally normalized back to `pending`; no active upload tracking is maintained across server restarts or browser reloads, so this is the safest and simplest rule
+
+ The final batch should not be labeled fully complete if retryable work remains.
+
+ Recommended job-level derived states:
+
+ - `in_progress`
+ - `blocked_retryable`
+ - `complete_success`
+ - `complete_failed_terminal`
+
+ The transition from `blocked_retryable` back to `in_progress` is always operator-initiated. The system cannot detect when the blocking condition has been resolved (e.g. disk space freed, network restored), so no automatic transition is attempted. The operator presses `Retry Upload` after resolving the issue, which triggers the transition.
+
+ ### Retry button behavior
+
+ The page should present a dedicated `Retry Upload` button when all of the following are true:
+
+ - a valid `job_id` exists
+ - Step 2 is not in `complete_success`
+ - one or more files are `pending` or `failed` with `retryable=true`
+ - the operator has selected the local source folder **if any retryable file still requires the upload phase** (files blocked only at the finalize stage do not require the local file again)
+
+ If the job is retryable but the local folder is not selected, the page should show a disabled retry button with helper text instructing the operator to reselect the source folder.
+
+ The button label should reflect state:
+
+ - `Upload Media` — no prior Step 2 attempt yet
+ - `Retry Upload` — takes precedence when at least one file is `failed` with `retryable=true`; this label wins over `Resume Upload` so the operator sees failures before proceeding
+ - `Resume Upload` — interrupted batch with remaining `pending` work and no retryable failures
+ - `Uploads Complete` — all files are in a terminal state
+
+ **`Uploads Complete` acknowledgment rule:** The batch transitions to `complete_failed_terminal` and the button label changes to `Uploads Complete` when all `failed retryable` files have either exhausted the maximum retry count or the operator explicitly clicks `Mark as Done` on the failure summary. `Mark as Done` appears only when no `in_progress` or `pending` work remains. Until either condition is met the button stays `Retry Upload`.
+
+ ### Logging viewport behavior on failure
+
+ A "meaningful failure" is a failure after `tus-js-client` has exhausted all automatic internal retries (per the configured `retryDelays` array). Intermediate TUS-internal retry attempts should not produce viewport entries; only the final `onError` callback result is treated as a meaningful failure for display and classification purposes.
+
+ On the first meaningful failure for a file, the viewport should show a compact human-readable summary such as:
+
+ - `PATCH /files/ failed with HTTP 500 — disk_full — retry available after storage is freed`
+
+ The structured detail payload below that summary should include the captured diagnostics object for the file.
+
+ Repeated polling updates should continue to be deduplicated so the viewport remains readable. Diagnostic entries should be appended when there is new information, not on every poll.
+
+ ### Recommended implementation sequence
+
+ 1. extend the per-file Step 2 state model with retry and diagnostics fields
+ 2. classify failures in client and server flows using normalized `failure_code` values
+ 3. capture server-side environment checks on failure and expose them through `upload_status.json` and trace entries
+ 4. normalize stale `uploading` entries on resume
+ 5. update the Step 2 UI to derive batch state and show `Resume Upload` / `Retry Upload` appropriately
+ 6. refine summary counts so retryable failures are not misrepresented as complete or silently left pending
+
+ ## Persisted upload job state
+
+ The current manifest import workflow already persists status files under the job directory and exposes them through status endpoints.
 
 The new upload workflow follows the same persisted file-based pattern under the same manifest job directory.
 
@@ -445,6 +639,40 @@ The following is intentionally deferred from the first implementation scope:
 
 That is a return task after the new page is built and validated.
 
+## File Change Map
+
+### Changed (existing files)
+
+| File | What changes |
+|---|---|
+| `import_manifest_jobs.php` | Read `status.json` when `result.json` is absent (exposes `awaiting_duplicate_resolution` and other non-terminal states instead of `unknown`); add `recent_jobs` to response for Upload Media button preselection |
+| `src/Services/UploadService.php` | Add new method `finalizeManifestTusUpload()` — manifest-aware TUS finalize that updates the existing manifest-created DB row by checksum instead of rejecting it as a duplicate. Existing `finalizeTusUpload()` is untouched. |
+
+### New files
+
+| File | Purpose |
+|---|---|
+| `admin_media_import.php` | Main page: PHP auth/template shell, two sections (Reload/Add), Step 1 JS state machines migrated from `admin.php`, Step 2 batch upload UI |
+| `import_manifest_prepare.php` | POST: receives hashed manifest items from browser, creates `job_id`, writes `meta.json` / `manifest.json` / `duplicates.json` / `status.json`, returns `job_id`. Always used for the submit path — ensures a consistent `job_id` from Step 1 through Step 2. |
+| `import_manifest_finalize.php` | POST: receives `job_id` + duplicate resolutions, filters `manifest.json` to remove unchosen duplicates, acquires worker lock, starts `import_manifest_worker.php` on the existing draft job directory |
+| `import_manifest_duplicates.php` | GET: returns manifest items and duplicate groups from `duplicates.json` for a given `job_id`. Used for recovery: allows the browser to rebuild the duplicate resolution dialog after a page close without re-scanning the local folder. |
+| `import_manifest_upload_start.php` | POST: reads `manifest.json` for a `job_id`, checks which files are already present on disk and in the DB, writes `upload_status.json` with per-file states, returns per-file status to the browser |
+| `import_manifest_upload_status.php` | GET: returns `upload_status.json` (or `upload_result.json` if complete) for a `job_id`. Polled by the browser for per-file `thumbnail_done` and `db_done` state updates. |
+| `import_manifest_upload_finalize.php` | POST: called by the browser after each TUS upload completes. Calls `UploadService::finalizeManifestTusUpload()`, updates the per-file record in `upload_status.json`, writes `upload_result.json` when all files reach a terminal state. |
+
+### Not changed
+
+The following existing files are used by the new page but require no modifications:
+
+- `import_manifest_lib.php` — all required helpers already exist
+- `import_manifest_reload_async.php` — `admin.php` Section 4 continues to use this unchanged
+- `import_manifest_add_async.php` — `admin.php` Section 5 continues to use this unchanged
+- `import_manifest_worker.php` — `import_manifest_finalize.php` starts the worker with an existing `job_id`; the worker reads the job directory and runs as normal
+- `import_manifest_status.php` — already reads `status.json`; no changes needed
+- `import_manifest_cancel.php` — same cancel mechanism works for the new flow
+- `import_manifest_replay.php` — unchanged
+- `admin.php` — explicitly deferred (Phase 5)
+
 ## Proposed implementation phases
 
 All phases are internal development sequencing. They all ship together in one change window. Phases are not independent production releases.
@@ -459,6 +687,10 @@ Create `admin_media_import.php` with:
 - duplicate detection with hard block on manifest submission if duplicates are present (resolution dialog added in Phase 2)
 - job summaries and recovery UI
 
+Note: Phase 1 uses `import_manifest_prepare.php` + `import_manifest_finalize.php` (not the existing async endpoints) for the non-duplicate submit path. This is required to establish a consistent `job_id` from Step 1 that Step 2 (Phase 3) will reuse. The existing `import_manifest_reload_async.php` / `import_manifest_add_async.php` are not called by the new page.
+
+Files introduced in this phase: `admin_media_import.php` (new), `import_manifest_prepare.php` (new), `import_manifest_finalize.php` (new), `import_manifest_jobs.php` (patched).
+
 ### Phase 2
 
 Add full duplicate checksum resolution at end of step 1:
@@ -468,6 +700,8 @@ Add full duplicate checksum resolution at end of step 1:
 - display associated `source_relpath` values
 - require keep-choice before finalizing manifest
 - support recovery of unresolved duplicate state after browser close
+
+Files introduced in this phase: `import_manifest_duplicates.php` (new). `import_manifest_prepare.php` extended to write `duplicates.json` and set `awaiting_duplicate_resolution` state for the duplicate path.
 
 ### Phase 3
 
@@ -481,6 +715,8 @@ Add step 2 manifest-aware upload flow:
 - implement per-file post-processing polling for `thumbnail_done` and `db_done`
 - implement resume behavior: skip terminal success states on reconnect
 
+Files introduced in this phase: `src/Services/UploadService.php` (add `finalizeManifestTusUpload()`), `import_manifest_upload_start.php` (new), `import_manifest_upload_status.php` (new), `import_manifest_upload_finalize.php` (new).
+
 ### Phase 4
 
 Add full reconnect/recovery behavior:
@@ -491,11 +727,15 @@ Add full reconnect/recovery behavior:
 - paused failure-decision UI for batch Level 2 failures
 - `already_present` inline missing-artifact display
 
+Files modified in this phase: additions to `admin_media_import.php` only. No new backend files.
+
 ### Phase 5
 
 Deferred return task:
 
 - add entry point from `admin.php`
+
+Files modified in this phase: `admin.php` only.
 
 ## Notes for implementation
 

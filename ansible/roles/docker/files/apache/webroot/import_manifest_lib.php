@@ -21,6 +21,43 @@ function gighive_manifest_write_json(string $path, array $data, int $mode = 0640
     @chmod($path, $mode);
 }
 
+ function gighive_manifest_append_upload_trace(string $jobDir, array $entry): void {
+    $path = $jobDir . '/upload_trace.jsonl';
+    $record = [
+        'ts' => date('c'),
+        'ts_unix_ms' => (int)floor(microtime(true) * 1000),
+    ];
+    foreach ($entry as $k => $v) {
+        $record[$k] = $v;
+    }
+    $line = json_encode($record, JSON_UNESCAPED_SLASHES);
+    if (!is_string($line) || $line === '') {
+        return;
+    }
+    @file_put_contents($path, $line . "\n", FILE_APPEND | LOCK_EX);
+    @chmod($path, 0640);
+ }
+
+ function gighive_manifest_read_upload_trace(string $jobDir, int $limit = 300): array {
+    $path = $jobDir . '/upload_trace.jsonl';
+    if (!is_file($path) || !is_readable($path)) {
+        return [];
+    }
+    $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!is_array($lines) || !$lines) {
+        return [];
+    }
+    $slice = array_slice($lines, -max(1, $limit));
+    $out = [];
+    foreach ($slice as $line) {
+        $decoded = json_decode((string)$line, true);
+        if (is_array($decoded)) {
+            $out[] = $decoded;
+        }
+    }
+    return $out;
+ }
+
 function gighive_manifest_load_job_meta(string $jobDir): array {
     $metaPath = $jobDir . '/meta.json';
     if (!is_file($metaPath) || !is_readable($metaPath)) {
@@ -61,11 +98,11 @@ function gighive_manifest_throw_if_canceled(string $jobDir): void {
 function gighive_manifest_init_steps(string $mode): array {
     $steps = [];
     $stepIndex = 0;
-    $startStep = function(string $name) use (&$steps, &$stepIndex): void {
+    $startStep = function(string $name, string $initMessage = '') use (&$steps, &$stepIndex): void {
         $steps[] = [
             'name' => $name,
             'status' => 'pending',
-            'message' => '',
+            'message' => $initMessage,
             'index' => $stepIndex,
         ];
         $stepIndex++;
@@ -80,7 +117,7 @@ function gighive_manifest_init_steps(string $mode): array {
     }
 
     $startStep('Upsert sessions');
-    $startStep('Insert files (deduped by checksum_sha256, may take a minute or two for progress meter to appear)');
+    $startStep('Insert files (deduped by checksum_sha256)', 'may take a minute or two for progress meter to appear');
     $startStep('Link labels (songs)');
 
     return $steps;
