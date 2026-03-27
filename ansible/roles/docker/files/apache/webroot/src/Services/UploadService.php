@@ -341,6 +341,173 @@ final class UploadService
         return $result;
     }
 
+    /**
+     * Finalize a completed TUS upload for a manifest-driven import job.
+     *
+     * Unlike finalizeTusUpload(), this path UPDATES the existing manifest-created
+     * files row identified by checksum instead of rejecting it as a duplicate.
+     * The manifest row must already exist (written by Step 1 / import_manifest_worker).
+     *
+     * @param string $uploadId  The TUS upload ID.
+     * @param string $checksum  Expected SHA-256 checksum from the manifest.
+     * @return array            Result map written to upload_status.json.
+     */
+    public function finalizeManifestTusUpload(string $uploadId, string $checksum): array
+    {
+        $uploadId = trim($uploadId);
+        $checksum = strtolower(trim($checksum));
+
+        if ($uploadId === '' || preg_match('/^[A-Za-z0-9_-]+$/', $uploadId) !== 1) {
+            throw new \InvalidArgumentException('Missing or invalid upload_id');
+        }
+        if (!preg_match('/^[0-9a-f]{64}$/', $checksum)) {
+            throw new \InvalidArgumentException('Missing or invalid checksum_sha256');
+        }
+
+        $hookDir  = '/var/www/private/tus-hooks/uploads';
+        $finalDir = '/var/www/private/tus-hooks/finalized';
+        $dataDir  = '/var/www/private/tus-data';
+
+        $this->storage->ensureDir($finalDir);
+        // Use a distinct marker prefix so manifest finalizations never collide
+        // with normal finalizeTusUpload() markers for the same upload_id.
+        $finalMarker = $finalDir . '/manifest-' . $uploadId . '.json';
+        if (is_file($finalMarker)) {
+            $raw = @file_get_contents($finalMarker);
+            $decoded = is_string($raw) ? json_decode($raw, true) : null;
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        $srcPath = $dataDir . '/' . $uploadId;
+        if (!is_file($srcPath)) {
+            throw new \RuntimeException('Upload data missing on disk');
+        }
+        $size = (int)@filesize($srcPath);
+        if ($size <= 0) {
+            throw new \RuntimeException('Uploaded file is empty');
+        }
+
+        // Verify uploaded bytes match the manifest checksum before doing anything else.
+        $actualChecksum = @hash_file('sha256', $srcPath) ?: '';
+        if ($actualChecksum !== $checksum) {
+            throw new \RuntimeException(
+                sprintf('Checksum mismatch: expected %s, got %s', $checksum, $actualChecksum)
+            );
+        }
+
+        // The manifest row MUST already exist — this is not a new-upload path.
+        $existing = $this->files->findByChecksum($checksum);
+        if (!$existing || !isset($existing['file_id'])) {
+            throw new \RuntimeException(
+                'No manifest row found for checksum ' . $checksum . '; Step 1 must complete before Step 2'
+            );
+        }
+        $fileId   = (int)$existing['file_id'];
+        $fileType = (string)($existing['file_type'] ?? '');
+        if (!in_array($fileType, ['audio', 'video'], true)) {
+            throw new \RuntimeException('Invalid file_type in manifest row: ' . $fileType);
+        }
+
+        // Determine file extension from TUS hook metadata, falling back to the
+        // existing file_name column written by the manifest import in Step 1.
+        $ext = '';
+        $hookFile = $hookDir . '/' . $uploadId . '.json';
+        if (is_file($hookFile)) {
+            $hookRaw = (string)@file_get_contents($hookFile);
+            $hook = json_decode($hookRaw, true);
+            if (is_array($hook)) {
+                $meta = $hook['Event']['Upload']['MetaData']
+                    ?? $hook['Upload']['MetaData']
+                    ?? $hook['MetaData']
+                    ?? [];
+                $origName = isset($meta['filename']) ? $this->sanitizeFilename((string)$meta['filename']) : '';
+                if ($origName !== '') {
+                    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+                }
+            }
+        }
+        if ($ext === '') {
+            $ext = strtolower(pathinfo((string)($existing['file_name'] ?? ''), PATHINFO_EXTENSION));
+        }
+
+        // Store as {checksum}.{ext} — matches upload_media_by_hash.py naming convention.
+        $baseDir   = dirname(__DIR__, 2); // .../webroot
+        $targetDir = $baseDir . '/' . $fileType;
+        $this->storage->ensureDir($targetDir);
+        $storedName = $ext !== '' ? ($checksum . '.' . $ext) : $checksum;
+        $targetPath = $targetDir . '/' . $storedName;
+
+        if (!is_file($targetPath)) {
+            if (!@copy($srcPath, $targetPath)) {
+                throw new \RuntimeException('Failed to store uploaded file at ' . $targetPath);
+            }
+            @chmod($targetPath, 0644);
+        }
+
+        // Detect MIME type from the stored file.
+        $mime = '';
+        $fi = new \finfo(FILEINFO_MIME_TYPE);
+        $detected = @$fi->file($targetPath);
+        if (is_string($detected) && $detected !== '') {
+            $mime = $detected;
+        }
+
+        // Probe and generate (both are best-effort; never throw).
+        $durationSeconds = $this->probeDuration($targetPath);
+        if ($fileType === 'video') {
+            $this->generateVideoThumbnail($targetPath, $checksum, $durationSeconds);
+        }
+        $mediaInfo     = $this->probeMediaInfo($targetPath);
+        $mediaInfoTool = $mediaInfo !== null ? $this->ffprobeToolString() : null;
+
+        // UPDATE the existing manifest row — do NOT insert a new row.
+        $sql = 'UPDATE files SET'
+             . '  file_name        = :file_name,'
+             . '  size_bytes       = :size_bytes,'
+             . '  mime_type        = :mime_type,'
+             . '  duration_seconds = :duration_seconds,'
+             . '  media_info       = :media_info,'
+             . '  media_info_tool  = :media_info_tool'
+             . ' WHERE file_id = :file_id';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':file_name'        => $storedName,
+            ':size_bytes'       => $size,
+            ':mime_type'        => $mime !== '' ? $mime : null,
+            ':duration_seconds' => $durationSeconds,
+            ':media_info'       => $mediaInfo,
+            ':media_info_tool'  => $mediaInfoTool,
+            ':file_id'          => $fileId,
+        ]);
+
+        $thumbnailDone = false;
+        if ($fileType === 'video') {
+            $thumbPath = $baseDir . '/video/thumbnails/' . $checksum . '.png';
+            $thumbnailDone = is_file($thumbPath);
+        }
+
+        $result = [
+            'file_id'          => $fileId,
+            'file_name'        => $storedName,
+            'file_type'        => $fileType,
+            'size_bytes'       => $size,
+            'mime_type'        => $mime,
+            'checksum_sha256'  => $checksum,
+            'duration_seconds' => $durationSeconds,
+            'thumbnail_done'   => $thumbnailDone,
+            'db_done'          => true,
+        ];
+
+        // Write marker before unlinking source so a retry can succeed if unlink fails.
+        @file_put_contents($finalMarker, json_encode($result, JSON_UNESCAPED_SLASHES));
+        // Clean up TUS source data (best-effort).
+        @unlink($srcPath);
+
+        return $result;
+    }
+
     private function pickThumbnailTimestamp(?int $durationSeconds, string $sha256): float
     {
         $dur = is_int($durationSeconds) ? $durationSeconds : 0;

@@ -80,9 +80,9 @@ Move the inline `<script>` into dedicated JS files, grouped by feature:
 
 - `admin.shared.js` (helpers: fetchJson, escapeHtml, banners, button state)
 - `admin.section2.clear-media.js`
-- `admin.section3.csv-import.js` (3A/3B)
-- `admin.section5.hash-and-add.js`
-- `admin.section7.restore.js`
+- `admin.section-csv-import.js` (formerly 3A/3B, now on `admin_database_load_import.php`)
+- `admin.section-folder-scan.js` (formerly 4/5, now on `admin_database_load_import_media_from_folder.php`)
+- `admin.section-restore.js` (formerly 7, now Section 5)
 
 **Outcome**: Smaller units of code, easier review, easier future changes.
 
@@ -104,13 +104,27 @@ Move the inline `<script>` into dedicated JS files, grouped by feature:
 
 ## Test Plan (Regression)
 
+> **Note (2026-03):** The admin UI has been reorganized across three pages. Section numbers below
+> reflect the current layout. Former Sections 3A/3B/4/5 have been moved out of `admin.php`;
+> Sections 6 and 7 were renumbered to 4 and 5.
+
 For each refactor phase, re-test:
 
-- Section 2: Clear Sample Media Data
-- Section 3A: Legacy CSV import + reload
-- Section 3B: Normalized sessions + session_files import + reload
-- Section 5: Hash/scan folder + add-to-database
-- Section 7: Restore from backup + log polling
+**`admin.php` (Clear Passwords, Database Wipe / Restore and Disk Resize)**
+- Section A: Change default passwords
+- Section B: Clear Database
+- Section C: Delete All Media Files from Disk
+- Section D: Write Disk Resize Request
+- Section E: Restore from backup + log polling
+
+**`admin_database_load_import.php` (Database Load, File Import)**
+- Section A: Legacy CSV import + reload
+- Section B: Normalized sessions + session_files import + reload
+- Section C: Upload Files Individually
+
+**`admin_database_load_import_media_from_folder.php` (Database Load, Import Media from Folder)**
+- Section A: Reload Database from Folder (destructive)
+- Section B: Add to Database from Folder (non-destructive)
 
 Also verify:
 

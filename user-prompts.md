@@ -2525,3 +2525,51 @@ macbook2025:20050526 sodo$ mysql-client
 which mysql
 mysql  Ver 9.6.0 for macos15.7 on arm64 (Homebrew)
 /opt/homebrew/opt/mysql-client/bin/mysql
+
+## 2026-03-27
+
+- 2026-03-27T09:17:00-04:00
+  - why did my script crap out?  it was working previously, but maybe we made a change to break it? sodo@pop-os:~/gighive$ ./ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml --request-host gighive2.gighive.internal --latest --dry-run
+Error: no request files found on gighive2.gighive.internal:/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/resizerequests
+
+- 2026-03-27T09:19:00-04:00
+  - try again please
+
+- 2026-03-27T09:22:00-04:00
+  - [ran with --request-dir /home/ubuntu/gighive/... and got working dry-run output; confirmed gighive2 shortname does not resolve via SSH but FQDN does]
+
+- 2026-03-27T09:23:00-04:00
+  - yes, i had changed dns to full fqdn.  we need to harden the script so it is not dependent on user preferences but sources from group_vars
+
+- 2026-03-27T09:25:00-04:00
+  - option 1 please
+
+- 2026-03-27T09:27:00-04:00
+  - [ran with --request-inventory-host gighive2 and got: Error: no request files found on gighive2.gighive.internal:VARIABLE IS NOT DEFINED!]
+
+- 2026-03-27T09:31:00-04:00
+  - [ran again after fix; got working request dir but ssh target showed ubuntu",    "changed@192.168.1.50",    "changed due to greedy sed regex]
+
+- 2026-03-27T09:32:00-04:00
+  - [ran again after sed fix; dry-run working correctly with ssh ubuntu@192.168.1.50]
+
+- 2026-03-27T09:35:00-04:00
+  - please update the information in docs/resizeRequestInstructions.md
+
+- 2026-03-27T11:30:00-04:00
+  - what is the status on this task?
+
+- 2026-03-27T12:18:00-04:00
+  - please update references to the sections in admin.php page, as i renamed the sections in admin.php to Sections A-E.  Double check the other two admin files for any similar changes.
+
+- 2026-03-27T12:09:00-04:00
+  - if you haven't done it yet, reconcile any information in docs that has changed.  Also update knowledge_map.html with the new docs we've created
+
+- 2026-03-27T12:12:00-04:00
+  - did you finish the work?
+
+- 2026-03-27T12:04:00-04:00
+  - for the three admin*.php pages you just edited, please move the navigation buttons above the main title to the upper right of the blue here where i've indicated by the red X
+
+- 2026-03-27T11:50:00-04:00
+  - let's change the name on the file and title of this page from admin_database_import.php to admin_database_load_import.php.  title should change to "Admin: Database Load, File Import".  let's change the name of this file and title too: file name from: admin_media_import.php admin_database_load_import_media_from_folder.php and title should read: "Admin: Database Load, Import Media from Folder.  and change the title of admin.php page from Gighive Admin to "Admin: Clear Passwords, Database Wipe / Restore and Disk Resize".  in the new admin_database_load_import.php page, change Section 3A.. title to Section A..  also, change Section 3B* title to Section B..  Last, remove Section 2B: upload files individually from admin.php to the newly renamed admin_database_load_import.php as a new last option, Section C: Upload Files Individually.

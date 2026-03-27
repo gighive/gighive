@@ -7,23 +7,33 @@
 
 ```bash
 cd $GIGHIVE_HOME
-./ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml --request-host gighive2 --latest --dry-run
+./ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh \
+  -i ansible/inventories/inventory_gighive2.yml \
+  --request-host gighive2.gighive.internal \
+  --request-inventory-host gighive2 \
+  --latest --dry-run
 ```
+
+> **`--request-host`** is the SSH-reachable hostname or FQDN of the VM.  
+> **`--request-inventory-host`** is the Ansible inventory host/group name (used to look up `gighive_home`, `ansible_host`, `ansible_user`, etc. from group_vars). The request directory and SSH connection details are derived automatically — no `--request-dir` needed.
 
 You'll get output that looks like this:
 ```bash
-sodo@pop-os:~/scripts/gighive$ ~/scripts/gighive/ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh -i ~/scripts/gighive/ansible/inventories/inventory_gighive.yml --request-host gighive --latest --dry-run
-Request: /tmp/gighive-resize-req.1TBfXU.json
-RequestId: req-20251231-133316-3403f6e20a07.json
+sodo@pop-os:~/gighive$ ./ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh \
+  -i ansible/inventories/inventory_gighive2.yml \
+  --request-host gighive2.gighive.internal \
+  --request-inventory-host gighive2 \
+  --latest --dry-run
+Request: /tmp/gighive-resize-req.0pPrON.json
+RequestId: req-20260327-091525-c1a8d09e7e01.json
 Host:    gighive2
-SizeMB:  131072
-SizeGiB: 128
-SizeGB:  131
-VDI:     /home/sodo/scripts/gighive/ansible/roles/cloud_init/files/noble-server-cloudimg-amd64-gighive2.vdi
-VDI_MB:  64000
+SizeMB:  262144
+SizeGiB: 256
+SizeGB:  262
+VDI:     /mnt/ansible/roles/cloud_init/files/noble-server-cloudimg-amd64-gighive2.vdi
 DRY RUN: would execute:
-  ansible-playbook  -i  /home/sodo/scripts/gighive/ansible/inventories/inventory_gighive2.yml  ansible/playbooks/resize_vdi.yml  --limit  gighive2  -e  disk_size_mb=131072
-  ssh  ubuntu@gighive2  sudo\ growpart\ /dev/sda\ 1\ \&\&\ sudo\ resize2fs\ /dev/sda1
+  ansible-playbook  -i  ansible/inventories/inventory_gighive2.yml  ansible/playbooks/resize_vdi.yml  --limit  gighive2  -e  disk_size_mb=262144
+  ssh  ubuntu@192.168.1.50  sudo\ growpart\ /dev/sda\ 1\ \&\&\ sudo\ resize2fs\ /dev/sda1
 
 --- Guest disk/filesystem summary ---
 Filesystem      Size  Used Avail Use% Mounted on
@@ -42,7 +52,11 @@ sr0      11:0    1  368K  0 rom
 
 ```bash
 cd $GIGHIVE_HOME
-./ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh -i ansible/inventories/inventory_gighive2.yml --request-host gighive2 --latest
+./ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh \
+  -i ansible/inventories/inventory_gighive2.yml \
+  --request-host gighive2.gighive.internal \
+  --request-inventory-host gighive2 \
+  --latest
 ```
 
 At the end of the Ansible script run, you'll get output that looks like this showing the resized partition and filesystem.  Note that the size of the virtual disc (normally sda) should be increased to the size you specified and you'll have more available disk:
@@ -88,15 +102,20 @@ sr0      11:0    1  368K  0 rom
 
 ## What the runner does (less than 10 steps)
  
- 1) Parse CLI args (`-i <inventory_file>`, optional `--request-host`, `--request-dir`, `--latest`).
+ 1) Parse CLI args (`-i`, `--request-host`, `--request-inventory-host`, `--request-dir`, `--latest`, `--dry-run`).
  2) Validate the inventory file exists.
- 3) Decide where to read the request JSON from:
+ 3) Derive the remote request directory automatically from Ansible group_vars:
+    - Tries `gighive_resize_requests_host_path` first.
+    - Falls back to `gighive_home + /ansible/roles/docker/files/apache/externalConfigs/resizerequests` (from `group_vars/all.yml`).
+    - Can be overridden with `--request-dir`.
+ 4) Decide where to read the request JSON from:
     - local file path, or
     - remote VM via `--request-host` (either `--latest` or a specific filename).
- 4) If remote mode is used, SSH to the VM and `cat` the request JSON into a local temp file.
- 5) Ensure `jq` is installed.
- 6) Extract `inventory_host` and `disk_size_mb` from the request JSON.
- 7) Validate extracted values.
- 8) Run `ansible-playbook` to perform the VirtualBox disk resize (`disk_size_mb=...`, `--skip-tags vbox_provision`).
- 9) SSH into the guest VM and run `sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1`.
- 10) Cleanup temp file and exit.
+ 5) If remote mode is used, SSH to the VM and `cat` the request JSON into a local temp file.
+ 6) Ensure `jq` is installed.
+ 7) Extract `inventory_host` and `disk_size_mb` from the request JSON.
+ 8) Validate extracted values.
+ 9) Resolve the guest SSH target from Ansible inventory (`ansible_host`, `ansible_user`) — not from local DNS — so the script works regardless of whether VM shortnames are resolvable on the controller.
+ 10) Run `ansible-playbook` to perform the VirtualBox disk resize (`disk_size_mb=...`).
+ 11) SSH into the guest VM and run `sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1`.
+ 12) Cleanup temp file and exit.

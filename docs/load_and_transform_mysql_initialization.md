@@ -96,7 +96,7 @@ Use when starting from a legacy combined export:
 
 ### mysqlPrep_normalized.py (normalized split inputs)
 
-Use when starting from “already normalized-ish” inputs (Admin UI Section 3B style):
+Use when starting from “already normalized-ish” inputs (Admin UI Section B on `admin_database_load_import.php` style):
 
 - Inputs:
   - `sessions.csv` (expects at least: `session_key`, `t_title`, `d_date`)

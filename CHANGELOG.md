@@ -1,13 +1,18 @@
 *** 
-releaseNotes20260326.txt
-Changes: Feature to create a new admin media upload page
+releaseNotes20260327.txt
+Changes: New admin media upload page bug fixes, hardening, documentation flow changes. Plus fix and harden resize request.
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260327.log
+Last run (dev: switch status): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=status
+Last run (dev: switch to enable gighive2 vm): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive2_vm
 
 TODO
-Testing: App breaks on upload when changing to Messages 
-Testing: Note that i have changed upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Problem: admin.php passwords doesn't use common min security requirements
+Product: Update one-shot-bundle 
 Tutorial: Create video for quick install
 Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
+Testing: App breaks on upload when changing to Messages 
+Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Problem: admin.php passwords doesn't use common min security requirements
 Db: Fix edit page to separate words in the song
 Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
 Db: database table name change to genericize songs 
@@ -20,7 +25,6 @@ App: not just designed for iPad, what does "not verified" on laptop mean?
 App: Share link feature in media page
 App: Is it worthwhile to have an embed feature?
 App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-Media: fix the order of StormPigs20050526_10_IDoneBeCooked
 Product: Should I only rollout the one-shot-bundle to my customers?
 Product: Update the licensing 
 Feature: Consider generic media player addition to database.php
@@ -35,10 +39,17 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
-Core: Is it worthwhile to simplify the audio/video upload vars given docs/audioVideoFullReducedLogic.md?
-Maintenance: cleaning the database won't clear out what has been uploaded to video and audio
+Maintenance: cleaning the database won't clear out what has been uploaded to video and audio directories..should we add a function for this?
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260326.txt
+Changes: Feature to create a new admin media upload page
+
+Last run (dev: switch status): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=status
+Last run (dev: switch to enable gighive2 vm): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive2_vm
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260326.log
 
 *** 
 releaseNotes20260325.txt
