@@ -19,6 +19,19 @@
     state: directory
     mode: "0755"
 
+- name: Ensure runtime media directories exist for fresh one-shot bundle output (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ _one_shot_bundle_output_dir }}/{{ item.path }}"
+    state: directory
+    group: "www-data"
+    mode: "2775"
+  loop:
+    - { path: "_host_audio" }
+    - { path: "_host_video" }
+    - { path: "_host_video/thumbnails" }
+
 - name: Ensure destination directories exist for fresh one-shot bundle output (controller)
   delegate_to: localhost
   become: false
@@ -188,6 +201,26 @@
       {% endif %}
     _one_shot_bundle_source_mtime: "{{ item.mtime }}"
   when: not item.path.startswith(_one_shot_bundle_templates_prefix)
+
+- name: Normalize runtime media directory group for fresh one-shot bundle output (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command: >-
+    find "{{ _one_shot_bundle_output_dir }}/{{ item.path }}" -type d -exec chgrp www-data {} \; -exec chmod 2775 {} \;
+  changed_when: true
+  loop:
+    - { path: "_host_audio" }
+    - { path: "_host_video" }
+
+- name: Normalize runtime media file group and mode for fresh one-shot bundle output (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command: >-
+    find "{{ _one_shot_bundle_output_dir }}/{{ item.path }}" -type f -exec chgrp www-data {} \; -exec chmod 0664 {} \;
+  changed_when: true
+  loop:
+    - { path: "_host_audio" }
+    - { path: "_host_video" }
 
 - name: Report fresh one-shot bundle output directory (controller source)
   ansible.builtin.debug:
