@@ -380,3 +380,57 @@ The new one-shot-bundle process does the following:
 - supports a simpler operational workflow
 - preserves visibility into when repo-side template sources changed
 - supports eventual deprecation of the older one-shot-bundle process after testing succeeds
+
+# Process: Test Bundle Switch for `gighive2`
+
+## Assumptions
+
+- A new bundle has been created.
+
+```bash
+tar -czf gighive-one-shot-bundle.tgz gighive-one-shot-bundle/
+```
+- A SHA file has been generated for that bundle.
+
+```bash
+sha256sum gighive-one-shot-bundle.tgz > gighive-one-shot-bundle.tgz.sha256
+```
+- The bundle and SHA file have been copied to the staging server with:
+
+```bash
+scp gighive-one-shot-bundle.tgz* ubuntu@stagingvm.gighive.internal:/home/ubuntu/gighive/ansible/roles/docker/files/apache/downloads
+```
+
+## How to Run
+
+### Recommended sanity checks
+
+Repeat `status`:
+
+```bash
+ansible-playbook -K ansible/playbooks/switch_runtime.yml \
+  -i ansible/inventories/inventory_gighive2.yml \
+  -e switch_target_mode=status
+```
+
+Repeat the current target mode twice.
+
+If you are currently on bundle:
+
+```bash
+ansible-playbook -K ansible/playbooks/switch_runtime.yml \
+  -i ansible/inventories/inventory_gighive2.yml \
+  -e switch_target_mode=gighive_bundle
+```
+
+Run it twice and confirm the second run does less work.
+
+If you are currently on VM:
+
+```bash
+ansible-playbook -K ansible/playbooks/switch_runtime.yml \
+  -i ansible/inventories/inventory_gighive2.yml \
+  -e switch_target_mode=gighive2_vm
+```
+
+Run it twice and confirm the second run reports fewer changes.

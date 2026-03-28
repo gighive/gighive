@@ -1,14 +1,23 @@
 *** 
-releaseNotes20260327.txt
-Changes: New admin media upload page bug fixes, hardening, documentation flow changes. Plus fix and harden resize request.
+releaseNotes20260328.txt
+Changes: Fix to output_bundle.yml for www-data ownership
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260327.log
-Last run (dev: switch status): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=status
-Last run (dev: switch to enable gighive2 vm): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive2_vm
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle -v" ansible-playbook-gighive-20260228.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	modified:   docs/process_one_shot_bundle_new.md
 
 TODO
+Product: Eventually get rid of the sp stuff like jam images in bundle
 Product: Update one-shot-bundle 
-Tutorial: Create video for quick install
 Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 Testing: App breaks on upload when changing to Messages 
 Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
@@ -42,6 +51,47 @@ Infra: rebuild prod baremetal with same ansible scripts as staging
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio directories..should we add a function for this?
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260327.txt
+Changes: New admin media upload page bug fixes, hardening, documentation flow changes. Plus fix and harden resize request.
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260327.log
+Last run (dev: switch status): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=status
+Last run (dev: switch to enable gighive2 vm): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive2_vm
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin_database_load_import.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin_database_load_import_media_from_folder.php
+	new file:   ansible/roles/docker/files/apache/webroot/clear_media_files.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_duplicates.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_finalize.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php
+	modified:   ansible/roles/docker/files/apache/webroot/import_manifest_lib.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_prepare.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_upload_finalize.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_upload_start.php
+	new file:   ansible/roles/docker/files/apache/webroot/import_manifest_upload_status.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	new file:   docs/admin_clear_media.md
+	modified:   docs/convert_legacy_database_via_mysql_init.md
+	modified:   docs/feature_admin_upload_from_manifest_page_design.md
+	modified:   docs/knowledge_map.html
+	modified:   docs/load_and_transform_mysql_initialization.md
+	modified:   docs/process_one_shot_bundle_new.md
+	modified:   docs/refactor_admin_45_last_steps.md
+	modified:   docs/refactor_admin_page.md
+	modified:   docs/resizeRequestInstructions.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260326.txt
