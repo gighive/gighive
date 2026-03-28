@@ -1,9 +1,6 @@
 *** 
 releaseNotes20260328.txt
-Changes: Fix to output_bundle.yml for www-data ownership
-
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260327.log
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle -v" ansible-playbook-gighive-20260228.log
+Changes: Fix to telemetry doc 
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,8 +9,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
-	modified:   docs/process_one_shot_bundle_new.md
+	deleted:    ansible-playbook-gighive2-20260225.lo
+	modified:   docs/TELEMETRY_ENDUSER.md
 
 TODO
 Product: Eventually get rid of the sp stuff like jam images in bundle
@@ -48,9 +45,28 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+Maintenance: helpful to add filesize to restore database file list dropdown
+Maintenance: chg stg pwd
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio directories..should we add a function for this?
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260328.txt
+Changes: Fix to output_bundle.yml for www-data ownership
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260327.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle -v" ansible-playbook-gighive-20260228.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	modified:   docs/process_one_shot_bundle_new.md
 
 *** 
 releaseNotes20260327.txt

@@ -15,6 +15,7 @@ GigHive collects a small amount of installation telemetry so the project can und
 - app flavor
 - timestamp
 - a random install ID
+- country code
 
 ## What GigHive does not collect
 
