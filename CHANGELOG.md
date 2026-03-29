@@ -1,7 +1,8 @@
 *** 
 releaseNotes20260329.txt
-Changes: One-shot-bundle old deprecated code removal and templating of install.sh.
+Changes: One-shot-bundle chmod change (which didn't help), install.j2 template and doc updates
 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260329.log
 Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250329.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
 
 sodo@pop-os:~/gighive$ git status
@@ -11,27 +12,15 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/inventories/inventory_bootstrap.yml
-	modified:   ansible/inventories/inventory_lab.yml
-	modified:   ansible/inventories/inventory_staging_telemetry.yml
-	modified:   ansible/playbooks/site.yml
-	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
-	new file:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	deleted:    ansible/roles/docker/tasks/one_shot_bundle_monitor.yml
-	deleted:    ansible/roles/docker/tasks/one_shot_bundle_publish.yml
-	deleted:    ansible/roles/docker/tasks/one_shot_bundle_rebuild.yml
-	renamed:    ansible/roles/docker/files/one_shot_bundle/install.sh -> ansible/roles/docker/templates/install.sh.j2
-	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
-	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/install.sh.j2
 	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
-	deleted:    ansible/roles/one_shot_bundle/tasks/publish.yml
-	deleted:    ansible/roles/one_shot_bundle/tasks/rebuild.yml
-	modified:   docs/index.md
-	new file:   docs/refactor_one_shot_bundle_remove_vestigial.md
-	modified:   docs/setup_instructions_quickstart.md
+	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml.afterChmod777Change
+	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml.beforeChmod777Change
+	new file:   docs/problem_one_shot_bundle_fullbuild_maclinux_wwwdata_diffs.md
+	deleted:    docs/process_one_shot_bundle_original_creation.md
+	deleted:    docs/process_one_shot_bundle_original_creation_plus_backups.md
+	deleted:    docs/process_one_shot_download_quickstart_rebuild_criteria.md
 
 TODO
 Product: Eventually get rid of the sp stuff like jam images in bundle
@@ -71,6 +60,42 @@ Maintenance: chg stg pwd
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio directories..should we add a function for this?
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260329.txt
+Changes: One-shot-bundle old deprecated code removal and templating of install.sh.
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260329.log
+Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250329.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/inventories/inventory_bootstrap.yml
+	modified:   ansible/inventories/inventory_lab.yml
+	modified:   ansible/inventories/inventory_staging_telemetry.yml
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	new file:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	deleted:    ansible/roles/docker/tasks/one_shot_bundle_monitor.yml
+	deleted:    ansible/roles/docker/tasks/one_shot_bundle_publish.yml
+	deleted:    ansible/roles/docker/tasks/one_shot_bundle_rebuild.yml
+	renamed:    ansible/roles/docker/files/one_shot_bundle/install.sh -> ansible/roles/docker/templates/install.sh.j2
+	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	deleted:    ansible/roles/one_shot_bundle/tasks/publish.yml
+	deleted:    ansible/roles/one_shot_bundle/tasks/rebuild.yml
+	modified:   docs/index.md
+	new file:   docs/refactor_one_shot_bundle_remove_vestigial.md
+	modified:   docs/setup_instructions_quickstart.md
 
 *** 
 releaseNotes20260329.txt

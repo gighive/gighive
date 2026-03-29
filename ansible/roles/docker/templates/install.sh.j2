@@ -149,7 +149,7 @@ prompt_secret() {
       continue
     fi
 
-    if [[ "${#v1}" -lt "$min_len" ]]; then
+    if [[ "{% raw %}${#v1}{% endraw %}" -lt "$min_len" ]]; then
       echo "$var_name must be at least ${min_len} characters." >&2
       continue
     fi
