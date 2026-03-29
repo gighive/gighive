@@ -205,37 +205,11 @@ chmod 0644 "${HTPASSWD_HOST_FILE}"
 APACHE_ENV_FILE="apache/externalConfigs/.env"
 MYSQL_ENV_FILE="mysql/externalConfigs/.env.mysql"
 
-# Write apache env
-cat > "$APACHE_ENV_FILE" <<EOF
-SITE_URL=$SITE_URL
-DB_HOST=mysqlServer
-DB_PORT=3306
-
-MYSQL_DATABASE=$MYSQL_DATABASE
-MYSQL_USER=$MYSQL_USER
-MYSQL_PASSWORD=$MYSQL_PASSWORD
-MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
-
-GIGHIVE_HTPASSWD_PATH=/var/www/private/gighive.htpasswd
-GIGHIVE_MYSQL_BACKUPS_DIR=/var/www/private/mysql_backups
-GIGHIVE_MYSQL_RESTORE_LOG_DIR=/var/www/private/restorelogs
-FILENAME_SEQ_PAD="\${FILENAME_SEQ_PAD:-5}"
-
-MEDIA_SEARCH_DIRS=/var/www/html/audio:/var/www/html/video
-MEDIA_LIST_PAGINATION_THRESHOLD=750
-
-APP_FLAVOR=gighive
-
-GA4_MEASUREMENT_ID_DEFAULTCODEBASE=
-GA4_MEASUREMENT_ID_GIGHIVE=G-HBWR9ZZE3N
-
-# NOTE: keep these lists aligned with your gighive.yml defaults if you change them
-UPLOAD_ALLOWED_MIMES_JSON=["audio/mpeg","audio/mp3","audio/wav","audio/x-wav","audio/aac","audio/flac","audio/mp4","video/mp4","video/quicktime","video/x-matroska","video/webm","video/x-msvideo","audio/aiff","audio/x-aiff","audio/ogg","application/ogg","audio/vorbis","audio/basic","audio/x-au","audio/au","audio/mp2","audio/mpeg2","audio/x-ms-wma","video/mpeg","video/mp2t","video/MP2T","video/ogg","video/x-flv","application/mxf","video/mxf","application/vnd.rn-realmedia","audio/vnd.rn-realaudio","audio/x-pn-realaudio","video/vnd.rn-realvideo","video/x-ms-wmv","video/x-ms-asf","application/vnd.ms-asf"]
-UPLOAD_AUDIO_EXTS_JSON=["mp3","wav","flac","aac","m4a","m4p","aif","aifc","aiff","ogg","oga","au","m2a","wma"]
-UPLOAD_VIDEO_EXTS_JSON=["mp4","mov","mkv","webm","m4v","avi","mpg","mpeg","ts","m2t","m2ts","ogv","mxf","flv","rm","rmvb","rv","wmv","vob","m2v","bup","ifo"]
-
-TUS_CLIENT_CHUNK_SIZE_BYTES=8388608
-EOF
+# Patch user-supplied values into the pre-rendered .env shipped by the bundle
+_sed_escape() { printf '%s\n' "$1" | sed 's/[&|\\]/\\&/g'; }
+sed -i "s|^SITE_URL=.*|SITE_URL=$(_sed_escape "$SITE_URL")|"                               "$APACHE_ENV_FILE"
+sed -i "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=$(_sed_escape "$MYSQL_PASSWORD")|"             "$APACHE_ENV_FILE"
+sed -i "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=$(_sed_escape "$MYSQL_ROOT_PASSWORD")|" "$APACHE_ENV_FILE"
 
 # Write mysql env
 cat > "$MYSQL_ENV_FILE" <<EOF
@@ -251,12 +225,39 @@ echo "Wrote:"
 echo "  - $APACHE_ENV_FILE"
 echo "  - $MYSQL_ENV_FILE"
 
+_tracking_enabled="{{ (gighive_enable_installation_tracking | default(true)) | ternary('true', 'false') }}"
+_tracking_endpoint="{{ gighive_installation_tracking_endpoint | default('https://telemetry.gighive.app') }}"
+_tracking_timeout="{{ gighive_installation_tracking_timeout_seconds | default(3) }}"
+_app_version=$(cat VERSION 2>/dev/null | tr -d '[:space:]' || true)
+_install_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '[:space:]' || uuidgen 2>/dev/null || printf '%s' "$(date +%s)")
+_install_channel="quickstart"
+_install_method="{{ gighive_install_method | default('virtualbox') }}"
+_app_flavor="{{ app_flavor | default('gighive') }}"
+
+_send_telemetry() {
+  local _event_name="$1"
+  [[ "$_tracking_enabled" == "true" ]] || return 0
+  local _ts
+  _ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+  local _payload
+  _payload=$(printf '{"event_name":"%s","app_version":"%s","install_channel":"%s","install_method":"%s","app_flavor":"%s","timestamp":"%s","install_id":"%s"}' \
+    "$_event_name" "$_app_version" "$_install_channel" "$_install_method" "$_app_flavor" "$_ts" "$_install_id")
+  curl --silent --max-time "$_tracking_timeout" \
+    -H 'Content-Type: application/json' \
+    -d "$_payload" \
+    "$_tracking_endpoint" >/dev/null 2>&1 || true
+}
+
+_send_telemetry install_attempt
+
 # Export host media paths for compose (compose should reference these)
 export GIGHIVE_AUDIO_DIR="$AUDIO_DIR"
 export GIGHIVE_VIDEO_DIR="$VIDEO_DIR"
 
 echo "Bringing stack up..."
 "${DOCKER_COMPOSE[@]}" up -d --build
+
+_send_telemetry install_success
 
 echo "Done."
 echo "Next checks:"

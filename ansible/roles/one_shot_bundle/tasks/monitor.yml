@@ -2,7 +2,6 @@
 
 - name: Set one-shot bundle path prefixes for source-to-bundle comparison
   ansible.builtin.set_fact:
-    _one_shot_bundle_install_src: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/install.sh"
     _one_shot_bundle_one_shot_bundle_prefix: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle"
     _one_shot_bundle_files_prefix: "{{ repo_root }}/ansible/roles/docker/files/"
     _one_shot_bundle_templates_prefix: "{{ repo_root }}/ansible/roles/docker/templates/"
@@ -56,12 +55,12 @@
   vars:
     _p: "{{ item.path }}"
     _one_shot_bundle_dest_file: >-
-      {% if _p == _one_shot_bundle_install_src %}
-      install.sh
-      {% elif _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
+      {% if _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
       {{ _p[(_one_shot_bundle_one_shot_bundle_prefix ~ '/') | length:] }}
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2') %}
       docker-compose.yml
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2') %}
+      install.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') %}
       apache/externalConfigs/entrypoint.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.j2') %}
@@ -114,9 +113,7 @@
   vars:
     _p: "{{ item.stat.path }}"
     _one_shot_bundle_dest_file: >-
-      {% if _p == _one_shot_bundle_install_src %}
-      install.sh
-      {% elif _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
+      {% if _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
       {{ _p[(_one_shot_bundle_one_shot_bundle_prefix ~ '/') | length:] }}
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2') %}
       docker-compose.yml

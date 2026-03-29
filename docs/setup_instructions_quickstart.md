@@ -177,13 +177,19 @@ If you have forgotten the MySQL root password, the recovery procedure is to re-i
     ```bash
     docker compose down --volumes --remove-orphans
     ```
-3. Run `install.sh` again from the extracted bundle directory and set new MySQL passwords when prompted.
+3. Remove images, run prune
     ```bash
-    cd ~/gighive-one-shot-bundle
-    ./install.sh
+    docker image rm ubuntu-apache-img:1.00
+    docker compose down -v --rmi local 
+    docker system prune -f
     ```
-4. Optionally remove the extracted bundle directory when you want a completely fresh reinstall.
+4. Remove the extracted bundle directory when you want a completely fresh reinstall.
     ```bash
     cd ..
     sudo rm -rf ~/gighive-one-shot-bundle
+    ```
+5. Run `install.sh` again from the extracted bundle directory and set new MySQL passwords when prompted.
+    ```bash
+    cd ~/gighive-one-shot-bundle
+    ./install.sh
     ```

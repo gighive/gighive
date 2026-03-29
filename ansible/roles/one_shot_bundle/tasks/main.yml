@@ -8,53 +8,48 @@
     group: "{{ ansible_user }}"
     mode: "0755"
 
-- name: One-shot bundle (controller source)
-  block:
-    - name: Monitor one-shot bundle inputs
-      ansible.builtin.include_tasks: monitor.yml
+- name: Read repo root VERSION for quickstart bundle
+  delegate_to: localhost
+  become: false
+  ansible.builtin.slurp:
+    src: "{{ repo_root }}/VERSION"
+  register: _one_shot_bundle_repo_version_raw
 
-    - name: Output fresh one-shot bundle (controller source)
-      ansible.builtin.include_tasks: output_bundle.yml
-
-    - name: Rebuild one-shot bundle (optional)
-      ansible.builtin.include_tasks: rebuild.yml
-      when: not (one_shot_bundle_monitor_only | default(false))
-
-    - name: Publish one-shot bundle artifacts + advance baseline (optional)
-      ansible.builtin.include_tasks: publish.yml
-      when: not (one_shot_bundle_monitor_only | default(false))
-
-    - name: Show final one-shot bundle summary
-      ansible.builtin.debug:
-        msg:
-          source_to_bundle:
-            counts:
-              files_that_did_not_change: "{{ _one_shot_bundle_unchanged_between_source_and_bundle | default([]) | length }}"
-              missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | length }}"
-              extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | length }}"
-              changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | length }}"
-            paths:
-              missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | sort }}"
-              extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | sort }}"
-              changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | sort }}"
-            ls_details_for_changed_paths: "{{ _one_shot_bundle_changed_between_source_and_bundle_ls_details | default([]) }}"
-          fresh_output_validation:
-            counts:
-              files_that_did_not_change: "{{ _one_shot_bundle_output_unchanged_between_source_and_bundle | default([]) | length }}"
-              missing_from_bundle: "{{ _one_shot_bundle_output_missing_from_bundle | default([]) | length }}"
-              extra_in_bundle: "{{ _one_shot_bundle_output_extra_in_bundle | default([]) | length }}"
-              changed_between_source_and_bundle: "{{ _one_shot_bundle_output_changed_between_source_and_bundle | default([]) | length }}"
-            paths:
-              missing_from_bundle: "{{ _one_shot_bundle_output_missing_from_bundle | default([]) | sort }}"
-              extra_in_bundle: "{{ _one_shot_bundle_output_extra_in_bundle | default([]) | sort }}"
-              changed_between_source_and_bundle: "{{ _one_shot_bundle_output_changed_between_source_and_bundle | default([]) | sort }}"
-  when: (one_shot_bundle_source | default('controller')) == 'controller'
-
-- name: One-shot bundle (url source)
-  ansible.builtin.get_url:
-    url: "{{ one_shot_bundle_url }}"
-    dest: "{{ docker_dir }}/apache/downloads/{{ one_shot_bundle_filename }}"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+- name: Write quickstart VERSION into one-shot bundle source
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    content: "{{ (_one_shot_bundle_repo_version_raw.content | b64decode).split('\n')[0] | trim }}_quickstart\n"
+    dest: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/VERSION"
     mode: "0644"
-  when: (one_shot_bundle_source | default('controller')) == 'url'
+
+- name: Monitor one-shot bundle inputs
+  ansible.builtin.include_tasks: monitor.yml
+
+- name: Output fresh one-shot bundle
+  ansible.builtin.include_tasks: output_bundle.yml
+
+- name: Show final one-shot bundle summary
+  ansible.builtin.debug:
+    msg:
+      source_to_bundle:
+        counts:
+          files_that_did_not_change: "{{ _one_shot_bundle_unchanged_between_source_and_bundle | default([]) | length }}"
+          missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | length }}"
+          extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | length }}"
+          changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | length }}"
+        paths:
+          missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | sort }}"
+          extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | sort }}"
+          changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | sort }}"
+        ls_details_for_changed_paths: "{{ _one_shot_bundle_changed_between_source_and_bundle_ls_details | default([]) }}"
+      fresh_output_validation:
+        counts:
+          files_that_did_not_change: "{{ _one_shot_bundle_output_unchanged_between_source_and_bundle | default([]) | length }}"
+          missing_from_bundle: "{{ _one_shot_bundle_output_missing_from_bundle | default([]) | length }}"
+          extra_in_bundle: "{{ _one_shot_bundle_output_extra_in_bundle | default([]) | length }}"
+          changed_between_source_and_bundle: "{{ _one_shot_bundle_output_changed_between_source_and_bundle | default([]) | length }}"
+        paths:
+          missing_from_bundle: "{{ _one_shot_bundle_output_missing_from_bundle | default([]) | sort }}"
+          extra_in_bundle: "{{ _one_shot_bundle_output_extra_in_bundle | default([]) | sort }}"
+          changed_between_source_and_bundle: "{{ _one_shot_bundle_output_changed_between_source_and_bundle | default([]) | sort }}"

@@ -100,8 +100,12 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the <a href="https://gighive.app/README.html">Setup Guide</a>, but you may want to jump right to the installation video below:
         <ul>
           <li>
+            <span style="display: inline-flex; align-items: center; gap: 8px; margin-right: 16px;">
+              <span>Quickstart Installation Video:</span>
+              <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4"><img src="https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png" alt="GigHive quickstart installation video" style="width: 320px; height: auto;"></a>
+            </span>
             <span style="display: inline-flex; align-items: center; gap: 8px;">
-              <span>Installation Video:</span>
+              <span>Full Installation Video:</span>
               <a href="https://staging.gighive.app/video/c4bd861d33bf97b1a2415b8f16325907dd4f72e9b60398c55219abd52ee1d13b.mp4"><img src="https://staging.gighive.app/video/thumbnails/c4bd861d33bf97b1a2415b8f16325907dd4f72e9b60398c55219abd52ee1d13b.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
             </span>
           </li>

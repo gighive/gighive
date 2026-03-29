@@ -45,12 +45,12 @@
   vars:
     _p: "{{ item.path }}"
     _one_shot_bundle_dest_file: >-
-      {% if _p == _one_shot_bundle_install_src %}
-      install.sh
-      {% elif _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
+      {% if _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
       {{ _p[(_one_shot_bundle_one_shot_bundle_prefix ~ '/') | length:] }}
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2') %}
       docker-compose.yml
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2') %}
+      install.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') %}
       apache/externalConfigs/entrypoint.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.j2') %}
@@ -101,6 +101,8 @@
     _one_shot_bundle_dest_file: >-
       {% if _p == (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2') %}
       docker-compose.yml
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2') %}
+      install.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') %}
       apache/externalConfigs/entrypoint.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.j2') %}
@@ -127,7 +129,7 @@
       {{ _p | basename }}
       {% endif %}
     _one_shot_bundle_output_mode: >-
-      {% if _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') %}
+      {% if _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') or _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2') %}
       0755
       {% else %}
       {{ item.mode }}
@@ -157,9 +159,7 @@
   vars:
     _p: "{{ item.path }}"
     _one_shot_bundle_dest_file: >-
-      {% if _p == _one_shot_bundle_install_src %}
-      install.sh
-      {% elif _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
+      {% if _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
       {{ _p[(_one_shot_bundle_one_shot_bundle_prefix ~ '/') | length:] }}
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ _p[_one_shot_bundle_files_prefix | length:] }}

@@ -1,8 +1,8 @@
 *** 
 releaseNotes20260329.txt
-Changes: For idempotency of telemetry db creation, sync prod.yml to others (telem vars) and one change for bundle output
+Changes: One-shot-bundle old deprecated code removal and templating of install.sh.
 
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml" ansible-playbook-telemetry-20260321.log
+Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250329.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -11,13 +11,27 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
 	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
-	deleted:    ansible/roles/installation_tracking/defaults/main.yml
+	modified:   ansible/inventories/inventory_bootstrap.yml
+	modified:   ansible/inventories/inventory_lab.yml
+	modified:   ansible/inventories/inventory_staging_telemetry.yml
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	new file:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	deleted:    ansible/roles/docker/tasks/one_shot_bundle_monitor.yml
+	deleted:    ansible/roles/docker/tasks/one_shot_bundle_publish.yml
+	deleted:    ansible/roles/docker/tasks/one_shot_bundle_rebuild.yml
+	renamed:    ansible/roles/docker/files/one_shot_bundle/install.sh -> ansible/roles/docker/templates/install.sh.j2
+	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
 	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
-	modified:   ansible/roles/telemetry_receiver/files/mysql/init/01-schema.sql
-	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
-	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	deleted:    ansible/roles/one_shot_bundle/tasks/publish.yml
+	deleted:    ansible/roles/one_shot_bundle/tasks/rebuild.yml
+	modified:   docs/index.md
+	new file:   docs/refactor_one_shot_bundle_remove_vestigial.md
+	modified:   docs/setup_instructions_quickstart.md
 
 TODO
 Product: Eventually get rid of the sp stuff like jam images in bundle
@@ -57,6 +71,31 @@ Maintenance: chg stg pwd
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio directories..should we add a function for this?
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260329.txt
+Changes: For idempotency of telemetry db creation, sync prod.yml to others (telem vars) and one change for bundle output
+
+Last run (dev: switch status): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=status
+Last run (dev: switch to enable gighive2 vm): ansible-playbook -K ansible/playbooks/switch_runtime.yml   -i ansible/inventories/inventory_gighive2.yml   -e switch_target_mode=gighive2_vm
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml" ansible-playbook-telemetry-20260329.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,installation_tracking" ansible-playbook-gighive2-20260329.log
+Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250329.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
+	deleted:    ansible/roles/installation_tracking/defaults/main.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	modified:   ansible/roles/telemetry_receiver/files/mysql/init/01-schema.sql
+	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
 
 *** 
 releaseNotes20260328.txt

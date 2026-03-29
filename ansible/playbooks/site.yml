@@ -137,7 +137,6 @@
     - community.general
   roles:
     - role: one_shot_bundle
-      when: serve_one_shot_installer_downloads | default(false)
       tags: [ one_shot_bundle ]
 
 # 3) Optional: global postflight snapshot (final state)
