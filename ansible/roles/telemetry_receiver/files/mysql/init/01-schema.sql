@@ -1,3 +1,9 @@
+CREATE DATABASE IF NOT EXISTS installation_telemetry
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE installation_telemetry;
+
 CREATE TABLE IF NOT EXISTS installation_events (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   event_name VARCHAR(32) NOT NULL,
@@ -15,3 +21,6 @@ CREATE TABLE IF NOT EXISTS installation_events (
   KEY idx_event_timestamp (event_timestamp),
   KEY idx_country_code (country_code)
 );
+
+GRANT ALL PRIVILEGES ON installation_telemetry.* TO 'telemetry_app'@'%';
+FLUSH PRIVILEGES;

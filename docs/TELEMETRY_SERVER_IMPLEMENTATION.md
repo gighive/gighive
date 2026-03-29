@@ -435,6 +435,32 @@ ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/tele
 - separate Ansible playbook and role
 - separate Docker Compose stack
 
+## Idempotent database provisioning note
+
+The telemetry receiver role now includes an explicit post-start schema-apply step after MySQL begins accepting connections.
+
+This is intentional.
+
+The MySQL container still mounts `./mysql/init` into `/docker-entrypoint-initdb.d` for first-boot initialization convenience, but Ansible no longer relies on that one-time container-init path as the only mechanism for provisioning the telemetry database.
+
+### Why this was added
+
+- MySQL entrypoint init scripts run only when the datadir is empty
+- a rerun against an existing or partially initialized datadir could otherwise leave the telemetry schema missing
+- rerunning the role should reconcile the desired database/table state instead of depending on first-boot behavior
+
+### What the role now does
+
+- waits for the telemetry MySQL container to accept connections
+- executes the schema SQL explicitly from Ansible
+- keeps that schema SQL safe to rerun with `CREATE DATABASE IF NOT EXISTS` and `CREATE TABLE IF NOT EXISTS`
+- grants the application user privileges on the telemetry database with `GRANT ALL PRIVILEGES ...`
+- runs `FLUSH PRIVILEGES` so the receiver app can use the database immediately
+
+### Credential-handling note
+
+The explicit schema-apply task is marked with `no_log: true` so the MySQL root password is not exposed in Ansible output while executing the bootstrap SQL.
+
 ## Status
 
 - confirmed as the preferred initial deployment model

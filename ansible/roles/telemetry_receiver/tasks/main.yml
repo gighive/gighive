@@ -63,6 +63,14 @@
   delay: 2
   until: telemetry_db_ping.rc == 0
 
+- name: Apply telemetry receiver schema idempotently
+  ansible.builtin.shell: >-
+    docker exec -i {{ telemetry_receiver_db_container_name }}
+    mysql -u root -p{{ telemetry_receiver_mysql_root_password }}
+    < {{ telemetry_receiver_home }}/mysql/init/01-schema.sql
+  changed_when: false
+  no_log: true
+
 - name: Wait for telemetry receiver port to listen locally
   ansible.builtin.wait_for:
     host: "{{ telemetry_receiver_probe_host }}"

@@ -171,36 +171,22 @@
       {{ _p | basename }}
       {% endif %}
   when: not item.path.startswith(_one_shot_bundle_templates_prefix)
+  register: _one_shot_bundle_non_template_copy_results
 
-- name: Preserve source modification timestamps for non-template files in fresh one-shot bundle output (controller)
+- name: Preserve source modification timestamps for copied non-template files in fresh one-shot bundle output (controller)
   delegate_to: localhost
   become: false
   ansible.builtin.file:
-    path: "{{ _one_shot_bundle_output_dir }}/{{ _one_shot_bundle_dest_file | trim }}"
-    state: file
-    modification_time: "{{ '%Y%m%d%H%M.%S' | strftime(_one_shot_bundle_source_mtime | int) }}"
+    path: "{{ item.dest }}"
+    modification_time: "{{ '%Y%m%d%H%M.%S' | strftime(item.item.mtime | int) }}"
     access_time: preserve
-  loop: "{{ ((_one_shot_bundle_inputs_find_results.results | default([])) | map(attribute='files') | list | flatten) + ((_one_shot_bundle_inputs_paths_stat.results | default([])) | selectattr('stat.isreg','defined') | selectattr('stat.isreg') | map(attribute='stat') | list) }}"
+  loop: "{{ _one_shot_bundle_non_template_copy_results.results | default([]) }}"
   loop_control:
-    label: "{{ item.path }}"
-  vars:
-    _p: "{{ item.path }}"
-    _one_shot_bundle_dest_file: >-
-      {% if _p == _one_shot_bundle_install_src %}
-      install.sh
-      {% elif _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
-      {{ _p[(_one_shot_bundle_one_shot_bundle_prefix ~ '/') | length:] }}
-      {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
-      {{ _p[_one_shot_bundle_files_prefix | length:] }}
-      {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}
-      _host_audio/{{ _p[(_one_shot_bundle_assets_prefix ~ 'audio/') | length:] }}
-      {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'video/') %}
-      _host_video/{{ _p[(_one_shot_bundle_assets_prefix ~ 'video/') | length:] }}
-      {% else %}
-      {{ _p | basename }}
-      {% endif %}
-    _one_shot_bundle_source_mtime: "{{ item.mtime }}"
-  when: not item.path.startswith(_one_shot_bundle_templates_prefix)
+    label: "{{ item.dest | default(item.item.path) }}"
+  when:
+    - not (item.failed | default(false))
+    - item.dest is defined
+    - item.item.mtime is defined
 
 - name: Normalize runtime media directory group for fresh one-shot bundle output (controller)
   delegate_to: localhost

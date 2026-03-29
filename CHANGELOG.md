@@ -1,6 +1,8 @@
 *** 
-releaseNotes20260328.txt
-Changes: Fix to telemetry doc 
+releaseNotes20260329.txt
+Changes: For idempotency of telemetry db creation, sync prod.yml to others (telem vars) and one change for bundle output
+
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml" ansible-playbook-telemetry-20260321.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -9,8 +11,13 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	deleted:    ansible-playbook-gighive2-20260225.lo
-	modified:   docs/TELEMETRY_ENDUSER.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/one_shot_bundle/install.sh
+	deleted:    ansible/roles/installation_tracking/defaults/main.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	modified:   ansible/roles/telemetry_receiver/files/mysql/init/01-schema.sql
+	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
 
 TODO
 Product: Eventually get rid of the sp stuff like jam images in bundle
@@ -50,6 +57,20 @@ Maintenance: chg stg pwd
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio directories..should we add a function for this?
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260328.txt
+Changes: Fix to telemetry doc 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	deleted:    ansible-playbook-gighive2-20260225.lo
+	modified:   docs/TELEMETRY_ENDUSER.md
 
 *** 
 releaseNotes20260328.txt

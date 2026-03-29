@@ -185,6 +185,7 @@ echo "Generating BasicAuth file: ${HTPASSWD_HOST_FILE}"
 rm -f "${HTPASSWD_HOST_FILE}"
 
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
   -e ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
   -e UPLOADER_PASSWORD="${UPLOADER_PASSWORD}" \
   -e VIEWER_PASSWORD="${VIEWER_PASSWORD}" \
@@ -196,8 +197,10 @@ docker run --rm \
     /usr/local/apache2/bin/htpasswd -b  /work/gighive.htpasswd viewer "$VIEWER_PASSWORD"
   '
 
-sudo chown www-data:www-data "${HTPASSWD_HOST_FILE}"
-sudo chmod 0640 "${HTPASSWD_HOST_FILE}"
+# Cross-platform host-side permissions:
+# create the file as the host user, then make it readable for the container
+# via the bind mount. Prefer mounting this file read-only in docker-compose.yml.
+chmod 0644 "${HTPASSWD_HOST_FILE}"
 
 APACHE_ENV_FILE="apache/externalConfigs/.env"
 MYSQL_ENV_FILE="mysql/externalConfigs/.env.mysql"
