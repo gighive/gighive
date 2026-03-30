@@ -1,4 +1,11 @@
 *** 
+releaseNotes20260330.txt
+Changes: Link iphone app to home page
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260330.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260330.log
+
+*** 
 releaseNotes20260329.txt
 Changes: One-shot-bundle chmod change (which didn't help), install.j2 template and doc updates
 

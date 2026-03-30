@@ -128,6 +128,11 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       <li>Last but not least, Gighive is simple.  There is one page for the home page, a page for the <a href="db/database.php">media library</a> and a page for the <a href="db/upload_form.php">upload utility</a>..that's all.</li>
       </ul>
 
+      <h3>iPhone App</h3>
+      <ul>
+      <li>We have an easy-to-use iPhone app for fans and wedding guests.  <a href="https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513">Download it here</a></li>
+      </ul>
+
       <h3>Requirements</h3>
       <ul>
       <li>Control Machine: Tested on Ubuntu 24.04 and 22.04, so the requirements are any flavor of those versions or Pop-OS, installed on bare metal.</li>

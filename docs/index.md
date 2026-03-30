@@ -329,7 +329,9 @@ document.addEventListener('DOMContentLoaded', function() {
 - Gighive frees you from content limitations on the major providers..but you'll need to size your vm properly.
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
 - Gighive is simple. There is a home page, a page for the media library and an upload page. That's it.
-- Coming soon: an easy-to-use iphone app.
+
+### Iphone App
+- We have an easy-to-use iPhone app for fans and wedding guests.  [Download it here](https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513)
 
 ### Requirements
 1. Control Machine: Tested on Ubuntu 24.04 and 22.04, so the requirements are **any flavor of those versions or Pop-OS, installed on bare metal.**
