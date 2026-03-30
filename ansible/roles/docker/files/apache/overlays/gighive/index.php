@@ -133,10 +133,17 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       <li>We have an easy-to-use iPhone app for fans and wedding guests.  <a href="https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513">Download it here</a></li>
       </ul>
 
-      <h3>Requirements</h3>
+      <h3>Requirements for Quickstart</h3>
+      <ul>
+      <li>Target Machine: Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) running Docker.</li>
+      <li><a href="https://gighive.app/setup_instructions_quickstart.html">Quickstart Instructions</a></li>
+      </ul>
+
+      <h3>Requirements for Full Build</h3>
       <ul>
       <li>Control Machine: Tested on Ubuntu 24.04 and 22.04, so the requirements are any flavor of those versions or Pop-OS, installed on bare metal.</li>
       <li>Target Machine: Your choice of virtualbox or Azure deployment targets for the vm and containerized environment.  These are shown in this <a href="https://gighive.app/images/architecture.png">architecture diagram</a>.</li>
+      <li><a href="https://gighive.app/setup_instructions_fullbuild.html">Full Build Instructions</a></li>
       </ul>
 
       <h3>What comes with Gighive?</h3>

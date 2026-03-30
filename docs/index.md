@@ -333,10 +333,15 @@ document.addEventListener('DOMContentLoaded', function() {
 ### Iphone App
 - We have an easy-to-use iPhone app for fans and wedding guests.  [Download it here](https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513)
 
-### Requirements
+### Requirements for Quickstart 
+1. Target Machine: Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) running Docker.
+2. [Quickstart Instructions](setup_instructions_quickstart.md)
+
+### Requirements for Full Build
 1. Control Machine: Tested on Ubuntu 24.04 and 22.04, so the requirements are **any flavor of those versions or Pop-OS, installed on bare metal.**
 2. Target Machine: Your choice of virtualbox or Azure deployment targets for the vm and containerized environment.
 These are shown in this <a href="images/architecture.png">architecture diagram</a>.
+3. [Full Build Instructions](setup_instructions_fullbuild.md)
 
 ### What comes with Gighive?
 - Gighive includes a website with a searchable, sortable one-page listing of media files and common attributes (date, filename, etc) stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).

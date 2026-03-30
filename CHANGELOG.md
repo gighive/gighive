@@ -1,16 +1,9 @@
 *** 
 releaseNotes20260330.txt
-Changes: Link iphone app to home page
+Changes: Link iphone app to home page and doc change
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260330.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260330.log
-
-*** 
-releaseNotes20260329.txt
-Changes: One-shot-bundle chmod change (which didn't help), install.j2 template and doc updates
-
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260329.log
-Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250329.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -19,15 +12,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	modified:   ansible/roles/docker/templates/install.sh.j2
-	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
-	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml.afterChmod777Change
-	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml.beforeChmod777Change
-	new file:   docs/problem_one_shot_bundle_fullbuild_maclinux_wwwdata_diffs.md
-	deleted:    docs/process_one_shot_bundle_original_creation.md
-	deleted:    docs/process_one_shot_bundle_original_creation_plus_backups.md
-	deleted:    docs/process_one_shot_download_quickstart_rebuild_criteria.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   docs/index.md
 
 TODO
 Product: Eventually get rid of the sp stuff like jam images in bundle
@@ -67,6 +53,30 @@ Maintenance: chg stg pwd
 Maintenance: cleaning the database won't clear out what has been uploaded to video and audio directories..should we add a function for this?
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260329.txt
+Changes: One-shot-bundle chmod change (which didn't help), install.j2 template and doc updates
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260329.log
+Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250329.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/install.sh.j2
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml.afterChmod777Change
+	new file:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml.beforeChmod777Change
+	new file:   docs/problem_one_shot_bundle_fullbuild_maclinux_wwwdata_diffs.md
+	deleted:    docs/process_one_shot_bundle_original_creation.md
+	deleted:    docs/process_one_shot_bundle_original_creation_plus_backups.md
+	deleted:    docs/process_one_shot_download_quickstart_rebuild_criteria.md
 
 *** 
 releaseNotes20260329.txt
