@@ -521,6 +521,74 @@ ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
   ansible/playbooks/site.yml --tags docker
 ```
 
+## Post-Deploy Verification Checks
+
+Two layers of automated post-deploy checks are implemented to catch failures that manual inspection can miss. These were added after a production incident where a container with a broken overlay filesystem mount reported as "running" but was silently failing all requests.
+
+### Layer 1: telemetry_receiver.yml checks
+
+These run at the end of `ansible/roles/telemetry_receiver/tasks/post_deploy_checks.yml` and are called from the end of `main.yml`. They verify the receiver stack in isolation, without going through the Apache proxy or Cloudflare.
+
+#### Check 1: Container is running
+
+Verify `telemetry_receiver_app` is running using `docker_container_info`. Asserts `State.Status == "running"`.
+
+#### Check 2: Filesystem mount is accessible
+
+Run `docker exec telemetry_receiver_app ls /var/www/html/index.php` and assert the command succeeds (rc == 0). This detects the broken overlay mount namespace scenario — a container can report "running" while its volume mount is inaccessible, causing silent 404s.
+
+#### Check 3: Receiver responds correctly to GET (method guard)
+
+HTTP GET to `http://{{ telemetry_receiver_probe_host }}:{{ telemetry_receiver_bind_port }}/` must return `405 Method Not Allowed`. This is the existing check already in `main.yml`; it is preserved in `post_deploy_checks.yml`.
+
+#### Check 4: Receiver accepts a POST and returns 204
+
+HTTP POST to `http://{{ telemetry_receiver_probe_host }}:{{ telemetry_receiver_bind_port }}/` with a valid JSON payload must return `204 No Content`. This is the functional correctness check — it exercises the full PHP code path including JSON parsing and database write.
+
+Test payload:
+
+```json
+{
+  "event_name": "install_attempt",
+  "app_version": "ansible-post-deploy-check",
+  "install_channel": "quickstart",
+  "install_method": "virtualbox",
+  "app_flavor": "gighive",
+  "timestamp": "{{ ansible_date_time.iso8601 }}",
+  "install_id": "ansible-check-{{ ansible_date_time.epoch }}"
+}
+```
+
+#### Check 5: DB row was written
+
+Query `installation_events` and assert at least one row exists with `install_id` matching the value sent in Check 4. Uses `docker exec telemetry_db mysql ...` with the application credentials.
+
+### Layer 2: site.yml post_build_checks (gated on gighive_enable_telemetry_proxy)
+
+These run as part of the existing `post_build_checks` role in `site.yml`, gated on `gighive_enable_telemetry_proxy | default(false)`. They verify the full request chain: Apache proxy → receiver → DB.
+
+#### Check 1: Telemetry VirtualHost is loaded in Apache
+
+Run `docker exec {{ apache_container_name }} apache2ctl -S` and assert the output contains `{{ gighive_telemetry_fqdn | default('telemetry.gighive.app') }}`. This confirms the new VirtualHost block was rendered and loaded — it does not catch a runtime proxy failure but does catch a missing config or failed rebuild.
+
+#### Check 2: End-to-end HTTPS POST returns 204
+
+HTTP POST to `https://{{ gighive_telemetry_fqdn | default('telemetry.gighive.app') }}/` with a valid JSON payload must return `204 No Content`. This exercises the complete path: GigHive Apache → `host.docker.internal:8088` → telemetry receiver PHP → MySQL.
+
+Test payload uses the same shape as Layer 1 Check 4 with a distinct `install_id` prefix (`site-check-`) to distinguish from receiver-direct checks in the database.
+
+### Container recreate behavior
+
+The `telemetry_receiver.yml` playbook uses `community.docker.docker_compose_v2` with `recreate: always`. This ensures the receiver containers are always stopped and recreated on each playbook run, preventing the broken-mount-namespace scenario where a container is "running" but its overlay filesystem is corrupt from a prior unclean shutdown.
+
+### Playbook run reference
+
+| Goal | Command |
+|---|---|
+| Deploy or redeploy receiver only | `ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml` |
+| Deploy GigHive Apache proxy changes + verify end-to-end | `ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/site.yml --tags docker,post_build_checks` |
+| Run post-deploy checks only (no deploy) | `ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/site.yml --tags post_build_checks` |
+
 ## Status
 
 - confirmed as the preferred initial deployment model

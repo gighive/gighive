@@ -1,11 +1,10 @@
 *** 
 releaseNotes20260331.txt
-Changes: Fix telemetry implementation proxy, fixed import* admin file admin priv protection
+Changes: Add telemetry implementation checks
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260331.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260331.log
 Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
-  ansible/playbooks/site.yml --tags docker" ansible-playbook-telemetry-20250331.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -13,14 +12,10 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
-	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
+	new file:   ansible/roles/telemetry_receiver/tasks/post_deploy_checks.yml
 	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
-	new file:   docs/refactor_admin_pages_move_to_folder.md
 
 TODO
 Product: Eventually get rid of the sp stuff like jam images in bundle
@@ -58,6 +53,30 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260331.txt
+Changes: Fix telemetry implementation proxy, fixed import* admin file admin priv protection
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260331.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260331.log
+Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
+  ansible/playbooks/site.yml --tags docker" ansible-playbook-telemetry-20250331.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	new file:   docs/refactor_admin_pages_move_to_folder.md
 
 *** 
 releaseNotes20260330.txt

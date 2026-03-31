@@ -1,0 +1,97 @@
+---
+# roles/telemetry_receiver/tasks/post_deploy_checks.yml
+# Post-deploy checks for the telemetry receiver stack.
+# Runs at the end of telemetry_receiver.yml to verify the full chain:
+# receiver container health -> local direct POST -> DB write -> end-to-end HTTPS through Apache proxy.
+
+- name: Gather info on telemetry receiver container
+  community.docker.docker_container_info:
+    name: "{{ telemetry_receiver_app_container_name }}"
+  register: telemetry_app_info
+
+- name: Assert telemetry receiver container is running
+  ansible.builtin.assert:
+    that:
+      - telemetry_app_info.container is not none
+      - telemetry_app_info.container.State.Status == 'running'
+    fail_msg: >-
+      {{ telemetry_receiver_app_container_name }} is not running.
+      Status: {{ telemetry_app_info.container.State.Status | default('missing') }}
+
+- name: Assert telemetry receiver filesystem mount is accessible (broken mount namespace guard)
+  ansible.builtin.command:
+    cmd: docker exec {{ telemetry_receiver_app_container_name }} ls /var/www/html/index.php
+  register: telemetry_mount_check
+  changed_when: false
+  failed_when: telemetry_mount_check.rc != 0
+
+- name: Verify telemetry receiver rejects GET with 405 (method guard)
+  ansible.builtin.uri:
+    url: "http://{{ telemetry_receiver_probe_host }}:{{ telemetry_receiver_bind_port }}/"
+    method: GET
+    status_code:
+      - 405
+  changed_when: false
+
+- name: Generate telemetry post-deploy check install_id
+  ansible.builtin.set_fact:
+    telemetry_check_install_id: "ansible-check-{{ ansible_date_time.epoch }}"
+  changed_when: false
+
+- name: Verify telemetry receiver accepts POST and returns 204 (direct local)
+  ansible.builtin.uri:
+    url: "http://{{ telemetry_receiver_probe_host }}:{{ telemetry_receiver_bind_port }}/"
+    method: POST
+    body_format: json
+    body:
+      event_name: "install_attempt"
+      app_version: "ansible-post-deploy-check"
+      install_channel: "quickstart"
+      install_method: "virtualbox"
+      app_flavor: "gighive"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      install_id: "{{ telemetry_check_install_id }}"
+    status_code:
+      - 204
+  changed_when: false
+
+- name: Verify telemetry DB row was written for post-deploy check
+  ansible.builtin.command: >-
+    docker exec {{ telemetry_receiver_db_container_name }}
+    mysql -u {{ telemetry_receiver_db_user }} -p{{ telemetry_receiver_db_password }}
+    {{ telemetry_receiver_db_name }}
+    -sNe "SELECT COUNT(*) FROM {{ telemetry_receiver_log_table }} WHERE install_id='{{ telemetry_check_install_id }}';"
+  register: telemetry_db_row_check
+  changed_when: false
+  no_log: true
+
+- name: Assert telemetry DB row was written
+  ansible.builtin.assert:
+    that:
+      - (telemetry_db_row_check.stdout | trim | int) >= 1
+    fail_msg: >-
+      Expected at least 1 row in {{ telemetry_receiver_log_table }}
+      with install_id={{ telemetry_check_install_id }},
+      but found {{ telemetry_db_row_check.stdout | trim }}.
+
+- name: Generate telemetry end-to-end check install_id
+  ansible.builtin.set_fact:
+    telemetry_e2e_install_id: "site-check-{{ ansible_date_time.epoch }}"
+  changed_when: false
+
+- name: Verify end-to-end telemetry POST returns 204 through Apache proxy and Cloudflare
+  ansible.builtin.uri:
+    url: "https://{{ gighive_telemetry_fqdn | default('telemetry.gighive.app') }}/"
+    method: POST
+    body_format: json
+    body:
+      event_name: "install_attempt"
+      app_version: "ansible-e2e-check"
+      install_channel: "quickstart"
+      install_method: "virtualbox"
+      app_flavor: "gighive"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      install_id: "{{ telemetry_e2e_install_id }}"
+    status_code:
+      - 204
+  changed_when: false

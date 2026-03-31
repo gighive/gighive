@@ -566,7 +566,6 @@
             "/var/www/private/tus-hooks/finalized/{{ tus_upload_id }}.json"'
           changed_when: false
           failed_when: false
-          no_log: "{{ tus_checks_no_log }}"
       when: tus_cleanup_after_check | default(true)
 
   tags: [tus]
