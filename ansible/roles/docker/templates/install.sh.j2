@@ -206,10 +206,21 @@ APACHE_ENV_FILE="apache/externalConfigs/.env"
 MYSQL_ENV_FILE="mysql/externalConfigs/.env.mysql"
 
 # Patch user-supplied values into the pre-rendered .env shipped by the bundle
-_sed_escape() { printf '%s\n' "$1" | sed 's/[&|\\]/\\&/g'; }
-sed -i "s|^SITE_URL=.*|SITE_URL=$(_sed_escape "$SITE_URL")|"                               "$APACHE_ENV_FILE"
-sed -i "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=$(_sed_escape "$MYSQL_PASSWORD")|"             "$APACHE_ENV_FILE"
-sed -i "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=$(_sed_escape "$MYSQL_ROOT_PASSWORD")|" "$APACHE_ENV_FILE"
+_patch_env_key() {
+  local key="$1" val="$2" file="$3"
+  local tmp
+  tmp=$(mktemp)
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+      "${key}"=*) printf '%s=%s\n' "$key" "$val" ;;
+      *)          printf '%s\n'    "$line" ;;
+    esac
+  done < "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+_patch_env_key "SITE_URL"            "$SITE_URL"            "$APACHE_ENV_FILE"
+_patch_env_key "MYSQL_PASSWORD"      "$MYSQL_PASSWORD"      "$APACHE_ENV_FILE"
+_patch_env_key "MYSQL_ROOT_PASSWORD" "$MYSQL_ROOT_PASSWORD" "$APACHE_ENV_FILE"
 
 # Write mysql env
 cat > "$MYSQL_ENV_FILE" <<EOF

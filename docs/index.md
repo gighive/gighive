@@ -321,8 +321,19 @@ document.addEventListener('DOMContentLoaded', function() {
         </span>
       </div>
     </li>
+    <li style="padding-left: 0; margin-left: 0;">
+     <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
+       <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
+         <span>Quickstart Installation Video (for Mac):</span>
+         <a href="https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4"><img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac" style="width: 320px; height: auto;"></a>
+       </span>
+       <span style="display: inline-flex; align-items: center; justify-content: center; flex: 0 0 320px; text-align: center; min-height: 180px;">
+         <a href="https://share.google/aimode/h3XkjXbeJuDx0ztgI">How to Install Docker Desktop on a Mac</a>
+       </span>
+     </div>
+   </li>
   </ul>
-
+ 
 ### Why not just use YouTube?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
 - With build targets such as Azure or virtualbox, you have your choice on how to deploy Gighive.

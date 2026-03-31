@@ -109,6 +109,17 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
               <a href="https://staging.gighive.app/video/c4bd861d33bf97b1a2415b8f16325907dd4f72e9b60398c55219abd52ee1d13b.mp4"><img src="https://staging.gighive.app/video/thumbnails/c4bd861d33bf97b1a2415b8f16325907dd4f72e9b60398c55219abd52ee1d13b.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
             </span>
           </li>
+          <li>
+            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
+              <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
+                <span>Quickstart Installation Video (for Mac):</span>
+                <a href="https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4"><img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac" style="width: 320px; height: auto;"></a>
+              </span>
+              <span style="display: inline-flex; align-items: center; justify-content: center; flex: 0 0 320px; text-align: center; min-height: 180px;">
+                <a href="https://share.google/aimode/h3XkjXbeJuDx0ztgI">How to Install Docker Desktop on a Mac</a>
+              </span>
+            </div>
+          </li>
         </ul>
       </li>
       <li>Example of GigHive in Action: <a href="https://www.stormpigs.com">https://www.stormpigs.com</a>
