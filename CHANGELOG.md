@@ -1,10 +1,9 @@
 *** 
 releaseNotes20260331.txt
-Changes: Add telemetry implementation checks
+Changes: Add telemetry post_build_checks, fix deprecation warnings and update documentation
 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260331.log
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260331.log
-Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
+Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250330.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,14 +11,11 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   CHANGELOG.md
 	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
-	new file:   ansible/roles/telemetry_receiver/tasks/post_deploy_checks.yml
-	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	modified:   ansible/roles/telemetry_receiver/tasks/post_deploy_checks.yml
 
 TODO
-Product: Eventually get rid of the sp stuff like jam images in bundle
-Product: Update one-shot-bundle 
 Testing: App breaks on upload when changing to Messages 
 Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
 Problem: admin.php passwords doesn't use common min security requirements
@@ -35,7 +31,6 @@ App: not just designed for iPad, what does "not verified" on laptop mean?
 App: Share link feature in media page
 App: Is it worthwhile to have an embed feature?
 App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-Product: Should I only rollout the one-shot-bundle to my customers?
 Product: Update the licensing 
 Feature: Consider generic media player addition to database.php
 Feature: Should have "backup now" feature
@@ -49,10 +44,31 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+Maintenance: Eventually get rid of the sp stuff like jam images in bundle
 Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260331.txt
+Changes: Add telemetry implementation checks
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260331.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260331.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
+  ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260331.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/telemetry_receiver/tasks/main.yml
+	new file:   ansible/roles/telemetry_receiver/tasks/post_deploy_checks.yml
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
 
 *** 
 releaseNotes20260331.txt

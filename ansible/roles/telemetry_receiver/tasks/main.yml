@@ -51,6 +51,7 @@
     project_src: "{{ telemetry_receiver_home }}"
     project_name: "{{ telemetry_receiver_project_name }}"
     state: present
+    recreate: always
 
 - name: Wait for telemetry database container to accept connections
   ansible.builtin.command:

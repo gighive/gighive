@@ -35,7 +35,7 @@
 
 - name: Generate telemetry post-deploy check install_id
   ansible.builtin.set_fact:
-    telemetry_check_install_id: "ansible-check-{{ ansible_date_time.epoch }}"
+    telemetry_check_install_id: "ansible-check-{{ ansible_facts['date_time']['epoch'] }}"
   changed_when: false
 
 - name: Verify telemetry receiver accepts POST and returns 204 (direct local)
@@ -49,7 +49,7 @@
       install_channel: "quickstart"
       install_method: "virtualbox"
       app_flavor: "gighive"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
+      timestamp: "{{ ansible_facts['date_time']['iso8601'] }}"
       install_id: "{{ telemetry_check_install_id }}"
     status_code:
       - 204
@@ -76,7 +76,7 @@
 
 - name: Generate telemetry end-to-end check install_id
   ansible.builtin.set_fact:
-    telemetry_e2e_install_id: "site-check-{{ ansible_date_time.epoch }}"
+    telemetry_e2e_install_id: "site-check-{{ ansible_facts['date_time']['epoch'] }}"
   changed_when: false
 
 - name: Verify end-to-end telemetry POST returns 204 through Apache proxy and Cloudflare
@@ -90,7 +90,7 @@
       install_channel: "quickstart"
       install_method: "virtualbox"
       app_flavor: "gighive"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
+      timestamp: "{{ ansible_facts['date_time']['iso8601'] }}"
       install_id: "{{ telemetry_e2e_install_id }}"
     status_code:
       - 204
