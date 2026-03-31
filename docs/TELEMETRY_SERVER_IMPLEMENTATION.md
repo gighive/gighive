@@ -461,6 +461,66 @@ The MySQL container still mounts `./mysql/init` into `/docker-entrypoint-initdb.
 
 The explicit schema-apply task is marked with `no_log: true` so the MySQL root password is not exposed in Ansible output while executing the bootstrap SQL.
 
+## GigHive Apache Container Proxy Configuration
+
+The GigHive Apache container (`apacheWebServer`) is the TLS termination point for all `*.gighive.app` traffic including `telemetry.gighive.app`. Three changes are required to route telemetry traffic to the receiver. The first two are in the GigHive Ansible docker role templates; the third gates them to the staging host only.
+
+### Change 1: extra_hosts in docker-compose.yml.j2
+
+The Apache container must be able to resolve `host.docker.internal` so it can proxy requests to the telemetry receiver bound on the Docker host at port 8088.
+
+In `ansible/roles/docker/templates/docker-compose.yml.j2`, add `extra_hosts` to the `apacheWebServer` service:
+
+```yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
+
+### Change 2: Telemetry VirtualHost in default-ssl.conf.j2
+
+A dedicated `VirtualHost` block for `telemetry.gighive.app` must be appended to `ansible/roles/docker/templates/default-ssl.conf.j2`. It reuses the same wildcard SSL certificate (`*.gighive.app`) already in use by the main GigHive vhost.
+
+```apache
+<VirtualHost *:443>
+    ServerName {{ gighive_telemetry_fqdn | default('telemetry.gighive.app') }}
+
+    SSLEngine on
+    SSLCertificateFile {{ gighive_ssl_cert_file | default('/etc/ssl/certs/origin_cert.pem') }}
+    SSLCertificateKeyFile {{ gighive_ssl_key_file | default('/etc/ssl/private/origin_key.pem') }}
+    SSLProtocol {{ gighive_ssl_protocols | default('all -SSLv3 -TLSv1 -TLSv1.1 +TLSv1.3') }}
+    SSLCipherSuite {{ gighive_ssl_cipher_suite | default('HIGH:!aNULL:!MD5') }}
+    SSLHonorCipherOrder {{ gighive_ssl_honor_order | default('on') }}
+    Protocols {{ gighive_protocols | default('h2 http/1.1') }}
+
+    ProxyPreserveHost On
+    ProxyPass "/" "http://host.docker.internal:8088/"
+    ProxyPassReverse "/" "http://host.docker.internal:8088/"
+</VirtualHost>
+```
+
+`mod_proxy_http` is already active in the Apache container (the tusd proxy uses it). No additional module enablement is required.
+
+Cloudflare's `CF-IPCountry` header is forwarded automatically by `mod_proxy_http` and is read by the telemetry receiver as `HTTP_CF_IPCOUNTRY` for country code capture.
+
+### Change 3: gighive_enable_telemetry_proxy in group_vars/gighive/gighive.yml
+
+Both template changes (1 and 2) are gated on `gighive_enable_telemetry_proxy | default(false)`. This ensures the telemetry VirtualHost and `extra_hosts` entry are only rendered for the staging host and never applied to other GigHive environments (e.g. `gighive2`).
+
+Add the following to `ansible/inventories/group_vars/gighive/gighive.yml` in the installation tracking variable block:
+
+```yaml
+gighive_enable_telemetry_proxy: true
+```
+
+This variable is intentionally absent from `group_vars/gighive2/` and any other environment group_vars. Its absence causes the default (`false`) to apply, leaving those environments unaffected.
+
+After applying all three changes, re-run the staging Ansible playbook (`site.yml`) targeting the docker role:
+
+```bash
+ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
+  ansible/playbooks/site.yml --tags docker
+```
+
 ## Status
 
 - confirmed as the preferred initial deployment model

@@ -51,6 +51,7 @@ gighive_enable_installation_tracking_debug: false
 gighive_installation_tracking_timeout_seconds: 3
 gighive_install_channel: "full"
 gighive_install_method: "virtualbox"
+gighive_enable_telemetry_proxy: true
 
 ga4_measurement_id_defaultcodebase: ""
 ga4_measurement_id_gighive: "G-HBWR9ZZE3N"

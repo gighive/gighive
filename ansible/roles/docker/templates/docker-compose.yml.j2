@@ -19,6 +19,10 @@ services:
       - 127.0.0.11
       - 8.8.8.8
       - 1.1.1.1
+{% if gighive_enable_telemetry_proxy | default(false) %}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+{% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro

@@ -1,9 +1,11 @@
 *** 
-releaseNotes20260330.txt
-Changes: Make install.sh cross platform and update quickstart install instructions for mac
+releaseNotes20260331.txt
+Changes: Fix telemetry implementation proxy, fixed import* admin file admin priv protection
 
-Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250330.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260330.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260331.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260331.log
+Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
+  ansible/playbooks/site.yml --tags docker" ansible-playbook-telemetry-20250331.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,15 +14,17 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
-	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	modified:   ansible/roles/docker/templates/install.sh.j2
-	modified:   docs/index.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   docs/TELEMETRY_SERVER_IMPLEMENTATION.md
+	new file:   docs/refactor_admin_pages_move_to_folder.md
 
 TODO
 Product: Eventually get rid of the sp stuff like jam images in bundle
 Product: Update one-shot-bundle 
-Tutorial: Document upload_media with video (make sure sha2 password to destination is discussed and all the bugaboos) 
 Testing: App breaks on upload when changing to Messages 
 Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
 Problem: admin.php passwords doesn't use common min security requirements
@@ -52,9 +56,27 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
-Maintenance: cleaning the database won't clear out what has been uploaded to video and audio directories..should we add a function for this?
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260330.txt
+Changes: Make install.sh cross platform and update quickstart install instructions for mac
+
+Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20250330.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260330.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/install.sh.j2
+	modified:   docs/index.md
 
 *** 
 releaseNotes20260330.txt
