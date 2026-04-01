@@ -1,0 +1,26 @@
+GigHive — Dual License
+
+=== AGPL v3 (Open Source) ===
+
+GigHive is licensed under the GNU Affero General Public License v3.0 for:
+  - Personal use
+  - Self-hosted single-instance deployments
+  - Non-commercial or community use
+
+Full license text: https://www.gnu.org/licenses/agpl-3.0.txt
+
+AGPL v3 is protective: if you modify and run this code to offer a hosted
+service, you must also release your source code under AGPL v3.
+
+=== Commercial License ===
+
+A separate commercial license is required for:
+  - Multi-tenant SaaS hosting of GigHive
+  - Offering GigHive as part of a paid product or service
+  - Integrating GigHive into systems provided to clients as a hosted service
+  - Reselling or redistributing GigHive as a commercial product
+
+Without a commercial license, you may not use GigHive in any context that
+would otherwise trigger AGPL v3 obligations you do not wish to accept.
+
+For commercial licensing: contactus@gighive.app

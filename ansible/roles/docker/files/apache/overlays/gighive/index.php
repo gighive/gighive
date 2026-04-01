@@ -101,7 +101,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
         <ul>
           <li>
             <span style="display: inline-flex; align-items: center; gap: 8px; margin-right: 16px;">
-              <span>Quickstart Installation Video:</span>
+              <span>Quickstart Installation Video (for Linux):</span>
               <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4"><img src="https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png" alt="GigHive quickstart installation video" style="width: 320px; height: auto;"></a>
             </span>
           </li>
