@@ -315,10 +315,6 @@ document.addEventListener('DOMContentLoaded', function() {
           <span>Quickstart Installation Video:</span>
           <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4"><img src="https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png" alt="GigHive quickstart installation video" style="width: 320px; height: auto;"></a>
         </span>
-        <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
-          <span>Full Installation Video:</span>
-          <a href="https://staging.gighive.app/video/c4bd861d33bf97b1a2415b8f16325907dd4f72e9b60398c55219abd52ee1d13b.mp4"><img src="https://staging.gighive.app/video/thumbnails/c4bd861d33bf97b1a2415b8f16325907dd4f72e9b60398c55219abd52ee1d13b.png" alt="GigHive installation video" style="width: 320px; height: auto;"></a>
-        </span>
       </div>
     </li>
     <li style="padding-left: 0; margin-left: 0;">
