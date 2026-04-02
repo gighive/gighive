@@ -36,6 +36,10 @@ The upload API path already contains richer media probing behavior, while the ma
 
 That split creates inconsistent outcomes depending on how the media entered the system.
 
+The goal is to unify the write-path logic, not the HTTP endpoints. The two outer paths (upload API / TUS finalize vs. manifest add/reload) stay separate because they have legitimately different transport and batching concerns. What gets unified is the server-side ingestion service they both call — dedupe, metadata probing, field derivation, and record persistence.
+
+This refactor is explicitly a precursor, not the end goal. Once both paths share one canonical ingestion abstraction, the later Event/Asset hard cutover only needs to port one write path instead of two partially-duplicated ones. It reduces drift risk and makes the cutover cleaner.
+
 ## Decision
 Pursue a separate refactor that unifies the ingestion core while allowing different outer entrypoints to remain in place.
 
@@ -206,3 +210,116 @@ Expected benefit to the later remodel:
 The recommended direction is to unify the ingestion core, not necessarily collapse every ingestion workflow into one outer endpoint.
 
 This provides architectural value now, reduces duplication and drift, and creates a better foundation for the planned Event/Asset remodel.
+
+## Current Ingestion Architecture
+
+The diagram below shows all active ingestion paths from both the regular user and admin perspectives, mapped to the six upload_tests coverage areas.
+
+Border colors indicate test status:
+- Green — currently tested
+- Blue — proposed new test (test_6)
+- Amber — test exists but flag must be enabled (`run_upload_media_by_hash: true`)
+- Red — not tested separately (thin wrapper; core logic covered by test_6)
+- Purple — `UploadService` layer (upload path, richer)
+- Orange — manifest worker layer (direct insert path, leaner — primary unification target)
+
+```mermaid
+%%{init: {'theme': 'default'}}%%
+flowchart LR
+    classDef tested   fill:#ffffff,stroke:#28a745,stroke-width:2px,color:#000000
+    classDef newtest  fill:#ffffff,stroke:#0366d6,stroke-width:2px,color:#000000
+    classDef disabled fill:#ffffff,stroke:#856404,stroke-width:2px,color:#000000
+    classDef notested fill:#ffffff,stroke:#cc0000,stroke-width:2px,color:#000000
+    classDef actor    fill:#ffffff,stroke:#6c757d,stroke-width:2px,color:#000000
+    classDef svc      fill:#ffffff,stroke:#6f42c1,stroke-width:2px,color:#000000
+    classDef worker   fill:#ffffff,stroke:#e67e22,stroke-width:2px,color:#000000
+    classDef db       fill:#ffffff,stroke:#495057,stroke-width:2px,color:#000000
+
+    subgraph ActorCol ["Actors"]
+        direction TB
+        RegUser(["👤 Regular User\nbrowser / mobile app"]):::actor
+        AdminUser(["🔧 Admin\nadmin.php\nupload_media_by_hash.py"]):::actor
+    end
+
+    subgraph EndpointCol ["HTTP Endpoints"]
+        direction TB
+        E1["POST /api/uploads\n─────────────────\ntest_6  🆕 proposed"]:::newtest
+        E2["POST /api/uploads/finalize\n─────────────────\nnot tested separately\nthin wrapper over handleUpload"]:::notested
+        E3["/import_database.php\n─────────────────\ntest_3a  ✓"]:::tested
+        E4["/import_normalized.php\n─────────────────\ntest_3b  ✓"]:::tested
+        E5["/import_manifest_add_async.php\n─────────────────\ntest_5  ✓  step 1"]:::tested
+        E6["/import_manifest_reload_async.php\n─────────────────\ntest_4  ✓  step 1"]:::tested
+        E7["/import_manifest_upload_finalize.php\n─────────────────\ntest_4/5  step 2\n⚠ needs run_upload_media_by_hash: true"]:::disabled
+    end
+
+    subgraph SvcCol ["Service / Worker Layer"]
+        direction TB
+        S1["UploadService::handleUpload\ntype infer · getID3 then ffprobe\ndedupe · FileRepository::create\nlabel link  event_label vs song"]:::svc
+        S2["UploadService::finalizeTusUpload\nread tus-data · parse hook\ncalls handleUpload"]:::svc
+        S3["UploadService::finalizeManifestTusUpload\nverify checksum · copy file to disk\nprobe · UPDATE existing files row"]:::svc
+        W1["import_manifest_worker.php\ndirect INSERT sessions + files\n⚠ no probing\n⚠ always song type\n⚠ ensureSession missing location/rating/notes"]:::worker
+    end
+
+    DB[("MySQL\nfiles · sessions\nsongs · song_files")]:::db
+
+    RegUser --> E1
+    RegUser --> E2
+    AdminUser --> E3
+    AdminUser --> E4
+    AdminUser --> E5
+    AdminUser --> E6
+    AdminUser --"TUS client"--> E7
+
+    E1 --> S1
+    E2 --> S2 --> S1
+    E3 --"direct INSERT"--> DB
+    E4 --"direct INSERT"--> DB
+    E5 --> W1
+    E6 --> W1
+    W1 --"direct INSERT"--> DB
+    E7 --> S3
+    S1 --"INSERT"--> DB
+    S3 --"UPDATE"--> DB
+```
+
+## Testing the Changes
+
+All upload ingestion paths covered by this refactor are exercised by the `upload_tests` Ansible role (`ansible/roles/upload_tests`). The role tests each ingestion path in isolation (separate variants) and verifies DB invariants after each run.
+
+### Playbook command
+
+```sh
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260402.log
+```
+
+The `script` wrapper captures full terminal output (including color/timing) to the named log file while also printing to the terminal.
+
+### Test coverage per ingestion path
+
+| Variant | Section | Ingestion path tested |
+|---|---|---|
+| `3a_legacy_import_gighive` | 3A | `/import_database.php` → direct INSERT |
+| `3a_legacy_import_defaultcodebase` | 3A | `/import_database.php` → direct INSERT (defaultcodebase flavor) |
+| `3b_normalized_import_gighive` | 3B | `/import_normalized.php` → direct INSERT |
+| `3b_normalized_import_defaultcodebase` | 3B | `/import_normalized.php` → direct INSERT (defaultcodebase flavor) |
+| `4_manifest_reload` | 4 | `/import_manifest_reload_async.php` → worker → direct INSERT (step 1); `/import_manifest_upload_finalize.php` → `finalizeManifestTusUpload` (step 2, requires `upload_test_run_upload_media_by_hash: true`) |
+| `6_direct_upload_api` | 6 | `POST /api/uploads` → `UploadService::handleUpload` |
+| `5_manifest_add` | 5 | `/import_manifest_add_async.php` → worker → direct INSERT (step 1); step 2 same as test_4 |
+
+### Enabling all paths
+
+Two flags must be set in `ansible/inventories/group_vars/gighive2/gighive2.yml` to exercise the full set:
+
+```yaml
+upload_test_run_upload_media_by_hash: true   # enables step 2 (TUS finalize) for tests 4 and 5
+run_upload_tests: true
+allow_destructive: true
+```
+
+### Variant ordering constraint
+
+`6_direct_upload_api` must appear **before** `5_manifest_add` in `upload_test_variants`. Test 5 bulk-inserts all audio files from `audio_reduced` into the DB (including the test_6 fixture file). If test_6 runs after test_5, `UploadService::handleUpload` rejects the upload as a duplicate checksum (409) and the test fails.
+
+### What is not yet covered
+
+- `POST /api/uploads/finalize` (`UploadService::finalizeTusUpload`) — thin wrapper over `handleUpload`; core logic covered by test_6, but the TUS finalize entry point itself has no dedicated variant yet.

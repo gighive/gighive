@@ -69,7 +69,7 @@ These docs explicitly state they are deferred or are future-only planning docume
 
 | Doc | Key finding |
 |---|---|
-| `refactor_admin_pages_move_to_folder.md` | No `webroot/admin/` directory exists. Interim `LocationMatch` block still present in `default-ssl.conf.j2` with comment "will move to /admin/ in a future refactor" |
+| `refactor_preasset_librarian_admin_pages_move_to_protected_folder.md` | No `webroot/admin/` directory exists. Interim `LocationMatch` block still present in `default-ssl.conf.j2` with comment "will move to /admin/ in a future refactor" |
 | `refactor_convert_legacy_database_csv_python.md` | `convert_legacy_database_csv_to_normalized.py` still reads `gighive_upload_audio_exts`/`gighive_upload_video_exts` from `group_vars` YAML only — no `UPLOAD_AUDIO_EXTS_JSON`/`UPLOAD_VIDEO_EXTS_JSON` env var support |
 | `refactor_db_database_admin_soft_deletes.md` | No `soft_delete_media_files.php` or `restore_soft_deleted_media_files.php` found in webroot |
 | `refactor_preasset_librarian_db_ui_based_on_personas.md` | No capability-flag extraction or persona-split view layer implemented |
@@ -86,7 +86,7 @@ These docs explicitly state they are deferred or are future-only planning docume
 | Status | Doc |
 |---|---|
 | ✅ Done | `refactored_one_shot_bundle_remove_vestigial.md` |
-| ✅ Done | `refactored_upload_tests.md` |
+| ✅ Done | `admin_upload_tests_refactored.md` |
 | ✅ Done (core) | `refactored_db_migrations_backup_before.md` |
 | 🔶 Partial | `refactored_gighive_home_and_scripts_dir.md` |
 | 🔶 Partial | `refactored_admin_page.md` |
@@ -95,7 +95,7 @@ These docs explicitly state they are deferred or are future-only planning docume
 | ⏸️ Deferred | `refactor_admin_45_last_steps.md` |
 | ⏸️ Deferred | `refactor_edge_aware_authentication_model.md` |
 | ⏸️ Deferred | `refactor_version_number_to_semantic.md` |
-| ❌ Not done | `refactor_admin_pages_move_to_folder.md` |
+| ❌ Not done | `refactor_preasset_librarian_admin_pages_move_to_protected_folder.md` |
 | ❌ Not done | `refactor_convert_legacy_database_csv_python.md` |
 | ❌ Not done | `refactor_db_database_admin_soft_deletes.md` |
 | ❌ Not done | `refactor_preasset_librarian_db_ui_based_on_personas.md` |

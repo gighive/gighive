@@ -41,3 +41,11 @@ The `upload_tests` role is intentionally protected by multiple independent “lo
   - If true, skip running the configured variants and only perform the post-run normalized restore.
 - `upload_test_restore_db_after`
   - If true, run the post-run normalized restore at the end of a normal test run (when destructive variants were selected).
+- `upload_test_run_upload_media_by_hash`
+  - If true, the Step 2 helper (`run_upload_media_by_hash.yml`) is activated after test_4 and test_5, running `upload_media_by_hash.py` to rsync-copy source files to the VM and backfill `duration_seconds` / `media_info` in the DB. Default `false`; set `true` in `gighive2.yml` to enable manifest Step 2 coverage.
+- `upload_test_direct_upload_fixture`
+  - Absolute path to a single audio or video file on the control host used by `test_6` (direct upload API test). Must be a file that is **not yet in the DB when test_6 runs**. Currently set to the first MP3 in `audio_reduced`. **Ordering constraint:** `6_direct_upload_api` must appear in `upload_test_variants` before `5_manifest_add`; test_5 bulk-inserts all audio files from `audio_reduced` (including the fixture) into the DB, which would cause test_6 to receive a 409 Duplicate Upload.
+- `upload_test_manifest_source_roots_reload`
+  - List of source root directories for the manifest reload test (test_4). Typically points to `video_reduced`.
+- `upload_test_manifest_source_roots_add`
+  - List of source root directories for the manifest add test (test_5). Typically points to `audio_reduced`.

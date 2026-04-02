@@ -69,12 +69,12 @@ reduced_audio: true
 # --------------------------------------------------------------------
 # upload_tests role
 # --------------------------------------------------------------------
-run_upload_tests: false
+run_upload_tests: true
 
 upload_test_restore_only: false
 upload_test_restore_db_after: true
 
-allow_destructive: false
+allow_destructive: true
 upload_test_destructive_confirm: true
 
 upload_tests_csv_dir: "{{ repo_root }}/ansible/fixtures/upload_tests/csv"
@@ -87,6 +87,9 @@ upload_test_manifest_source_roots_add:
 upload_test_event_date: "{{ ansible_date_time.date }}"
 upload_test_org_name: "default"
 upload_test_event_type: "band"
+upload_test_run_upload_media_by_hash: true
+upload_test_ssh_target: "{{ ansible_user }}@{{ gighive_host }}"
+upload_test_direct_upload_fixture: "{{ audio_reduced }}/007e8780a31bc28ce5a2aa1161748ad7b8864f613697459694d70a3689ee61ca.mp3"
 
 upload_test_variants:
   - name: "3a_legacy_import_gighive"
@@ -103,11 +106,10 @@ upload_test_variants:
     app_flavor: "defaultcodebase"
   - name: "4_manifest_reload"
     section: "4"
+  - name: "6_direct_upload_api"
+    section: "6"
   - name: "5_manifest_add"
     section: "5"
-
-upload_test_run_upload_media_by_hash: false
-upload_test_ssh_target: "{{ ansible_user }}@{{ gighive_host }}"
 
 # --------------------------------------------------------------------
 # Supported media formats (centralized for PHP upload validation/inference)

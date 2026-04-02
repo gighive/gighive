@@ -2,11 +2,11 @@
 
 This document tracks refactors for the `ansible/roles/upload_tests` role to reduce duplicated code, improve maintainability, and align with Ansible best practices and idempotency principles.
 
-**Status:** Stages 1, 2, and Stage 3 (D + E) have been implemented and tested.
+**Status:** Stages 1, 2, and Stage 3 (D + E) have been implemented and tested. test_6 (direct upload API) added and passing.
 
 ## Goals
 
-- Reduce duplication across `test_3a.yml`, `test_3b.yml`, `test_4.yml`, `test_5.yml`.
+- Reduce duplication across `test_3a.yml`, `test_3b.yml`, `test_4.yml`, `test_5.yml`, `test_6.yml`.
 - Keep the harness idempotent (repeatable runs converge; “test” tasks remain `changed_when: false`).
 - Centralize repeated logic into reusable `include_tasks` helpers.
 - Minimize risk: prefer staged refactors with small diffs.
@@ -26,8 +26,14 @@ Location: `ansible/roles/upload_tests/tasks/`
 - `test_3b.yml` (normalized CSV import)
 - `test_4.yml` (manifest reload async)
 - `test_5.yml` (manifest add async)
+- `test_6.yml` (direct upload API — `POST /api/uploads`)
 - `poll_manifest_job.yml`
 - `assert_db_invariants.yml`
+- `query_db_counts.yml`
+- `generate_manifest.yml`
+- `run_upload_media_by_hash.yml`
+- `extract_import_job_id.yml`
+- `derive_expected_files_from_prepped_csv.yml`
 
 ## Refactor status (what changed in the implementation)
 
@@ -76,6 +82,29 @@ Goal: centralize import job id extraction shared by 3A and 3B.
 Notes:
 - The helper computes the step message safely and extracts job ids using the same regex used previously.
 - The helper includes debug output when extraction fails and asserts the job id is non-empty.
+
+### Added: test_6 (direct upload API)
+
+Goal: cover `POST /api/uploads` → `UploadService::handleUpload` (the regular-user upload path), previously untested.
+
+- Added: `ansible/roles/upload_tests/tasks/test_6.yml`
+- New group_vars (`gighive2.yml`):
+  - `upload_test_direct_upload_fixture` — path to a single MP3 fixture from `audio_reduced`
+  - `6_direct_upload_api` entry in `upload_test_variants` (placed before `5_manifest_add`)
+
+What it tests:
+- POSTs a multipart file to `{{ gighive_base_url }}/api/uploads` with `event_date`, `org_name`, `event_type`, `label`
+- Asserts response has `id > 0`, `file_type in [audio, video]`, `checksum_sha256`, `session_id`
+- Asserts `files_count` increased by exactly 1 in the DB
+- Asserts `sessions_count` did not decrease
+
+Section `6` is **not** destructive (additive only); it does not trigger the destructive-confirm gate in `main.yml`.
+
+**Ordering constraint:** `6_direct_upload_api` must appear before `5_manifest_add` in `upload_test_variants`. test_5 bulk-inserts all audio files from `audio_reduced` (including the fixture) via the manifest path. If test_6 runs after test_5, `handleUpload` finds the existing sha256 and returns 409 Duplicate Upload, causing the `id is defined` assertion to fail.
+
+### Bug fix: `run_upload_media_by_hash.yml` — `--db-host`
+
+`upload_media_by_hash.py` runs on `delegate_to: localhost` (Ansible control host). The previous `--db-host {{ mysql_db_host }}` passed `mysqlServer`, a Docker-internal container name unreachable from the control host. Fixed to `--db-host {{ ansible_host }}` (the VM's external IP). MySQL port 3306 is bound to the VM host interface via `ports: - "3306:3306"` in `docker-compose.yml.j2`, so the control host can connect directly.
 
 ### Implemented: Stage 3E (E)
 
@@ -211,7 +240,10 @@ Inputs:
 Uses existing vars:
 - `repo_root`
 - `upload_test_ssh_target`
-- `mysql_db_host`, `mysql_user`, `mysql_appuser_password`, `mysql_database`
+- `ansible_host` (VM external IP — used for `--db-host`; MySQL port 3306 is exposed from Docker to the VM host)
+- `mysql_user`, `mysql_appuser_password`, `mysql_database`
+
+Note: `mysql_db_host` (`mysqlServer`) is **not** used here. It is a Docker-internal container name only reachable from within the VM's Docker network.
 
 ### `query_db_counts.yml`
 
@@ -254,6 +286,7 @@ When refactoring, run in this order to limit variables:
 - Run 3A only
 - Run 3B only
 - Run 4 only
+- Run 6 only (before 5 — see ordering constraint above)
 - Run 5 only
 - Run full suite
 
@@ -261,6 +294,8 @@ Then confirm:
 - same pass/fail behavior as pre-refactor
 - same final DB invariants
 - restore logic behavior unchanged
+- test_6 `files_count` assertion passes (+1 exactly)
+- `run_upload_media_by_hash` step completes without `Unknown MySQL server host` error
 
 ## Decision points to defer
 

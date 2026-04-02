@@ -1,0 +1,71 @@
+---
+- name: Upload tests 6 - capture DB counts before
+  ansible.builtin.include_tasks: query_db_counts.yml
+  vars:
+    upload_tests_db_counts_prefix: upload_tests_db_before_6
+
+- name: Upload tests 6 - POST /api/uploads (direct upload)
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -sS
+      - -k
+      - -u
+      - "{{ admin_user }}:{{ gighive_admin_password }}"
+      - -F
+      - "file=@{{ upload_test_direct_upload_fixture }}"
+      - -F
+      - "event_date={{ upload_test_event_date }}"
+      - -F
+      - "org_name={{ upload_test_org_name }}"
+      - -F
+      - "event_type={{ upload_test_event_type }}"
+      - -F
+      - "label=test_direct_upload"
+      - "{{ gighive_base_url }}/api/uploads"
+  register: upload_tests_6_http
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Upload tests 6 - parse response JSON
+  ansible.builtin.set_fact:
+    upload_tests_6_resp: "{{ upload_tests_6_http.stdout | from_json }}"
+
+- name: Upload tests 6 - debug response
+  ansible.builtin.debug:
+    msg:
+      id: "{{ upload_tests_6_resp.id | default('') }}"
+      file_name: "{{ upload_tests_6_resp.file_name | default('') }}"
+      file_type: "{{ upload_tests_6_resp.file_type | default('') }}"
+      checksum_sha256: "{{ upload_tests_6_resp.checksum_sha256 | default('') }}"
+      session_id: "{{ upload_tests_6_resp.session_id | default('') }}"
+      duration_seconds: "{{ upload_tests_6_resp.duration_seconds | default('') }}"
+
+- name: Upload tests 6 - assert response fields
+  ansible.builtin.assert:
+    that:
+      - upload_tests_6_resp.id is defined
+      - upload_tests_6_resp.id | int > 0
+      - upload_tests_6_resp.file_type in ['audio', 'video']
+      - upload_tests_6_resp.checksum_sha256 is defined
+      - upload_tests_6_resp.session_id is defined
+
+- name: Upload tests 6 - capture DB counts after
+  ansible.builtin.include_tasks: query_db_counts.yml
+  vars:
+    upload_tests_db_counts_prefix: upload_tests_db_after_6
+
+- name: Upload tests 6 - assert files count increased by exactly 1
+  ansible.builtin.assert:
+    that:
+      - (upload_tests_db_after_6_files_count | int) == (upload_tests_db_before_6_files_count | int) + 1
+    fail_msg: >-
+      files count did not increase by 1:
+      before={{ upload_tests_db_before_6_files_count }}
+      after={{ upload_tests_db_after_6_files_count }}
+
+- name: Upload tests 6 - assert sessions count did not decrease
+  ansible.builtin.assert:
+    that:
+      - (upload_tests_db_after_6_sessions_count | int) >= (upload_tests_db_before_6_sessions_count | int)

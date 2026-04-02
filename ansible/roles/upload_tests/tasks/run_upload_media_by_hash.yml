@@ -11,7 +11,7 @@
       - --ssh-target
       - "{{ upload_test_ssh_target }}"
       - --db-host
-      - "{{ mysql_db_host }}"
+      - "{{ ansible_host }}"
       - --db-user
       - "{{ mysql_user }}"
       - --db-password
