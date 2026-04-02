@@ -180,4 +180,4 @@ A later architectural step should unify the upload API and manifest import write
 
 That follow-up plan is documented in:
 
-- `docs/refactor_unified_ingestion_core.md`
+- `docs/refactor_preasset_librarian_unified_ingestion_core.md`

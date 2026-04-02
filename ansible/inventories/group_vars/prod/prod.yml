@@ -381,7 +381,7 @@ upload_max_mb: 6144
 
 database_pagination_threshold: 750
 
-one_shot_bundle_bundle_dir: "{{ repo_root }}/ansible/.tmp/one_shot_bundle/gighive-one-shot-bundle"
+one_shot_bundle_bundle_dir: "{{ repo_root }}/gighive-one-shot-bundle"
 serve_one_shot_installer_downloads: false
 
 # One-shot bundle input monitoring

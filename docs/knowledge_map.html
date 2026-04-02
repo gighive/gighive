@@ -519,6 +519,9 @@
               { id: "resize-request", label: "resizeRequestInstructions.md", kind: "document", concern: "infrastructure", type: "howto", lifecycle: "active", audience: ["operator"], aspect: "non_functional", href: "./resizeRequestInstructions.html" },
               { id: "autostart-vm", label: "autostart_vm_implementation.md", kind: "document", concern: "infrastructure", type: "howto", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./autostart_vm_implementation.html" }
             ] },
+            { id: "infrastructure-runbook", label: "Runbook", kind: "type", type: "runbook", children: [
+              { id: "docker-autorestart", label: "process_docker_autorestart_containers.md", kind: "document", concern: "infrastructure", type: "runbook", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./process_docker_autorestart_containers.html" }
+            ] },
             { id: "infrastructure-change", label: "Change", kind: "type", type: "change", children: [
               { id: "docker-image-build-change", label: "DOCKER_IMAGE_BUILD_CHANGE.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./DOCKER_IMAGE_BUILD_CHANGE.html" },
               { id: "refactored-home", label: "refactored_gighive_home_and_scripts_dir.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_gighive_home_and_scripts_dir.html" }
@@ -596,11 +599,11 @@
             { id: "database-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "db-simplification", label: "DATABASE_LOAD_METHODS_SIMPLIFICATION.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./DATABASE_LOAD_METHODS_SIMPLIFICATION.html" },
               { id: "librarian-event", label: "pr_librarianAsset_musicianEvent.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./pr_librarianAsset_musicianEvent.html" },
-              { id: "db-media-created-at", label: "db_update_media_created.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./db_update_media_created.html" },
-              { id: "db-ui-personas-refactor", label: "refactor_db_ui_based_on_personas.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./refactor_db_ui_based_on_personas.html" },
+              { id: "db-media-created-at", label: "refactor_preasset_librarian_db_update_media_created.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_preasset_librarian_db_update_media_created.html" },
+              { id: "db-ui-personas-refactor", label: "refactor_preasset_librarian_db_ui_based_on_personas.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./refactor_preasset_librarian_db_ui_based_on_personas.html" },
               { id: "db-fix-event-metadata-duplication", label: "db_fix_event_metadata_duplication.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./db_fix_event_metadata_duplication.html" },
               { id: "questions-librarian-musician", label: "questions_for_librarianAsset_musicianSession_decision.md", kind: "document", concern: "database", type: "proposal", lifecycle: "historical", audience: ["developer", "architect"], aspect: "mixed", href: "./questions_for_librarianAsset_musicianSession_decision.html" },
-              { id: "refactor-add-db-migrations", label: "refactor_add_db_migrations_backup_before.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_add_db_migrations_backup_before.html" },
+              { id: "refactor-add-db-migrations", label: "refactored_db_migrations_backup_before.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_db_migrations_backup_before.html" },
               { id: "refactor-convert-legacy-csv-python", label: "refactor_convert_legacy_database_csv_python.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactor_convert_legacy_database_csv_python.html" },
               { id: "refactor-db-soft-deletes", label: "refactor_db_database_admin_soft_deletes.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "admin"], aspect: "functional", href: "./refactor_db_database_admin_soft_deletes.html" }
             ] },
@@ -634,8 +637,8 @@
               { id: "admin-media-import", label: "feature_admin_upload_from_manifest_page_design.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "historical", audience: ["developer", "admin", "architect"], aspect: "functional", href: "./feature_admin_upload_from_manifest_page_design.html" },
               { id: "tus-guide", label: "tus_implementation_guide.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "operator"], aspect: "mixed", href: "./tus_implementation_guide.html" },
               { id: "tus-iphone", label: "tus_implementation_iphone.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./tus_implementation_iphone.html" },
-              { id: "upload-tests-refactor", label: "refactor_upload_tests.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "qa"], aspect: "mixed", href: "./refactor_upload_tests.html" },
-              { id: "unified-ingestion-core", label: "refactor_unified_ingestion_core.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_unified_ingestion_core.html" },
+              { id: "upload-tests-refactor", label: "refactored_upload_tests.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "qa"], aspect: "mixed", href: "./refactored_upload_tests.html" },
+              { id: "unified-ingestion-core", label: "refactor_preasset_librarian_unified_ingestion_core.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_preasset_librarian_unified_ingestion_core.html" },
               { id: "azure-blob-storage", label: "pr_azure_blob_storage_integration.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "operator"], aspect: "mixed", href: "./pr_azure_blob_storage_integration.html" },
               { id: "pr-upload-testing", label: "pr_upload_testing.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "qa"], aspect: "mixed", href: "./pr_upload_testing.html" }
             ] },
@@ -771,8 +774,8 @@
             { id: "api-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "api-cleanup", label: "POTENTIAL_API_CLEANUP_IF_DESIRED.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./POTENTIAL_API_CLEANUP_IF_DESIRED.html" },
               { id: "ai-platform", label: "ai_intelligence_platform.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./ai_intelligence_platform.html" },
-              { id: "refactor-admin-page", label: "refactor_admin_page.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_admin_page.html" },
-              { id: "refactor-fetch-media-lists", label: "refactor_fetch_media_lists.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_fetch_media_lists.html" },
+              { id: "refactor-admin-page", label: "refactored_admin_page.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactored_admin_page.html" },
+              { id: "refactor-fetch-media-lists", label: "refactor_preasset_librarian_fetch_media_lists.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_preasset_librarian_fetch_media_lists.html" },
               { id: "remove-network-progress-upload", label: "to_remove_NetworkProgressUploadClient.md", kind: "document", concern: "api", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "functional", href: "./to_remove_NetworkProgressUploadClient.html" }
             ] }
           ]
@@ -823,7 +826,7 @@
               { id: "telemetry-db-time-mismatch", label: "TELEMETRY_DB_TIME_MISMATCH.md", kind: "document", concern: "observability", type: "debug", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./TELEMETRY_DB_TIME_MISMATCH.html" }
             ] },
             { id: "observability-feature", label: "Feature", kind: "type", type: "feature", children: [
-              { id: "ga-feature-mod", label: "media_google_analytics_feature_mod.md", kind: "document", concern: "observability", type: "feature", lifecycle: "proposed", audience: ["developer", "admin"], aspect: "mixed", href: "./media_google_analytics_feature_mod.html" }
+              { id: "ga-feature-mod", label: "media_google_analytics_event_tracking.md", kind: "document", concern: "observability", type: "feature", lifecycle: "proposed", audience: ["developer", "admin"], aspect: "mixed", href: "./media_google_analytics_event_tracking.html" }
             ] }
           ]
         },

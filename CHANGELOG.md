@@ -1,10 +1,13 @@
 *** 
-releaseNotes20260331.txt
-Changes: Remove full build from readme and index pages
+releaseNotes20260401.txt
+Changes: Docs update and prod.yml sync 
 
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260401.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
-Last run (dev: rebuild bundle): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260401.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260401.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260401.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -13,11 +16,28 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
-	modified:   docs/README.md
-	modified:   docs/index.md
+	new file:   LICENSE
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	renamed:    docs/ai_intelligence_platform.md -> docs/feature_ai_intelligence_platform.md
+	renamed:    docs/addToDatabaseFeature.md -> docs/feature_db_add_to.md
+	renamed:    docs/feature_edit_database_interactively.md -> docs/feature_edit_database_interactively_completed.md
+	modified:   docs/knowledge_map.html
+	renamed:    docs/media_google_analytics_feature_mod.md -> docs/media_google_analytics_event_tracking.md
+	new file:   docs/process_docker_autorestart_containers.md
+	renamed:    docs/refactor_admin_pages_move_to_folder.md -> docs/refactor_admin_pages_move_to_protected_folder.md
+	renamed:    docs/refactor_db_ui_based_on_personas.md -> docs/refactor_preasset_librarian_db_ui_based_on_personas.md
+	renamed:    docs/db_update_media_created.md -> docs/refactor_preasset_librarian_db_update_media_created.md
+	renamed:    docs/refactor_fetch_media_lists.md -> docs/refactor_preasset_librarian_fetch_media_lists.md
+	renamed:    docs/refactor_unified_ingestion_core.md -> docs/refactor_preasset_librarian_unified_ingestion_core.md
+	new file:   docs/refactor_status_as_of_20260331.md
+	renamed:    docs/refactor_admin_page.md -> docs/refactored_admin_page.md
+	renamed:    docs/refactor_add_db_migrations_backup_before.md -> docs/refactored_db_migrations_backup_before.md
+	renamed:    docs/refactor_one_shot_bundle_remove_vestigial.md -> docs/refactored_one_shot_bundle_remove_vestigial.md
+	renamed:    docs/refactor_upload_tests.md -> docs/refactored_upload_tests.md
+	modified:   user-prompts.md
 
 TODO
+Next: db changes for media_create_dt and lat/long
 Testing: App breaks on upload when changing to Messages 
 Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
 Problem: admin.php passwords doesn't use common min security requirements
@@ -27,8 +47,7 @@ Db: database table name change to genericize songs
 App: Move search to top in database
 App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
 App: Can i provide a link to the Media Details page in the app?
-App: Bolster search fields for 'pigs version
-App: Can i skin the app based on domain?
+App/Web: skin the app based on domain?
 App: not just designed for iPad, what does "not verified" on laptop mean?
 App: Share link feature in media page
 App: Is it worthwhile to have an embed feature?
@@ -51,6 +70,43 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260401.txt
+Changes: Remove full build from readme and index pages #2
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260401.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	new file:   ansible/roles/docker/files/one_shot_bundle/LICENSE
+	modified:   docs/PREREQS.md
+	modified:   docs/index.md
+
+*** 
+releaseNotes20260401.txt
+Changes: Remove full build from readme and index pages
+
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260401.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   docs/README.md
+	modified:   docs/index.md
 
 *** 
 releaseNotes20260331.txt
@@ -78,8 +134,7 @@ Changes: Add telemetry implementation checks
 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260331.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260331.log
-Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml \
-  ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260331.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260331.log
 
 sodo@pop-os:~/gighive$ git status
 On branch master
