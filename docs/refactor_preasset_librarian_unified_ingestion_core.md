@@ -217,11 +217,13 @@ The diagram below shows all active ingestion paths from both the regular user an
 
 Border colors indicate test status:
 - Green — currently tested
-- Blue — proposed new test (test_6)
 - Amber — test exists but flag must be enabled (`run_upload_media_by_hash: true`)
 - Red — not tested separately (thin wrapper; core logic covered by test_6)
 - Purple — `UploadService` layer (upload path, richer)
 - Orange — manifest worker layer (direct insert path, leaner — primary unification target)
+- Gold/yellow (dashed border) — **planned Unified Ingestion Core** (Phases 2–4 convergence target)
+
+Edges marked **✗** are the flows the unified ingestion core will replace or harmonize.
 
 ```mermaid
 %%{init: {'theme': 'default'}}%%
@@ -234,6 +236,7 @@ flowchart LR
     classDef svc      fill:#ffffff,stroke:#6f42c1,stroke-width:2px,color:#000000
     classDef worker   fill:#ffffff,stroke:#e67e22,stroke-width:2px,color:#000000
     classDef db       fill:#ffffff,stroke:#495057,stroke-width:2px,color:#000000
+    classDef planned  fill:#fff9c4,stroke:#f39c12,stroke-width:3px,stroke-dasharray:6 3,color:#000000
 
     subgraph ActorCol ["Actors"]
         direction TB
@@ -243,7 +246,7 @@ flowchart LR
 
     subgraph EndpointCol ["HTTP Endpoints"]
         direction TB
-        E1["POST /api/uploads\n─────────────────\ntest_6  🆕 proposed"]:::newtest
+        E1["POST /api/uploads\n─────────────────\ntest_6  ✓"]:::tested
         E2["POST /api/uploads/finalize\n─────────────────\nnot tested separately\nthin wrapper over handleUpload"]:::notested
         E3["/import_database.php\n─────────────────\ntest_3a  ✓"]:::tested
         E4["/import_normalized.php\n─────────────────\ntest_3b  ✓"]:::tested
@@ -258,6 +261,7 @@ flowchart LR
         S2["UploadService::finalizeTusUpload\nread tus-data · parse hook\ncalls handleUpload"]:::svc
         S3["UploadService::finalizeManifestTusUpload\nverify checksum · copy file to disk\nprobe · UPDATE existing files row"]:::svc
         W1["import_manifest_worker.php\ndirect INSERT sessions + files\n⚠ no probing\n⚠ always song type\n⚠ ensureSession missing location/rating/notes"]:::worker
+        UC["🎯 Unified Ingestion Core\n─────────────────\nPhases 2–4 convergence target\nS1 becomes canonical impl\nW1 + S3 will delegate here"]:::planned
     end
 
     DB[("MySQL\nfiles · sessions\nsongs · song_files")]:::db
@@ -272,14 +276,19 @@ flowchart LR
 
     E1 --> S1
     E2 --> S2 --> S1
-    E3 --"direct INSERT"--> DB
-    E4 --"direct INSERT"--> DB
+    E3 --"direct INSERT\n(Phase 5 target)"--> DB
+    E4 --"direct INSERT\n(Phase 5 target)"--> DB
     E5 --> W1
     E6 --> W1
-    W1 --"direct INSERT"--> DB
+    W1 --"✗ direct INSERT\n(Phase 4: replace with UC)"--> DB
     E7 --> S3
     S1 --"INSERT"--> DB
-    S3 --"UPDATE"--> DB
+    S3 --"✗ UPDATE\n(Phase 4: harmonize via UC)"--> DB
+
+    S1 -."|Ph 2–3| becomes UC core".-> UC
+    W1 -."|Ph 4| delegate to UC".-> UC
+    S3 -."|Ph 4| use UC".-> UC
+    UC -."|canonical INSERT|".-> DB
 ```
 
 ## Testing the Changes

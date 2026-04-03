@@ -1,7 +1,7 @@
 *** 
 releaseNotes20260402.txt
-Changes: Prep for unified ingestion core update: Upload_tests addition: test_5 (manifest add) run before test_6/bulk-inserts all audio files from audio_reduced into the DB + fixture file (move test_6 before test_5 in the variants list), sync group_vars, doc updates
-Scope: only ran upload_tests in prep for changing ingestion core docs/refactor_preasset_librarian_unified_ingestion_core.md
+Changes: New admin page and buttons
+Scope: Only gighive2 push
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260402.log
@@ -18,17 +18,13 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/roles/upload_tests/tasks/run_upload_media_by_hash.yml
-	new file:   ansible/roles/upload_tests/tasks/test_6.yml
-	renamed:    docs/admin_data_import_45.md -> docs/admin_data_import_45_with_upload_media_by_hash.md
-	renamed:    docs/role_upload_tests_vars.md -> docs/admin_role_upload_tests_vars.md
-	renamed:    docs/refactored_upload_tests.md -> docs/admin_upload_tests_refactored.md
-	modified:   docs/knowledge_map.html
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin_database_load_import.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin_database_load_import_media_from_folder.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin_system.php
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	new file:   docs/refactor_admin_all_pages_move_under_admin.md
 	modified:   docs/refactor_preasset_librarian_unified_ingestion_core.md
-	modified:   docs/refactor_status_as_of_20260331.md
 	modified:   user-prompts.md
 
 TODO
@@ -65,6 +61,39 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260402.txt
+Changes: Prep for unified ingestion core update: Upload_tests addition: test_5 (manifest add) run before test_6/bulk-inserts all audio files from audio_reduced into the DB + fixture file (move test_6 before test_5 in the variants list), sync group_vars, doc updates
+Scope: only ran upload_tests in prep for changing ingestion core docs/refactor_preasset_librarian_unified_ingestion_core.md
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260402.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260401.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260401.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260401.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/upload_tests/tasks/run_upload_media_by_hash.yml
+	new file:   ansible/roles/upload_tests/tasks/test_6.yml
+	renamed:    docs/admin_data_import_45.md -> docs/admin_data_import_45_with_upload_media_by_hash.md
+	renamed:    docs/role_upload_tests_vars.md -> docs/admin_role_upload_tests_vars.md
+	renamed:    docs/refactored_upload_tests.md -> docs/admin_upload_tests_refactored.md
+	modified:   docs/knowledge_map.html
+	modified:   docs/refactor_preasset_librarian_unified_ingestion_core.md
+	modified:   docs/refactor_status_as_of_20260331.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260401.txt

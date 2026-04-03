@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /**
- * admin_database_load_import.php — Database Load, File Import Admin page for GigHive
+ * admin_database_load_import.php — Database Load, CSV Import Admin page for GigHive
  * Section A: Upload Single CSV and Reload Database (Legacy)
  * Section B: Upload Sessions + Session Files and Reload Database (Normalized)
  * Section C: Upload Files Individually
@@ -22,7 +22,7 @@ if ($user !== 'admin') {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin: Database Load, File Import</title>
+  <title>Admin: Database Load, CSV Import</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     body { margin:0; background:#0b1020; color:#e9eef7; }
@@ -50,10 +50,11 @@ if ($user !== 'admin') {
   <div class="wrap">
     <div class="card">
       <div style="position:absolute;top:1.5rem;right:1.5rem;display:flex;flex-direction:column;gap:.4rem;align-items:flex-end">
-        <a href="/admin.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Password / Clear DB Functions</button></a>
+        <a href="/admin.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Password Reset</button></a>
         <a href="/admin_database_load_import_media_from_folder.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import Media Folder</button></a>
+        <a href="/admin_system.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">System &amp; Recovery</button></a>
       </div>
-      <h1 style="padding-right:210px">Admin: Database Load, File Import</h1>
+      <h1 style="padding-right:210px">Admin: Database Load, CSV Import</h1>
       <p class="muted">Signed in as <code><?= htmlspecialchars($user) ?></code>.</p>
 
       <div class="section-divider">
