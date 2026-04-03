@@ -77,7 +77,7 @@ These docs explicitly state they are deferred or are future-only planning docume
 | `refactor_preasset_librarian_fetch_media_lists.md` | No shared `buildMediaListQuery` builder in `SessionRepository` — `fetchMediaListPage`, `fetchMediaListFiltered`, and `fetchMediaList` still have separate SQL; only `buildMediaListFilters` (WHERE clause only) is shared |
 | `refactor_hardening_sections45.md` | None of the 7 hardening items (input limits, stale-lock recovery, crash consistency, observability, ETA quality, replay safety, rate limiting) are implemented |
 | `refactor_quickstart_specific_template.md` | No quickstart-specific `docker-compose.yml.j2` template exists under `ansible/roles/docker/files/` |
-| `refactor_preasset_librarian_unified_ingestion_core.md` | No shared ingestion service exists; upload API and manifest import paths remain separate |
+| `refactored_preasset_librarian_unified_ingestion_core.md` | No shared ingestion service exists; upload API and manifest import paths remain separate |
 
 ---
 
@@ -103,4 +103,4 @@ These docs explicitly state they are deferred or are future-only planning docume
 | ❌ Not done | `refactor_preasset_librarian_fetch_media_lists.md` |
 | ❌ Not done | `refactor_hardening_sections45.md` |
 | ❌ Not done | `refactor_quickstart_specific_template.md` |
-| ❌ Not done | `refactor_preasset_librarian_unified_ingestion_core.md` |
+| ❌ Not done | `refactored_preasset_librarian_unified_ingestion_core.md` |

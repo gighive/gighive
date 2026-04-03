@@ -3,6 +3,7 @@
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
+use Production\Api\Services\UnifiedIngestionCore;
 
 function gighive_manifest_job_id(): string {
     return date('Ymd-His') . '-' . bin2hex(random_bytes(6));
@@ -220,58 +221,7 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
     gighive_manifest_throw_if_canceled($jobDir);
 
     $pdo = Database::createFromEnv();
-
-    $ensureSession = function(PDO $pdo2, string $eventDate2, string $orgName2, string $eventType2): int {
-        $stmt = $pdo2->prepare('SELECT session_id FROM sessions WHERE date = :d AND org_name = :o LIMIT 1');
-        $stmt->execute([':d' => $eventDate2, ':o' => $orgName2]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row && isset($row['session_id'])) {
-            return (int)$row['session_id'];
-        }
-
-        $sql = 'INSERT INTO sessions (title, date, event_type, org_name) VALUES (:title, :date, :etype, :org)';
-        $stmt = $pdo2->prepare($sql);
-        $title = $orgName2 . ' ' . $eventDate2;
-        $stmt->execute([
-            ':title' => $title,
-            ':date' => $eventDate2,
-            ':etype' => $eventType2 !== '' ? $eventType2 : null,
-            ':org' => $orgName2,
-        ]);
-        return (int)$pdo2->lastInsertId();
-    };
-
-    $nextSeq = function(PDO $pdo2, int $sessionId): int {
-        $stmt = $pdo2->prepare('SELECT COALESCE(MAX(seq), 0) AS max_seq FROM files WHERE session_id = :sid');
-        $stmt->execute([':sid' => $sessionId]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        $max = (int)($row['max_seq'] ?? 0);
-        return $max + 1;
-    };
-
-    $ensureSong = function(PDO $pdo2, string $title, string $type): int {
-        $stmt = $pdo2->prepare('SELECT song_id FROM songs WHERE title = :t AND type = :ty LIMIT 1');
-        $stmt->execute([':t' => $title, ':ty' => $type]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row && isset($row['song_id'])) {
-            return (int)$row['song_id'];
-        }
-        $stmt = $pdo2->prepare('INSERT INTO songs (title, type) VALUES (:t, :ty)');
-        $stmt->execute([':t' => $title, ':ty' => $type]);
-        return (int)$pdo2->lastInsertId();
-    };
-
-    $ensureSessionSong = function(PDO $pdo2, int $sessionId, int $songId): void {
-        $sql = 'INSERT INTO session_songs (session_id, song_id) VALUES (:s, :g)'
-            . ' ON DUPLICATE KEY UPDATE position = position';
-        $pdo2->prepare($sql)->execute([':s' => $sessionId, ':g' => $songId]);
-    };
-
-    $linkSongFile = function(PDO $pdo2, int $songId, int $fileId): void {
-        $sql = 'INSERT INTO song_files (song_id, file_id) VALUES (:g, :f)'
-            . ' ON DUPLICATE KEY UPDATE file_id = file_id';
-        $pdo2->prepare($sql)->execute([':g' => $songId, ':f' => $fileId]);
-    };
+    $uic = new UnifiedIngestionCore($pdo);
 
     if ($mode === 'reload') {
         gighive_manifest_throw_if_canceled($jobDir);
@@ -313,7 +263,7 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
     foreach ($validated as $it) {
         $key = $it['event_date'] . '|' . $orgName;
         if (!isset($sessionsByKey[$key])) {
-            $sessionsByKey[$key] = $ensureSession($pdo, $it['event_date'], $orgName, $eventType);
+            $sessionsByKey[$key] = $uic->ensureSession($it['event_date'], $orgName, $eventType);
         }
     }
 
@@ -330,10 +280,6 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
     $duplicates = 0;
     $duplicateSamples = [];
     $seen = [];
-
-    $insertSql = 'INSERT INTO files (file_name, source_relpath, file_type, session_id, seq, size_bytes, checksum_sha256)'
-        . ' VALUES (:file_name, :source_relpath, :file_type, :session_id, :seq, :size_bytes, :checksum)';
-    $insertStmt = $pdo->prepare($insertSql);
 
     $totalToProcess = count($validated);
     $processed = 0;
@@ -372,43 +318,36 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
 
         $sessionId = $sessionsByKey[$it['event_date'] . '|' . $orgName];
 
-        try {
-            $seq = $nextSeq($pdo, (int)$sessionId);
-            $insertStmt->execute([
-                ':file_name' => $it['file_name'],
-                ':source_relpath' => $it['source_relpath'] !== '' ? $it['source_relpath'] : null,
-                ':file_type' => $it['file_type'],
-                ':session_id' => $sessionId,
-                ':seq' => $seq,
-                ':size_bytes' => $it['size_bytes'],
-                ':checksum' => $checksum,
-            ]);
+        $result = $uic->ingestStub([
+            'checksum_sha256' => $checksum,
+            'file_type'       => $it['file_type'],
+            'file_name'       => $it['file_name'],
+            'source_relpath'  => $it['source_relpath'],
+            'session_id'      => (int)$sessionId,
+            'size_bytes'      => $it['size_bytes'],
+        ]);
 
-            $fileId = (int)$pdo->lastInsertId();
-            $inserted++;
-
-            $labelSource = $it['file_name'] !== '' ? $it['file_name'] : $it['source_relpath'];
-            $label = gighive_manifest_basename_no_ext($labelSource);
-            if ($label !== '') {
-                $songType = 'song';
-                $songId = $ensureSong($pdo, $label, $songType);
-                $ensureSessionSong($pdo, (int)$sessionId, $songId);
-                $linkSongFile($pdo, $songId, $fileId);
+        if ($result['status'] === 'skipped') {
+            $duplicates++;
+            if (count($duplicateSamples) < 25) {
+                $duplicateSamples[] = [
+                    'file_name' => $it['file_name'],
+                    'source_relpath' => $it['source_relpath'],
+                    'checksum_sha256' => $checksum,
+                ];
             }
+            continue;
+        }
 
-        } catch (PDOException $e) {
-            if (($e->getCode() ?? '') === '23000') {
-                $duplicates++;
-                if (count($duplicateSamples) < 25) {
-                    $duplicateSamples[] = [
-                        'file_name' => $it['file_name'],
-                        'source_relpath' => $it['source_relpath'],
-                        'checksum_sha256' => $checksum,
-                    ];
-                }
-                continue;
-            }
-            throw $e;
+        $fileId = $result['file_id'];
+        $inserted++;
+
+        $labelSource = $it['file_name'] !== '' ? $it['file_name'] : $it['source_relpath'];
+        $label = gighive_manifest_basename_no_ext($labelSource);
+        if ($label !== '') {
+            $songId = $uic->ensureSong($label, 'song');
+            $uic->ensureSessionSong((int)$sessionId, $songId);
+            $uic->linkSongFile($songId, $fileId);
         }
     }
 

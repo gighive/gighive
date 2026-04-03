@@ -71,6 +71,39 @@ final class FileRepository
     }
 
     /**
+     * Fill in probe metadata on an existing stub row (S3 / ingestComplete path).
+     * Writes file_name, size_bytes, mime_type, duration_seconds, media_info, media_info_tool.
+     */
+    public function updateProbeMetadata(
+        int $fileId,
+        string $fileName,
+        int $sizeBytes,
+        ?string $mimeType,
+        ?int $durationSeconds,
+        ?string $mediaInfo,
+        ?string $mediaInfoTool
+    ): void {
+        $sql = 'UPDATE files SET'
+             . '  file_name        = :file_name,'
+             . '  size_bytes       = :size_bytes,'
+             . '  mime_type        = :mime_type,'
+             . '  duration_seconds = :duration_seconds,'
+             . '  media_info       = :media_info,'
+             . '  media_info_tool  = :media_info_tool'
+             . ' WHERE file_id = :file_id';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':file_name'        => $fileName,
+            ':size_bytes'       => $sizeBytes,
+            ':mime_type'        => $mimeType,
+            ':duration_seconds' => $durationSeconds,
+            ':media_info'       => $mediaInfo,
+            ':media_info_tool'  => $mediaInfoTool,
+            ':file_id'          => $fileId,
+        ]);
+    }
+
+    /**
      * Compute the next per-session sequence number (1-based).
      */
     public function nextSequence(int $sessionId): int

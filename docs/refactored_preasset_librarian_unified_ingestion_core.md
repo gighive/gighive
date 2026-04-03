@@ -339,8 +339,8 @@ flowchart LR
 
 ```
 
-![Pre-change ingestion flow](images/unifedIngestionCorePreChange.png)
-![Post-change ingestion flow](images/unifedIngestionCorePostChange.png)
+[![Pre-change ingestion flow](images/unifedIngestionCorePreChange.png)](images/unifedIngestionCorePreChange.png)
+[![Post-change ingestion flow](images/unifedIngestionCorePostChange.png)](images/unifedIngestionCorePostChange.png)
 
 ## Testing the Changes
 
@@ -383,3 +383,28 @@ allow_destructive: true
 ### What is not yet covered
 
 - `POST /api/uploads/finalize` (`UploadService::finalizeTusUpload`) — thin wrapper over `handleUpload`; core logic covered by test_6, but the TUS finalize entry point itself has no dedicated variant yet.
+
+---
+
+## Implementation record
+
+### Files created
+
+- **`src/Services/MediaProbeService.php`** — `inferType`, `sanitizeFilename`, `probeDuration`, `ffprobeToolString`, `probeMediaInfo`, `generateVideoThumbnail` (and their private helpers `pickThumbnailTimestamp`, `runWithTimeout`) extracted from `UploadService`. All ingestion paths share one probe implementation.
+- **`src/Services/UnifiedIngestionCore.php`** — canonical write path:
+  - `ingestStub(array $params)` — stub INSERT for W1 (file not yet on disk); keyed on `checksum_sha256`, returns `'skipped'` if already exists
+  - `ingestComplete(int $fileId, ...)` — probe + UPDATE for S3 (file now on disk); fills in the stub row created by W1
+  - `ensureSession`, `ensureSong`, `ensureSessionSong`, `linkSongFile` — shared session/song helpers previously duplicated between `UploadService` and `import_manifest_lib.php`
+
+### Files modified
+
+- **`src/Repositories/FileRepository.php`** — added `updateProbeMetadata()`, called by `UnifiedIngestionCore::ingestComplete` to fill in `file_name`, `size_bytes`, `mime_type`, `duration_seconds`, `media_info`, `media_info_tool` on the existing stub row
+- **`src/Services/UploadService.php`** — constructor now injects `MediaProbeService` and `UnifiedIngestionCore` (both optional with defaults); all 12 extracted private methods removed; `handleUpload` (S1), `finalizeTusUpload` (S2), and `finalizeManifestTusUpload` (S3) are now thin call-through wrappers
+- **`admin/import_manifest_lib.php`** — added `use Production\Api\Services\UnifiedIngestionCore`; the 5 inline closures (`$ensureSession`, `$nextSeq`, `$ensureSong`, `$ensureSessionSong`, `$linkSongFile`) removed; raw `INSERT INTO files` loop replaced with `$uic->ingestStub()`; `$ensureSession(...)` call replaced with `$uic->ensureSession(...)`
+
+### Key behavior preservation
+
+- **S1 (handleUpload)**: identical logic — session, seq, file persist, probe, song link — now delegated to UIC and MediaProbeService instead of private methods; duplicate checksum still throws `DuplicateChecksumException` as before
+- **S3 (finalizeManifestTusUpload)**: raw `UPDATE files SET ...` SQL replaced with `$uic->ingestComplete()`; all returned fields (`duration_seconds`, etc.) unchanged; file storage and MIME detection remain in S3 before the UIC call
+- **W1 (import_manifest_lib)**: old `catch(PDOException SQLSTATE 23000)` duplicate detection replaced by UIC's `findByChecksum`-first upsert returning `status: 'skipped'`; duplicate counter and sample collection behaviour identical; `seq` now computed inside UIC rather than inline
+- **Two-phase manifest flow**: W1 stub INSERT → S3 `ingestComplete` UPDATE; both phases go through UIC's upsert logic keyed on `checksum_sha256` (see `### UIC write behavior: upsert-aware` above)

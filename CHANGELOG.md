@@ -1,15 +1,15 @@
 *** 
 releaseNotes20260403.txt
-Changes: UIC pre-implementation doc updates
+Changes: UIC implementation 
 Scope: Only gighive2 push with upload_tests
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
-script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260402.log
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260402.log
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260401.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260403.log
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260403.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260403.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260403.log
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260401.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260403.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -17,14 +17,15 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
-	new file:   docs/images/unifedIngestionCorePostChange.png
-	new file:   docs/images/unifedIngestionCorePreChange.png
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_manifest_lib.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/MediaProbeService.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/UnifiedIngestionCore.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
 	modified:   docs/knowledge_map.html
-	deleted:    docs/refactor_preasset_librarian_admin_pages_move_to_protected_folder.md
-	modified:   docs/refactor_preasset_librarian_unified_ingestion_core.md
-	modified:   user-prompts.md
+	modified:   docs/refactor_status_as_of_20260331.md
+	renamed:    docs/refactor_preasset_librarian_unified_ingestion_core.md -> docs/refactored_preasset_librarian_unified_ingestion_core.md
 
 TODO
 Next: db changes for docs/refactor_preasset_librarian_unified_ingestion_core.md, media_create_at and lat/long and any refactor_preasset_librarian*.md changes
@@ -60,6 +61,64 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260403.txt
+Changes: UIC pre-implementation doc updates, 2
+Scope: Only gighive2 push with upload_tests
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260403.log
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260403.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260401.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260401.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	new file:   docs/images/unifedIngestionCorePostChange.png
+	new file:   docs/images/unifedIngestionCorePreChange.png
+	modified:   docs/knowledge_map.html
+	modified:   docs/pr_librarianAsset_musicianEvent_implementation.md
+	deleted:    docs/refactor_preasset_librarian_admin_pages_move_to_protected_folder.md
+	modified:   docs/refactor_preasset_librarian_unified_ingestion_core.md
+	modified:   user-prompts.md
+
+*** 
+releaseNotes20260403.txt
+Changes: UIC pre-implementation doc updates
+Scope: Only gighive2 push with upload_tests
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260402.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260402.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260401.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260401.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	new file:   docs/images/unifedIngestionCorePostChange.png
+	new file:   docs/images/unifedIngestionCorePreChange.png
+	modified:   docs/knowledge_map.html
+	deleted:    docs/refactor_preasset_librarian_admin_pages_move_to_protected_folder.md
+	modified:   docs/refactor_preasset_librarian_unified_ingestion_core.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260402.txt
