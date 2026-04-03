@@ -43,7 +43,7 @@
       - "sessions_csv=@{{ upload_tests_3b_sessions_csv }}"
       - -F
       - "session_files_csv=@{{ upload_tests_3b_session_files_csv }}"
-      - "{{ gighive_base_url }}/import_normalized.php"
+      - "{{ gighive_base_url }}/admin/import_normalized.php"
   register: upload_tests_3b_http
   changed_when: false
   delegate_to: localhost

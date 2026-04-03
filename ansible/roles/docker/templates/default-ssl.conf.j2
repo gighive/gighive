@@ -217,26 +217,15 @@
     ProxyPass "/files/" "http://{{ apache_container_name }}_tusd:8080{{ tusd_base_path | default('/files') }}/" nocanon
     ProxyPassReverse "/files/" "http://{{ apache_container_name }}_tusd:8080{{ tusd_base_path | default('/files') }}/"
     
-    # --- ADMIN PAGE: admin only ---
-    <Location "/admin.php">
+    # --- ADMIN DIRECTORY: admin only ---
+    # All admin UI pages and admin-only endpoints live under /admin/
+    <Location "/admin/">
         AuthType Basic
         AuthName "GigHive Admin"
         AuthBasicProvider file
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require user admin
     </Location>
-
-    # --- ROOT-LEVEL ADMIN PHP FILES: admin only ---
-    # Covers import_manifest_*, import_database, import_normalized, admin_database_load_import*,
-    # clear_media*, and write_resize_request. These will move to /admin/ in a future refactor.
-    # See docs/refactor_admin_pages_move_to_folder.md
-    <LocationMatch "^/(import_manifest_|import_database|import_normalized|admin_database_load_import|admin_system|clear_media|write_resize_request)">
-        AuthType Basic
-        AuthName "GigHive Admin"
-        AuthBasicProvider file
-        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
-        Require user admin
-    </LocationMatch>
 
     # ------------------------------------------------------
     # Extra safety: never serve these sensitive files

@@ -1,11 +1,11 @@
 *** 
 releaseNotes20260402.txt
-Changes: New admin page and buttons
-Scope: Only gighive2 push
+Changes: Move admin pages under /admin
+Scope: Only gighive2 push with upload_tests
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260402.log
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260401.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260402.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260401.log
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
@@ -18,13 +18,40 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/admin.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin_database_load_import.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin_database_load_import_media_from_folder.php
-	new file:   ansible/roles/docker/files/apache/webroot/admin_system.php
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	renamed:    ansible/roles/docker/files/apache/webroot/admin.php -> ansible/roles/docker/files/apache/webroot/admin/admin.php
+	renamed:    ansible/roles/docker/files/apache/webroot/admin_database_load_import.php -> ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import.php
+	renamed:    ansible/roles/docker/files/apache/webroot/admin_database_load_import_media_from_folder.php -> ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	renamed:    ansible/roles/docker/files/apache/webroot/admin_system.php -> ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	renamed:    ansible/roles/docker/files/apache/webroot/clear_media.php -> ansible/roles/docker/files/apache/webroot/admin/clear_media.php
+	renamed:    ansible/roles/docker/files/apache/webroot/clear_media_files.php -> ansible/roles/docker/files/apache/webroot/admin/clear_media_files.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_database.php -> ansible/roles/docker/files/apache/webroot/admin/import_database.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_add.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_add.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_add_async.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_add_async.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_cancel.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_cancel.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_duplicates.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_duplicates.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_finalize.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_finalize.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_jobs.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_lib.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_lib.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_prepare.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_prepare.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_reload.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_reload.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_reload_async.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_reload_async.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_replay.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_replay.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_status.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_status.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_upload_finalize.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_upload_finalize.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_upload_start.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_upload_start.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_upload_status.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_upload_status.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_manifest_worker.php -> ansible/roles/docker/files/apache/webroot/admin/import_manifest_worker.php
+	renamed:    ansible/roles/docker/files/apache/webroot/import_normalized.php -> ansible/roles/docker/files/apache/webroot/admin/import_normalized.php
+	renamed:    ansible/roles/docker/files/apache/webroot/write_resize_request.php -> ansible/roles/docker/files/apache/webroot/admin/write_resize_request.php
 	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
-	new file:   docs/refactor_admin_all_pages_move_under_admin.md
-	modified:   docs/refactor_preasset_librarian_unified_ingestion_core.md
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/upload_tests/tasks/poll_manifest_job.yml
+	modified:   ansible/roles/upload_tests/tasks/test_3a.yml
+	modified:   ansible/roles/upload_tests/tasks/test_3b.yml
+	modified:   ansible/roles/upload_tests/tasks/test_4.yml
+	modified:   ansible/roles/upload_tests/tasks/test_5.yml
+	renamed:    docs/refactor_admin_all_pages_move_under_admin.md -> docs/refactored_admin_all_pages_move_under_admin.md
 	modified:   user-prompts.md
 
 TODO
@@ -61,6 +88,35 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260402.txt
+Changes: New admin page and buttons
+Scope: Only gighive2 push with upload_tests
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260402.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260402.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260401.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260401.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260401.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin_database_load_import.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin_database_load_import_media_from_folder.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin_system.php
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	new file:   docs/refactor_admin_all_pages_move_under_admin.md
+	modified:   docs/refactor_preasset_librarian_unified_ingestion_core.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260402.txt

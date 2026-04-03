@@ -12,7 +12,7 @@
 
 - name: Upload tests 5 - POST import_manifest_add_async.php
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/import_manifest_add_async.php"
+    url: "{{ gighive_base_url }}/admin/import_manifest_add_async.php"
     method: POST
     url_username: "{{ admin_user }}"
     url_password: "{{ gighive_admin_password }}"

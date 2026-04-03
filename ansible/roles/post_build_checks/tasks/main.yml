@@ -230,7 +230,7 @@
 
     - name: Verify import_manifest_status.php returns our synthetic status.json
       ansible.builtin.uri:
-        url: "{{ gighive_base_url }}/import_manifest_status.php?job_id={{ manifest_smoke_job_id }}"
+        url: "{{ gighive_base_url }}/admin/import_manifest_status.php?job_id={{ manifest_smoke_job_id }}"
         method: GET
         url_username: "admin"
         url_password: "{{ gighive_admin_password }}"

@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 require_once __DIR__ . '/import_manifest_lib.php';
-require_once __DIR__ . '/vendor/autoload.php';
+require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
 use Production\Api\Services\UploadService;
@@ -267,7 +267,7 @@ try {
         $retryCount  = (int)($currentFile['retry_count'] ?? 0) + 1;
         $retryable   = $classification['retryable'] && $retryCount < $MAX_RETRIES;
         $diags = gighive_capture_upload_diagnostics(
-            __DIR__,
+            dirname(__DIR__),
             $checksum  ?? '',
             (string)($currentFile['file_type'] ?? ''),
             (string)($currentFile['file_name'] ?? ''),

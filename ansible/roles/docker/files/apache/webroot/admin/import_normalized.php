@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
 
@@ -139,7 +139,7 @@ try {
 
     $finishStep(0, 'ok', 'Saved to ' . $jobId . '/sessions.csv and session_files.csv');
 
-    $prepScript = __DIR__ . '/tools/mysqlPrep_normalized.py';
+    $prepScript = dirname(__DIR__) . '/tools/mysqlPrep_normalized.py';
     if (!is_file($prepScript)) {
         throw new RuntimeException('Preprocess script not found: ' . $prepScript);
     }

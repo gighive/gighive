@@ -1,7 +1,7 @@
 ---
 - name: Upload tests - poll manifest job status
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/import_manifest_status.php?job_id={{ upload_tests_job_id }}"
+    url: "{{ gighive_base_url }}/admin/import_manifest_status.php?job_id={{ upload_tests_job_id }}"
     method: GET
     url_username: "{{ admin_user }}"
     url_password: "{{ gighive_admin_password }}"

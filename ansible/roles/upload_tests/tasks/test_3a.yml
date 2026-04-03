@@ -72,7 +72,7 @@
       - "{{ admin_user }}:{{ gighive_admin_password }}"
       - -F
       - "database_csv=@{{ upload_tests_3a_csv }}"
-      - "{{ gighive_base_url }}/import_database.php"
+      - "{{ gighive_base_url }}/admin/import_database.php"
   register: upload_tests_3a_http
   changed_when: false
   delegate_to: localhost

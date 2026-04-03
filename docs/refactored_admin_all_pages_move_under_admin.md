@@ -13,7 +13,7 @@ The goal of this refactor is to move the full admin surface into a dedicated fol
 
 - `ansible/roles/docker/files/apache/webroot/admin/`
 
-This will make the URL structure cleaner, simplify Apache protection, and keep all admin pages and admin-only endpoints grouped together.
+This will make the URL structure cleaner, simplify Apache protection, keep all admin pages and admin-only endpoints grouped together, and simplify management of admin utilities as the feature set grows.
 
 ## Scope
 
@@ -195,7 +195,7 @@ Known endpoint calls on this page include:
 - `import_manifest_upload_status.php`
 - `import_manifest_upload_finalize.php`
 
-These are currently relative and will likely still resolve after the move, but making them explicit is safer.
+These are all bare relative paths (no leading `/`). Because the caller page and every target endpoint move together into `/admin/`, the browser will automatically resolve them to `/admin/<endpoint>.php`. **No changes to these fetch calls are required.**
 
 ### 7. `ansible/roles/docker/files/apache/webroot/import_database.php`
 ### 8. `ansible/roles/docker/files/apache/webroot/import_normalized.php`
@@ -374,4 +374,12 @@ A single coordinated change will reduce the risk of mixed old/new paths and make
 ## Status
 
 - plan documented
-- no implementation performed yet
+- implementation complete (2026-04-02)
+
+## Post-Implementation Testing
+
+After the refactor is deployed, run the upload_tests suite to verify end-to-end admin endpoint behaviour:
+
+```bash
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260402.log
+```

@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 require_once __DIR__ . '/import_manifest_lib.php';
-require_once __DIR__ . '/vendor/autoload.php';
+require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
 
@@ -122,7 +122,7 @@ try {
     $payload = gighive_manifest_load_job_payload($jobDir);
     $items   = is_array($payload['items'] ?? null) ? $payload['items'] : [];
 
-    $baseDir = __DIR__;
+    $baseDir = dirname(__DIR__);
     $pdo     = Database::createFromEnv();
 
     $uploadFiles = [];
