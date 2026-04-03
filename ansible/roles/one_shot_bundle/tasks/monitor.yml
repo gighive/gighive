@@ -208,8 +208,8 @@
 
 - name: Compute source files missing from assembled bundle
   ansible.builtin.set_fact:
-    _one_shot_bundle_missing_from_bundle: "{{ _one_shot_bundle_source_manifest.keys() | difference(_one_shot_bundle_bundle_manifest.keys()) | sort }}"
-    _one_shot_bundle_extra_in_bundle: "{{ _one_shot_bundle_bundle_manifest.keys() | difference(_one_shot_bundle_source_manifest.keys()) | sort }}"
+    _one_shot_bundle_missing_from_existing_bundle: "{{ _one_shot_bundle_source_manifest.keys() | difference(_one_shot_bundle_bundle_manifest.keys()) | sort }}"
+    _one_shot_bundle_extra_in_existing_bundle: "{{ _one_shot_bundle_bundle_manifest.keys() | difference(_one_shot_bundle_source_manifest.keys()) | sort }}"
   when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
 
 - name: Initialize changed paths between source and assembled bundle
@@ -304,8 +304,8 @@
   ansible.builtin.set_fact:
     _one_shot_bundle_inputs_has_diffs: >-
       {{
-        (_one_shot_bundle_missing_from_bundle | default([]) | length) > 0
-        or (_one_shot_bundle_extra_in_bundle | default([]) | length) > 0
+        (_one_shot_bundle_missing_from_existing_bundle | default([]) | length) > 0
+        or (_one_shot_bundle_extra_in_existing_bundle | default([]) | length) > 0
         or (_one_shot_bundle_changed_between_source_and_bundle | default([]) | length) > 0
       }}
   when: _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
@@ -324,19 +324,19 @@
   ansible.builtin.debug:
     msg:
       files_that_did_not_change: "{{ _one_shot_bundle_unchanged_between_source_and_bundle | default([]) | length }}"
-      missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | length }}"
-      extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | length }}"
+      missing_from_existing_bundle: "{{ _one_shot_bundle_missing_from_existing_bundle | default([]) | length }}"
+      extra_in_existing_bundle: "{{ _one_shot_bundle_extra_in_existing_bundle | default([]) | length }}"
       changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | length }}"
   when:
     - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
-    - (_one_shot_bundle_missing_from_bundle | default([]) | length) > 0 or (_one_shot_bundle_extra_in_bundle | default([]) | length) > 0 or (_one_shot_bundle_changed_between_source_and_bundle | default([]) | length) > 0
+    - (_one_shot_bundle_missing_from_existing_bundle | default([]) | length) > 0 or (_one_shot_bundle_extra_in_existing_bundle | default([]) | length) > 0 or (_one_shot_bundle_changed_between_source_and_bundle | default([]) | length) > 0
 
 - name: Show one-shot bundle source-to-bundle diffs (controller source)
   ansible.builtin.debug:
     msg:
-      missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | sort }}"
-      extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | sort }}"
+      missing_from_existing_bundle: "{{ _one_shot_bundle_missing_from_existing_bundle | default([]) | sort }}"
+      extra_in_existing_bundle: "{{ _one_shot_bundle_extra_in_existing_bundle | default([]) | sort }}"
       changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | sort }}"
   when:
     - _one_shot_bundle_bundle_dir_stat.stat.exists | default(false)
-    - (_one_shot_bundle_missing_from_bundle | default([]) | length) > 0 or (_one_shot_bundle_extra_in_bundle | default([]) | length) > 0 or (_one_shot_bundle_changed_between_source_and_bundle | default([]) | length) > 0
+    - (_one_shot_bundle_missing_from_existing_bundle | default([]) | length) > 0 or (_one_shot_bundle_extra_in_existing_bundle | default([]) | length) > 0 or (_one_shot_bundle_changed_between_source_and_bundle | default([]) | length) > 0

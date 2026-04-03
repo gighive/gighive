@@ -35,21 +35,21 @@
       source_to_bundle:
         counts:
           files_that_did_not_change: "{{ _one_shot_bundle_unchanged_between_source_and_bundle | default([]) | length }}"
-          missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | length }}"
-          extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | length }}"
+          missing_from_existing_bundle: "{{ _one_shot_bundle_missing_from_existing_bundle | default([]) | length }}"
+          extra_in_existing_bundle: "{{ _one_shot_bundle_extra_in_existing_bundle | default([]) | length }}"
           changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | length }}"
         paths:
-          missing_from_bundle: "{{ _one_shot_bundle_missing_from_bundle | default([]) | sort }}"
-          extra_in_bundle: "{{ _one_shot_bundle_extra_in_bundle | default([]) | sort }}"
+          missing_from_existing_bundle: "{{ _one_shot_bundle_missing_from_existing_bundle | default([]) | sort }}"
+          extra_in_existing_bundle: "{{ _one_shot_bundle_extra_in_existing_bundle | default([]) | sort }}"
           changed_between_source_and_bundle: "{{ _one_shot_bundle_changed_between_source_and_bundle | default([]) | sort }}"
         ls_details_for_changed_paths: "{{ _one_shot_bundle_changed_between_source_and_bundle_ls_details | default([]) }}"
       fresh_output_validation:
         counts:
           files_that_did_not_change: "{{ _one_shot_bundle_output_unchanged_between_source_and_bundle | default([]) | length }}"
-          missing_from_bundle: "{{ _one_shot_bundle_output_missing_from_bundle | default([]) | length }}"
-          extra_in_bundle: "{{ _one_shot_bundle_output_extra_in_bundle | default([]) | length }}"
+          missing_from_existing_bundle: "{{ _one_shot_bundle_output_missing_from_existing_bundle | default([]) | length }}"
+          extra_in_existing_bundle: "{{ _one_shot_bundle_output_extra_in_existing_bundle | default([]) | length }}"
           changed_between_source_and_bundle: "{{ _one_shot_bundle_output_changed_between_source_and_bundle | default([]) | length }}"
         paths:
-          missing_from_bundle: "{{ _one_shot_bundle_output_missing_from_bundle | default([]) | sort }}"
-          extra_in_bundle: "{{ _one_shot_bundle_output_extra_in_bundle | default([]) | sort }}"
+          missing_from_existing_bundle: "{{ _one_shot_bundle_output_missing_from_existing_bundle | default([]) | sort }}"
+          extra_in_existing_bundle: "{{ _one_shot_bundle_output_extra_in_existing_bundle | default([]) | sort }}"
           changed_between_source_and_bundle: "{{ _one_shot_bundle_output_changed_between_source_and_bundle | default([]) | sort }}"

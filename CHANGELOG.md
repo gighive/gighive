@@ -1,15 +1,15 @@
 *** 
 releaseNotes20260403.txt
-Changes: UIC implementation 
-Scope: Only gighive2 push with upload_tests
+Changes: Bundle fixes that clarify output meaning, plus plan for media_created_at column addition
+Scope: One shot bundle only
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260403.log
 script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260403.log
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260403.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260403.log
-Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260401.log
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260403.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260403.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260403.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -18,17 +18,16 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/admin/import_manifest_lib.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/MediaProbeService.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/UnifiedIngestionCore.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
-	modified:   docs/knowledge_map.html
-	modified:   docs/refactor_status_as_of_20260331.md
-	renamed:    docs/refactor_preasset_librarian_unified_ingestion_core.md -> docs/refactored_preasset_librarian_unified_ingestion_core.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/one_shot_bundle/tasks/main.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	modified:   docs/refactor_preasset_librarian_db_update_media_created.md
+	modified:   user-prompts.md
 
 TODO
 Next: db changes for docs/refactor_preasset_librarian_unified_ingestion_core.md, media_create_at and lat/long and any refactor_preasset_librarian*.md changes
+Broken in bundle: resize request (as there is no vm)
 Testing: App breaks on upload when changing to Messages 
 Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
 Problem: admin.php passwords doesn't use common min security requirements
@@ -61,6 +60,35 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260403.txt
+Changes: UIC implementation 
+Scope: gighive2 push with upload_tests, prod then git update, then staging (no telemetry) and bundle
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260403.log
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260403.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260403.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260403.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260403.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260403.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_manifest_lib.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/MediaProbeService.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/UnifiedIngestionCore.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   docs/knowledge_map.html
+	modified:   docs/refactor_status_as_of_20260331.md
+	renamed:    docs/refactor_preasset_librarian_unified_ingestion_core.md -> docs/refactored_preasset_librarian_unified_ingestion_core.md
 
 *** 
 releaseNotes20260403.txt
