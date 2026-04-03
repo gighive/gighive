@@ -225,6 +225,7 @@
           ['key' => 'media_info', 'label' => 'Media File Info', 'title' => 'Media File Info', 'search' => 'media_info'],
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
           ['key' => 'checksum_sha256', 'label' => 'SHA256', 'title' => 'SHA256', 'search' => null],
+          ['key' => 'media_created_at', 'label' => 'Media Create Date', 'title' => 'Media Create Date', 'search' => null],
       ]
       : [
           ['key' => 'idx', 'label' => '#', 'title' => '#', 'search' => null],
@@ -242,6 +243,7 @@
           ['key' => 'media_info', 'label' => 'Media File Info', 'title' => 'Media File Info', 'search' => 'media_info'],
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
           ['key' => 'checksum_sha256', 'label' => 'SHA256', 'title' => 'SHA256', 'search' => null],
+          ['key' => 'media_created_at', 'label' => 'Media Create Date', 'title' => 'Media Create Date', 'search' => null],
       ];
 
   if ($isAdmin) {
@@ -413,6 +415,8 @@
               <td data-col="duration" data-num="<?= htmlspecialchars((string)($r['durationSec'] ?? ''), ENT_QUOTES) ?>">
                 <?= htmlspecialchars($r['duration'] ?? '', ENT_QUOTES) ?>
               </td>
+            <?php elseif ($key === 'media_created_at'): ?>
+              <td data-col="media_created_at"><?= htmlspecialchars($r['mediaCreatedAt'] ?? '', ENT_QUOTES) ?></td>
             <?php elseif ($key === 'media_info'): ?>
               <td data-col="media_info"><div class="media-file-info"><?= htmlspecialchars($r['mediaSummary'] ?? '', ENT_QUOTES) ?></div></td>
             <?php elseif ($key === 'download'): ?>

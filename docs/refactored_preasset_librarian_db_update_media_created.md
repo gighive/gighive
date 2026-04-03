@@ -89,9 +89,9 @@ Add a migration following the existing role pattern:
 - **`src/Services/MediaProbeService.php`** — add `probeMediaCreatedAt(?string $mediaInfoJson): ?string` extracting `format.tags.creation_time` or `streams[0].tags.creation_time` from the already-fetched ffprobe JSON string; method is responsible for normalizing to `YYYY-MM-DD HH:MM:SS` before returning (takes the JSON string, not the file path — avoids a second ffprobe invocation)
 - **`src/Services/UnifiedIngestionCore.php`** — in `ingestComplete()`: call `$this->probe->probeMediaCreatedAt($mediaInfo)` immediately after `probeMediaInfo()` and pass the result to `updateProbeMetadata()`; in `ingestStub()`: add `'media_created_at' => null` to the `create()` call
 - **`src/Repositories/FileRepository.php`** — add `media_created_at` to `create()` insert fields and to `updateProbeMetadata()`
+- **`src/Services/UploadService.php`** — `handleUpload()` calls `FileRepository::create()` directly (not via UIC); after calling `probeMediaInfo()`, also call `$this->probe->probeMediaCreatedAt($mediaInfo)` and pass `'media_created_at' => $mediaCreatedAt` to `create()`
 
 ### Files that will not change
-- **`UploadService.php`** — probe and persist are already delegated to `MediaProbeService` and `UnifiedIngestionCore`; no direct changes needed
 - **`import_manifest_lib.php`** — already routes through `UnifiedIngestionCore::ingestStub()`; no direct changes needed
 
 ### Coverage
@@ -137,6 +137,7 @@ Recommended initial label:
 | `UnifiedIngestionCore.php` | `ingestStub`: add `null` to `create()`; `ingestComplete`: call `probeMediaCreatedAt($mediaInfo)`, pass result to `updateProbeMetadata()`, include in returned array |
 | `FileRepository.php` | `create()`: add column + bind param; `updateProbeMetadata()`: new `?string $mediaCreatedAt` param + SET clause |
 | `SessionRepository.php` | Add `f.media_created_at AS media_created_at` to all three SELECT queries |
+| `UploadService.php` | Call `probeMediaCreatedAt($mediaInfo)` after `probeMediaInfo()` in `handleUpload()`; pass `media_created_at` to `FileRepository::create()` |
 | `MediaController.php` | Extract from row, add to `$viewRows[]` in `list()`; add to `$entries[]` in `listJson()` |
 | `list.php` | Column entry in both flavor arrays after `duration`; `elseif` render case |
 | `db/database.php` | No changes |
@@ -164,6 +165,15 @@ public function probeMediaCreatedAt(?string $mediaInfoJson): ?string
 - Normalize the value: strip microseconds and UTC suffix (e.g. `2023-08-15T14:22:18.000000Z` → `2023-08-15 14:22:18`); replace `T` separator with a space; truncate to 19 characters
 - Return the normalized `YYYY-MM-DD HH:MM:SS` string, or `NULL` if the tag is absent or cannot be parsed
 - Do NOT run ffprobe again — use the JSON already fetched by `probeMediaInfo()`
+
+### `src/Services/UploadService.php`
+
+#### `handleUpload()`
+This method calls `FileRepository::create()` directly (not via UIC). After the existing `probeMediaInfo()` call, add:
+```php
+$mediaCreatedAt = $this->probe->probeMediaCreatedAt($mediaInfo);
+```
+Add `'media_created_at' => $mediaCreatedAt` to the `create([...])` call.
 
 ### `src/Services/UnifiedIngestionCore.php`
 

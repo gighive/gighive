@@ -426,6 +426,7 @@ final class MediaController
             $sourceRelpath = (string)($row['source_relpath'] ?? '');
             $checksumSha256 = isset($row['checksum_sha256']) ? (string)$row['checksum_sha256'] : '';
             $mediaSummary = self::mediaInfoSummary(isset($row['media_info']) ? (string)$row['media_info'] : null);
+            $mediaCreatedAt = (string)($row['media_created_at'] ?? '');
 
             $servedFile = self::servedFileName($checksumSha256 !== '' ? $checksumSha256 : null, $sourceRelpath, $file);
             $dir = ($typeRaw === 'audio' || $typeRaw === 'video') ? ('/' . $typeRaw) : '';
@@ -449,6 +450,7 @@ final class MediaController
                 'type'      => $typeRaw,
                 'url'       => $url,
                 'mediaSummary' => $mediaSummary,
+                'mediaCreatedAt' => $mediaCreatedAt,
                 'sourceRelpath' => $sourceRelpath,
                 'checksumSha256' => $checksumSha256,
             ];
@@ -558,7 +560,8 @@ final class MediaController
                 'file_type'        => $typeRaw,
                 'file_name'        => $servedFile,
                 'url'              => $url,
-                'media_summary'     => $mediaSummary,
+                'media_summary'    => $mediaSummary,
+                'media_created_at' => (string)($row['media_created_at'] ?? ''),
             ];
         }
 

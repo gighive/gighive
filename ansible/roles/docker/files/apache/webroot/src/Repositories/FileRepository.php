@@ -10,8 +10,8 @@ final class FileRepository
     public function create(array $data): int
     {
         // files(file_id PK AI, file_name, file_type, session_id?, seq?, duration_seconds?, mime_type?, size_bytes?, checksum_sha256?)
-        $sql = 'INSERT INTO files (file_name, source_relpath, file_type, session_id, seq, duration_seconds, media_info, media_info_tool, mime_type, size_bytes, checksum_sha256)'
-             . ' VALUES (:file_name, :source_relpath, :file_type, :session_id, :seq, :duration_seconds, :media_info, :media_info_tool, :mime_type, :size_bytes, :checksum)';
+        $sql = 'INSERT INTO files (file_name, source_relpath, file_type, session_id, seq, duration_seconds, media_info, media_info_tool, mime_type, size_bytes, checksum_sha256, media_created_at)'
+             . ' VALUES (:file_name, :source_relpath, :file_type, :session_id, :seq, :duration_seconds, :media_info, :media_info_tool, :mime_type, :size_bytes, :checksum, :media_created_at)';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
             ':file_name' => $data['file_name'] ?? '',
@@ -25,6 +25,7 @@ final class FileRepository
             ':mime_type' => $data['mime_type'] ?? null,
             ':size_bytes' => $data['size_bytes'] ?? null,
             ':checksum' => $data['checksum_sha256'] ?? null,
+            ':media_created_at' => $data['media_created_at'] ?? null,
         ]);
         return (int)$this->pdo->lastInsertId();
     }
@@ -81,7 +82,8 @@ final class FileRepository
         ?string $mimeType,
         ?int $durationSeconds,
         ?string $mediaInfo,
-        ?string $mediaInfoTool
+        ?string $mediaInfoTool,
+        ?string $mediaCreatedAt = null
     ): void {
         $sql = 'UPDATE files SET'
              . '  file_name        = :file_name,'
@@ -89,7 +91,8 @@ final class FileRepository
              . '  mime_type        = :mime_type,'
              . '  duration_seconds = :duration_seconds,'
              . '  media_info       = :media_info,'
-             . '  media_info_tool  = :media_info_tool'
+             . '  media_info_tool  = :media_info_tool,'
+             . '  media_created_at = :media_created_at'
              . ' WHERE file_id = :file_id';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
@@ -99,6 +102,7 @@ final class FileRepository
             ':duration_seconds' => $durationSeconds,
             ':media_info'       => $mediaInfo,
             ':media_info_tool'  => $mediaInfoTool,
+            ':media_created_at' => $mediaCreatedAt,
             ':file_id'          => $fileId,
         ]);
     }

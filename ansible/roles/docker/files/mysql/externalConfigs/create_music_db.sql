@@ -78,6 +78,7 @@ CREATE TABLE files (
     size_bytes BIGINT NULL,
     checksum_sha256 CHAR(64) NULL,
     delete_token_hash CHAR(64) NULL,
+    media_created_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_files_session FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE SET NULL,

@@ -129,6 +129,41 @@ final class MediaProbeService
         return json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
+    public function probeMediaCreatedAt(?string $mediaInfoJson): ?string
+    {
+        if ($mediaInfoJson === null || trim($mediaInfoJson) === '') {
+            return null;
+        }
+        $decoded = json_decode($mediaInfoJson, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $raw = null;
+        if (
+            isset($decoded['format']['tags']['creation_time'])
+            && is_string($decoded['format']['tags']['creation_time'])
+            && trim($decoded['format']['tags']['creation_time']) !== ''
+        ) {
+            $raw = trim($decoded['format']['tags']['creation_time']);
+        } elseif (
+            isset($decoded['streams'][0]['tags']['creation_time'])
+            && is_string($decoded['streams'][0]['tags']['creation_time'])
+            && trim($decoded['streams'][0]['tags']['creation_time']) !== ''
+        ) {
+            $raw = trim($decoded['streams'][0]['tags']['creation_time']);
+        }
+        if ($raw === null) {
+            return null;
+        }
+        // Normalize ISO 8601 (e.g. "2023-08-15T14:22:18.000000Z") → "YYYY-MM-DD HH:MM:SS"
+        $normalized = str_replace('T', ' ', $raw);
+        $normalized = substr($normalized, 0, 19);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $normalized)) {
+            return null;
+        }
+        return $normalized;
+    }
+
     public function generateVideoThumbnail(string $videoPath, string $sha256, ?int $durationSeconds): void
     {
         $which = @shell_exec('command -v ffmpeg 2>/dev/null');

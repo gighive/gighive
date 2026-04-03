@@ -92,6 +92,7 @@ final class UnifiedIngestionCore
             'media_info'       => null,
             'media_info_tool'  => null,
             'mime_type'        => null,
+            'media_created_at' => null,
         ]);
 
         return [
@@ -131,6 +132,7 @@ final class UnifiedIngestionCore
         }
         $mediaInfo     = $this->probe->probeMediaInfo($filePath);
         $mediaInfoTool = $mediaInfo !== null ? $this->probe->ffprobeToolString() : null;
+        $mediaCreatedAt = $this->probe->probeMediaCreatedAt($mediaInfo);
 
         $this->files->updateProbeMetadata(
             $fileId,
@@ -140,6 +142,7 @@ final class UnifiedIngestionCore
             $durationSeconds,
             $mediaInfo,
             $mediaInfoTool,
+            $mediaCreatedAt,
         );
 
         return [
@@ -148,6 +151,7 @@ final class UnifiedIngestionCore
             'duration_seconds' => $durationSeconds,
             'media_info'       => $mediaInfo,
             'media_info_tool'  => $mediaInfoTool,
+            'media_created_at' => $mediaCreatedAt,
         ];
     }
 

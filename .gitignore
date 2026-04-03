@@ -31,7 +31,7 @@ __pycache__/
 # Xcode user state
 xcuserdata/
 *.xcuserstate
-#user-prompts.md
+user-prompts.md
 
 # Windsurf tmp
 .windsurf/workflows/tmp.md

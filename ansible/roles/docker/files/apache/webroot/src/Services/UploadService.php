@@ -133,6 +133,7 @@ final class UploadService
 
         $mediaInfo = $this->probe->probeMediaInfo($targetPath);
         $mediaInfoTool = $mediaInfo !== null ? $this->probe->ffprobeToolString() : null;
+        $mediaCreatedAt = $this->probe->probeMediaCreatedAt($mediaInfo);
 
         $deleteToken = null;
         $createdNew = true;
@@ -151,6 +152,7 @@ final class UploadService
                 'mime_type'       => $mime ?: null,
                 'size_bytes'      => $size ?: null,
                 'checksum_sha256' => $checksum,
+                'media_created_at'=> $mediaCreatedAt,
             ]);
         } catch (\PDOException $e) {
             if (!is_string($checksum) || preg_match('/^[0-9a-f]{64}$/', $checksum) !== 1 || !$this->isDuplicateChecksumException($e)) {

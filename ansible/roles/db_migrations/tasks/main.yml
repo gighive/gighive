@@ -42,3 +42,35 @@
       - (_col_delete_token_hash_count_verify.stdout | trim) == '1'
     fail_msg: >-
       Expected files.delete_token_hash column to exist after migrations, but it was not found.
+
+- name: Check if files.media_created_at column exists
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '\''files'\'' AND COLUMN_NAME = '\''media_created_at'\'';"'
+  register: _col_media_created_at_count
+  changed_when: false
+
+- name: Add files.media_created_at column if missing
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -e "ALTER TABLE files ADD COLUMN media_created_at DATETIME NULL;"'
+  register: _alter_media_created_at
+  changed_when: true
+  when: (_col_media_created_at_count.stdout | trim) == '0'
+
+- name: Verify files.media_created_at column exists
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '\''files'\'' AND COLUMN_NAME = '\''media_created_at'\'';"'
+  register: _col_media_created_at_count_verify
+  changed_when: false
+
+- name: Fail if files.media_created_at column is still missing
+  ansible.builtin.assert:
+    that:
+      - (_col_media_created_at_count_verify.stdout | trim) == '1'
+    fail_msg: >-
+      Expected files.media_created_at column to exist after migrations, but it was not found.
