@@ -86,6 +86,18 @@ Responsibilities of the ingestion core should include:
 - Link to Event/session and label/song structures
 - Return a normalized ingestion result
 
+#### UIC write behavior: upsert-aware
+
+The UIC enforces the following logic on every write, keyed on `checksum_sha256`:
+
+- **No existing row** → canonical INSERT (new asset/file, all paths)
+- **Existing stub row** (created by manifest worker, probe metadata not yet populated) → fill in probe metadata via UPDATE
+- **Existing complete row** (fully ingested) → dedupe: return existing record without re-inserting
+
+This resolves the two-phase manifest workflow: W1 pre-creates the stub row; when the admin later TUS-uploads the actual file, S3 hands off to UIC which detects the existing stub and completes it via UPDATE. The upload API path (S1) always hits the INSERT branch because global dedupe is enforced before UIC is called.
+
+This upsert behavior maps directly to the planned `assets` table in the Event/Asset model, which uses `checksum_sha256` as the canonical identity key (FR1 in `docs/pr_librarianAsset_musicianEvent.md`). When the hard cutover happens, the UIC's upsert key becomes the `assets` row identity — one canonical write path to port instead of several.
+
 ### 3) Centralize metadata extraction
 Create a shared metadata/probing helper used by all ingestion paths.
 
@@ -124,11 +136,33 @@ A shared ingestion core can be tested directly with multiple entrypoint wrappers
 ### Easier future metadata rollout
 New derived fields such as GPS or camera metadata can be added once and reused everywhere.
 
-## Risks and caveats
-### 1) Manifest imports may not always have an immediately probeable file path
-The strongest form of unification depends on whether manifest import workers can access the actual media bytes or a server-readable path.
+## Benefits of doing this work
 
-This must be confirmed and handled explicitly.
+### 1) Closes the metadata gap between upload and manifest paths today
+`UploadService::handleUpload` (S1) already runs `ffprobe`, derives `media_created_at`, enforces dedupe, and links song/label structures. `import_manifest_worker.php` (W1) does a direct INSERT with none of that — no probe, always song type, no location/rating/notes. Every file that enters via a manifest import is missing metadata that an upload-path file would have. UIC closes that gap: both paths call the same probe and derivation logic.
+
+### 2) Canonical dedupe across all paths
+Today, dedupe behavior differs by entrypoint. UIC enforces a single rule everywhere: if a `checksum_sha256` already exists, return the existing record rather than creating a duplicate. This is consistent with the planned `assets` table identity in the Event/Asset model.
+
+### 3) The two-phase manifest workflow is explicitly handled — no surprises
+The stub-INSERT (W1) → probe-UPDATE (S3 via UIC) sequence is now a first-class design decision, not an implicit behavior scattered across two code paths. Both phases go through UIC's upsert logic, keyed on `checksum_sha256`. Any future change to how stubs are completed changes in one place.
+
+### 4) One write path to port for the Event/Asset cutover
+PR4 and PR5 of `docs/pr_librarianAsset_musicianEvent_implementation.md` must migrate upload and manifest ingestion to the canonical `assets/events/event_assets/event_items` tables. If both paths share UIC before that work starts, PR4 and PR5 together become: port UIC to write canonical tables. Without UIC, they must port S1, W1, and S3 independently, each with its own diverged logic.
+
+### 5) New metadata fields roll out once
+Adding GPS coordinates, camera make/model, or any future derived field means updating the UIC metadata helper in one place. Without UIC, the same addition must be made to `UploadService::handleUpload` and `import_manifest_worker.php` (and kept in sync indefinitely).
+
+### 6) upload_tests already cover all paths — refactor is immediately verifiable
+The existing `upload_tests` Ansible role exercises E1/S1 (test_6), W1 (test_4/5 step 1), and S3 (test_4/5 step 2) independently. The refactor can be verified end-to-end against the existing test suite without writing new infrastructure.
+
+## Risks and caveats
+### 1) Manifest worker (W1) runs before files arrive — stub INSERT, no probe at W1 time
+**Confirmed:** the manifest workflow is always two-phase. W1 runs when the admin imports a manifest; the actual media files do not exist on the server at that point. Files arrive later via TUS upload, at which point S3 runs.
+
+This means UIC will always receive a stub INSERT request from W1 (no server-readable file path available, no probe possible). Probe metadata is populated in UIC's UPDATE branch when S3 hands off after the TUS upload completes.
+
+This is handled correctly by the upsert-aware UIC design (see `### 2) Unify the ingestion core` above): the stub INSERT and the subsequent metadata UPDATE are both canonical UIC operations, keyed on `checksum_sha256`.
 
 ### 2) Upload and manifest flows still have legitimate outer differences
 Manifest reload truncates tables and runs asynchronously.
@@ -205,6 +239,7 @@ Expected benefit to the later remodel:
 - Read-path unification
 - Broad UI redesign
 - Full metadata expansion beyond the ingestion abstraction needed to support future fields
+- **CSV import paths E3/E4** (`/import_database.php`, `/import_normalized.php`): these remain as-is for this refactor. They do not have server-readable binaries at import time (musicians upload a spreadsheet of metadata; files may not yet be on disk), so they cannot call UIC directly. They will reach UIC indirectly via PR5 of the Event/Asset cutover, which will convert them to generate a manifest and process through `import_manifest_worker.php` (W1 → UIC). No diagram changes or Phase 4 work targets E3/E4.
 
 ## Summary
 The recommended direction is to unify the ingestion core, not necessarily collapse every ingestion workflow into one outer endpoint.
@@ -221,15 +256,14 @@ Border colors indicate test status:
 - Red — not tested separately (thin wrapper; core logic covered by test_6)
 - Purple — `UploadService` layer (upload path, richer)
 - Orange — manifest worker layer (direct insert path, leaner — primary unification target)
-- Gold/yellow (dashed border) — **planned Unified Ingestion Core** (Phases 2–4 convergence target)
+- Gold/yellow (dashed border) — **planned Unified Ingestion Core** (UIC)
 
-Edges marked **✗** are the flows the unified ingestion core will replace or harmonize.
+**Solid arrows** = current data flow. **Dashed arrows** = planned future routing once the UIC is built. Edges marked **✗** are the current flows that the UIC will replace.
 
 ```mermaid
 %%{init: {'theme': 'default'}}%%
 flowchart LR
     classDef tested   fill:#ffffff,stroke:#28a745,stroke-width:2px,color:#000000
-    classDef newtest  fill:#ffffff,stroke:#0366d6,stroke-width:2px,color:#000000
     classDef disabled fill:#ffffff,stroke:#856404,stroke-width:2px,color:#000000
     classDef notested fill:#ffffff,stroke:#cc0000,stroke-width:2px,color:#000000
     classDef actor    fill:#ffffff,stroke:#6c757d,stroke-width:2px,color:#000000
@@ -237,59 +271,76 @@ flowchart LR
     classDef worker   fill:#ffffff,stroke:#e67e22,stroke-width:2px,color:#000000
     classDef db       fill:#ffffff,stroke:#495057,stroke-width:2px,color:#000000
     classDef planned  fill:#fff9c4,stroke:#f39c12,stroke-width:3px,stroke-dasharray:6 3,color:#000000
+    classDef note     fill:#f8f9fa,stroke:#dee2e6,stroke-width:1px,color:#555555,text-align:left
 
     subgraph ActorCol ["Actors"]
         direction TB
-        RegUser(["👤 Regular User\nbrowser / mobile app"]):::actor
-        AdminUser(["🔧 Admin\nadmin.php\nupload_media_by_hash.py"]):::actor
+        RegUser(["Regular User · browser / mobile app"]):::actor
+        AdminUser(["Admin · admin.php · upload_media_by_hash.py"]):::actor
     end
 
     subgraph EndpointCol ["HTTP Endpoints"]
         direction TB
-        E1["POST /api/uploads\n─────────────────\ntest_6  ✓"]:::tested
-        E2["POST /api/uploads/finalize\n─────────────────\nnot tested separately\nthin wrapper over handleUpload"]:::notested
-        E3["/import_database.php\n─────────────────\ntest_3a  ✓"]:::tested
-        E4["/import_normalized.php\n─────────────────\ntest_3b  ✓"]:::tested
-        E5["/import_manifest_add_async.php\n─────────────────\ntest_5  ✓  step 1"]:::tested
-        E6["/import_manifest_reload_async.php\n─────────────────\ntest_4  ✓  step 1"]:::tested
-        E7["/import_manifest_upload_finalize.php\n─────────────────\ntest_4/5  step 2\n⚠ needs run_upload_media_by_hash: true"]:::disabled
+        E1["POST /api/uploads · test_6 ✓"]:::tested
+        E2["POST /api/uploads/finalize · not tested · thin wrapper over handleUpload"]:::notested
+        E3["/import_database.php · test_3a ✓"]:::tested
+        E4["/import_normalized.php · test_3b ✓"]:::tested
+        E5["/import_manifest_add_async.php · test_5 ✓ step 1"]:::tested
+        E6["/import_manifest_reload_async.php · test_4 ✓ step 1"]:::tested
+        E7["/import_manifest_upload_finalize.php · test_4/5 step 2 · needs run_upload_media_by_hash: true"]:::disabled
     end
 
     subgraph SvcCol ["Service / Worker Layer"]
         direction TB
-        S1["UploadService::handleUpload\ntype infer · getID3 then ffprobe\ndedupe · FileRepository::create\nlabel link  event_label vs song"]:::svc
-        S2["UploadService::finalizeTusUpload\nread tus-data · parse hook\ncalls handleUpload"]:::svc
-        S3["UploadService::finalizeManifestTusUpload\nverify checksum · copy file to disk\nprobe · UPDATE existing files row"]:::svc
-        W1["import_manifest_worker.php\ndirect INSERT sessions + files\n⚠ no probing\n⚠ always song type\n⚠ ensureSession missing location/rating/notes"]:::worker
-        UC["🎯 Unified Ingestion Core\n─────────────────\nPhases 2–4 convergence target\nS1 becomes canonical impl\nW1 + S3 will delegate here"]:::planned
+        S1["UploadService::handleUpload · type infer · ffprobe · dedupe · FileRepository::create · label link"]:::svc
+        S2["UploadService::finalizeTusUpload · reads TUS data · calls handleUpload"]:::svc
+        S3["UploadService::finalizeManifestTusUpload · checksum verify · probe · UPDATE existing row"]:::svc
+        W1["import_manifest_worker.php · direct INSERT sessions+files · no probe · always song type · no location/rating/notes"]:::worker
     end
 
-    DB[("MySQL\nfiles · sessions\nsongs · song_files")]:::db
+    UIC["🎯 Unified Ingestion Core (planned)"]:::planned
 
-    RegUser --> E1
-    RegUser --> E2
-    AdminUser --> E3
-    AdminUser --> E4
-    AdminUser --> E5
-    AdminUser --> E6
-    AdminUser --"TUS client"--> E7
+    DB[("MySQL · files · sessions · songs · song_files")]:::db
 
-    E1 --> S1
-    E2 --> S2 --> S1
-    E3 --"direct INSERT\n(Phase 5 target)"--> DB
-    E4 --"direct INSERT\n(Phase 5 target)"--> DB
-    E5 --> W1
-    E6 --> W1
-    W1 --"✗ direct INSERT\n(Phase 4: replace with UC)"--> DB
-    E7 --> S3
-    S1 --"INSERT"--> DB
-    S3 --"✗ UPDATE\n(Phase 4: harmonize via UC)"--> DB
+    RegUser --"E1"--> E1
+    RegUser --"E2"--> E2
+    AdminUser --"E3"--> E3
+    AdminUser --"E4"--> E4
+    AdminUser --"E5"--> E5
+    AdminUser --"E6"--> E6
+    AdminUser --"E7 · TUS client"--> E7
 
-    S1 -."|Ph 2–3| becomes UC core".-> UC
-    W1 -."|Ph 4| delegate to UC".-> UC
-    S3 -."|Ph 4| use UC".-> UC
-    UC -."|canonical INSERT|".-> DB
+    E1 --"E1"--> S1
+    E2 --"E2"--> S2
+    S2 --"S2"--> S1
+    E3 --"E3 · direct INSERT"--> DB
+    E4 --"E4 · direct INSERT"--> DB
+    E5 --"E5"--> W1
+    E6 --"E6"--> W1
+    W1 --"W1 · ✗ INSERT (precreates stub)"--> DB
+    E7 --"E7"--> S3
+    S1 --"S1 · INSERT"--> DB
+    S3 --"S3 · ✗ UPDATE"--> DB
+
+    S1 -."S1 logic extracted into UIC · S1 becomes thin wrapper".-> UIC
+    W1 -."W1".-> UIC
+    S3 -."S3 hands off to UIC".-> UIC
+    UIC --"UIC · upsert"--> DB
+
+    DB ~~~ LA
+    DB ~~~ LB
+    DB ~~~ LC
+    DB ~~~ LD
+
+    LA["  • solid arrow  = current data flow                                "]:::note
+    LB["  • dashed arrow = planned future flow once UIC is built         "]:::note
+    LC["  • ✗ on edge    = that direct DB write is replaced by UIC       "]:::note
+    LD["  • S1 to UIC   = S1 becomes UIC core · UIC is upsert-aware (INSERT or UPDATE by checksum)"]:::note
+
 ```
+
+![Pre-change ingestion flow](images/unifedIngestionCorePreChange.png)
+![Post-change ingestion flow](images/unifedIngestionCorePostChange.png)
 
 ## Testing the Changes
 

@@ -95,7 +95,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       <p class="muted">Signed in as <code><?= htmlspecialchars($user) ?></code>.</p>
 
       <div class="section-divider">
-        <h2>Section B: Clear Database</h2>
+        <h2>Section A: Clear Database</h2>
         <p class="muted">
           Remove all content (sessions, songs, files, musicians) from the database.
           This action is <strong>irreversible</strong> and will clear all media tables.
@@ -109,10 +109,10 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       </div>
 
       <div class="section-divider">
-        <h2>Section C: Delete All Media Files from Disk</h2>
+        <h2>Section B: Delete All Media Files from Disk</h2>
         <p class="muted">
           Permanently deletes all audio, video, and thumbnail files stored on the server.
-          The database is <strong>not</strong> affected — run Section B first if you also want to clear database records.
+          The database is <strong>not</strong> affected — run Section A first if you also want to clear database records.
         </p>
         <div class="warning-box">
           <strong>⚠️ Warning:</strong> This deletes actual files from disk. Unlike the database,
@@ -124,7 +124,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       </div>
 
       <div class="section-divider">
-        <h2>Section D: Write Disk Resize Request (Optional)</h2>
+        <h2>Section C: Write Disk Resize Request (Optional)</h2>
         <p class="muted">
           This creates a resize request file on the server. It does not resize the VM immediately. <a href="https://gighive.app/resizeRequestInstructions.html" target="_blank" rel="noopener noreferrer">Instructions here</a>
         </p>
@@ -144,7 +144,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
       </div>
 
       <div class="section-divider">
-        <h2>Section E: Restore Database From Backup (Destructive)</h2>
+        <h2>Section D: Restore Database From Backup (Destructive)</h2>
         <p class="muted">
           A full database backup is created daily by the server. Use this section to restore the entire database if something goes wrong.
         </p>

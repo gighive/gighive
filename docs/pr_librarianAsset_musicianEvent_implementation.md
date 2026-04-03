@@ -44,7 +44,7 @@ Guiding decisions
 - **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_replay.php`**: keep replay semantics compatible with canonical worker.
 - **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php`**: keep job listing UI compatible with canonical worker results.
 
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_database.php`**: port admin 3A CSV reload endpoint to canonical import (direct mapping or convert-to-manifest).
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_database.php`**: port admin 3A CSV reload endpoint to canonical import. **Preferred approach: convert-to-manifest** so the path runs through `import_manifest_worker.php` (W1) and inherits the Unified Ingestion Core automatically. Direct canonical mapping is a fallback only.
 - **PR5**: **`ansible/roles/docker/files/apache/webroot/import_normalized.php`**: port admin 3B normalized CSV reload endpoint to canonical import.
 - **PR5**: **`ansible/roles/docker/files/apache/webroot/admin.php`**: ensure admin UI sections 3A/3B/4/5 still trigger working canonical import flows (minimal wiring/text changes only).
 
@@ -314,7 +314,7 @@ Admin imports are operationally critical and now covered by tests. They currentl
 
 ### Changes
 - Rewrite the manifest importer to write canonical tables.
-- Port CSV imports to canonical tables (either direct mapping or convert-to-manifest).
+- Port CSV imports to canonical tables. **Preferred: convert-to-manifest** so E3/E4 route through W1 and inherit the Unified Ingestion Core automatically (see `docs/refactor_preasset_librarian_unified_ingestion_core.md`). Direct canonical mapping is a fallback only.
 
 ### Files to change/add
 Manifest async pipeline (already exists and must be ported):

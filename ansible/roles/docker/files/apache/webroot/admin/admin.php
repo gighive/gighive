@@ -253,7 +253,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       <form method="post" autocomplete="off">
         <div class="row">
-          <h2>Section A: Change default passwords</h2>
           <h2>Admin</h2>
           <label for="admin_password">New admin password</label>
           <input type="password" id="admin_password" name="admin_password" required minlength="8" />
