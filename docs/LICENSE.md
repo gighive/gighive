@@ -1,3 +1,6 @@
+---
+permalink: /LICENSE.html
+---
 # GigHive Licenses
 
 ## Overview
