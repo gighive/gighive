@@ -164,3 +164,13 @@ The goal is not broad test volume, but focused protection around the dual-person
 - Should incomplete rows live in the main media library or only in diagnostics?
 - Should persona be modeled as branding, capability set, workflow mode, or separate products?
 - What is the minimum shared contract that both personas actually need?
+
+## Sequencing Risk vs Event/Asset Cutover
+
+| Phase | Content | PR3 risk |
+|---|---|---|
+| **Phase 1** — Inventory + contract definition | Document persona diffs, define save response contract, define page semantics | ✅ Low — outputs feed directly into PR3 design |
+| **Phase 2** — Capability extraction | Replace `APP_FLAVOR` branching with capability flags | ✅ Low — schema-agnostic, survives cutover |
+| **Phase 3** — View/model split | Extract persona-specific rendering, split partials/templates | ⚠️ Partial — PR3 redesigns views for librarian/event; some of this gets replaced |
+| **Phase 4** — Query + data-integrity clarity | Incomplete-row handling, session-based query semantics | 🔴 High — PR3 replaces the query surface entirely |
+| **Phase 5** — Hardening + tests | Tests around dual-persona boundary | ⚠️ Partial — test contracts around session-based schema will need porting |

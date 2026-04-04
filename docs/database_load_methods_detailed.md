@@ -20,7 +20,7 @@ Both approaches ultimately load per-table CSVs into MySQL, but they differ in *w
 - Runs from the **Apache/PHP container** via an admin-only endpoint:
   - `import_database.php`
   - `import_normalized.php`
-- The admin UI (`admin.php`) provides a CSV upload control and triggers the import.
+- The admin UI page (`admin_database_load_import.php`) provides a CSV upload control and triggers the import.
 
 ### When it runs
 
@@ -37,7 +37,7 @@ Both approaches ultimately load per-table CSVs into MySQL, but they differ in *w
 
 ---
 
-## For Bands/Event Planners. Admin UI Section 3A (Legacy): Upload Single CSV and Reload Database (destructive)
+## For Bands/Event Planners. admin_database_load_import.php Section A (Legacy): Upload Single CSV and Reload Database (destructive)
 
 - Endpoint: `import_database.php`
 - Upload field name: `database_csv`
@@ -55,7 +55,7 @@ Minimum required headers:
 
 ---
 
-## For Bands/Event Planners. Admin UI Section 3B (Normalized): Upload Sessions + Session Files and Reload Database (destructive)
+## For Bands/Event Planners. admin_database_load_import.php Section B (Normalized): Upload Sessions + Session Files and Reload Database (destructive)
 
 - Endpoint: `import_normalized.php`
 - Upload field names:
@@ -79,7 +79,7 @@ Each admin-triggered import creates a unique job directory under:
 
 - `/var/www/private/import_jobs/<jobId>/`
 
-This includes Section 3B imports, which stage the uploaded `sessions.csv` and `session_files.csv` into the same job directory before loading.
+This includes `admin_database_load_import.php` Section B imports, which stage the uploaded `sessions.csv` and `session_files.csv` into the same job directory before loading.
 
 The uploaded CSV is saved as:
 
@@ -126,14 +126,14 @@ drwxr-xr-x 3 www-data www-data   4096 Dec 24 19:20 ../
 
 GigHive stores an optional `files.source_relpath` value for traceability back to the original folder structure.
 
-- **Admin UI Section 3A / 3B (Upload CSV(s) and Reload Database)**:
+- **`admin_database_load_import.php` Sections A / B (Upload CSV(s) and Reload Database)**:
   - If the uploaded source CSV contains subdirectory paths in `f_singles` (e.g. `set1/20021024_3.mp3`), those relative paths are persisted to `files.source_relpath`.
   - If the CSV contains only basenames, `files.source_relpath` will effectively match the basename.
-- **Admin UI Section 4 (Folder Scan → Import-Ready CSV)**:
+- **`admin_database_load_import_media_from_folder.php` Section A (Folder Scan → Import-Ready CSV)**:
   - The browser provides per-file relative paths (via `webkitRelativePath`) relative to the selected folder. These are written into `f_singles` and persisted to `files.source_relpath`.
 - **Direct media uploads (Upload API / `UploadService.php`)**:
   - The browser does not provide a true local absolute path; uploads therefore cannot persist a full local path.
-  - For consistency with the Section 4/5 “hash-first” convention, the server computes `files.checksum_sha256` and stores the file on disk as `{sha256}.{ext}` under `/audio/` or `/video/`.
+  - For consistency with the folder-scan "hash-first" convention, the server computes `files.checksum_sha256` and stores the file on disk as `{sha256}.{ext}` under `/audio/` or `/video/`.
   - The server also persists a canonical, human-readable filename (org + date + seq + label) into `files.source_relpath` for provenance (e.g. `stormpigs20251222_00001_fountain.mp4`).
   - This ensures downloads can reliably serve `{sha256}.{ext}` while the UI can still display the canonical name.
 
@@ -171,37 +171,11 @@ The runtime import will:
 
 ---
 
-## Summary Table
-
-| Aspect | MySQL initialization load (advanced) | Admin-triggered runtime import (Option A) |
-|---|---|---|
-| Trigger | MySQL entrypoint on fresh datadir | Admin action in web UI |
-| Best for | First install / provisioning | Ongoing admin reloads |
-| Data file location | Must be readable by MySQL server (`/var/lib/mysql-files/`) | Can remain on Apache container; streamed via LOCAL |
-| Load statement | `LOAD DATA INFILE` | `LOAD DATA LOCAL INFILE` |
-| Requires shared mount into MySQL | Typically yes | No |
-| Requires `local_infile` | No | Yes (server ON + client `--local-infile=1`) |
-
----
-
-## Operational Notes
-
-- `LOAD DATA INFILE` working does **not** imply `local_infile` is enabled. `local_infile` is only relevant to `LOAD DATA LOCAL INFILE`.
-- For the official `mysql:8.0` image, mysqld reads includes from:
-  - `/etc/my.cnf` and `!includedir /etc/mysql/conf.d/`
-  Mount custom config files into `/etc/mysql/conf.d/` to ensure settings like `local-infile=1` are applied.
-
----
-
-## For Media Librarians. Admin UI Section 4: Folder Scan → Import-Ready CSV (destructive)
+## For Media Librarians. admin_database_load_import_media_from_folder.php Section A: Folder Scan → Import-Ready CSV (destructive)
 
 ### What was added
 
-`admin.php` now includes a folder scan/import section titled:
-
-**Choose a Folder to Scan & Update the Database**
-
-This section includes:
+`admin_database_load_import_media_from_folder.php` is the dedicated page for folder scan imports. Section A includes:
 
 - A folder picker (`<input type="file" webkitdirectory ...>`)
 - A preview panel showing detected sessions and counts
@@ -218,7 +192,7 @@ This section includes:
   - `f_singles`
 - The CSV is uploaded directly to `import_database.php` as `database.csv` (same upload field name `database_csv`).
 
-### What Section 4 actually does (implementation details)
+### What Section A actually does (implementation details)
 
 - The folder scan runs **in the browser** via the folder picker input (`webkitdirectory`) and the `FileList` it provides.
   - The server is not scanning its own filesystem; it only receives the generated CSV upload.
@@ -234,9 +208,9 @@ This section includes:
   - Fourth: the file’s `lastModified` timestamp
   - Fallback: `1970-01-01`
 - Import trigger:
-  - The generated CSV is posted to `import_database.php` using the `database_csv` form field (same endpoint/field as Section 3A).
+  - The generated CSV is posted to `import_database.php` using the `database_csv` form field (same endpoint/field as `admin_database_load_import.php` Section A).
 
-### How to Scan your files and upload using Section 4
+### How to Scan your files and upload using Section A
 
 #### 1) Prereqs (quick verification)
 
@@ -247,8 +221,8 @@ This section includes:
 
 #### 2) Run the UI flow
 
-- Go to `/admin.php`
-- Scroll to **Section 4**
+- Go to `/admin/admin_database_load_import_media_from_folder.php`
+- Go to **Section A (Reload Database from Folder)**
 - Click **Select folder**
 - Choose a folder that contains supported media files
 - Confirm the preview populates with:
@@ -280,14 +254,14 @@ This section includes:
 #### 5) If it fails (what to capture)
 
 - Copy the preview numbers (Files selected / Supported / Sessions detected).
-- Copy the exact error text shown in the Section 4 status box.
+- Copy the exact error text shown in the Section A status box.
 - Note your browser + version.
 
 ---
 
-## For Media Librarians. Admin UI Section 5: Folder Scan → Add to the Database (non-destructive)
+## For Media Librarians. admin_database_load_import_media_from_folder.php Section B: Add to the Database from Folder (non-destructive)
 
-Section 5 is intended for building a long-term media library without wiping existing data.
+Section B is intended for building a long-term media library without wiping existing data.
 
 - The browser hashes files (SHA-256) and uploads a JSON manifest to the server.
 - The server adds new items and skips duplicates.

@@ -16,7 +16,7 @@ Tools to debug performance differences between local IP access (192.168.1.248) a
 - ❌ Slow initial playback
 
 ### Fix Applied:
-Added `Header set Accept-Ranges "bytes"` to Apache config. See `RANGE_REQUEST_FIX.md` for details.
+Added `Header set Accept-Ranges "bytes"` to Apache config. See `problem_streaming_accept_ranges_none_fix.md` for details.
 
 ### Deploy Fix:
 ```bash

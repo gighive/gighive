@@ -55,6 +55,15 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
         return ($b['mtime'] ?? 0) <=> ($a['mtime'] ?? 0);
     });
 }
+
+function __format_backup_size(int $bytes): string {
+    if ($bytes <= 0) return '0 B';
+    $units = ['B', 'KB', 'MB', 'GB'];
+    $i = (int) floor(log($bytes, 1024));
+    $i = min($i, count($units) - 1);
+    $val = $bytes / (1024 ** $i);
+    return ($i === 0 ? (string)$bytes : number_format($val, 1)) . ' ' . $units[$i];
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -160,7 +169,7 @@ if (is_string($__restore_backup_dir) && $__restore_backup_dir !== '' && is_dir($
             <?php else: ?>
               <?php foreach ($__restore_backup_files as $__b): ?>
                 <option value="<?= htmlspecialchars((string)$__b['name']) ?>">
-                  <?= htmlspecialchars((string)$__b['name']) ?>
+                  <?= htmlspecialchars((string)$__b['name']) ?> (<?= htmlspecialchars(__format_backup_size((int)($__b['size'] ?? 0))) ?>)
                 </option>
               <?php endforeach; ?>
             <?php endif; ?>

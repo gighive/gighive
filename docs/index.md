@@ -220,14 +220,9 @@ img {
     <h3>🔮 Advanced / Internals</h3>
     <ul>
         <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
-        <li><a href="MIXING_HOSTVM_DOCKER_VERSIONS.html">🔄 Mixing Host/Container Versions</a></li>
+        <li><a href="docker_versions_mixing_hostvm.html">🔄 Mixing Host/Container Versions</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
-    </ul>
-    
-    <h3>🔮 Coming Soon</h3>
-    <ul>
-        <li><a href="security-upgrade.html">🔒 Security Upgrade</a></li>
     </ul>
     
 </nav>

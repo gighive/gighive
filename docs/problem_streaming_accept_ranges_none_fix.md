@@ -165,7 +165,7 @@ Content-Length: 500000000
 ## Related Documentation
 
 - **CONTENT_RANGE_CLOUDFLARE.md** - Previous fix for malformed Content-Range headers
-- **VIDEO_PERFORMANCE_DEBUG.md** - Performance testing tools (in ~/scripts/os/)
+- **guide_to_streaming_performance_debugging.md** - Performance testing tools (in ~/scripts/os/)
 
 ## Performance Impact
 

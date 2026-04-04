@@ -10,11 +10,11 @@ There are currently multiple overlapping pipelines, each optimized for a differe
   - Great for first install / provisioning.
   - Intentionally “dumb”: it can load CSVs but it does not compute hashes, discover media, or upload binaries.
 
-- **Admin CSV imports (Section 3A / 3B)**
+- **Admin CSV imports (`admin_database_load_import.php` Sections A / B)**
   - Useful for controlled reloads.
-  - Involves multiple CSV formats (legacy `database.csv` vs normalized `sessions.csv` + `session_files.csv`).
+  - Section A: legacy single `database.csv` reload. Section B: normalized `sessions.csv` + `session_files.csv`.
 
-- **Admin manifest imports (Section 4 / 5) + controller uploader**
+- **Admin manifest imports (`import_manifest_add.php` / `import_manifest_reload.php`) + controller uploader**
   - Closest to the long-term ideal (hash-first, idempotent add/reload).
   - Currently split across browser hashing, PHP endpoints, and the controller-side `upload_media_by_hash.py`.
 
@@ -31,8 +31,8 @@ Aim for a single consistent ingest contract and a single mental model:
   - optional metadata such as `event_date`, `size_bytes`
 
 - **Two operations only**:
-  - **Add** (idempotent) — like Section 5
-  - **Reload** (destructive refresh) — like Section 4
+  - **Add** (idempotent) — like `admin_database_load_import_media_from_folder.php` Section B
+  - **Reload** (destructive refresh) — like `admin_database_load_import_media_from_folder.php` Section A
 
 - **MySQL init becomes provisioning-only**:
   - Schema + seeds + maybe sample/demo dataset.
@@ -48,9 +48,9 @@ Aim for a single consistent ingest contract and a single mental model:
 
 1. **Define “manifest is canonical”**
    - Treat the manifest schema as the authoritative ingest interface.
-   - Update docs to position Sections 4/5 as the primary ingest methods.
+   - Update docs to position `import_manifest_add.php` (add) and `import_manifest_reload.php` (reload) as the primary ingest methods.
 
-2. **Make Section 3B a compatibility wrapper around the manifest**
+2. **Make `admin_database_load_import.php` Section B a compatibility wrapper around the manifest**
    - Keep the UI and upload inputs (`sessions.csv` + `session_files.csv`).
    - Internally convert them server-side into a manifest, then reuse the same insert/link logic as the manifest endpoints.
    - Outcome: fewer different code paths that mutate the DB.
@@ -59,7 +59,7 @@ Aim for a single consistent ingest contract and a single mental model:
    - Factor shared logic used by:
      - `import_manifest_reload.php`
      - `import_manifest_add.php`
-     - (and the new internal Section 3B wrapper)
+     - (and the internal Section B wrapper in `admin_database_load_import.php`)
    - Outcome: one place to maintain idempotency rules, dedupe rules, and linking rules.
 
 4. **Offer one “recommended ingest command” for operators**
@@ -70,13 +70,13 @@ Aim for a single consistent ingest contract and a single mental model:
      - posts a manifest to either “add” or “reload”.
    - This reduces the number of moving parts users must learn.
 
-5. **Deprecate legacy 3A / legacy CSV paths (after a transition period)**
+5. **Deprecate legacy Section A / legacy CSV paths (after a transition period)**
    - Keep temporarily for migration/backward compatibility.
-   - Once the manifest path is proven, mark Section 3A as legacy and eventually remove.
+   - Once the manifest path is proven, mark Section A of `admin_database_load_import.php` as legacy and eventually remove.
 
 ## Key point (to keep expectations sane)
 
 A database being “populated” is not the same as the system being “usable” for downloads.
 
 - DB usability for downloads requires `files.checksum_sha256` + media binaries uploaded by checksum.
-- MySQL init loading alone cannot produce hashes; it must be paired with a hash-producing path (Sections 4/5 or converter+3B) and typically the controller uploader.
+- MySQL init loading alone cannot produce hashes; it must be paired with a hash-producing path (`import_manifest_add.php`/`import_manifest_reload.php` or converter + `admin_database_load_import.php` Section B) and typically the controller uploader.

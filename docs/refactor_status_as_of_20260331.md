@@ -74,7 +74,7 @@ These docs explicitly state they are deferred or are future-only planning docume
 | `refactor_db_database_admin_soft_deletes.md` | No `soft_delete_media_files.php` or `restore_soft_deleted_media_files.php` found in webroot |
 | `refactor_preasset_librarian_db_ui_based_on_personas.md` | No capability-flag extraction or persona-split view layer implemented |
 | `refactor_email_address.md` | `admin@stormpigs.com` still hardcoded in `webroot/index.php` and `vodcast.xml` |
-| `refactor_preasset_librarian_fetch_media_lists.md` | No shared `buildMediaListQuery` builder in `SessionRepository` — `fetchMediaListPage`, `fetchMediaListFiltered`, and `fetchMediaList` still have separate SQL; only `buildMediaListFilters` (WHERE clause only) is shared |
+| `skip_refactor_preasset_librarian_fetch_media_lists.md` | No shared `buildMediaListQuery` builder in `SessionRepository` — `fetchMediaListPage`, `fetchMediaListFiltered`, and `fetchMediaList` still have separate SQL; only `buildMediaListFilters` (WHERE clause only) is shared |
 | `refactor_hardening_sections45.md` | None of the 7 hardening items (input limits, stale-lock recovery, crash consistency, observability, ETA quality, replay safety, rate limiting) are implemented |
 | `refactor_quickstart_specific_template.md` | No quickstart-specific `docker-compose.yml.j2` template exists under `ansible/roles/docker/files/` |
 | `refactored_preasset_librarian_unified_ingestion_core.md` | No shared ingestion service exists; upload API and manifest import paths remain separate |
@@ -100,7 +100,7 @@ These docs explicitly state they are deferred or are future-only planning docume
 | ❌ Not done | `refactor_db_database_admin_soft_deletes.md` |
 | ❌ Not done | `refactor_preasset_librarian_db_ui_based_on_personas.md` |
 | ❌ Not done | `refactor_email_address.md` |
-| ❌ Not done | `refactor_preasset_librarian_fetch_media_lists.md` |
+| ❌ Not done | `skip_refactor_preasset_librarian_fetch_media_lists.md` |
 | ❌ Not done | `refactor_hardening_sections45.md` |
 | ❌ Not done | `refactor_quickstart_specific_template.md` |
 | ❌ Not done | `refactored_preasset_librarian_unified_ingestion_core.md` |
