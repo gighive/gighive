@@ -1,11 +1,6 @@
 *** 
 releaseNotes20260403.txt
-Changes: Update changelog, delete up.md
-
-*** 
-releaseNotes20260403.txt
-Changes: media_created_at column addition
-Scope: All, minus upload_tests and reinstall telemetry
+Changes: Bundle archive role addition
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive2-20260403.log
@@ -15,6 +10,8 @@ Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/invento
 #Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260403.log
 # ALWAYS RUN THE ONE-SHOT-BUNDLE AFTER GIT COMMIT (that way, versions match)
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260403.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+# BUNDLE ARCHIVE ONLY
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260403.log
 ~/scripts/bestPracticesAndUtils/backupGighive.sh
 
 sodo@pop-os:~/gighive$ git status
@@ -23,19 +20,10 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   .gitignore
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/db_migrations/tasks/main.yml
-	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/MediaProbeService.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UnifiedIngestionCore.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
-	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql
-	renamed:    docs/refactor_preasset_librarian_db_update_media_created.md -> docs/refactored_preasset_librarian_db_update_media_created.md
-	modified:   user-prompts.md
+	modified:   ansible/playbooks/site.yml
+	new file:   ansible/roles/one_shot_bundle/tasks/archive.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
 
 TODO
 Next: db changes for docs/refactor_preasset_librarian_unified_ingestion_core.md, media_create_at and lat/long and any refactor_preasset_librarian*.md changes
@@ -72,6 +60,35 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260403.txt
+Changes: Update changelog, delete up.md
+
+*** 
+releaseNotes20260403.txt
+Changes: media_created_at column addition
+Scope: All, minus upload_tests and reinstall telemetry
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/db_migrations/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/FileRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/MediaProbeService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UnifiedIngestionCore.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql
+	renamed:    docs/refactor_preasset_librarian_db_update_media_created.md -> docs/refactored_preasset_librarian_db_update_media_created.md
+	modified:   user-prompts.md
 
 *** 
 releaseNotes20260403.txt

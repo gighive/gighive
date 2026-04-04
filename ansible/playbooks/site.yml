@@ -139,6 +139,17 @@
     - role: one_shot_bundle
       tags: [ one_shot_bundle ]
 
+- name: One-shot bundle on-demand archive
+  hosts: target_vms
+  gather_facts: false
+  become: false
+  tags: [ one_shot_bundle_archive ]
+  tasks:
+    - name: Archive fresh one-shot bundle output (controller)
+      ansible.builtin.include_role:
+        name: one_shot_bundle
+        tasks_from: archive.yml
+
 # 3) Optional: global postflight snapshot (final state)
 - name: Postflight varscope
   hosts: all

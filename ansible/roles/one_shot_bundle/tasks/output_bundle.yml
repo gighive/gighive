@@ -282,3 +282,6 @@
       missing_from_existing_bundle: "{{ _one_shot_bundle_output_missing_from_existing_bundle | default([]) | sort }}"
       extra_in_existing_bundle: "{{ _one_shot_bundle_output_extra_in_existing_bundle | default([]) | sort }}"
       changed_between_source_and_bundle: "{{ _one_shot_bundle_output_changed_between_source_and_bundle | default([]) | sort }}"
+
+- name: Archive fresh one-shot bundle output (controller)
+  ansible.builtin.import_tasks: archive.yml

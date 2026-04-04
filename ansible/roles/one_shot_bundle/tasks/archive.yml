@@ -1,0 +1,36 @@
+---
+
+- name: Stat fresh one-shot bundle output directory for on-demand archive (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "/tmp/gighive-one-shot-bundle"
+  register: _one_shot_bundle_archive_output_dir_stat
+
+- name: Fail if fresh one-shot bundle output directory is missing for on-demand archive (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.fail:
+    msg: >-
+      Expected fresh one-shot bundle output at /tmp/gighive-one-shot-bundle for
+      one_shot_bundle_archive, but it was not found. Build or refresh the bundle
+      first, then rerun with --tags set_targets,one_shot_bundle_archive.
+  when: not (_one_shot_bundle_archive_output_dir_stat.stat.exists | default(false))
+
+- name: Create compressed one-shot bundle archive from fresh output (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command:
+    argv:
+      - tar
+      - -czf
+      - /tmp/gighive-one-shot-bundle.tgz
+      - -C
+      - /tmp
+      - gighive-one-shot-bundle
+
+- name: Create sha256 checksum for compressed one-shot bundle archive (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.shell: >-
+    sha256sum /tmp/gighive-one-shot-bundle.tgz > /tmp/gighive-one-shot-bundle.tgz.sha256
