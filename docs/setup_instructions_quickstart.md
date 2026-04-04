@@ -158,7 +158,7 @@ docker ps | egrep 'apacheWebServer|mysqlServer|apacheWebServer_tusd' || true
 
 # Remove gighive-one-shot-bundle directory
 cd ..
-sudo rm -rf ~/gighive-one-shot-bundle
+sudo rm -rf gighive-one-shot-bundle
 ```
 
 ## To rotate user passwords
@@ -186,7 +186,7 @@ If you have forgotten the MySQL root password, the recovery procedure is to re-i
 4. Remove the extracted bundle directory when you want a completely fresh reinstall.
     ```bash
     cd ..
-    sudo rm -rf ~/gighive-one-shot-bundle
+    sudo rm -rf gighive-one-shot-bundle
     ```
 5. Run `install.sh` again from the extracted bundle directory and set new MySQL passwords when prompted.
     ```bash

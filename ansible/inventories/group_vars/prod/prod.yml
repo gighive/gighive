@@ -391,11 +391,11 @@ one_shot_bundle_input_paths:
   - "{{ repo_root }}/ansible/roles/docker/templates"
   - "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/Dockerfile"
+  - "{{ repo_root }}/ansible/roles/docker/files/tusd"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/externalConfigs"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/overlays"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot"
   - "{{ repo_root }}/ansible/roles/docker/files/mysql/externalConfigs"
-  - "{{ repo_root }}/ansible/roles/docker/files/tusd/hooks"
   - "{{ repo_root }}/assets/audio"
   - "{{ repo_root }}/assets/video"
 
