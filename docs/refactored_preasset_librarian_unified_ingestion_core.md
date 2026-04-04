@@ -282,7 +282,7 @@ flowchart LR
     subgraph EndpointCol ["HTTP Endpoints"]
         direction TB
         E1["POST /api/uploads · test_6 ✓"]:::tested
-        E2["POST /api/uploads/finalize · not tested · thin wrapper over handleUpload"]:::notested
+        E2["POST /api/uploads/finalize · thin wrapper over handleUpload"]:::tested
         E3["/import_database.php · test_3a ✓"]:::tested
         E4["/import_normalized.php · test_3b ✓"]:::tested
         E5["/import_manifest_add_async.php · test_5 ✓ step 1"]:::tested
@@ -364,6 +364,7 @@ The `script` wrapper captures full terminal output (including color/timing) to t
 | `3b_normalized_import_defaultcodebase` | 3B | `/import_normalized.php` → direct INSERT (defaultcodebase flavor) |
 | `4_manifest_reload` | 4 | `/import_manifest_reload_async.php` → worker → direct INSERT (step 1); `/import_manifest_upload_finalize.php` → `finalizeManifestTusUpload` (step 2, requires `upload_test_run_upload_media_by_hash: true`) |
 | `6_direct_upload_api` | 6 | `POST /api/uploads` → `UploadService::handleUpload` |
+| `7_tus_finalize` | 7 | TUS `POST /files/` (create) → `PATCH /files/<id>` (upload) → `POST /api/uploads/finalize` → `UploadService::finalizeTusUpload` |
 | `5_manifest_add` | 5 | `/import_manifest_add_async.php` → worker → direct INSERT (step 1); step 2 same as test_4 |
 
 ### Enabling all paths
@@ -376,13 +377,17 @@ run_upload_tests: true
 allow_destructive: true
 ```
 
+Test 7 also requires `upload_test_tus_fixture` to be set to a fixture file distinct from `upload_test_direct_upload_fixture` (different checksum) to avoid duplicate-checksum rejection.
+
 ### Variant ordering constraint
 
-`6_direct_upload_api` must appear **before** `5_manifest_add` in `upload_test_variants`. Test 5 bulk-inserts all audio files from `audio_reduced` into the DB (including the test_6 fixture file). If test_6 runs after test_5, `UploadService::handleUpload` rejects the upload as a duplicate checksum (409) and the test fails.
+`6_direct_upload_api` and `7_tus_finalize` must both appear **before** `5_manifest_add` in `upload_test_variants`. Test 5 bulk-inserts all audio files from `audio_reduced` into the DB (including the test_6 and test_7 fixture files). If either runs after test_5, `UploadService::handleUpload` / `finalizeTusUpload` rejects the upload as a duplicate checksum and the test fails.
+
+Additionally, `7_tus_finalize` must use a **different fixture file** from `6_direct_upload_api` (different checksum) so the two tests do not collide with each other.
 
 ### What is not yet covered
 
-- `POST /api/uploads/finalize` (`UploadService::finalizeTusUpload`) — thin wrapper over `handleUpload`; core logic covered by test_6, but the TUS finalize entry point itself has no dedicated variant yet.
+- All paths require porting to the Event/Asset schema once the hard-cutover remodel lands.
 
 ---
 

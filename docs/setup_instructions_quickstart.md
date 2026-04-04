@@ -146,8 +146,10 @@ cd ~/gighive-one-shot-bundle
 # Stop and remove containers, networks, and named volumes
 docker compose down --volumes --remove-orphans
 
-# Optional: remove the locally built apache image so the next install rebuilds from scratch
+# Removes unused containers, networks, dangling images, and build cache.
 docker image rm ubuntu-apache-img:1.00
+docker compose down -v --rmi local
+docker system prune -f
 
 # Optional: remove bundle-created host dirs (only if you are OK losing local contents)
 rm -rf ./mysql/dbScripts/backups ./_host_audio ./_host_video
@@ -161,35 +163,15 @@ cd ..
 sudo rm -rf gighive-one-shot-bundle
 ```
 
-## To rotate user passwords
-
-For the quickstart bundle user-password reset procedure, see [Quickstart user password reset](security_reset_quickstart_user_passwords.md).
-
-## To rotate database passwords
-
-If you have forgotten the MySQL root password, the recovery procedure is to re-initialize the bundle.
-
-1. Stop the stack.
+## All-in-one cleanup
     ```bash
-    docker compose down
-    ```
-2. Remove volumes, especially `mysql_data`, so MySQL initializes with fresh credentials on the next install.
-    ```bash
+    cd gighive-one-shot-bundle
     docker compose down --volumes --remove-orphans
-    ```
-3. Remove images, run prune
-    ```bash
     docker image rm ubuntu-apache-img:1.00
-    docker compose down -v --rmi local 
+    docker compose down -v --rmi local
     docker system prune -f
-    ```
-4. Remove the extracted bundle directory when you want a completely fresh reinstall.
-    ```bash
     cd ..
     sudo rm -rf gighive-one-shot-bundle
     ```
-5. Run `install.sh` again from the extracted bundle directory and set new MySQL passwords when prompted.
-    ```bash
-    cd ~/gighive-one-shot-bundle
-    ./install.sh
-    ```
+
+

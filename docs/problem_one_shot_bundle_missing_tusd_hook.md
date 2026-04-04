@@ -11,14 +11,18 @@ the subsequent `POST /api/uploads/finalize` returns HTTP 500 with response body:
 
 All prior PATCH chunks succeed; only finalize fails.
 
-## Root cause
+## Root causes
 
-The assembled `gighive-one-shot-bundle/tusd/hooks/` directory was **empty** — it did not contain
-the `post-finish` hook script.
+Two separate defects combined to cause the failure. Both had to be fixed.
 
-tusd is launched with `-hooks-dir=/hooks` (bind-mounted from `tusd/hooks/`). Without a `post-finish`
-executable in that directory, tusd silently skips the hook after each upload finishes. Nothing writes
-the upload JSON payload to the shared `tus_hooks` named volume.
+### Defect 1: stale assembled bundle (hooks dir empty)
+
+The assembled `gighive-one-shot-bundle/tusd/hooks/` directory was empty — it did not contain the
+`post-finish` script.
+
+tusd is launched with `-hooks-dir=/hooks` (bind-mounted from `tusd/hooks/`). With no `post-finish`
+executable present, tusd silently skips the hook after each upload finishes. Nothing writes the
+upload JSON payload to the shared `tus_hooks` named volume.
 
 When `POST /api/uploads/finalize` runs, `UploadService::finalizeTusUpload()` looks for:
 
@@ -29,27 +33,28 @@ When `POST /api/uploads/finalize` runs, `UploadService::finalizeTusUpload()` loo
 That file never exists, so the method throws `RuntimeException('Upload not found or not finished yet')`,
 which the controller catches and returns as a 500.
 
-### Why the hook was missing
-
-The `post-finish` script lives in the full-build source at:
-
-```
-ansible/roles/docker/files/tusd/hooks/post-finish
-```
-
-The one-shot bundle assembly role (`ansible/roles/one_shot_bundle`) scans
-`one_shot_bundle_input_paths` and strips the `ansible/roles/docker/files/` prefix to produce
-bundle-relative paths. The `post-finish` script correctly maps to `tusd/hooks/post-finish` in
-the assembled bundle.
-
-However, the previously assembled bundle (`gighive-one-shot-bundle/`) was a stale snapshot that
-predated the `post-finish` script being written. The bundle had not been regenerated after the
-hook was added to the source tree, so the runtime `tusd/hooks/` directory ended up empty.
+The `post-finish` script lives in the full-build source at
+`ansible/roles/docker/files/tusd/hooks/post-finish`. The bundle was a stale snapshot that predated
+the hook being added to the source tree and had not been regenerated.
 
 A secondary issue was that `one_shot_bundle_input_paths` listed the child path
 `ansible/roles/docker/files/tusd/hooks` rather than the parent `ansible/roles/docker/files/tusd`.
-This was replaced with the parent path to capture any future tusd files (config, additional hooks)
-without requiring another input path entry.
+This was replaced with the parent path to be more future-proof.
+
+### Defect 2: missing execute bit on the source hook file
+
+Even after the bundle was regenerated with `post-finish` present, the file had mode `664`
+(`rw-rw-r--`) — no execute bit. tusd could read but not execute it, so the hook still never ran.
+
+Verified via:
+```bash
+docker exec apacheWebServer_tusd ls -la /hooks/
+# -rw-rw-r--    1 tusd     tusd          2267 Feb  1 18:19 post-finish
+```
+
+The source file `ansible/roles/docker/files/tusd/hooks/post-finish` was committed without the
+executable bit. Since the bundle assembly copies files with `mode: preserve`, the 664 mode
+propagated into every assembled bundle.
 
 ## Data flow reminder
 
@@ -65,18 +70,24 @@ POST /api/uploads/finalize
 
 ## Fixes applied
 
-### 1. Immediate: copy hook into the running bundle instance
+### 1. Source: add execute bit to hook script
 
 ```bash
-cp ansible/roles/docker/files/tusd/hooks/post-finish \
-   /tmp/gighive-one-shot-bundle/tusd/hooks/post-finish
+chmod +x ansible/roles/docker/files/tusd/hooks/post-finish
+```
+
+Git tracks the execute bit, so this persists for all future bundle assemblies.
+
+### 2. Live instance: chmod the running bundle's copy
+
+```bash
 chmod +x /tmp/gighive-one-shot-bundle/tusd/hooks/post-finish
 ```
 
-Because `tusd/hooks` is a bind mount (not a named volume), tusd picks up the script
+Because `tusd/hooks` is a bind mount (not a named volume), tusd picks up the change
 immediately without a container restart.
 
-### 2. Source: replace child path with parent in `one_shot_bundle_input_paths`
+### 3. Source: replace child path with parent in `one_shot_bundle_input_paths`
 
 In all three group_vars files (`gighive/gighive.yml`, `gighive2/gighive2.yml`, `prod/prod.yml`),
 replaced:
@@ -92,7 +103,7 @@ with:
 ```
 
 The next Ansible playbook run will assemble a fresh bundle that correctly includes
-`tusd/hooks/post-finish`.
+`tusd/hooks/post-finish` with executable permissions.
 
 ## Verification
 
