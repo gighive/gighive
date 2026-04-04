@@ -1,5 +1,9 @@
 *** 
 releaseNotes20260403.txt
+Changes: Update changelog, delete up.md
+
+*** 
+releaseNotes20260403.txt
 Changes: media_created_at column addition
 Scope: All, minus upload_tests and reinstall telemetry
 
@@ -9,7 +13,9 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-gighive-20260403.log
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle" ansible-playbook-prod-20260403.log
 #Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260403.log
+# ALWAYS RUN THE ONE-SHOT-BUNDLE AFTER GIT COMMIT (that way, versions match)
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle --diff" ansible-playbook-gighive-bundle-20260403.log # ALWAYS REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+~/scripts/bestPracticesAndUtils/backupGighive.sh
 
 sodo@pop-os:~/gighive$ git status
 On branch master
