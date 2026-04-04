@@ -26,7 +26,41 @@ Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
 	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
-
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	deleted:    docs/CNAME
+	renamed:    docs/ADMIN_CLEAR_MEDIA.md -> docs/admin_clear_media_detailed.md
+	renamed:    docs/admin_clear_media.md -> docs/admin_clear_media_overview.md
+	renamed:    docs/CORE_UPLOAD_IMPLEMENTATION.md -> docs/app_upload_implementation.md
+	renamed:    docs/PICKER_TRANSCODING_METHOD.md -> docs/app_video_picker_transcoding_method.md
+	renamed:    docs/ADD_MEDIA_INFO_COLUMNS.md -> docs/database_add_media_info_columns.md
+	renamed:    docs/DATABASE_LOAD_METHODS_DETAILED.md -> docs/database_load_methods_detailed.md
+	renamed:    docs/DATABASE_LOAD_METHODS_SIMPLIFICATION.md -> docs/database_load_methods_highlevel.md
+	renamed:    docs/MIXING_HOSTVM_DOCKER_VERSIONS.md -> docs/docker_versions_mixing_hostvm.md
+	renamed:    docs/FLAVOR_CONTRACT.md -> docs/flavor_contract.md
+	renamed:    docs/DOCKER_COMPOSE_BEHAVIOR.md -> docs/guide_docker_compose_behavior.md
+	renamed:    docs/VIDEO_PERFORMANCE_DEBUG.md -> docs/guide_to_streaming_performance_debugging.md
+	modified:   docs/index.md
+	modified:   docs/knowledge_map.html
+	renamed:    docs/APACHE_DIRECTIVE_MATCHING_ORDER.md -> docs/problem_apache_directive_matching_order.md
+	renamed:    docs/DOCKER_IMAGE_BUILD_CHANGE.md -> docs/problem_docker_container_old_image.md
+	renamed:    docs/HTPASSWD_CHANGES.md -> docs/problem_htpasswd_changes.md
+	renamed:    docs/RANGE_REQUEST_FIX.md -> docs/problem_streaming_accept_ranges_none_fix.md
+	renamed:    docs/POTENTIAL_API_CLEANUP_IF_DESIRED.md -> docs/refactor_api_cleanup_if_desired.md
+	modified:   docs/refactor_preasset_librarian_db_ui_based_on_personas.md
+	renamed:    docs/security-upgrade.md -> docs/refactor_security.md
+	modified:   docs/refactor_status_as_of_20260331.md
+	renamed:    docs/IPHONE_FOUR_PAGE_REARCHITECTURE.md -> docs/refactored_app_four_page_architecture.md
+	renamed:    docs/BOOTSTRAP_PHASE1.md -> docs/refactored_process_installprerequisites.md
+	renamed:    docs/JWT_AUTH_MIGRATION_MAPPING.md -> docs/security_auth_jwt_token_migration.md
+	renamed:    docs/refactor_preasset_librarian_fetch_media_lists.md -> docs/skip_refactor_preasset_librarian_fetch_media_lists.md
+	renamed:    docs/TELEMETRY_CLIENT.md -> docs/telemetry_client.md
+	renamed:    docs/TELEMETRY_DB_TIME_MISMATCH.md -> docs/telemetry_db_time_mismatch.md
+	renamed:    docs/TELEMETRY_ENDUSER.md -> docs/telemetry_enduser.md
+	renamed:    docs/TELEMETRY.md -> docs/telemetry_highlevel.md
+	renamed:    docs/TELEMETRY_SERVER_IMPLEMENTATION.md -> docs/telemetry_server_implementation.md
+	renamed:    docs/UPLOAD_OPTIONS.md -> docs/upload_options.md
+	renamed:    docs/VERSIONING.md -> docs/versioning.md
+	deleted:    skills.md
 TODO
 Next: db changes for refactor_preasset_librarian*.md changes
 Next: execute tests against bundle
