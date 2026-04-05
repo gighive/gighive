@@ -18,12 +18,14 @@ final class UploadService
         private ?FileRepository $files = null,
         private ?MediaProbeService $probe = null,
         private ?UnifiedIngestionCore $uic = null,
+        private ?TextNormalizer $normalizer = null,
     ) {
-        $this->validator = $this->validator ?? new UploadValidator();
-        $this->storage   = $this->storage   ?? new FileStorage();
-        $this->files     = $this->files     ?? new FileRepository($pdo);
-        $this->probe     = $this->probe     ?? new MediaProbeService();
-        $this->uic       = $this->uic       ?? new UnifiedIngestionCore($pdo, $this->files, $this->probe);
+        $this->validator  = $this->validator  ?? new UploadValidator();
+        $this->storage    = $this->storage    ?? new FileStorage();
+        $this->files      = $this->files      ?? new FileRepository($pdo);
+        $this->probe      = $this->probe      ?? new MediaProbeService();
+        $this->normalizer = $this->normalizer ?? new TextNormalizer();
+        $this->uic        = $this->uic        ?? new UnifiedIngestionCore($pdo, $this->files, $this->probe, $this->normalizer);
     }
 
     /**
@@ -295,7 +297,7 @@ final class UploadService
             $cur = $mergedPost[$k] ?? null;
             if ($cur === null || (is_string($cur) && trim($cur) === '')) {
                 if (isset($meta[$k]) && is_string($meta[$k]) && trim($meta[$k]) !== '') {
-                    $mergedPost[$k] = $meta[$k];
+                    $mergedPost[$k] = $this->normalizer->normalizeForStorage($meta[$k]);
                 }
             }
         }
@@ -502,10 +504,7 @@ final class UploadService
 
     private function slugify(string $s): string
     {
-        $s = strtolower($s);
-        $s = preg_replace('/[^a-z0-9]+/', '-', $s) ?? '';
-        $s = trim($s, '-');
-        return $s !== '' ? $s : 'item';
+        return $this->normalizer->slugifyForFilename($s);
     }
 
     private function attachParticipants(int $sessionId, string $csv): void

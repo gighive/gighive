@@ -26,9 +26,11 @@ final class UnifiedIngestionCore
         private PDO $pdo,
         private ?FileRepository $files = null,
         private ?MediaProbeService $probe = null,
+        private ?TextNormalizer $normalizer = null,
     ) {
         $this->files = $this->files ?? new FileRepository($pdo);
         $this->probe = $this->probe ?? new MediaProbeService();
+        $this->normalizer = $this->normalizer ?? new TextNormalizer();
     }
 
     /**
@@ -168,10 +170,16 @@ final class UnifiedIngestionCore
         string $notes    = '',
         string $keywords = ''
     ): int {
+        $displayOrg  = $this->normalizer->normalizeForStorage($orgName);
+        $canonicalOrg = $this->normalizer->canonicalizeForComparison($orgName);
+        $location    = $this->normalizer->normalizeForStorage($location);
+        $notes       = $this->normalizer->normalizeForStorage($notes);
+        $keywords    = $this->normalizer->normalizeForStorage($keywords);
+
         $stmt = $this->pdo->prepare(
             'SELECT session_id FROM sessions WHERE date = :d AND org_name = :o LIMIT 1'
         );
-        $stmt->execute([':d' => $date, ':o' => $orgName]);
+        $stmt->execute([':d' => $date, ':o' => $canonicalOrg]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['session_id'])) {
             $sid = (int)$row['session_id'];
@@ -185,13 +193,13 @@ final class UnifiedIngestionCore
              . ' VALUES (:title, :date, :location, :summary, :rating, :etype, :org, :kw)';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
-            ':title'    => $orgName . ' ' . $date,
+            ':title'    => $displayOrg . ' ' . $date,
             ':date'     => $date,
             ':location' => $location  !== '' ? $location  : null,
             ':summary'  => $notes     !== '' ? $notes     : null,
             ':rating'   => $rating    !== '' ? $rating    : null,
             ':etype'    => $eventType !== '' ? $eventType : null,
-            ':org'      => $orgName,
+            ':org'      => $canonicalOrg,
             ':kw'       => $keywords  !== '' ? $keywords  : null,
         ]);
         return (int)$this->pdo->lastInsertId();
@@ -202,16 +210,17 @@ final class UnifiedIngestionCore
      */
     public function ensureSong(string $title, string $type): int
     {
+        $canonicalTitle = $this->normalizer->canonicalizeForComparison($title);
         $stmt = $this->pdo->prepare(
             'SELECT song_id FROM songs WHERE title = :t AND type = :ty LIMIT 1'
         );
-        $stmt->execute([':t' => $title, ':ty' => $type]);
+        $stmt->execute([':t' => $canonicalTitle, ':ty' => $type]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['song_id'])) {
             return (int)$row['song_id'];
         }
         $stmt = $this->pdo->prepare('INSERT INTO songs (title, type) VALUES (:t, :ty)');
-        $stmt->execute([':t' => $title, ':ty' => $type]);
+        $stmt->execute([':t' => $canonicalTitle, ':ty' => $type]);
         return (int)$this->pdo->lastInsertId();
     }
 

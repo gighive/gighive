@@ -1,5 +1,5 @@
 DROP DATABASE IF EXISTS music_db;
-CREATE DATABASE music_db;
+CREATE DATABASE music_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE music_db;  -- ensure subsequent statements target music_db
 
 /********************
@@ -10,14 +10,14 @@ CREATE TABLE genres (
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE styles (
     style_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 /********************
  * Core entities    *
@@ -43,7 +43,7 @@ CREATE TABLE sessions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     -- Allow multiple sessions per date by org
     CONSTRAINT unique_session_date_org UNIQUE (date, org_name)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE songs (
     song_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -57,7 +57,7 @@ CREATE TABLE songs (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (genre_id) REFERENCES genres(genre_id) ON DELETE SET NULL,
     FOREIGN KEY (style_id) REFERENCES styles(style_id) ON DELETE SET NULL
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 /********************
  * Media & linking  *
@@ -84,7 +84,7 @@ CREATE TABLE files (
     CONSTRAINT fk_files_session FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE SET NULL,
     CONSTRAINT uq_files_session_seq UNIQUE (session_id, seq),
     CONSTRAINT uq_files_checksum_sha256 UNIQUE (checksum_sha256)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Many-to-many: sessions ↔ songs
 CREATE TABLE session_songs (
@@ -95,7 +95,7 @@ CREATE TABLE session_songs (
     PRIMARY KEY (session_id, song_id),
     FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
     FOREIGN KEY (song_id) REFERENCES songs(song_id) ON DELETE CASCADE
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Many-to-many: songs ↔ files
 CREATE TABLE song_files (
@@ -104,7 +104,7 @@ CREATE TABLE song_files (
     PRIMARY KEY (song_id, file_id),
     FOREIGN KEY (song_id) REFERENCES songs(song_id) ON DELETE CASCADE,
     FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 /********************
  * People           *
@@ -114,7 +114,7 @@ CREATE TABLE musicians (
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Many-to-many: sessions ↔ musicians (with optional role)
 CREATE TABLE session_musicians (
@@ -125,7 +125,7 @@ CREATE TABLE session_musicians (
     UNIQUE KEY uniq_session_musician_role (session_id, musician_id, role),
     FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
     FOREIGN KEY (musician_id) REFERENCES musicians(musician_id) ON DELETE CASCADE
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 /********************
  * Auth             *
@@ -141,5 +141,4 @@ CREATE TABLE users (
   failed_logins INT NOT NULL DEFAULT 0,
   locked_until DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

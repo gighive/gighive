@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 SELECT '===== GENRES TABLE =====' AS "";
 SELECT COUNT(*) AS "Total Rows in genres" FROM genres;
 SELECT '' AS "\n";

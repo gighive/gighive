@@ -1,26 +1,42 @@
 *** 
 releaseNotes20260405.txt
-Changes: Implement heartbeat on upload feature and added time to completion back in
+Changes: Implement Phases 0-2 of database utf-8 enforcement changes, doc changes
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 TEST PUSH
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260405.log
 # GIG2 UPLOAD TESTS
-#Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260404.log #Upload tests only
+#Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260405.log 
 # PROD ROLLOUT
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260404.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260405.log
 # GIG STAGING PUSH
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260404.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260405.log
 # STAGING TELEMETRY FIX, ALWAYS RUN AFTER A STAGING PUSH
 #Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260404.log
 # LAB PUSH
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260405.log
 
-# OPTIONAL
 # ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
 
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_manifest_lib.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/TextNormalizer.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UnifiedIngestionCore.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/mysql/dbScripts/select.sql
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/z-custommysqld.cnf
+	modified:   docs/knowledge_map.html
+	renamed:    docs/bundle_assembly_flow.md -> docs/process_one_shot_bundle_assembly_flow.md
+	new file:   docs/refactor_database_utf8_enforcement_if_legacy_cleanup_needed.md
+
 TODO
-Next: when i uploaded from my iphone, i got two entries in the db/database.php
 Next: install_method should be docker for quickstart
 Next: db changes for refactor_preasset_librarian*.md changes
 Next: execute tests against bundle
@@ -61,6 +77,26 @@ Backup: Realize that the sha versions of stormpigs aren't backed up on popos
 
 *** 
 releaseNotes20260405.txt
+Changes: Implement heartbeat on upload feature and added time to completion back in
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260405.log
+# GIG2 UPLOAD TESTS
+#Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260404.log #Upload tests only
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260404.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260404.log
+# STAGING TELEMETRY FIX, ALWAYS RUN AFTER A STAGING PUSH
+#Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260404.log
+# LAB PUSH
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260405.log
+
+# ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+
+*** 
+releaseNotes20260405.txt
 Changes: Document db utf-8 enforcement
 
 *** 
@@ -82,7 +118,6 @@ Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/
 # LAB PUSH
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260405.log
 
-# OPTIONAL
 # ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260405.log 
 # BUNDLE ARCHIVE ONLY
@@ -115,7 +150,6 @@ Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/invento
 # GIG STAGING PUSH
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260404.log
 
-# OPTIONAL
 # STAGING TELEMETRY FIX
 #Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260404.log
 # ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.

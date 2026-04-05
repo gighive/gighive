@@ -3,6 +3,7 @@
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
+use Production\Api\Services\TextNormalizer;
 use Production\Api\Services\UnifiedIngestionCore;
 
 function gighive_manifest_job_id(): string {
@@ -149,7 +150,10 @@ function gighive_manifest_basename_no_ext(string $pathOrName): string {
 }
 
 function gighive_manifest_validate_payload(array $payload): array {
+    $normalizer = new TextNormalizer();
+
     $orgName = trim((string)($payload['org_name'] ?? 'default'));
+    $normalizer->assertValidUtf8($orgName, 'org_name');
     $eventType = trim((string)($payload['event_type'] ?? 'band'));
     $items = $payload['items'] ?? null;
     if (!is_array($items) || !$items) {
@@ -176,8 +180,12 @@ function gighive_manifest_validate_payload(array $payload): array {
         if ($fileName === '') {
             throw new RuntimeException('Missing file_name at index ' . $i);
         }
+        $normalizer->assertValidUtf8($fileName, 'file_name at index ' . $i);
 
         $sourceRelpath = isset($it['source_relpath']) ? (string)$it['source_relpath'] : '';
+        if ($sourceRelpath !== '') {
+            $normalizer->assertValidUtf8($sourceRelpath, 'source_relpath at index ' . $i);
+        }
 
         $eventDate = trim((string)($it['event_date'] ?? ''));
         if ($eventDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $eventDate)) {
