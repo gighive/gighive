@@ -1,7 +1,9 @@
 # Refactor: Unified Ingestion Core
-
+  
 ## Goal
 Create a shared server-side ingestion core that is used by both the upload API paths and the manifest add/reload import paths.
+
+Related planning doc: `docs/refactor_database_utf8_enforcement.md` captures the backend UTF-8 enforcement and centralized text-normalization plan that should be applied across these ingestion paths.
 
 This is intended as a precursor to the broader Event/Asset hard cutover described in `docs/pr_librarianAsset_musicianEvent.md`.
 
