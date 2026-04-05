@@ -136,6 +136,7 @@
   when:
     - item.path.startswith(_one_shot_bundle_templates_prefix)
     - item.path != (_one_shot_bundle_templates_prefix ~ 'gighive.htpasswd.j2')
+    - item.path != (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2')
 
 - name: Copy existing gighive.htpasswd into fresh one-shot bundle output (controller)
   delegate_to: localhost
