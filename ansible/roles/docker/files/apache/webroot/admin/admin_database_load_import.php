@@ -45,6 +45,8 @@ if ($user !== 'admin') {
     .muted { color:#a8b3cf; font-size:.95rem; }
     .nav-bar { display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:1.5rem; }
   </style>
+  <link rel="stylesheet" href="/admin/assets/import_progress.css" />
+  <script src="/admin/assets/import_progress.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -118,60 +120,6 @@ if ($user !== 'admin') {
     return '<div class="alert-ok">' + String(message) + renderDbLinkButton(linkLabel) + '</div>';
   }
 
-  function renderImportSteps(steps, tableCounts) {
-    if (!Array.isArray(steps)) return '';
-    const counts = (tableCounts && typeof tableCounts === 'object') ? tableCounts : null;
-    const jobId = arguments.length >= 3 ? arguments[2] : null;
-    const now = Date.now();
-    const stepToTable = {
-      'Load sessions': 'sessions',
-      'Load musicians': 'musicians',
-      'Load songs': 'songs',
-      'Load files': 'files',
-      'Load session_musicians': 'session_musicians',
-      'Load session_songs': 'session_songs',
-      'Load song_files': 'song_files'
-    };
-    let html = '<div class="muted">Progress:</div><div style="margin-top:.5rem">';
-    for (const s of steps) {
-      const status = s.status || 'pending';
-      const name = s.name || '';
-      let msg = s.message || '';
-
-      const progress = (s && typeof s === 'object' && s.progress && typeof s.progress === 'object') ? s.progress : null;
-      const processed = progress ? Number(progress.processed) : NaN;
-      const total = progress ? Number(progress.total) : NaN;
-      const hasProgress = Number.isFinite(processed) && Number.isFinite(total) && total > 0;
-      const pct = hasProgress ? Math.max(0, Math.min(100, Math.round((processed / total) * 100))) : 0;
-
-      const progressHtml = hasProgress
-        ? (
-          '<div style="margin-left:72px;margin-top:.35rem">'
-          + '<div class="muted" style="margin-bottom:.2rem">' + processed + ' / ' + total + ' (' + pct + '%)</div>'
-          + '<div style="height:10px;border:1px solid #1d2a55;border-radius:999px;overflow:hidden;background:#0e1530">'
-          + '<div style="height:10px;width:' + pct + '%;background:#22c55e"></div>'
-          + '</div>'
-          + '</div>'
-        )
-        : '';
-      const tableKey = counts && Object.prototype.hasOwnProperty.call(stepToTable, name) ? stepToTable[name] : null;
-      if (tableKey && counts && Object.prototype.hasOwnProperty.call(counts, tableKey)) {
-        const v = Number(counts[tableKey]);
-        if (Number.isFinite(v) && msg) {
-          msg = msg.replace(/\s*$/, '') + ': ' + v;
-        }
-      }
-      const color = status === 'ok' ? '#22c55e' : (status === 'error' ? '#ef4444' : '#a8b3cf');
-      html += '<div style="margin:.25rem 0">'
-        + '<span style="display:inline-block;min-width:72px;color:' + color + '">' + status.toUpperCase() + '</span>'
-        + '<span>' + name + '</span>'
-        + (msg ? '<div class="muted" style="margin-left:72px;white-space:pre-wrap">' + msg.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>' : '')
-        + progressHtml
-        + '</div>';
-    }
-    html += '</div>';
-    return html;
-  }
 
   function parseCsvHeaderLine(line) {
     const out = [];
@@ -313,6 +261,7 @@ if ($user !== 'admin') {
       formData.append('database_csv', fileInput.files[0]);
 
       btn.disabled = true;
+      resetProgressLatch();
       btn.textContent = 'Uploading and Importing...';
       status.innerHTML = '<div class="muted">Processing request...</div>';
 
@@ -327,7 +276,7 @@ if ($user !== 'admin') {
       .then(({ ok, data }) => {
         if (ok && data && data.success) {
           status.innerHTML = renderOkBannerWithDbLink((data.message || 'Database import completed successfully.'), 'See Updated Database')
-            + renderImportSteps(data.steps, data.table_counts);
+            + renderImportStepsShared(data.steps, {tableCounts: data.table_counts, showProgressBar: true, label: 'Progress:', statusIndentPx: 72});
           btn.textContent = 'Import Completed';
           btn.disabled = false;
           btn.removeAttribute('onclick');
@@ -340,7 +289,7 @@ if ($user !== 'admin') {
         } else {
           const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
           status.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
-            + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
+            + (data && data.steps ? renderImportStepsShared(data.steps, {tableCounts: data.table_counts, showProgressBar: true, label: 'Progress:', statusIndentPx: 72}) : '');
           btn.disabled = false;
           btn.textContent = 'Upload CSV and Reload DB';
         }
@@ -390,6 +339,7 @@ if ($user !== 'admin') {
       formData.append('session_files_csv', sessionFilesInput.files[0]);
 
       btn.disabled = true;
+      resetProgressLatch();
       btn.textContent = 'Uploading and Importing...';
       status.innerHTML = '<div class="muted">Processing request...</div>';
 
@@ -404,7 +354,7 @@ if ($user !== 'admin') {
       .then(({ ok, data }) => {
         if (ok && data && data.success) {
           status.innerHTML = renderOkBannerWithDbLink((data.message || 'Database import completed successfully.'), 'See Updated Database')
-            + renderImportSteps(data.steps, data.table_counts);
+            + renderImportStepsShared(data.steps, {tableCounts: data.table_counts, showProgressBar: true, label: 'Progress:', statusIndentPx: 72});
           btn.textContent = 'Import Completed';
           btn.disabled = false;
           btn.removeAttribute('onclick');
@@ -417,7 +367,7 @@ if ($user !== 'admin') {
         } else {
           const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
           status.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
-            + (data && data.steps ? renderImportSteps(data.steps, data.table_counts) : '');
+            + (data && data.steps ? renderImportStepsShared(data.steps, {tableCounts: data.table_counts, showProgressBar: true, label: 'Progress:', statusIndentPx: 72}) : '');
           btn.disabled = false;
           btn.textContent = 'Upload 2 CSVs and Reload DB';
         }

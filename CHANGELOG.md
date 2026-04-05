@@ -1,11 +1,10 @@
 *** 
 releaseNotes20260405.txt
-Changes: Document db utf-8 enforcement
-Scope: 
+Changes: Implement heartbeat on upload feature and added time to completion back in
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260404.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260405.log
 # GIG2 UPLOAD TESTS
 #Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260404.log #Upload tests only
 # PROD ROLLOUT
@@ -59,6 +58,10 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260405.txt
+Changes: Document db utf-8 enforcement
 
 *** 
 releaseNotes20260405.txt

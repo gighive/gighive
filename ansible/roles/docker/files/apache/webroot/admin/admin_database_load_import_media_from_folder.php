@@ -56,6 +56,8 @@ if (!$__video_exts) $__video_exts = ['mp4','mov','mkv','avi','webm','m4v'];
     details summary { cursor:pointer; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
+  <link rel="stylesheet" href="/admin/assets/import_progress.css" />
+  <script src="/admin/assets/import_progress.js"></script>
 </head>
 <body>
 <div class="wrap"><div class="card">
@@ -288,20 +290,6 @@ async function sha256Abortable(file, signal, onProgress) {
   });
 }
 
-// ── renderImportSteps ────────────────────────────────────────────────────────
-function renderImportSteps(steps) {
-  if(!Array.isArray(steps))return'';
-  let h='<div class="muted" style="margin-top:.5rem">Steps:</div><div>';
-  for(const s of steps){
-    const st=s.status||'pending';
-    const col=st==='ok'?'#22c55e':st==='error'?'#ef4444':'#a8b3cf';
-    const displayMsg=s.message&&/^Processed /i.test(s.message)?'PROGRESS METER: '+s.message:s.message;
-    h+='<div style="margin:.15rem 0"><span style="display:inline-block;min-width:70px;color:'+col+'">'+st.toUpperCase()+'</span><span>'+escapeHtml(s.name||'')+'</span>';
-    if(displayMsg)h+='<div class="muted" style="margin-left:70px">'+escapeHtml(displayMsg)+'</div>';
-    h+='</div>';
-  }
-  return h+'</div>';
-}
 
 const __dbLinkStyle='display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;';
 function renderDbLinkButton(label){
@@ -480,9 +468,11 @@ async function pollManifestJob(jobId, statusEl, onDone) {
       const d=await r.json().catch(()=>null);
       const state=(d&&d.state)?String(d.state):'queued';
       if(statusEl){
-        const elapsed=formatElapsed(Date.now()-start);
-        statusEl.innerHTML='<div class="muted">Job '+escapeHtml(jobId)+': '+escapeHtml(state)+' (elapsed: '+elapsed+')</div>'
-          +(d&&d.steps?renderImportSteps(d.steps):'');
+        const elapsedMs=Date.now()-start;
+        const elapsed=formatElapsed(elapsedMs);
+        const etaText=(d&&d.steps)?getImportProgressEtaText(d.steps, elapsedMs):'';
+        statusEl.innerHTML='<div class="muted">Job '+escapeHtml(jobId)+': '+escapeHtml(state)+' (elapsed: '+elapsed+(etaText?' — '+escapeHtml(etaText):'')+')</div>'
+          +(d&&d.steps?renderImportStepsShared(d.steps, {showProgressBar: false, label: 'Steps:', statusIndentPx: 70}):'');
       }
       if(state==='ok'||state==='error'||state==='canceled'){
         stopped=true;if(onDone)onDone(state,d);return;
@@ -582,6 +572,7 @@ async function sectionScan(id) {
   if(!confirm(confirmText))return;
 
   s.cancelReq=false;
+  resetProgressLatch();
   s.abortCtl=new AbortController();
   s.runAt=Date.now();
   el(id+'-scan-btn').disabled=true;
@@ -641,11 +632,11 @@ async function sectionScan(id) {
   pollManifestJob(jobId,statusEl,(state,data)=>{
     el(id+'-scan-btn').disabled=false;
     if(state==='ok'&&data&&data.success!==false){
-      html(id+'-status','<div class="alert-ok">Step 1 complete. Job: '+escapeHtml(jobId)+'</div>'+(data.steps?renderImportSteps(data.steps):''));
+      html(id+'-status','<div class="alert-ok">Step 1 complete. Job: '+escapeHtml(jobId)+'</div>'+(data.steps?renderImportStepsShared(data.steps, {showProgressBar: false, label: 'Steps:', statusIndentPx: 70}):''));
       showUploadPanel(id,jobId,Array.from(folderInput.files));
     } else {
       const msg=(data&&(data.message||data.error))||'Import failed';
-      html(id+'-status','<div class="alert-err">'+escapeHtml(String(msg))+'</div>'+(data&&data.steps?renderImportSteps(data.steps):''));
+      html(id+'-status','<div class="alert-err">'+escapeHtml(String(msg))+'</div>'+(data&&data.steps?renderImportStepsShared(data.steps, {showProgressBar: false, label: 'Steps:', statusIndentPx: 70}):''));
     }
     refreshJobsUi(id);
   });
@@ -1103,7 +1094,8 @@ async function sectionReplay(id){
   const mode=_S[id].mode;
   const btn=el(id+'-replay-btn');
   if(btn)btn.disabled=true;
-  html(id+'-replay-status','<div class="muted">Replaying job '+escapeHtml(jobId)+'…</div>');
+  resetProgressLatch();
+  html(id+'-replay-status','<div class="muted">Replaying job '+escapeHtml(jobId)+'\u2026</div>');
   try{
     const r=await fetch('import_manifest_replay.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:jobId})});
     const d=await r.json().catch(()=>null);
@@ -1111,8 +1103,8 @@ async function sectionReplay(id){
     pollManifestJob(newId,statusEl,(state,data)=>{
       if(btn)btn.disabled=!sel.value;
       const msg=(data&&(data.message||data.error))||'';
-      if(state==='ok')html(id+'-replay-status','<div class="alert-ok">Replay complete. '+escapeHtml(msg)+'</div>'+(data&&data.steps?renderImportSteps(data.steps):''));
-      else html(id+'-replay-status','<div class="alert-err">'+escapeHtml(msg||state)+'</div>'+(data&&data.steps?renderImportSteps(data.steps):''));
+      if(state==='ok')html(id+'-replay-status','<div class="alert-ok">Replay complete. '+escapeHtml(msg)+'</div>'+(data&&data.steps?renderImportStepsShared(data.steps, {showProgressBar: false, label: 'Steps:', statusIndentPx: 70}):''));
+      else html(id+'-replay-status','<div class="alert-err">'+escapeHtml(msg||state)+'</div>'+(data&&data.steps?renderImportStepsShared(data.steps, {showProgressBar: false, label: 'Steps:', statusIndentPx: 70}):''));
       refreshJobsUi(id);
     });
   }catch(e){html(id+'-replay-status','<div class="alert-err">'+escapeHtml(String(e&&e.message?e.message:e))+'</div>');if(btn)btn.disabled=!sel.value;}

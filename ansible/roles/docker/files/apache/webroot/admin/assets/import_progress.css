@@ -1,0 +1,38 @@
+/* ── Active progress heartbeat ─────────────────────────────────────────────── */
+.progress-heartbeat {
+  display: inline-block;
+  margin-left: .35rem;
+  color: #fb7185;
+  font-size: 1em;
+  line-height: 1;
+  vertical-align: -0.05em;
+  transform-origin: center;
+  animation: progressHeartbeat 1.15s ease-in-out infinite;
+}
+
+@keyframes progressHeartbeat {
+  0%   { transform: scale(1);    text-shadow: 0 0 0    rgba(251, 113, 133, 0);   }
+  10%  { transform: scale(1.08); text-shadow: 0 0 6px  rgba(251, 113, 133, .45); }
+  20%  { transform: scale(1.22); text-shadow: 0 0 10px rgba(251, 113, 133, .7);  }
+  32%  { transform: scale(1.02); text-shadow: 0 0 3px  rgba(251, 113, 133, .25); }
+  45%  { transform: scale(1.16); text-shadow: 0 0 8px  rgba(251, 113, 133, .55); }
+  60%  { transform: scale(1);    text-shadow: 0 0 0    rgba(251, 113, 133, 0);   }
+  100% { transform: scale(1);    text-shadow: 0 0 0    rgba(251, 113, 133, 0);   }
+}
+
+/* ── Completed 💯 badge ─────────────────────────────────────────────────────── */
+.progress-complete-badge {
+  display: inline-block;
+  margin-left: .35rem;
+  font-size: 1em;
+  line-height: 1;
+  vertical-align: -0.05em;
+}
+
+/* ── Accessibility: respect reduced-motion preference ──────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .progress-heartbeat {
+    animation: none;
+    text-shadow: none;
+  }
+}
