@@ -242,7 +242,7 @@ _tracking_timeout="{{ gighive_installation_tracking_timeout_seconds | default(3)
 _app_version=$(cat VERSION 2>/dev/null | tr -d '[:space:]' || true)
 _install_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '[:space:]' || uuidgen 2>/dev/null || printf '%s' "$(date +%s)")
 _install_channel="quickstart"
-_install_method="{{ gighive_install_method | default('virtualbox') }}"
+_install_method="docker"
 _app_flavor="{{ app_flavor | default('gighive') }}"
 
 _send_telemetry() {

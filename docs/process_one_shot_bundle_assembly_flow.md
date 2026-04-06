@@ -42,18 +42,25 @@ flowchart LR
         t12["www.conf.j2"]
         t13["crs-setup.conf.j2"]
   end
- subgraph APACHESRC["roles/docker/files/apache/"]
-        s7["Dockerfile"]
+ subgraph FILESSRC["roles/docker/files/..."]
+        s7["apache/Dockerfile, apache/webroot/...,
+        and other non-template files"]
+  end
+ subgraph ASSETSSRC["assets/"]
+        a1["audio/..."]
+        a2["video/..."]
   end
  subgraph COL1["Sources"]
     direction TB
         OSB
         TMPLSRC
-        APACHESRC
+        FILESSRC
+        ASSETSSRC
   end
- subgraph COL2["Ansible Processing"]
-    direction TB
+ subgraph COL2A["Ansible Processing: template"]
         RENDER["template / Jinja2"]
+  end
+ subgraph COL2B["Ansible Processing: copy"]
         COPY["copy"]
   end
  subgraph COL3["/tmp/gighive-one-shot-bundle/"]
@@ -77,6 +84,9 @@ flowchart LR
         d17["backup_and_replace.sh"]
         d18["rotate_basic_auth.sh"]
         d19["instructions_quickstart.sh"]
+        d20["apache/webroot/..."]
+        d21["_host_audio/..."]
+        d22["_host_video/..."]
   end
     t1 --> RENDER
     RENDER --> d1 & d4 & d5 & d6 & d7 & d8 & d9 & d10 & d11 & d12 & d13 & d14
@@ -99,6 +109,9 @@ flowchart LR
     s5 --> COPY
     s6 --> COPY
     s7 --> COPY
+    a1 --> COPY
+    a2 --> COPY
+    COPY --> d20 & d21 & d22
 ```
 
 [![Bundle Assembly Flow](images/one-shot-bundle-sources.png)](images/one-shot-bundle-sources.png)
