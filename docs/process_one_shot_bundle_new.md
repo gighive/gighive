@@ -51,6 +51,19 @@ The process therefore has two related but distinct responsibilities:
 - monitoring drift between repo inputs and the checked-out bundle
 - producing a fresh bundle output for inspection/testing
 
+## Why Full Build and Quickstart Cannot Share a Single group_vars Entry
+
+The quickstart bundle has no independent Ansible inventory or group_vars of its own — it is a static artifact assembled from within the full-build Ansible context. Once the bundle is handed to an end user, there is no Ansible run at all; the user just executes `install.sh` directly.
+
+The constraint is structural:
+
+- **Full build** → Ansible runs → group_vars available → `.env.j2` renders with `gighive_install_channel: full`
+- **Quickstart** → no Ansible run → no group_vars → user runs `install.sh` standalone
+
+There is nowhere in the quickstart path to inject a group_vars override unless it is baked invisibly into the bundle assembly step (e.g. a `set_fact` in the `one_shot_bundle` role). But even then it is a workaround, not a true single declared source.
+
+The correct single source of truth for the quickstart channel is `install.sh.j2` itself — the declaration `_install_channel="quickstart"` already lives there (line 244) because `install.sh` *is* the quickstart entry point. Any runtime config that needs to reflect this (e.g. `GIGHIVE_INSTALL_CHANNEL` in `apache/externalConfigs/.env`) should be patched by `install.sh` at user install time using `_patch_env_key`, rather than relying on what was baked into the pre-rendered `.env` during the full-build Ansible run.
+
 ## Current Roles of the Main Files
 
 ### `ansible/roles/one_shot_bundle/tasks/main.yml`

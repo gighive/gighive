@@ -244,6 +244,7 @@ _install_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '[:space:]' |
 _install_channel="quickstart"
 _install_method="docker"
 _app_flavor="{{ app_flavor | default('gighive') }}"
+_patch_env_key "GIGHIVE_INSTALL_CHANNEL" "$_install_channel" "$APACHE_ENV_FILE"
 
 _send_telemetry() {
   local _event_name="$1"

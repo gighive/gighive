@@ -10,6 +10,9 @@ if ($user !== 'admin') {
     exit;
 }
 
+$__install_channel = getenv('GIGHIVE_INSTALL_CHANNEL') ?: 'full';
+$__show_disk_resize = ($__install_channel === 'full');
+
 $__restore_backup_dir = getenv('GIGHIVE_MYSQL_BACKUPS_DIR') ?: '';
 $__restore_db_name = getenv('MYSQL_DATABASE') ?: '';
 $__restore_backup_files = [];
@@ -133,27 +136,7 @@ function __format_backup_size(int $bytes): string {
       </div>
 
       <div class="section-divider">
-        <h2>Section C: Write Disk Resize Request (Optional)</h2>
-        <p class="muted">
-          This creates a resize request file on the server. It does not resize the VM immediately. <a href="https://gighive.app/resizeRequestInstructions.html" target="_blank" rel="noopener noreferrer">Instructions here</a>
-        </p>
-        <div class="warning-box">
-          <strong>⚠️ Warning:</strong> Gighive builds a VM with a default virtual disk size of 64GB.  This command with provide a method to increase the size of the disk.  You will first request a disk resize operation. Then you will run an Ansible script to enlarge the disk.
-        </div>
-        <div class="row">
-          <label for="resize_inventory_host">Inventory host</label>
-          <input type="text" id="resize_inventory_host" name="resize_inventory_host" value="gighive2" />
-        </div>
-        <div class="row">
-          <label for="resize_disk_size_gib">Target disk size (GiB)</label>
-          <input type="number" id="resize_disk_size_gib" name="resize_disk_size_gib" min="16" step="1" value="256" />
-        </div>
-        <div id="resizeRequestStatus"></div>
-        <button type="button" id="writeResizeRequestBtn" class="danger" onclick="confirmWriteResizeRequest()">Write Resize Request</button>
-      </div>
-
-      <div class="section-divider">
-        <h2>Section D: Restore Database From Backup (Destructive)</h2>
+        <h2>Section C: Restore Database From Backup (Destructive)</h2>
         <p class="muted">
           A full database backup is created daily by the server. Use this section to restore the entire database if something goes wrong.
         </p>
@@ -186,6 +169,28 @@ function __format_backup_size(int $bytes): string {
 
         <button type="button" id="restoreDbBtn" class="danger" onclick="confirmRestoreDatabase()" <?php if (!count($__restore_backup_files)): ?>disabled<?php endif; ?>>Restore Database</button>
       </div>
+
+      <?php if ($__show_disk_resize): ?>
+      <div class="section-divider">
+        <h2>Section D: Write Disk Resize Request (Optional)</h2>
+        <p class="muted">
+          This creates a resize request file on the server. It does not resize the VM immediately. <a href="https://gighive.app/resizeRequestInstructions.html" target="_blank" rel="noopener noreferrer">Instructions here</a>
+        </p>
+        <div class="warning-box">
+          <strong>⚠️ Warning:</strong> Gighive builds a VM with a default virtual disk size of 64GB.  This command with provide a method to increase the size of the disk.  You will first request a disk resize operation. Then you will run an Ansible script to enlarge the disk.
+        </div>
+        <div class="row">
+          <label for="resize_inventory_host">Inventory host</label>
+          <input type="text" id="resize_inventory_host" name="resize_inventory_host" value="gighive2" />
+        </div>
+        <div class="row">
+          <label for="resize_disk_size_gib">Target disk size (GiB)</label>
+          <input type="number" id="resize_disk_size_gib" name="resize_disk_size_gib" min="16" step="1" value="256" />
+        </div>
+        <div id="resizeRequestStatus"></div>
+        <button type="button" id="writeResizeRequestBtn" class="danger" onclick="confirmWriteResizeRequest()">Write Resize Request</button>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -312,7 +317,7 @@ function __format_backup_size(int $bytes): string {
       if (data.success) {
         const audio = Number(data.audio_files_deleted) || 0;
         const video = Number(data.video_files_deleted) || 0;
-        const thumbs = Number(data.thumbnail_files_deleted) || 0;
+        const thumbs = Number(data.thumbnails_files_deleted) || 0;
         const total = Number(data.total_deleted) || 0;
         status.innerHTML = '<div class="alert-ok">Deleted ' + total + ' file(s) from disk.'
           + ' (audio: ' + audio + ', video: ' + video + ', thumbnails: ' + thumbs + ')</div>';

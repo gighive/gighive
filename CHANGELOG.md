@@ -1,4 +1,118 @@
 *** 
+releaseNotes20260407.txt
+Changes: Delete media thumbnail calc fix, toggle appearance of section D on admin_system / install.sh var, exclude telemetry_receiver/data from sync_scripts
+Scope: Gig2 + one-shot-bundle
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260407.log
+# GIG2 UPLOAD TESTS
+#Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260405.log 
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260405.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260405.log
+# STAGING TELEMETRY FIX, ALWAYS RUN AFTER A STAGING PUSH
+#Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260405.log
+# LAB PUSH
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260405.log
+
+# ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260407.log 
+# BUNDLE ARCHIVE ONLY
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260403.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/install.sh.j2
+	new file:   docs/feature_section_d_install_channel_toggle.md
+	new file:   docs/problem_one_shot_bundle_tmp_already_running.md
+	new file:   docs/process_one_shot_bundle_install_sh.md
+	modified:   docs/process_one_shot_bundle_new.md
+
+TODO
+Next: telemetry gets frozen after staging server push + db gets wiped when we redo staging telemetry
+Next: execute tests against bundle
+Bundle: skip resize request (as there is no vm)
+Bundle: remove sp's content
+Testing: App breaks on upload when changing to Messages 
+Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Problem: admin.php passwords doesn't use common min security requirements
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: database table name change to genericize songs 
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Can i provide a link to the Media Details page in the app?
+App/Web: skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: Share link feature in media page
+App: Is it worthwhile to have an embed feature?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+Product: Update the licensing 
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails 
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+Maintenance: Eventually get rid of the sp stuff like jam images in bundle
+Maintenance: helpful to add filesize to restore database file list dropdown
+Maintenance: chg stg pwd
+Maintenance: remove vodcast.xml from webroot for gighive
+Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260405.txt
+Changes: Minor fixes plus install.sh.j2
+Scope: All except lab
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260405.log
+# GIG2 UPLOAD TESTS
+#Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260405.log 
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260405.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260405.log
+# STAGING TELEMETRY FIX, ALWAYS RUN AFTER A STAGING PUSH
+#Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260405.log
+# LAB PUSH
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260405.log
+
+# ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260405.log 
+# BUNDLE ARCHIVE ONLY
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260403.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/install.sh.j2
+	modified:   docs/images/one-shot-bundle-sources.png
+	modified:   docs/process_one_shot_bundle_assembly_flow.md
+
+*** 
 releaseNotes20260405.txt
 Changes: Implement Phases 0-2 of database utf-8 enforcement changes, doc changes
 Scope: all except lab 
@@ -39,46 +153,6 @@ Changes to be committed:
 	modified:   docs/knowledge_map.html
 	renamed:    docs/bundle_assembly_flow.md -> docs/process_one_shot_bundle_assembly_flow.md
 	new file:   docs/refactor_database_utf8_enforcement_if_legacy_cleanup_needed.md
-
-TODO
-Next: telemetry gets frozen after staging server push + db gets wiped
-Next: install_method should be docker for quickstart
-Next: db changes for refactor_preasset_librarian*.md changes
-Next: execute tests against bundle
-Broken in bundle: resize request (as there is no vm)
-Broken bundle: bundle status doesn't read /tmp/gighive-one-shot-bundle 
-Testing: App breaks on upload when changing to Messages 
-Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Problem: admin.php passwords doesn't use common min security requirements
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: database table name change to genericize songs 
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Can i provide a link to the Media Details page in the app?
-App/Web: skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: Share link feature in media page
-App: Is it worthwhile to have an embed feature?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-Product: Update the licensing 
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails 
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
-Maintenance: Eventually get rid of the sp stuff like jam images in bundle
-Maintenance: helpful to add filesize to restore database file list dropdown
-Maintenance: chg stg pwd
-Maintenance: remove vodcast.xml from webroot for gighive
-Backup: Realize that the sha versions of stormpigs aren't backed up on popos
 
 *** 
 releaseNotes20260405.txt
