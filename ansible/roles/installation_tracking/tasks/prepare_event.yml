@@ -8,7 +8,7 @@
   ansible.builtin.set_fact:
     installation_tracking_payload:
       event_name: "{{ installation_tracking_event_name }}"
-      app_version: "{{ lookup('file', repo_root ~ '/VERSION') | trim }}"
+      app_version: "{{ lookup('pipe', 'git -C ' ~ repo_root ~ ' rev-parse --short HEAD') | trim }}"
       install_channel: "{{ gighive_install_channel }}"
       install_method: "{{ gighive_install_method }}"
       app_flavor: "{{ app_flavor | default('gighive') }}"
