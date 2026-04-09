@@ -56,27 +56,25 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 2. When the script finishes, it will prompt you to reboot.  
 - Hit "enter" to stop the script and then reboot.
 
-3. GigHive sets and uses an Ansible variable `gighive_home` (default `~/gighive`) to locate the repo on the VM. If you cloned the repo anywhere else other than ~/gighive, edit the `gighive_home` variable found in `ansible/inventories/group_vars/gighive/all.yml` to the actual location of the repo.
-
-4. Verify the installation (<1 minute).
+3. Verify the installation (<1 minute).
 ```bash
 cd gighive
 ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
 ```
 - After finishing, you should see a green checkmark and the words "All prerequisites verified successfully!" at the bottom of the Ansible output.  Otherwise, redo the steps above.
 
-5. In the inventory file below, set the "ansible_host" variable to the IP address to the IP address you decided upon in the Prerequisites. 
+4. In the inventory file below, set the "ansible_host" variable to the IP address to the IP address you decided upon in the Prerequisites. 
 ```bash
 vi ansible/inventories/inventory_bootstrap.yml 
 ```
 
-6. Execute the Ansible playbook that will install Gighive (15 minutes).
+5. Execute the Ansible playbook that will install Gighive (15 minutes).
 OPTIONAL: GigHive sends the [**bare minimum of information for debugging purposes**](TELEMETRY_ENDUSER.md). If you do not want GigHive to send this minimal installation telemetry, change `gighive_enable_installation_tracking` to `false` in `ansible/inventories/group_vars/gighive/gighive.yml` before installation.
 ```bash
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --ask-become-pass
+ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags one_shot_bundle --ask-become-pass
 ```
 
-7. If the previous step ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
+6. If the previous step ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
 ```bash
 https://<ansible_host IP from earlier step>
 ```
