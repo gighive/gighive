@@ -344,12 +344,12 @@ fi
 
 ansible_cmd=(
   ansible-playbook -i "$inventory_file" ansible/playbooks/resize_vdi.yml
-  --limit "$inventory_host"
+  --limit "$request_inventory_host"
   -e "disk_size_mb=${disk_size_mb}"
 )
 
 guest_cmd=(
-  ssh "$( (ansible_get_var "$inventory_host" "ansible_user" || true) | head -n 1 | sed -e 's/^$/ubuntu/' )@$( (ansible_get_var "$inventory_host" "ansible_host" || true) | head -n 1 | sed -e "s/^$/${inventory_host}/" )" 'sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1'
+  ssh "$( (ansible_get_var "$request_inventory_host" "ansible_user" || true) | head -n 1 | sed -e 's/^$/ubuntu/' )@$( (ansible_get_var "$request_inventory_host" "ansible_host" || true) | head -n 1 | sed -e "s/^$/${request_inventory_host}/" )" 'sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1'
 )
 
 if [[ "$dry_run" == "true" ]]; then
