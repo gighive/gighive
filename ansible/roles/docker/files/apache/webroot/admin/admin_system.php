@@ -181,7 +181,7 @@ function __format_backup_size(int $bytes): string {
         </div>
         <div class="row">
           <label for="resize_inventory_host">Inventory host</label>
-          <input type="text" id="resize_inventory_host" name="resize_inventory_host" value="gighive2" />
+          <input type="text" id="resize_inventory_host" name="resize_inventory_host" value="gighive" />
         </div>
         <div class="row">
           <label for="resize_disk_size_gib">Target disk size (GiB)</label>
