@@ -138,13 +138,6 @@
     - item.path != (_one_shot_bundle_templates_prefix ~ 'gighive.htpasswd.j2')
     - item.path != (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2')
 
-- name: Copy existing gighive.htpasswd into fresh one-shot bundle output (controller)
-  delegate_to: localhost
-  become: false
-  ansible.builtin.copy:
-    src: "{{ one_shot_bundle_bundle_dir }}/apache/externalConfigs/gighive.htpasswd"
-    dest: "{{ _one_shot_bundle_output_dir }}/apache/externalConfigs/gighive.htpasswd"
-    mode: preserve
 
 - name: Copy non-template files into fresh one-shot bundle output (controller)
   delegate_to: localhost
