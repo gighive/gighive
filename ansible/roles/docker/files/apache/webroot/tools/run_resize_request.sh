@@ -85,7 +85,7 @@ ansible_get_var() {
     | sed -n "s/.*\"${var_name}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" \
     | awk 'NF { print; exit }')"
 
-  if [[ -z "$value" || "$value" == "VARIABLE IS NOT DEFINED!" ]]; then
+  if [[ -z "$value" || "$value" == "VARIABLE IS NOT DEFINED!" || "$value" == *"<< error"* ]]; then
     return 0
   fi
 

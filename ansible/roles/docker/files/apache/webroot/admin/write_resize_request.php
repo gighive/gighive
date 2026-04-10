@@ -69,6 +69,10 @@ if ($diskSizeMb < 16384) { // 16 GiB minimum
     exit;
 }
 
+$gighiveFqdn          = getenv('GIGHIVE_FQDN') ?: '';
+$gighiveInventoryHost = getenv('GIGHIVE_INVENTORY_HOST') ?: '';
+$gighiveInventoryFile = getenv('GIGHIVE_INVENTORY_FILE') ?: '';
+
 $requestDir = '/var/www/private/resizerequests';
 try {
     if (!is_dir($requestDir)) {
@@ -102,6 +106,15 @@ try {
 
     @chmod($requestFile, 0640);
 
+    $runCommand = '';
+    if ($gighiveFqdn !== '' && $gighiveInventoryHost !== '' && $gighiveInventoryFile !== '') {
+        $runCommand = './ansible/roles/docker/files/apache/webroot/tools/run_resize_request.sh'
+            . ' -i ' . $gighiveInventoryFile
+            . ' --request-host ' . $gighiveFqdn
+            . ' --request-inventory-host ' . $gighiveInventoryHost
+            . ' --latest';
+    }
+
     http_response_code(200);
     header('Content-Type: application/json');
     echo json_encode([
@@ -109,6 +122,7 @@ try {
         'message' => 'Resize request written successfully.',
         'request_file' => basename($requestFile),
         'request' => $payload,
+        'run_command' => $runCommand,
     ]);
 
 } catch (Throwable $e) {

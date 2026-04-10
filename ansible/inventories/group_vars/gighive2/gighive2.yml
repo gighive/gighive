@@ -253,9 +253,6 @@ gighive_htpasswd_owner: www-data
 gighive_htpasswd_group: www-data
 gighive_htpasswd_mode: "0640"
 
-# gighive.yml (example additions—use Vault for passwords!)
-apache_group: www-data
-
 # htpasswd vars coming up
 protected_paths: ['app','api','db','debug','src','vendor']
 

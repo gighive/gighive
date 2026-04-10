@@ -177,7 +177,7 @@ function __format_backup_size(int $bytes): string {
           This creates a resize request file on the server. It does not resize the VM immediately. <a href="https://gighive.app/resizeRequestInstructions.html" target="_blank" rel="noopener noreferrer">Instructions here</a>
         </p>
         <div class="warning-box">
-          <strong>⚠️ Warning:</strong> Gighive builds a VM with a default virtual disk size of 64GB.  This command with provide a method to increase the size of the disk.  You will first request a disk resize operation. Then you will run an Ansible script to enlarge the disk.
+          <strong>⚠️ Warning:</strong> Gighive builds a VM with a default virtual disk size of 64GB.  This command with provide a method to increase the size of the disk.  You will first request a disk resize operation. Then you will run an Ansible script to enlarge the disk. Note that the resize only grows, it DOES NOT SHRINK the virtual disk.
         </div>
         <div class="row">
           <label for="resize_inventory_host">Inventory host</label>
@@ -239,7 +239,18 @@ function __format_backup_size(int $bytes): string {
       if (ok && data && data.success) {
         const msg = (data.message || 'Resize request written successfully.');
         const file = (data.request_file || '');
-        status.innerHTML = '<div class="alert-ok">' + msg + (file ? ('<div class="muted" style="margin-top:.25rem">Request file: ' + String(file).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>') : '') + '</div>';
+        const cmd = (data.run_command || '');
+        const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+        let html = '<div class="alert-ok">' + esc(msg);
+        if (file) html += '<div class="muted" style="margin-top:.25rem">Request file: ' + esc(file) + '</div>';
+        if (cmd) {
+          html += '<div style="margin-top:.75rem"><div class="muted" style="margin-bottom:.35rem">cd into the gighive directory and run this on your VirtualBox host:</div>'
+            + '<pre id="resizeCmdPre" style="margin:0;background:#0e1530;border:1px solid #33427a;border-radius:8px;padding:.6rem .8rem;white-space:pre-wrap;word-break:break-all;font-size:.82rem;color:#cfd8ee">' + esc(cmd) + '</pre>'
+            + '<button type="button" onclick="(function(){navigator.clipboard.writeText(' + JSON.stringify(cmd) + ').then(function(){var b=document.getElementById(\'resizeCopyBtn\');b.textContent=\'Copied!\';setTimeout(function(){b.textContent=\'Copy Command\'},1500)});})()" id="resizeCopyBtn" style="margin-top:.4rem;font-size:.82rem;padding:.3rem .8rem;border-color:#6b7280">Copy Command</button>'
+            + '</div>';
+        }
+        html += '</div>';
+        status.innerHTML = html;
         btn.textContent = 'Write Resize Request';
         btn.disabled = false;
       } else {
