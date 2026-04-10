@@ -264,13 +264,13 @@ print_guest_summary() {
   local ssh_host=""
   local ssh_user=""
 
-  ssh_host="$(ansible_get_var "$inventory_host" "ansible_host" || true)"
-  ssh_user="$(ansible_get_var "$inventory_host" "ansible_user" || true)"
+  ssh_host="$(ansible_get_var "$request_inventory_host" "ansible_host" || true)"
+  ssh_user="$(ansible_get_var "$request_inventory_host" "ansible_user" || true)"
   if [[ -z "$ssh_user" ]]; then
     ssh_user="ubuntu"
   fi
   if [[ -z "$ssh_host" ]]; then
-    ssh_host="$inventory_host"
+    ssh_host="$request_inventory_host"
   fi
 
   echo
