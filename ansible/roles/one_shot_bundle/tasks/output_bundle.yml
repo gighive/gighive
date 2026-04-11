@@ -139,6 +139,22 @@
     - item.path != (_one_shot_bundle_templates_prefix ~ 'docker-compose.yml.j2')
 
 
+- name: Ensure apache/externalConfigs directory exists in fresh one-shot bundle output (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ _one_shot_bundle_output_dir }}/apache/externalConfigs"
+    state: directory
+    mode: "0755"
+
+- name: Copy gighive.htpasswd into fresh one-shot bundle output (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/apache/externalConfigs/gighive.htpasswd"
+    dest: "{{ _one_shot_bundle_output_dir }}/apache/externalConfigs/gighive.htpasswd"
+    mode: preserve
+
 - name: Copy non-template files into fresh one-shot bundle output (controller)
   delegate_to: localhost
   become: false

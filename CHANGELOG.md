@@ -1,5 +1,76 @@
 *** 
 releaseNotes20260410.txt
+Changes: Fix to add htp to correct directory in bundle 
+Scope: one-shot-bundle only
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260410.log
+# GIG2 UPLOAD TESTS
+#Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260405.log 
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260410.log
+# LAB PUSH
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260410.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260410.log
+# STAGING TELEMETRY FIX, ALWAYS RUN AFTER A STAGING PUSH
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260409.log
+
+# ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260410.log 
+# BUNDLE ARCHIVE ONLY
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260403.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	modified:   docs/PREREQS.md
+
+TODO
+Next: execute tests against bundle
+Bundle: remove sp's content
+Testing: App breaks on upload when changing to Messages 
+Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Problem: admin.php passwords doesn't use common min security requirements
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: database table name change to genericize songs 
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Can i provide a link to the Media Details page in the app?
+App/Web: skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: Share link feature in media page
+App: Is it worthwhile to have an embed feature?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+Product: Update the licensing 
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails 
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+Maintenance: Eventually get rid of the sp stuff like jam images in bundle
+Maintenance: helpful to add filesize to restore database file list dropdown
+Maintenance: chg stg pwd
+Maintenance: remove vodcast.xml from webroot for gighive
+Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260410.txt
 Changes:  Remove gighive-one-shot-bundle dir, move htp to static directory under docker/files, remove carry-forward copy and drift comparison as it was pointless after first try
 Scope: one-shot-bundle only
 
@@ -40,42 +111,6 @@ Changes to be committed:
 	modified:   docs/knowledge_map.html
 	deleted:    docs/process_one_shot_download_directory_for_tgz_design.md
 	deleted:    docs/process_one_shot_download_directory_for_tgz_lab_staging_configuration.md
-
-TODO
-Next: execute tests against bundle
-Bundle: remove sp's content
-Testing: App breaks on upload when changing to Messages 
-Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Problem: admin.php passwords doesn't use common min security requirements
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: database table name change to genericize songs 
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Can i provide a link to the Media Details page in the app?
-App/Web: skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: Share link feature in media page
-App: Is it worthwhile to have an embed feature?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-Product: Update the licensing 
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails 
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
-Maintenance: Eventually get rid of the sp stuff like jam images in bundle
-Maintenance: helpful to add filesize to restore database file list dropdown
-Maintenance: chg stg pwd
-Maintenance: remove vodcast.xml from webroot for gighive
-Backup: Realize that the sha versions of stormpigs aren't backed up on popos
 
 *** 
 releaseNotes20260410.txt

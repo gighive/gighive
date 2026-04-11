@@ -29,6 +29,26 @@ Use this path if you want the simplest install experience and already have Docke
 - The quickstart bundle includes the application stack and starts it with Docker Compose.
 - A self-signed certificate is used by default, so your browser will show a security warning until you replace it with a trusted cert.
 
+### Docker and Docker Compose V2 Easy Install on Ubuntu 24.04
+
+```bash
+# Install docker
+sudo apt update
+sudo apt install -y docker.io
+sudo systemctl enable --now docker
+sudo systemctl status docker
+docker --version
+sudo docker run hello-world
+
+# Install docker-compose-v2
+sudo apt install -y docker-compose-v2
+docker compose version
+
+# Add your user to the docker group
+sudo usermod -aG docker $USER
+# Logout, then log back in
+```
+
 ---
 
 ## 🔎 App-specific notes
