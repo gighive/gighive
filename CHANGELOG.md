@@ -1,7 +1,7 @@
 *** 
 releaseNotes20260410.txt
-Changes: Unify upload_max_mb in single group_var
-Scope: gighive2 only
+Changes: TSO/GSO/GRO disabled on docker bridge network
+Scope: All sdlc instances 
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 TEST PUSH
@@ -9,11 +9,11 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # GIG2 UPLOAD TESTS
 #Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260412.log 
 # PROD ROLLOUT
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260410.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260412.log
 # LAB PUSH
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260410.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260412.log
 # GIG STAGING PUSH
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260410.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260412.log
 # STAGING TELEMETRY FIX, ALWAYS RUN AFTER A STAGING PUSH
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260409.log
 
@@ -22,6 +22,8 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # BUNDLE ARCHIVE ONLY
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260403.log
 
+The Docker bridge and default bridge (`docker0`) were never included in the ethtool fix, so they continued to have TSO/GSO/GRO **enabled**. Packets from the container could carry GSO flags through the bridge to the virtio TX ring, corrupting ring state and producing the `is not a head` error — even though `eth0` itself had offloads disabled.
+
 sodo@pop-os:~/gighive$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
@@ -29,13 +31,8 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
 	modified:   ansible/roles/docker/tasks/main.yml
-	modified:   ansible/roles/docker/templates/.env.j2
-	modified:   ansible/roles/docker/templates/modsecurity.conf.j2
-	modified:   docs/app_upload_implementation.md
+	modified:   docs/problem_virtio_ethtool_fix_2026019.md
 
 TODO
 Next: fix backup to run on bundle, save locally on container
@@ -73,6 +70,45 @@ Maintenance: helpful to add filesize to restore database file list dropdown
 Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
+
+*** 
+releaseNotes20260410.txt
+Changes: Unify upload_max_mb in single group_var
+Scope: gighive2 only
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260412.log
+# GIG2 UPLOAD TESTS
+#Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests" ansible-playbook-gighive2-20260412.log 
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260410.log
+# LAB PUSH
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260410.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260410.log
+# STAGING TELEMETRY FIX, ALWAYS RUN AFTER A STAGING PUSH
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260409.log
+
+# ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260410.log 
+# BUNDLE ARCHIVE ONLY
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260403.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   ansible/roles/docker/templates/modsecurity.conf.j2
+	modified:   docs/app_upload_implementation.md
 
 *** 
 releaseNotes20260410.txt

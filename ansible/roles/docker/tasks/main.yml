@@ -265,6 +265,43 @@
   changed_when: compose_result.changed
   tags: docker, compose
 
+- name: Ensure ethtool is installed (for Docker bridge offload fix)
+  become: yes
+  ansible.builtin.apt:
+    name: ethtool
+    state: present
+    update_cache: yes
+  tags: docker
+
+- name: Install Docker bridge offloads disable systemd unit
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker-bridge-offloads-disable.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Disable offloads (TSO/GSO/GRO) on Docker bridge interfaces
+      After=docker.service
+      Wants=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'for iface in docker0 $(ls /sys/class/net/ | grep "^br-"); do /usr/sbin/ethtool -K "$iface" tso off gso off gro off 2>/dev/null || true; done'
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  tags: docker
+
+- name: Enable and start Docker bridge offloads disable service
+  become: yes
+  ansible.builtin.systemd:
+    name: docker-bridge-offloads-disable.service
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  tags: docker
+
 - name: Add current user to Docker group
   ansible.builtin.user:
     name: "{{ ansible_user }}"
