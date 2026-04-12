@@ -348,67 +348,79 @@ func urlSession(..., didCompleteWithError error: Error?) {
 
 ---
 
-## TODO: Centralize Upload Limit Configuration
+## Centralize Upload Limit Configuration
 
-**Current State:** Upload limit (6 GB) is defined in 4 separate locations.
+**Single source of truth:** `upload_max_bytes` and `upload_max_mb` in
+`ansible/inventories/group_vars/gighive/gighive.yml` (and per-environment overrides).
 
-**Goal:** Use Ansible variable as single source of truth for server-side systems.
+### Implementation Status
 
-### Step 2: Update Templates to Reference Ansible Variable
+#### 2.1 Dockerfile — ✅ DONE (2026-04-12)
+**Files:** `ansible/roles/docker/files/apache/Dockerfile` (unchanged),
+`ansible/roles/docker/tasks/main.yml` (new task added)
 
-After defining `upload_max_bytes` and `upload_max_mb` in Ansible variables (Step 1 - DONE), update these files:
+The Dockerfile stays as a plain file in `files/` (reaching the VM via the
+base-role rsync — `docker_dir` = `{{ gighive_home }}/ansible/roles/docker/files`).
+A `replace` task in `docker/tasks/main.yml` patches it in-place on the VM at
+deploy time:
 
-#### 2.1 Dockerfile
-**File:** `~/scripts/gighive/ansible/roles/docker/files/apache/Dockerfile`
-```dockerfile
-# Change from hardcoded values:
-RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6144M/' ...
-
-# To Ansible variable:
-RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = {{ upload_max_mb }}M/' ...
+```yaml
+- name: Patch PHP upload limits in Dockerfile from Ansible variable
+  ansible.builtin.replace:
+    path: "{{ docker_dir }}/apache/Dockerfile"
+    regexp: '6390M'
+    replace: "{{ upload_max_mb }}M"
+  tags: docker, compose
 ```
 
-#### 2.2 ModSecurity Configuration
-**File:** `~/scripts/gighive/ansible/roles/docker/templates/modsecurity.conf.j2`
-```apache
-# Change from hardcoded values:
-SecRequestBodyLimit 6442450944
+This avoids converting to `Dockerfile.j2`, which would have required changes
+in 7 files across the docker role, one_shot_bundle tasks, and all group_vars.
+The one-shot-bundle pipeline is unaffected.
 
-# To Ansible variable:
-SecRequestBodyLimit {{ upload_max_bytes }}
+#### 2.2 ModSecurity Configuration — ✅ DONE (2026-04-12)
+**File:** `ansible/roles/docker/templates/modsecurity.conf.j2`
+
+All 5 hardcoded `6442450944` occurrences replaced with `{{ upload_max_bytes }}`:
+- Global `SecRequestBodyLimit` / `SecRequestBodyNoFilesLimit`
+- Per-location limit in `/api/(uploads.php|media-files)` block
+- Per-location limit in `/api/uploads` block
+- Per-location limit in `/files` (TUS) block
+
+#### 2.3 UploadValidator.php — ✅ DONE (2026-04-12)
+**File:** `ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php`
+
+Code already reads `UPLOAD_MAX_BYTES` from env and falls back to a compiled-in
+default. Fixed by injecting the variable via `.env.j2` (see 2.4 below) — no
+PHP file changes needed.
+
+#### 2.4 .env.j2 — ✅ DONE (2026-04-12)
+**File:** `ansible/roles/docker/templates/.env.j2`
+
+Added:
+```bash
+UPLOAD_MAX_BYTES={{ upload_max_bytes }}
 ```
+This feeds `UploadValidator.php` at runtime via the container environment.
 
-#### 2.3 UploadValidator.php
-**File:** `~/scripts/gighive/ansible/roles/docker/files/apache/webroot/src/Validation/UploadValidator.php`
-
-**Option A:** Pass via environment variable (recommended)
-- Keep code as-is (reads from `UPLOAD_MAX_BYTES` env var)
-- Restore `UPLOAD_MAX_BYTES` in `.env.j2` using Ansible variable:
-  ```bash
-  UPLOAD_MAX_BYTES={{ upload_max_bytes }}
-  ```
-
-**Option B:** Generate PHP file from template
-- Rename to `UploadValidator.php.j2`
-- Replace hardcoded value with `{{ upload_max_bytes }}`
-
-#### 2.4 iOS App (Manual Sync Required)
+#### 2.5 iOS App (Manual Sync Required)
 **File:** `GigHive/Sources/App/AppConstants.swift`
 
-⚠️ **This must be manually updated** when Ansible variable changes.
+⚠️ **Must be manually updated** when `upload_max_bytes` changes in group_vars.
 
-Add comment linking to Ansible variable:
 ```swift
 // IMPORTANT: Keep in sync with Ansible variable 'upload_max_bytes'
-// Location: ~/scripts/gighive/ansible/group_vars/all.yml
+// Location: ansible/inventories/group_vars/gighive/gighive.yml
 static let MAX_UPLOAD_SIZE_BYTES: Int64 = 6_442_450_944  // 6 GB
 ```
 
-### Benefits After Implementation
-- ✅ Single source of truth for server configuration
-- ✅ Change limit in one place, redeploy to update all systems
-- ✅ Self-documenting (variable name explains purpose)
-- ⚠️ iOS app still requires manual sync (document clearly)
+### Summary
+
+| Component | Controlled by | Status |
+|---|---|---|
+| PHP `upload_max_filesize` / `post_max_size` (Dockerfile) | `upload_max_mb` | ⏳ Pending |
+| ModSecurity body limits (all endpoints) | `upload_max_bytes` | ✅ Done |
+| `UploadValidator.php` runtime limit | `upload_max_bytes` via env | ✅ Done |
+| iOS app upload cap | Manual sync to `upload_max_bytes` | ⚠️ Manual |
 
 ---
 

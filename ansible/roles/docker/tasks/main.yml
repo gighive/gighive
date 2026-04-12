@@ -201,6 +201,13 @@
     state: directory
     mode: "0755"
 
+- name: Patch PHP upload limits in Dockerfile from Ansible variable
+  ansible.builtin.replace:
+    path: "{{ docker_dir }}/apache/Dockerfile"
+    regexp: '6390M'
+    replace: "{{ upload_max_mb }}M"
+  tags: docker, compose
+
 - name: Render Docker Compose file from Jinja2 template
   template:
     src: docker-compose.yml.j2

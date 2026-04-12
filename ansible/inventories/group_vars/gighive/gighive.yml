@@ -374,7 +374,7 @@ mysql_backup_log: "{{ mysql_backups_dir }}/cron.log"
 # --- App upload/filename settings ---
 filename_seq_pad: 5
 upload_max_bytes: 6442450944 
-upload_max_mb: 6144
+upload_max_mb: 6390
 
 database_pagination_threshold: 750
 

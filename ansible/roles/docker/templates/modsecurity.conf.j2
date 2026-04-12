@@ -9,8 +9,8 @@ SecDataDir /var/cache/modsecurity
 
 # Reasonable limits (tuned higher for large media uploads)
 # 6GB body limit to accommodate large video files
-SecRequestBodyLimit 6442450944
-SecRequestBodyNoFilesLimit 6442450944
+SecRequestBodyLimit {{ upload_max_bytes }}
+SecRequestBodyNoFilesLimit {{ upload_max_bytes }}
 SecRequestBodyInMemoryLimit 1048576
 SecPcreMatchLimit 100000
 SecPcreMatchLimitRecursion 100000
@@ -31,7 +31,7 @@ SecAuditLogRelevantStatus "^(?:5|4(?!04))"
 <LocationMatch "^/api/(uploads\.php|media-files)$">
     SecRuleEngine On
     SecRequestBodyAccess On
-    SecRequestBodyLimit 6442450944
+    SecRequestBodyLimit {{ upload_max_bytes }}
     # Require multipart for uploads
     SecRule REQUEST_HEADERS:Content-Type "!@beginsWith multipart/form-data" \
         "id:1201,phase:2,deny,status:415,msg:'Uploads must be multipart/form-data'"
@@ -44,12 +44,12 @@ SecAuditLogRelevantStatus "^(?:5|4(?!04))"
 <LocationMatch "^/api/uploads(?:/|$)">
     SecRuleEngine On
     SecRequestBodyAccess On
-    SecRequestBodyLimit 6442450944
+    SecRequestBodyLimit {{ upload_max_bytes }}
 </LocationMatch>
 
 # TUS endpoint is not multipart; allow PATCH and tus content types without the multipart requirement
 <LocationMatch "^/files(?:/|$)">
     SecRuleEngine On
     SecRequestBodyAccess On
-    SecRequestBodyLimit 6442450944
+    SecRequestBodyLimit {{ upload_max_bytes }}
 </LocationMatch>
