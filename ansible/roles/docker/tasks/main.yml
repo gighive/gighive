@@ -305,6 +305,44 @@
     daemon_reload: yes
   tags: docker
 
+- name: Get list of Docker bridge interfaces (JSON)
+  become: yes
+  ansible.builtin.command: ip -json link show type bridge
+  register: bridge_json_raw
+  changed_when: false
+  failed_when: false
+  tags: docker
+
+- name: Build Docker bridge interface list
+  ansible.builtin.set_fact:
+    docker_bridge_iface_list: "{{ (bridge_json_raw.stdout | default('[]') | from_json) | map(attribute='ifname') | list }}"
+  tags: docker
+
+- name: Read offload settings for each Docker bridge interface
+  become: yes
+  ansible.builtin.command: "ethtool -k {{ item }}"
+  loop: "{{ docker_bridge_iface_list }}"
+  register: bridge_offload_results
+  changed_when: false
+  when: docker_bridge_iface_list | length > 0
+  tags: docker
+
+- name: Assert offloads disabled on all Docker bridge interfaces
+  ansible.builtin.assert:
+    that:
+      - item.stdout is search('(?m)^scatter-gather:\s+off')
+      - item.stdout is search('(?m)^tcp-segmentation-offload:\s+off')
+      - item.stdout is search('(?m)^generic-segmentation-offload:\s+off')
+      - item.stdout is search('(?m)^generic-receive-offload:\s+off')
+    fail_msg: |
+      Offload verification failed for Docker bridge {{ item.item }}.
+      Expected sg/tso/gso/gro all off.
+      Got:
+      {{ item.stdout }}
+  loop: "{{ bridge_offload_results.results }}"
+  when: docker_bridge_iface_list | length > 0
+  tags: docker
+
 - name: Install udev rule to disable offloads on veth interfaces at creation
   become: yes
   ansible.builtin.copy:
@@ -313,6 +351,55 @@
     content: |
       ACTION=="add", SUBSYSTEM=="net", KERNEL=="veth*", RUN+="/usr/sbin/ethtool -K $name tso off gso off gro off sg off"
   notify: reload udev rules
+  tags: docker
+
+- name: Flush handlers to reload udev before veth verification
+  meta: flush_handlers
+
+- name: Get list of active veth interfaces (JSON)
+  become: yes
+  ansible.builtin.command: ip -json link show type veth
+  register: veth_json_raw
+  changed_when: false
+  failed_when: false
+  tags: docker
+
+- name: Build veth interface list
+  ansible.builtin.set_fact:
+    veth_iface_list: "{{ (veth_json_raw.stdout | default('[]') | from_json) | map(attribute='ifname') | list }}"
+  tags: docker
+
+- name: Apply offload disable to existing veth interfaces (catch-up for pre-udev veths)
+  become: yes
+  ansible.builtin.command: "ethtool -K {{ item }} tso off gso off gro off sg off"
+  loop: "{{ veth_iface_list }}"
+  changed_when: true
+  when: veth_iface_list | length > 0
+  tags: docker
+
+- name: Read offload settings for each veth interface
+  become: yes
+  ansible.builtin.command: "ethtool -k {{ item }}"
+  loop: "{{ veth_iface_list }}"
+  register: veth_offload_results
+  changed_when: false
+  when: veth_iface_list | length > 0
+  tags: docker
+
+- name: Assert offloads disabled on all veth interfaces
+  ansible.builtin.assert:
+    that:
+      - item.stdout is search('(?m)^scatter-gather:\s+off')
+      - item.stdout is search('(?m)^tcp-segmentation-offload:\s+off')
+      - item.stdout is search('(?m)^generic-segmentation-offload:\s+off')
+      - item.stdout is search('(?m)^generic-receive-offload:\s+off')
+    fail_msg: |
+      Offload verification failed for veth interface {{ item.item }}.
+      Expected sg/tso/gso/gro all off.
+      Got:
+      {{ item.stdout }}
+  loop: "{{ veth_offload_results.results }}"
+  when: veth_iface_list | length > 0
   tags: docker
 
 - name: Add current user to Docker group

@@ -139,11 +139,22 @@
   set_fact:
     vm_exists: "{{ vm_query.rc == 0 }}"
 
+- name: Check if VM settings file already exists on disk
+  ansible.builtin.stat:
+    path: "{{ lookup('env', 'HOME') }}/VirtualBox VMs/{{ vm_name }}/{{ vm_name }}.vbox"
+  register: vbox_file
+  when: not vm_exists
+
+- name: Register existing VM if .vbox file present but VM unregistered
+  command: >
+    VBoxManage registervm "{{ lookup('env', 'HOME') }}/VirtualBox VMs/{{ vm_name }}/{{ vm_name }}.vbox"
+  when: not vm_exists and vbox_file.stat.exists
+
 - name: Create & register VM if missing
   command: >
     VBoxManage createvm --name "{{ vm_name }}"
     --ostype Ubuntu_64 --register
-  when: not vm_exists
+  when: not vm_exists and not vbox_file.stat.exists
 
 - name: Gather VM info
   command: VBoxManage showvminfo "{{ vm_name }}" --machinereadable
@@ -222,11 +233,29 @@
   set_fact:
     disk_size_bytes: "{{ (disk_size_mb | int) * 1024 * 1024 }}"
 
-- name: Resize VDI disk (byte-precise)
+- name: Get current VDI size
+  delegate_to: localhost
+  command: >
+    VBoxManage showmediuminfo disk "{{ cloud_image_vdi }}"
+  register: vdi_info
+  changed_when: false
+  failed_when: false
+
+- name: Parse current VDI capacity in bytes
+  set_fact:
+    vdi_current_bytes: >-
+      {{
+        (vdi_info.stdout
+          | regex_search('Capacity:\s+(\d+)\s+MBytes', '\1')
+          | first | default('0') | int) * 1024 * 1024
+      }}
+
+- name: Resize VDI disk (byte-precise, only if growing)
   delegate_to: localhost
   become: false
   command: >
     VBoxManage modifymedium disk "{{ cloud_image_vdi }}" --resizebyte {{ disk_size_bytes }}
+  when: disk_size_bytes | int > vdi_current_bytes | int
 
 - name: Attach VDI disk
   delegate_to: localhost
