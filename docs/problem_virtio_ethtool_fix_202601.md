@@ -343,3 +343,36 @@ ACTION=="add", SUBSYSTEM=="net", KERNEL=="veth*", RUN+="/usr/sbin/ethtool -K $na
 This ensures offloads are disabled on any veth interface regardless of container lifecycle.
 
 **Status:** fully implemented.
+
+---
+
+## 12. Follow-up Fixes — April 2026
+
+Three additional Ansible issues were discovered and fixed during playbook re-runs.
+
+### 12a. veth interfaces not disabled on initial Docker Compose startup
+
+**Problem:** The udev rule for `veth*` was installed and the handler `udevadm control --reload-rules` fired, but Ansible handlers run at end-of-play — *after* Docker Compose had already started and created veth interfaces. The new veth interfaces were never touched by udev.
+
+**Fix:** Added `meta: flush_handlers` immediately before the `Start Docker Compose stack` task. This forces udev to reload before Docker Compose runs, so the rule fires on every veth created by the initial `compose up`.
+
+**File:** `ansible/roles/docker/tasks/main.yml`
+
+### 12b. Bridge offload service not re-running on existing prod server
+
+**Problem:** On prod, the `docker-bridge-offloads-disable` service was already `active (exited)` from a prior playbook run (`Type=oneshot`, `RemainAfterExit=yes`). Docker Compose recreated bridge interfaces with new names (e.g., `br-da0e97aac685`). Because `state: started` does not restart an already-active oneshot service, `ethtool -K` never ran on the new bridge interfaces — `scatter-gather` remained `on`.
+
+**Fix:** Changed `state: started` → `state: restarted` for the bridge offload service task. This forces `ExecStart` to re-run on every playbook execution, applying `ethtool -K` to whatever bridge interfaces currently exist.
+
+**File:** `ansible/roles/docker/tasks/main.yml`
+
+### 12c. Automated offload verification added to docker role
+
+**Problem:** Offload state on bridges and veth interfaces had to be verified manually after each playbook run.
+
+**Fix:** Added automated verification tasks to `ansible/roles/docker/tasks/main.yml` that run on every playbook execution:
+
+- **Bridge interfaces:** `ip -json link show type bridge` → `from_json` → loop `ethtool -k` → `assert` all four offloads off
+- **veth interfaces:** `ip -json link show type veth` → `from_json` → explicit `ethtool -K` catch-up on each (for any created before udev fired) → loop `ethtool -k` → `assert` all four offloads off
+
+Both use `ip -json` + Ansible's `from_json` filter — no shell parsing (no awk, grep, or cut). The assert tasks fail the playbook immediately with a clear message if any interface has offloads on.

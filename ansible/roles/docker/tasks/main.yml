@@ -296,12 +296,12 @@
       WantedBy=multi-user.target
   tags: docker
 
-- name: Enable and start Docker bridge offloads disable service
+- name: Enable and restart Docker bridge offloads disable service
   become: yes
   ansible.builtin.systemd:
     name: docker-bridge-offloads-disable.service
     enabled: yes
-    state: started
+    state: restarted
     daemon_reload: yes
   tags: docker
 
