@@ -104,10 +104,29 @@
     filename: docker
     state: present
 
+- name: Prevent service restarts during dist-upgrade
+  become: yes
+  ansible.builtin.copy:
+    dest: /usr/sbin/policy-rc.d
+    content: "#!/bin/sh\nexit 101\n"
+    mode: '0755'
+
 - name: Upgrade all packages to the latest available versions
   ansible.builtin.apt:
     upgrade: dist
   become: yes
+
+- name: Remove policy-rc.d to restore normal service management
+  become: yes
+  ansible.builtin.file:
+    path: /usr/sbin/policy-rc.d
+    state: absent
+
+- name: Restart services that need restarting after upgrade
+  become: yes
+  ansible.builtin.command: needrestart -r a -q
+  failed_when: false
+  changed_when: false
 
 - name: Install required build-and-runtime dependencies (incl. Docker)
   ansible.builtin.apt:

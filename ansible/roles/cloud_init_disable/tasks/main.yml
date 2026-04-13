@@ -83,6 +83,13 @@
   ansible.builtin.set_fact:
     _nic_name: "{{ nic_name | default(ansible_facts.default_ipv4.interface | default('eth0')) }}"
 
+- name: Wait for cloud-init to finish before touching apt
+  become: yes
+  ansible.builtin.command: cloud-init status --wait
+  changed_when: false
+  failed_when: false
+  timeout: 300
+
 - name: Ensure ethtool is installed
   become: yes
   ansible.builtin.apt:
@@ -103,7 +110,7 @@
 
       [Service]
       Type=oneshot
-      ExecStart=/usr/sbin/ethtool -K %i tso off gso off gro off
+      ExecStart=/usr/sbin/ethtool -K %i tso off gso off gro off sg off
       RemainAfterExit=yes
 
       [Install]
@@ -129,12 +136,14 @@
       - offload_check.stdout is search('(?m)^tcp-segmentation-offload:\\s+off( \\[fixed\\])?$')
       - offload_check.stdout is search('(?m)^generic-segmentation-offload:\\s+off( \\[fixed\\])?$')
       - offload_check.stdout is search('(?m)^generic-receive-offload:\\s+off( \\[fixed\\])?$')
+      - offload_check.stdout is search('(?m)^scatter-gather:\\s+off( \\[fixed\\])?$')
     fail_msg: |
       Offload disable verification failed for interface {{ _nic_name }}.
       Expected:
         tcp-segmentation-offload: off
         generic-segmentation-offload: off
         generic-receive-offload: off
+        scatter-gather: off
       Got:
       {{ offload_check.stdout }}
 

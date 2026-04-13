@@ -263,3 +263,83 @@ The shell loop discovers all `br-*` interfaces dynamically, so the fix survives 
 - `daemon_reload: yes` — picks up the newly written unit file before enable/start
 
 **Status:** implemented in `ansible/roles/docker/tasks/main.yml`.
+
+---
+
+## 10. Second Recurrence — April 2026 (Scatter-Gather on eth0 and veths)
+
+**Date:** 2026-04-12 ~19:26  
+**Symptom:** Lockup recurred during 4K video playback even after Docker bridge offload fix was applied
+
+### Why the Docker bridge fix was still insufficient
+
+After the Docker bridge fix, the data path had:
+
+```
+Container → veth (sg ON, tso ON, gso ON) → br-ce1f7bbd9ee2 (tso/gso/gro OFF) → eth0 (sg ON) → virtio ring
+```
+
+Two gaps remained:
+
+1. **`eth0` had `scatter-gather: on`** — even with TSO/GSO/GRO off, sg=on allows the kernel to split packets across multiple descriptors in the virtio TX ring. This produces chained descriptor entries, and VirtualBox's virtio-net ring buffer mishandles those chains under load, producing `output.0:id X is not a head!`.
+
+2. **All veth interfaces had `sg=on`, `tso=on`, `gso=on`** — Docker container endpoints were feeding fully-offloaded packets into the bridge, which then forwarded them toward eth0.
+
+### Confirmation
+
+```bash
+sudo ethtool -k eth0 | grep scatter-gather
+# scatter-gather: on  ← still on despite tso/gso/gro being off
+
+sudo ethtool -k veth905bfd2 | grep -E "scatter-gather|generic-segmentation|tcp-segmentation"
+# scatter-gather: on / tcp-segmentation-offload: on / generic-segmentation-offload: on
+# (same for veth587c7bc, veth7018da2)
+```
+
+### Live test
+
+```bash
+sudo ethtool -K eth0 sg off
+sudo ethtool -K veth905bfd2 sg off tso off gso off
+sudo ethtool -K veth587c7bc sg off tso off gso off
+sudo ethtool -K veth7018da2 sg off tso off gso off
+```
+
+Played full 10 GB 4K video — no lockup, no kernel errors. **Fix confirmed.**
+
+---
+
+## 11. Final Permanent Fix — Ansible
+
+### Complete offload surface that must be disabled
+
+| Interface | tso | gso | gro | sg |
+|-----------|-----|-----|-----|----|
+| `eth0` (virtio NIC) | off | off | off | **off** |
+| `docker0` / `br-*` (Docker bridges) | off | off | off | **off** |
+| `veth*` (container endpoints) | off | off | — | **off** |
+
+### Files changed
+
+**`ansible/roles/cloud_init_disable/tasks/main.yml`**
+- `virtio-offloads-disable@.service` ExecStart: added `sg off`
+- Assert task: added `scatter-gather: off` check
+
+**`ansible/roles/docker/tasks/main.yml`**
+- `docker-bridge-offloads-disable.service` ExecStart loop: added `sg off`
+- New task: installs `/etc/udev/rules.d/99-veth-offloads-disable.rules`
+
+**`ansible/roles/docker/handlers/main.yml`**
+- New handler: `udevadm control --reload-rules`
+
+### veth persistence strategy
+
+veth interfaces are ephemeral — they are destroyed and recreated every time Docker containers restart. A systemd `After=docker.service` unit cannot catch new veth interfaces created later. The fix uses a udev rule that fires on every `veth*` add event:
+
+```
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="veth*", RUN+="/usr/sbin/ethtool -K $name tso off gso off gro off sg off"
+```
+
+This ensures offloads are disabled on any veth interface regardless of container lifecycle.
+
+**Status:** fully implemented.

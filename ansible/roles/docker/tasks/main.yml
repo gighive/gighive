@@ -254,6 +254,9 @@
   ignore_errors: true
   tags: docker, compose
 
+- name: Flush handlers before Docker Compose starts (ensures udev rule is loaded before veth creation)
+  meta: flush_handlers
+
 - name: Start Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_dir }}"
@@ -286,7 +289,7 @@
 
       [Service]
       Type=oneshot
-      ExecStart=/bin/bash -c 'for iface in docker0 $(ls /sys/class/net/ | grep "^br-"); do /usr/sbin/ethtool -K "$iface" tso off gso off gro off 2>/dev/null || true; done'
+      ExecStart=/bin/bash -c 'for iface in docker0 $(ls /sys/class/net/ | grep "^br-"); do /usr/sbin/ethtool -K "$iface" tso off gso off gro off sg off 2>/dev/null || true; done'
       RemainAfterExit=yes
 
       [Install]
@@ -300,6 +303,16 @@
     enabled: yes
     state: started
     daemon_reload: yes
+  tags: docker
+
+- name: Install udev rule to disable offloads on veth interfaces at creation
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/99-veth-offloads-disable.rules
+    mode: "0644"
+    content: |
+      ACTION=="add", SUBSYSTEM=="net", KERNEL=="veth*", RUN+="/usr/sbin/ethtool -K $name tso off gso off gro off sg off"
+  notify: reload udev rules
   tags: docker
 
 - name: Add current user to Docker group
