@@ -85,6 +85,8 @@
       apache/externalConfigs/www.conf
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'crs-setup.conf.j2') %}
       apache/externalConfigs/crs/crs-setup.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'dbDump.sh.j2') %}
+      mysql/dbScripts/dbDump.sh
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ _p[_one_shot_bundle_files_prefix | length:] }}
       {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}

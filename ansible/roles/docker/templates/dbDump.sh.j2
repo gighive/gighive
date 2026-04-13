@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# dbDump.sh — container-side MySQL dump for one-shot bundle installs.
+# Runs inside apacheWebServer; connects to mysqlServer over the Docker internal network.
+# Credentials are read from container env vars (loaded via apache/externalConfigs/.env).
+
+set -Eeuo pipefail
+umask 027
+trap 'rc=$?; echo "$(date -Is) ERROR: unexpected failure (exit $rc)"; exit $rc' ERR
+
+BACKUPS_DIR="/var/www/private/mysql_backups"
+
+DB_HOST="${DB_HOST:-mysqlServer}"
+
+DB_NAME="${MYSQL_DATABASE:-}"
+[[ -z "$DB_NAME" ]] && echo "$(date -Is) ERROR: MYSQL_DATABASE not set in env" >&2 && exit 1
+
+if [[ -n "${MYSQL_ROOT_PASSWORD:-}" ]]; then
+  DB_USER="root"
+  DB_PASSWORD="$MYSQL_ROOT_PASSWORD"
+elif [[ -n "${MYSQL_USER:-}" && -n "${MYSQL_PASSWORD:-}" ]]; then
+  DB_USER="$MYSQL_USER"
+  DB_PASSWORD="$MYSQL_PASSWORD"
+else
+  echo "$(date -Is) ERROR: no usable credentials in env (need MYSQL_ROOT_PASSWORD or MYSQL_USER + MYSQL_PASSWORD)" >&2
+  exit 1
+fi
+
+mkdir -p "$BACKUPS_DIR"
+
+STAMP="$(date +'%F_%H%M%S')"
+OUTFILE="${BACKUPS_DIR}/${DB_NAME}_${STAMP}.sql.gz"
+
+echo "$(date -Is) START: dumping ${DB_NAME} from ${DB_HOST} to ${OUTFILE}"
+
+if MYSQL_PWD="$DB_PASSWORD" mysqldump \
+    -h "$DB_HOST" -u "$DB_USER" \
+    --single-transaction --quick --lock-tables=0 \
+    --routines --events --triggers --default-character-set=utf8mb4 \
+    --databases "$DB_NAME" \
+  | gzip > "$OUTFILE"
+then
+  chmod 0640 "$OUTFILE"
+  if gzip -t "$OUTFILE"; then
+    BYTES=$(stat -c%s "$OUTFILE" 2>/dev/null || echo "?")
+    echo "$(date -Is) OK: wrote $BYTES bytes to $OUTFILE"
+    ln -sfn "$(basename "$OUTFILE")" "${BACKUPS_DIR}/${DB_NAME}_latest.sql.gz"
+    echo "$(date -Is) INFO: updated latest symlink -> ${DB_NAME}_latest.sql.gz"
+  else
+    echo "$(date -Is) ERROR: gzip integrity check failed for $OUTFILE"
+    exit 1
+  fi
+else
+  rc=$?
+  echo "$(date -Is) ERROR: dump failed (exit $rc)"
+  exit $rc
+fi

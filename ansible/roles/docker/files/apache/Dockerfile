@@ -20,6 +20,7 @@ RUN apt-get update && \
     libapache2-mod-security2 libcap2-bin libssl-dev libtool \
     logrotate \
     default-mysql-client \
+    cron \
     net-tools nfs-common \
     php-curl php-fpm php-mbstring php-mysql php-xml \
     pkg-config \

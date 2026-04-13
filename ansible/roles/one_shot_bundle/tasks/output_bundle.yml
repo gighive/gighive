@@ -74,6 +74,8 @@
       apache/externalConfigs/www.conf
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'crs-setup.conf.j2') %}
       apache/externalConfigs/crs/crs-setup.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'dbDump.sh.j2') %}
+      mysql/dbScripts/dbDump.sh
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ _p[_one_shot_bundle_files_prefix | length:] }}
       {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}
@@ -124,11 +126,13 @@
       apache/externalConfigs/www.conf
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'crs-setup.conf.j2') %}
       apache/externalConfigs/crs/crs-setup.conf
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'dbDump.sh.j2') %}
+      mysql/dbScripts/dbDump.sh
       {% else %}
       {{ _p | basename }}
       {% endif %}
     _one_shot_bundle_output_mode: >-
-      {% if _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') or _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2') %}
+      {% if _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') or _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2') or _p == (_one_shot_bundle_templates_prefix ~ 'dbDump.sh.j2') %}
       0755
       {% else %}
       {{ item.mode }}

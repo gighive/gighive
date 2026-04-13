@@ -376,3 +376,32 @@ Three additional Ansible issues were discovered and fixed during playbook re-run
 - **veth interfaces:** `ip -json link show type veth` → `from_json` → explicit `ethtool -K` catch-up on each (for any created before udev fired) → loop `ethtool -k` → `assert` all four offloads off
 
 Both use `ip -json` + Ansible's `from_json` filter — no shell parsing (no awk, grep, or cut). The assert tasks fail the playbook immediately with a clear message if any interface has offloads on.
+
+---
+
+## 13. Applicability to One-Shot Bundle (Local Dev) — April 2026
+
+**Date:** 2026-04-13
+
+### Question
+
+The one-shot bundle runs GigHive via Docker on a local dev machine. Observing that `docker0` and `br-*` interfaces on a native Linux box have TSO/GSO/GRO/SG **on** (matching what was disabled in the full-build fix) — does a one-shot bundle user need to apply the same ethtool hardening?
+
+### Answer: No
+
+The ethtool fix is **VirtualBox-specific**. The root cause was a VirtualBox virtio-net driver bug: under sustained load, the VirtIO TX ring buffer mishandles scatter-gather chained descriptors (`output.0:id X is not a head!`), causing hard lockups. Disabling TSO/GSO/GRO/SG was a workaround for that specific hypervisor defect.
+
+On native hardware (real NIC):
+
+- TSO/GSO/GRO/SG are correctly implemented in firmware/hardware and **should remain on**
+- There is no VirtIO ring buffer to corrupt
+- Disabling them would reduce throughput unnecessarily
+- `docker0`/`br-*` interfaces showing offloads `on` is **correct expected behavior**
+
+### One edge case
+
+If a user runs the one-shot bundle *inside a VirtualBox VM*, they are on the same hardware path. However, the local dev workload (light traffic, interactive use) is unlikely to stress the virtio ring the way 641 GB of SSH uploads or sustained 4K video serving does. No proactive fix is planned for this case; it can be addressed if a user actually reports lockup symptoms in that configuration.
+
+### Scope of the Ansible fix
+
+The fixes in `ansible/roles/cloud_init_disable` and `ansible/roles/docker` apply exclusively to the **full-build VirtualBox deployment** and are not included in the one-shot bundle.

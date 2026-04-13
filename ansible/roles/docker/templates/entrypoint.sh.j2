@@ -36,6 +36,20 @@ mkdir -p /var/www/private/import_jobs
 chown -R www-data:www-data /var/www/private/import_jobs || true
 chmod 775 /var/www/private/import_jobs || true
 
+# Container-side DB backup (one-shot bundle only)
+if [[ "${GIGHIVE_INSTALL_CHANNEL:-full}" == "quickstart" ]]; then
+  mkdir -p /var/www/private/mysql_backups
+  chown www-data:www-data /var/www/private/mysql_backups
+  chmod 0775 /var/www/private/mysql_backups
+
+  cat > /etc/cron.d/db-backup <<'CRONEOF'
+0 2 * * * www-data /usr/local/bin/dbDump.sh >> /var/www/private/mysql_backups/cron.log 2>&1
+CRONEOF
+  chmod 0644 /etc/cron.d/db-backup
+
+  service cron start || true
+fi
+
 # Ensure php-fpm log files exist and are writable
 mkdir -p /var/log/php-fpm
 touch /var/log/fpm-php.www.log /var/log/php-fpm/www.slow.log
