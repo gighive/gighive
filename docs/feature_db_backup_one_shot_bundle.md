@@ -1,7 +1,7 @@
 ---
 description: Plan to add container-side DB backup for one-shot bundle installs
 ---
-
+{% raw %}
 # Feature Plan: DB Backup for One-Shot Bundle
 
 ## Goal
@@ -339,3 +339,4 @@ greyed out. The first backup will be available the morning after install.
 ## Status
 
 Implemented.
+{% endraw %}
