@@ -1,7 +1,7 @@
-FROM ubuntu:24.04
+FROM ubuntu:{{ ubuntu_version }}
 
 # Set environment variables
-ARG PHP_VERSION=8.3
+ARG PHP_VERSION={{ gighive_php_version }}
 ENV WEB_ROOT="/var/www/html"
 ENV SSL_CERT_DIR="/etc/ssl/certs"
 ENV SSL_PRIVATE_DIR="/etc/ssl/private"
@@ -56,7 +56,7 @@ RUN a2dismod mpm_prefork \
  && a2enmod mpm_event http2 proxy proxy_fcgi setenvif ssl headers \
  && apt-get purge -y 'libapache2-mod-php*' || true
 
-ARG APP_FLAVOR=stormpigs
+ARG APP_FLAVOR
 
 # 1) Copy only composer manifests, install deps (from canonical webroot)
 COPY webroot/composer.json webroot/composer.lock ${WEB_ROOT}/
