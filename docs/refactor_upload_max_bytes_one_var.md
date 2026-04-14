@@ -1,3 +1,4 @@
+{% raw %}
 # Refactor: Single `upload_max_bytes` Source of Truth (incl. Dockerfile)
 
 ## Purpose
@@ -239,3 +240,4 @@ automatically):
 - [ ] Update `group_vars/gighive/gighive.yml` — remove `upload_max_mb`, remove Dockerfile path *(do last)*
 - [ ] Update `group_vars/gighive2/gighive2.yml` — same *(do last)*
 - [ ] Update `group_vars/prod/prod.yml` — same *(do last)*
+{% endraw %}
