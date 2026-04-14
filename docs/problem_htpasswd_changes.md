@@ -239,3 +239,69 @@ When migrating to database-managed passwords:
 - [Apache Authentication Documentation](https://httpd.apache.org/docs/2.4/howto/auth.html)
 - [Ansible htpasswd Module](https://docs.ansible.com/projects/ansible/latest/collections/community/general/htpasswd_module.html)
 - [Apache Security Tips](https://httpd.apache.org/docs/2.4/misc/security_tips.html)
+
+---
+
+## One-shot bundle addendum (2026-04-14)
+
+### Problem
+
+The same "Open for write failed" error recurred in the one-shot bundle because the full-build
+fix (`security_basic_auth` role setting `www-data:www-data 0640` via `become: true`) **never
+runs during bundle construction or install**. The bundle's `install.sh` generated the htpasswd
+file via `docker run --user "$(id -u):$(id -g)"`, leaving it as `sodo:sodo 0644` on the host.
+
+Inside the container the bind-mount file shows as `ubuntu:ubuntu` (UID 1000 maps to `ubuntu`
+in the container's `/etc/passwd`). PHP-FPM runs as `www-data` (UID 33), which hits the file as
+"other" — read-only with `0644`. Write fails.
+
+Verified via:
+```bash
+ls -la /tmp/gighive-one-shot-bundle/apache/externalConfigs/gighive.htpasswd
+# -rw-r--r-- 1 sodo sodo 136 ...
+
+docker exec apacheWebServer ls -la /var/www/private/gighive.htpasswd
+# -rw-r--r-- 1 ubuntu ubuntu 136 ...   (UID 1000 = ubuntu inside container)
+
+docker exec apacheWebServer id www-data
+# uid=33(www-data) gid=33(www-data)
+```
+
+### Fix applied to `install.sh.j2`
+
+Removed `--user "$(id -u):$(id -g)"` from the `docker run` htpasswd generation step so the
+ephemeral `httpd:2.4` container runs as root. Added `chown 33:33` and `chmod 640` inside the
+same container script, so the file lands as `www-data:www-data 0640` on the host with no
+`sudo` required.
+
+```bash
+# Before
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  ...
+  httpd:2.4 sh -lc '
+    htpasswd -bc /work/gighive.htpasswd admin "$ADMIN_PASSWORD"
+    ...
+  '
+chmod 0644 "${HTPASSWD_HOST_FILE}"
+
+# After
+docker run --rm \
+  ...
+  httpd:2.4 sh -lc '
+    htpasswd -bc /work/gighive.htpasswd admin "$ADMIN_PASSWORD"
+    ...
+    chown 33:33 /work/gighive.htpasswd
+    chmod 640 /work/gighive.htpasswd
+  '
+# (host-side chmod 0644 removed — redundant)
+```
+
+### One-time recovery for already-extracted bundles
+
+```bash
+sudo chown 33:33 /path/to/bundle/apache/externalConfigs/gighive.htpasswd
+sudo chmod 640 /path/to/bundle/apache/externalConfigs/gighive.htpasswd
+```
+
+No container restart needed — the bind-mount reflects the change immediately.
