@@ -375,8 +375,7 @@ mysql_backup_log: "{{ mysql_backups_dir }}/cron.log"
 
 # --- App upload/filename settings ---
 filename_seq_pad: 5
-upload_max_bytes: 6442450944 
-upload_max_mb: 6390
+upload_max_bytes: 6442450944
 
 database_pagination_threshold: 750
 
@@ -386,7 +385,6 @@ serve_one_shot_installer_downloads: false
 one_shot_bundle_input_paths:
   - "{{ repo_root }}/ansible/roles/docker/templates"
   - "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle"
-  - "{{ repo_root }}/ansible/roles/docker/files/apache/Dockerfile"
   - "{{ repo_root }}/ansible/roles/docker/files/tusd"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/externalConfigs"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/overlays"
