@@ -1,6 +1,6 @@
 *** 
-releaseNotes20260414.txt
-Changes: Created subset of upload tests for one-shot-bundle based off upload_tests
+releaseNotes20260415.txt
+Changes: Fix .env context for cron in bundle
 Scope: Upload test for bundle
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
@@ -18,8 +18,8 @@ Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventor
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
 # GIG STAGING PUSH
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260414.log
-# STAGING TELEMETRY FIX, ALWAYS RUN AFTER A STAGING PUSH
-Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260409.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260415.log
 
 # ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260414.log 
@@ -33,11 +33,10 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   ansible/fixtures/audio
-	new file:   ansible/playbooks/upload_tests_bundle.yml
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/entrypoint.sh.j2
 	modified:   docs/knowledge_map.html
-	new file:   docs/process_upload_tests_bundle.md
-	new file:   docs/refactored_upload_tests_for_bundle.md
+	new file:   docs/problem_one_shot_bundle_cron_fix.md
 
 TODO
 Next: validate backup in bundle on 4/15
@@ -78,6 +77,47 @@ Maintenance: chg stg pwd
 Maintenance: remove vodcast.xml from webroot for gighive
 Backup: Realize that the sha versions of stormpigs aren't backed up on popos
 
+
+*** 
+releaseNotes20260414.txt
+Changes: Created subset of upload tests for one-shot-bundle based off upload_tests
+Scope: Upload test for bundle
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260414.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260414.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260414.log
+# GIG STAGING, rebuild 
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260414.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260415.log
+
+# ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE THE ONE SHOT BUNDLE DIRECTORY BEFORE RUNNING THIS, and bundle is complete and ready to test when done.
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260414.log 
+# ONE-SHOT-BUNDLE UPLOAD TESTS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd>"  ansible-playbook-gighive-bundle-tests-20260414.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   ansible/fixtures/audio
+	new file:   ansible/playbooks/upload_tests_bundle.yml
+	modified:   docs/knowledge_map.html
+	new file:   docs/process_upload_tests_bundle.md
+	new file:   docs/refactored_upload_tests_for_bundle.md
 
 *** 
 releaseNotes20260414.txt
