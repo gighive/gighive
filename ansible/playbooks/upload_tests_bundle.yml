@@ -1,0 +1,25 @@
+---
+- name: Upload tests against locally-running one-shot bundle
+  hosts: baremetal
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir }}/../inventories/group_vars/gighive/gighive.yml"
+    - "{{ playbook_dir }}/../inventories/group_vars/gighive/secrets.yml"
+
+  pre_tasks:
+    - name: Override vars for bundle test context
+      ansible.builtin.set_fact:
+        run_upload_tests: true
+        allow_destructive: true
+        upload_test_restore_db_after: true
+        upload_test_variants:
+          - { name: "3a_legacy_import_gighive",     section: "3a", app_flavor: "gighive" }
+          - { name: "6_direct_upload_api",          section: "6" }
+          - { name: "7_tus_finalize",               section: "7" }
+          - { name: "3b_normalized_import_gighive", section: "3b", app_flavor: "gighive" }
+      tags: always
+
+  roles:
+    - role: upload_tests
+      tags: [ upload_tests ]
+      when: run_upload_tests | bool
