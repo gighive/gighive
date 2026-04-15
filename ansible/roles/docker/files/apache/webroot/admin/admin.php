@@ -138,7 +138,7 @@ function write_htpasswd_atomic(string $path, array $map): void {
 function validate_password(string $label, string $pw, string $confirm): array {
     $e = [];
     if ($pw !== $confirm) $e[] = "$label passwords do not match.";
-    if (strlen($pw) < 8)   $e[] = "$label password must be at least 8 characters.";
+    if (strlen($pw) < 12)  $e[] = "$label password must be at least 12 characters.";
     return $e;
 }
 

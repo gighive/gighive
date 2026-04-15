@@ -526,10 +526,8 @@
             { id: "infrastructure-change", label: "Change", kind: "type", type: "change", children: [
               { id: "docker-image-build-change", label: "problem_docker_container_old_image.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_docker_container_old_image.html" },
               { id: "refactored-home", label: "refactored_gighive_home_and_scripts_dir.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_gighive_home_and_scripts_dir.html" },
-              { id: "refactored-dockerfile-vars", label: "refactored_dockerfile_vars.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "non_functional", href: "./refactored_dockerfile_vars.html" }
-            ] },
-            { id: "infrastructure-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
-              { id: "bind-mount-guard", label: "refactor_bind_mount_guard_pattern.md", kind: "document", concern: "infrastructure", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_bind_mount_guard_pattern.html" }
+              { id: "refactored-dockerfile-vars", label: "refactored_dockerfile_vars.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "non_functional", href: "./refactored_dockerfile_vars.html" },
+              { id: "bind-mount-guard-refactored", label: "refactored_bind_mount_guard_pattern.md", kind: "document", concern: "infrastructure", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_bind_mount_guard_pattern.html" }
             ] },
             { id: "infrastructure-architecture", label: "Architecture", kind: "type", type: "architecture", children: [
               { id: "feature-set-infrastructure", label: "feature_set.md", kind: "document", concern: "infrastructure", type: "architecture", lifecycle: "active", audience: ["architect", "developer", "operator"], aspect: "non_functional", href: "./feature_set.html" }
@@ -561,6 +559,10 @@
               { id: "migrate-bootstrap", label: "migrate-bootstrap-to-ansible.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["operator", "architect", "developer"], aspect: "non_functional", href: "./migrate-bootstrap-to-ansible.html" },
               { id: "quickstart-m2", label: "process_quickstart_milestone2.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer", "operator"], aspect: "non_functional", href: "./process_quickstart_milestone2.html" },
               { id: "one-shot-bundle-remove-vestigial", label: "refactor_one_shot_bundle_remove_vestigial.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["developer", "maintainer"], aspect: "non_functional", href: "./refactor_one_shot_bundle_remove_vestigial.html" }
+            ] },
+            { id: "deployment-change", label: "Change", kind: "type", type: "change", children: [
+              { id: "one-shot-bundle-backup-feature", label: "process_one_shot_bundle_backup_feature.md", kind: "document", concern: "deployment", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./process_one_shot_bundle_backup_feature.html" },
+              { id: "section-d-install-channel-toggle", label: "implemented_feature_section_d_install_channel_toggle.md", kind: "document", concern: "deployment", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "functional", href: "./implemented_feature_section_d_install_channel_toggle.html" }
             ] },
             { id: "deployment-rca", label: "RCA", kind: "type", type: "rca", children: [
               { id: "dot254", label: "problem_donot_use_dot254_address.md", kind: "document", concern: "deployment", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_donot_use_dot254_address.html" },
@@ -601,7 +603,7 @@
               { id: "librarian-event", label: "pr_librarianAsset_musicianEvent.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./pr_librarianAsset_musicianEvent.html" },
               { id: "db-media-created-at", label: "refactor_preasset_librarian_db_update_media_created.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_preasset_librarian_db_update_media_created.html" },
               { id: "db-ui-personas-refactor", label: "refactor_preasset_librarian_db_ui_based_on_personas.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./refactor_preasset_librarian_db_ui_based_on_personas.html" },
-              { id: "db-fix-event-metadata-duplication", label: "db_fix_event_metadata_duplication.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./db_fix_event_metadata_duplication.html" },
+              { id: "db-fix-event-metadata-duplication", label: "refactor_db_fix_event_metadata_duplication.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_db_fix_event_metadata_duplication.html" },
               { id: "questions-librarian-musician", label: "questions_for_librarianAsset_musicianSession_decision.md", kind: "document", concern: "database", type: "proposal", lifecycle: "historical", audience: ["developer", "architect"], aspect: "mixed", href: "./questions_for_librarianAsset_musicianSession_decision.html" },
               { id: "refactor-add-db-migrations", label: "refactored_db_migrations_backup_before.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_db_migrations_backup_before.html" },
               { id: "refactor-convert-legacy-csv-python", label: "refactor_convert_legacy_database_csv_python.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactor_convert_legacy_database_csv_python.html" },
@@ -724,7 +726,7 @@
             ] },
             { id: "security-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "security-upgrade", label: "refactor_security.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator", "architect"], aspect: "non_functional", href: "./refactor_security.html" },
-              { id: "hardening-sections45", label: "refactor_hardening_sections45.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "non_functional", href: "./refactor_hardening_sections45.html" },
+
               { id: "refactor-acls-restore-logs", label: "refactor_acls_on_restore_logs.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_acls_on_restore_logs.html" },
               { id: "refactor-admin-45-last-steps", label: "refactor_admin_45_last_steps.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "non_functional", href: "./refactor_admin_45_last_steps.html" },
               { id: "refactor-admin-pages-move", label: "refactor_preasset_librarian_admin_pages_move_to_protected_folder.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_preasset_librarian_admin_pages_move_to_protected_folder.html" },
@@ -761,7 +763,8 @@
             ] },
             { id: "authentication-change", label: "Change", kind: "type", type: "change", children: [
               { id: "htpasswd-changes", label: "problem_htpasswd_changes.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_htpasswd_changes.html" },
-              { id: "passwords-page-change", label: "codingChanges/featureChangedPasswordsPage.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./codingChanges/featureChangedPasswordsPage.html" }
+              { id: "passwords-page-change", label: "codingChanges/featureChangedPasswordsPage.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./codingChanges/featureChangedPasswordsPage.html" },
+              { id: "password-unification", label: "refactor_security_password_unification.md", kind: "document", concern: "authentication", type: "change", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_security_password_unification.html" }
             ] }
           ]
         },
