@@ -158,6 +158,62 @@ img {
         right: -100%;
     }
 }
+
+/* Media card grid */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 1.2rem 0 1.5rem;
+}
+
+.media-card {
+    background-color: #1a2347;
+    border: 1px solid #2a3560;
+    border-radius: 8px;
+    overflow: hidden;
+    text-align: center;
+    transition: border-color 0.3s ease;
+}
+
+.media-card:hover {
+    border-color: #2196F3;
+}
+
+.media-card > a {
+    display: block;
+    text-decoration: none;
+}
+
+.media-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.media-card .card-caption {
+    padding: 10px 12px;
+    color: #ccc;
+    font-size: 0.875em;
+    line-height: 1.5;
+}
+
+.media-card:hover .card-caption {
+    color: white;
+}
+
+/* Credentials box */
+.credentials-box {
+    display: inline-block;
+    background-color: #1a2347;
+    border: 1px solid #2a3560;
+    border-radius: 6px;
+    padding: 6px 14px;
+    margin: 0.4rem 0 0.8rem;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: #ccc;
+}
 </style>
 
 <!-- Hamburger Menu -->
@@ -272,51 +328,46 @@ document.addEventListener('DOMContentLoaded', function() {
 - **If you're a media librarian or have a preexisting cache of files:** Use the [Admin Utilities](/images/adminUtilities.png) to import your videos and build your own historical Gighive.
 - **If you just need a simple self-hosted web server:** Drop PHP files or static content into the default web root and off you go.
 
-### What is it? 
-- Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. [Here is an image](/images/mediaLibraryCustom.png) of one of our customers databases.  A more interactive version is [here](https://staging.gighive.app/db/database.php).
-  <ul style="margin: 0.5rem 0 0; padding-left: 0; list-style-position: inside;">
-    <li style="padding-left: 0; margin-left: 0;">
-      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
-        <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
-          <span>Customer Example:</span>
-          <a href="/images/mediaLibraryCustom.png"><img src="/images/mediaLibraryCustom.png" alt="Customer database example" style="width: 320px; height: auto;"></a>
-        </span>
-        <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
-          <span>Interactive Example:</span>
-          <a href="https://staging.gighive.app/db/database.php"><img src="/images/gighiveMediaLibrary.png" alt="Interactive media library example" style="width: 320px; height: auto;"></a>
-        </span>
-      </div>
-    </li>
-  </ul>
-- Example of Gighive in Action: [https://www.stormpigs.com](https://www.stormpigs.com)  
-  Guest creds:  
-  u: guest   
-  p: stormpigsguestuser1234!  
-- Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the [Setup Guide](README.html), but you may want to jump right to the installation video below: 
-
-  <ul style="margin: 0.5rem 0 0; padding-left: 0; list-style-position: inside;">
-    <li style="padding-left: 0; margin-left: 0;">
-      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
-        <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
-          <span>Quickstart Installation Video (for Linux):</span>
-          <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4"><img src="https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png" alt="GigHive quickstart installation video" style="width: 320px; height: auto;"></a>
-        </span>
-      </div>
-    </li>
-    <li style="padding-left: 0; margin-left: 0;">
-     <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
-       <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
-         <span>Quickstart Installation Video (for Mac):</span>
-         <a href="https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4"><img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac" style="width: 320px; height: auto;"></a>
-       </span>
-       <span style="display: inline-flex; align-items: center; justify-content: center; flex: 0 0 320px; text-align: center; min-height: 180px;">
-         <a href="https://share.google/aimode/h3XkjXbeJuDx0ztgI">How to Install Docker Desktop on a Mac</a>
-       </span>
-     </div>
-   </li>
-  </ul>
-- Gighive includes a website with a searchable, sortable one-page listing of media files and common attributes (date, filename, etc) stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).
+### What is it?
+- Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. It includes a searchable, sortable media library stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).
 - Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
+
+<div class="media-grid">
+  <div class="media-card">
+    <a href="/images/mediaLibraryCustom.png">
+      <img src="/images/mediaLibraryCustom.png" alt="Customer database example">
+      <div class="card-caption">Customer Example</div>
+    </a>
+  </div>
+  <div class="media-card">
+    <a href="https://staging.gighive.app/db/database.php">
+      <img src="/images/gighiveMediaLibrary.png" alt="Interactive media library example">
+      <div class="card-caption">Interactive Example ↗</div>
+    </a>
+  </div>
+</div>
+
+- Live example: [stormpigs.com](https://www.stormpigs.com)
+
+<div class="credentials-box">u: guest &nbsp;&nbsp;|&nbsp;&nbsp; p: stormpigsguestuser1234!</div>
+
+### Get Started
+- Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure, fully automated through Ansible (and Terraform for Azure). See the [Setup Guide](README.html) or watch the quickstart videos below:
+
+<div class="media-grid">
+  <div class="media-card">
+    <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4">
+      <img src="https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png" alt="GigHive quickstart installation video for Linux">
+      <div class="card-caption">Quickstart Installation (Linux)</div>
+    </a>
+  </div>
+  <div class="media-card">
+    <a href="https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4">
+      <img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac">
+      <div class="card-caption">Quickstart Installation (Mac)<br><a href="https://share.google/aimode/h3XkjXbeJuDx0ztgI" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Mac</a></div>
+    </a>
+  </div>
+</div>
 
 ### Why self-host?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
