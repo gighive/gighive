@@ -267,19 +267,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div class="custom-h1">Welcome to GigHive!</div>
 <div class="custom-h2">Upload, organize, and stream your media.</div>
-### If you're a musician
-- You can use Gighive as a library of your bands sessions, audio and video files.
-- Have your fans upload videos from your gigs and utilize the footage from every conceivable angle.
-
-### If you're a wedding photographer
-- You can have your guests upload audio and video files from a wedding that you can incorporate into a compilation video.
-- Collect media from everyone during the event, offload it and then spin down the compute instance after you're done, thus saving you money.
-
-### If you are a media librarian or have a preexisting cache of media files
-- You can use the [Admin Utilities](/images/adminUtilities.png) to import your videos and create your own historical Gighive.
-
-### Or you just need a web server with basic authentication and security to host files in your own network
-- You can plop php files or static content in the default web root and off you go. 
+- **If you're a musician:** Use Gighive as a library for your band's sessions (audio and video) and let your fans upload footage from every angle of the gig.
+- **If you're a wedding photographer/videographer:** Have guests upload their audio and video during the event, incorporate it into a compilation, then spin down the instance when you're done to save money.
+- **If you're a media librarian or have a preexisting cache of files:** Use the [Admin Utilities](/images/adminUtilities.png) to import your videos and build your own historical Gighive.
+- **If you just need a simple self-hosted web server:** Drop PHP files or static content into the default web root and off you go.
 
 ### What is it? 
 - Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. [Here is an image](/images/mediaLibraryCustom.png) of one of our customers databases.  A more interactive version is [here](https://staging.gighive.app/db/database.php).
@@ -324,42 +315,28 @@ document.addEventListener('DOMContentLoaded', function() {
      </div>
    </li>
   </ul>
- 
-### Why not just use YouTube?
+- Gighive includes a website with a searchable, sortable one-page listing of media files and common attributes (date, filename, etc) stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).
+- Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
+
+### Why self-host?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
 - With build targets such as Azure or virtualbox, you have your choice on how to deploy Gighive.
 - Gighive frees you from content limitations on the major providers..but you'll need to size your vm properly.
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
 - Gighive is simple. There is a home page, a page for the media library and an upload page. That's it.
 
-### Iphone App
+### iPhone App
 - We have an easy-to-use iPhone app for fans and wedding guests.  [Download it here](https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513)
 
 ### Requirements for Quickstart 
 1. Target Machine: Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) running Docker.
 2. [Quickstart Instructions](setup_instructions_quickstart.md)
 
-### Requirements for Full Build
-1. Control Machine: Tested on Ubuntu 24.04 and 22.04, so the requirements are **any flavor of those versions or Pop-OS, installed on bare metal.**
-2. Target Machine: Your choice of virtualbox or Azure deployment targets for the vm and containerized environment.
-These are shown in this <a href="images/architecture.png">architecture diagram</a>.
-3. [Full Build Instructions](setup_instructions_fullbuild.md)
-
-### What comes with Gighive?
-- Gighive includes a website with a searchable, sortable one-page listing of media files and common attributes (date, filename, etc) stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).
-- Common media formats for upload are supported (shown below).
-- [Here are instructions](README.html) on how to standup and manage your own Gighive.
-- Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
-
 ### Media formats supported
 - Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4) and [a bunch more](mediaFormatsSupported.html).
 - Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo) and [a bunch more](mediaFormatsSupported.html).
 - Note that many formats like HEVC, .MOV and .AVI don't autoplay in the browser, so you'll associate those with your OS's media player.
 
-### For the future
-- Eventually, we will develop more interesting features. But for now, we've keeping it simple and easy to manage.
-
-### So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!
 <a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a> <a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Parts List</a>
 ### License
 GigHive is dual-licensed:

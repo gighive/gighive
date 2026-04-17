@@ -587,7 +587,13 @@ async function sectionScan(id) {
 
   let items;
   try{items=await hashFilesToItems(sup,s,statusEl);}
-  catch(e){html(id+'-status','<div class="alert-err">Hashing error: '+escapeHtml(String(e&&e.message?e.message:e))+'</div>');el(id+'-scan-btn').disabled=false;el(id+'-stop-btn').disabled=true;return;}
+  catch(e){
+    const msg=String(e&&e.message?e.message:e);
+    const isReadErr=msg.toLowerCase().includes('could not be read')||msg.toLowerCase().includes('notreadableerror');
+    const hint=isReadErr?' <strong>Tip:</strong> If your files are in a OneDrive, Google Drive, or other cloud-synced folder, copy them to a plain local folder (e.g. Downloads) and try again.':'';
+    html(id+'-status','<div class="alert-err">Hashing error: '+escapeHtml(msg)+hint+'</div>');
+    el(id+'-scan-btn').disabled=false;el(id+'-stop-btn').disabled=true;return;
+  }
 
   if(!items.length){html(id+'-status','<div class="alert-err">No files were hashed. Nothing to import.</div>');el(id+'-scan-btn').disabled=false;el(id+'-stop-btn').disabled=true;return;}
 

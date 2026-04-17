@@ -1,0 +1,288 @@
+#Requires -Version 5.1
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+function Show-Usage {
+    Write-Host @"
+Usage:
+  .\install.ps1 [--non-interactive]
+                [--site-url URL]
+                [--audio-dir PATH]
+                [--video-dir PATH]
+                [--mysql-db NAME]
+                [--mysql-user USER]
+                [--tz TZ]
+                [--mysql-dataset sample]
+
+Notes:
+- Default dataset is 'sample'.
+- In interactive mode, you will be prompted for any missing values.
+- Passwords cannot be supplied as arguments; use interactive prompts.
+"@
+}
+
+# ---------------------------------------------------------------------------
+# Variable initialization (PS 5.1 compatible -- no ?? operator, that is PS 7+)
+# ---------------------------------------------------------------------------
+$siteUrl               = if ($env:SITE_URL)       { $env:SITE_URL }       else { "" }
+$audioDir              = if ($env:AUDIO_DIR)       { $env:AUDIO_DIR }      else { "./_host_audio" }
+$videoDir              = if ($env:VIDEO_DIR)       { $env:VIDEO_DIR }      else { "./_host_video" }
+$mysqlDatabase         = if ($env:MYSQL_DATABASE)  { $env:MYSQL_DATABASE } else { "music_db" }
+$mysqlUser             = if ($env:MYSQL_USER)      { $env:MYSQL_USER }     else { "appuser" }
+$mysqlPassword         = ""
+$mysqlRootPassword     = ""
+$adminPassword         = ""
+$uploaderPassword      = ""
+$viewerPassword        = ""
+$tz                    = if ($env:TZ)              { $env:TZ }             else { "America/New_York" }
+$mysqlDataset          = if ($env:MYSQL_DATASET)   { $env:MYSQL_DATASET }  else { "sample" }
+$nonInteractive        = $false
+$script:_curlAvailable      = $false
+$script:_useComposePlugin   = $false
+$minPasswordLen        = 12
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+$i = 0
+while ($i -lt $args.Count) {
+    switch ($args[$i]) {
+        { $_ -in "--help", "-h" } { Show-Usage; exit 0 }
+        "--non-interactive"        { $nonInteractive = $true; $i++ }
+        "--site-url"               { $siteUrl      = $args[$i+1]; $i += 2 }
+        "--audio-dir"              { $audioDir     = $args[$i+1]; $i += 2 }
+        "--video-dir"              { $videoDir     = $args[$i+1]; $i += 2 }
+        "--mysql-db"               { $mysqlDatabase = $args[$i+1]; $i += 2 }
+        "--mysql-user"             { $mysqlUser    = $args[$i+1]; $i += 2 }
+        "--tz"                     { $tz           = $args[$i+1]; $i += 2 }
+        "--mysql-dataset"          { $mysqlDataset = $args[$i+1]; $i += 2 }
+        { $_ -in "--admin-password","--uploader-password","--viewer-password",
+                  "--mysql-password","--mysql-root-password" } {
+            Write-Error "Password args are not supported; use interactive prompts."; exit 2
+        }
+        default { Write-Error "Unknown argument: $($args[$i])"; Show-Usage; exit 2 }
+    }
+}
+
+if ($nonInteractive) {
+    Write-Error "--non-interactive is not supported right now; interactive prompts are required."
+    exit 2
+}
+
+# ---------------------------------------------------------------------------
+# Functions
+# ---------------------------------------------------------------------------
+
+function Prompt-Value {
+    param([string]$VarName, [ref]$Var, [string]$PromptText)
+    if ($Var.Value -ne "") { return }
+    if ($nonInteractive) { throw "Missing required value: $VarName" }
+    $Var.Value = Read-Host -Prompt $PromptText
+    if ($Var.Value -eq "") { throw "Value required: $VarName" }
+}
+
+function Prompt-Secret {
+    param([string]$Label, [int]$MinLen)
+    for ($j = 0; $j -lt 5; $j++) {
+        $ss1   = Read-Host -Prompt $Label -AsSecureString
+        $ss2   = Read-Host -Prompt "$Label (confirm)" -AsSecureString
+        $bstr1 = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($ss1)
+        $bstr2 = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($ss2)
+        $v1    = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr1)
+        $v2    = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr2)
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr1)
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr2)
+        if ($v1 -eq "")             { Write-Host "Value required.";          $v1 = ""; $v2 = ""; continue }
+        if ($v1 -ne $v2)            { Write-Host "Values did not match.";    $v1 = ""; $v2 = ""; continue }
+        if ($v1.Length -lt $MinLen) { Write-Host "Must be >= $MinLen chars."; $v1 = ""; $v2 = ""; continue }
+        return $v1
+    }
+    throw "Too many attempts for $Label"
+}
+
+function _PatchEnvKey {
+    param([string]$Key, [string]$Value, [string]$File)
+    $lines = [System.IO.File]::ReadAllLines($File)
+    $out   = $lines | ForEach-Object {
+        if ($_ -match "^${Key}=") { "${Key}=${Value}" } else { $_ }
+    }
+    $enc = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllLines($File, $out, $enc)
+}
+
+function Invoke-Compose {
+    if ($script:_useComposePlugin) { & docker compose @args }
+    else                           { & docker-compose @args }
+    if ($LASTEXITCODE -ne 0) { throw "Compose command failed (exit $LASTEXITCODE)" }
+}
+
+function _SendTelemetry {
+    param([string]$EventName)
+    if ($_trackingEnabled -ne "true")   { return }
+    if (-not $script:_curlAvailable)    { return }
+    $ts      = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $payload = "{`"event_name`":`"$EventName`",`"app_version`":`"$_appVersion`",`"install_channel`":`"$_installChannel`",`"install_method`":`"$_installMethod`",`"app_flavor`":`"$_appFlavor`",`"timestamp`":`"$ts`",`"install_id`":`"$_installId`"}"
+    curl.exe --silent --max-time $_trackingTimeout -H "Content-Type: application/json" -d $payload $_trackingEndpoint 2>&1 | Out-Null
+    # Telemetry is best-effort; ignore exit code (mirrors bash `|| true`)
+}
+
+# ---------------------------------------------------------------------------
+# Prereq checks (must run before compose detection)
+# ---------------------------------------------------------------------------
+
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    throw "Docker is not installed or not on PATH.`nInstall Docker Desktop from https://www.docker.com/products/docker-desktop/"
+}
+
+Write-Host "Checking Docker daemon..."
+& docker info 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Docker daemon is not running. Please start Docker Desktop and try again."
+}
+
+if (-not (Test-Path docker-compose.yml)) {
+    throw "Run this from the directory containing docker-compose.yml"
+}
+
+# Sync .NET current directory to PS working directory.
+# [System.IO.File] methods use [System.Environment]::CurrentDirectory which can diverge
+# from $PWD; without this, relative paths like "apache/externalConfigs/.env" fail to resolve.
+[System.Environment]::CurrentDirectory = (Get-Location).Path
+
+if (-not (Get-Command curl.exe -ErrorAction SilentlyContinue)) {
+    Write-Warning "curl.exe not found -- installation telemetry will be skipped. Upgrade to Windows 10 1803+ to enable it."
+    $script:_curlAvailable = $false
+} else {
+    $script:_curlAvailable = $true
+}
+
+# ---------------------------------------------------------------------------
+# Compose detection (after prereq checks)
+# ---------------------------------------------------------------------------
+
+& docker compose version 2>&1 | Out-Null
+if ($LASTEXITCODE -eq 0) {
+    $script:_useComposePlugin = $true
+} elseif (-not (Get-Command docker-compose -ErrorAction SilentlyContinue)) {
+    throw "Missing Docker Compose (need 'docker compose' plugin or 'docker-compose' binary)"
+}
+
+# ---------------------------------------------------------------------------
+# Validate dataset
+# ---------------------------------------------------------------------------
+
+if ($mysqlDataset -ne "sample") {
+    throw "Only 'sample' is supported by this installer right now. You set: $mysqlDataset"
+}
+
+# ---------------------------------------------------------------------------
+# Prompt for required inputs
+# ---------------------------------------------------------------------------
+
+Prompt-Value "SITE_URL"  ([ref]$siteUrl)  "SITE_URL, use IP of local machine (example: https://192.168.1.252)"
+Prompt-Value "AUDIO_DIR" ([ref]$audioDir) "Host path for audio dir (will be created if missing)"
+Prompt-Value "VIDEO_DIR" ([ref]$videoDir) "Host path for video dir (will be created if missing)"
+$adminPassword     = Prompt-Secret "BasicAuth password for user 'admin'"    $minPasswordLen
+$uploaderPassword  = Prompt-Secret "BasicAuth password for user 'uploader'" $minPasswordLen
+$viewerPassword    = Prompt-Secret "BasicAuth password for user 'viewer'"   $minPasswordLen
+$mysqlPassword     = Prompt-Secret "MYSQL_PASSWORD"                         $minPasswordLen
+$mysqlRootPassword = Prompt-Secret "MYSQL_ROOT_PASSWORD"                    $minPasswordLen
+
+# ---------------------------------------------------------------------------
+# Create directories
+# ---------------------------------------------------------------------------
+
+New-Item -ItemType Directory -Force -Path $audioDir | Out-Null
+New-Item -ItemType Directory -Force -Path $videoDir | Out-Null
+New-Item -ItemType Directory -Force -Path "apache/externalConfigs" | Out-Null
+New-Item -ItemType Directory -Force -Path "mysql/externalConfigs"  | Out-Null
+
+# ---------------------------------------------------------------------------
+# Generate BasicAuth htpasswd via Docker
+# ---------------------------------------------------------------------------
+
+$htpasswdFile = "apache/externalConfigs/gighive.htpasswd"
+Remove-Item $htpasswdFile -Force -ErrorAction SilentlyContinue
+
+$mountPath = (Resolve-Path "apache/externalConfigs").Path.Replace('\', '/')
+
+Write-Host "Generating BasicAuth file: $htpasswdFile"
+
+# Pass passwords via environment so special characters survive PS string interpolation
+$env:_GH_ADMIN_PW    = $adminPassword
+$env:_GH_UPLOADER_PW = $uploaderPassword
+$env:_GH_VIEWER_PW   = $viewerPassword
+
+& docker run --rm `
+    -e "_GH_ADMIN_PW" `
+    -e "_GH_UPLOADER_PW" `
+    -e "_GH_VIEWER_PW" `
+    -v "${mountPath}:/work" `
+    httpd:2.4 sh -lc '
+        set -e
+        /usr/local/apache2/bin/htpasswd -bc /work/gighive.htpasswd admin     "$_GH_ADMIN_PW"
+        /usr/local/apache2/bin/htpasswd -b  /work/gighive.htpasswd uploader  "$_GH_UPLOADER_PW"
+        /usr/local/apache2/bin/htpasswd -b  /work/gighive.htpasswd viewer    "$_GH_VIEWER_PW"
+        chown 33:33 /work/gighive.htpasswd
+        chmod 640   /work/gighive.htpasswd
+    '
+$htpasswdExit = $LASTEXITCODE
+
+Remove-Item env:_GH_ADMIN_PW, env:_GH_UPLOADER_PW, env:_GH_VIEWER_PW -ErrorAction SilentlyContinue
+
+if ($htpasswdExit -ne 0) { throw "htpasswd generation failed (exit $htpasswdExit)" }
+
+# ---------------------------------------------------------------------------
+# Patch pre-rendered .env and write .env.mysql (LF line endings for Linux containers)
+# ---------------------------------------------------------------------------
+
+$apacheEnvFile = "apache/externalConfigs/.env"
+$mysqlEnvFile  = "mysql/externalConfigs/.env.mysql"
+
+_PatchEnvKey "SITE_URL"            $siteUrl            $apacheEnvFile
+_PatchEnvKey "MYSQL_PASSWORD"      $mysqlPassword      $apacheEnvFile
+_PatchEnvKey "MYSQL_ROOT_PASSWORD" $mysqlRootPassword  $apacheEnvFile
+
+$mysqlEnvContent = "MYSQL_ROOT_PASSWORD=$mysqlRootPassword`nMYSQL_DATABASE=$mysqlDatabase`nMYSQL_USER=$mysqlUser`nMYSQL_PASSWORD=$mysqlPassword`nDB_HOST=mysqlServer`nMYSQL_ROOT_HOST=%`n"
+$envEnc = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($mysqlEnvFile, $mysqlEnvContent, $envEnc)
+
+Write-Host "Wrote:"
+Write-Host "  - $apacheEnvFile"
+Write-Host "  - $mysqlEnvFile"
+
+# ---------------------------------------------------------------------------
+# Telemetry setup (Jinja2 expressions baked at bundle-build time)
+# ---------------------------------------------------------------------------
+
+$_trackingEnabled  = "{{ (gighive_enable_installation_tracking | default(true)) | ternary('true', 'false') }}"
+$_trackingEndpoint = "{{ gighive_installation_tracking_endpoint | default('https://telemetry.gighive.app') }}"
+$_trackingTimeout  = {{ gighive_installation_tracking_timeout_seconds | default(3) }}
+$_versionRaw       = Get-Content VERSION -Raw -ErrorAction SilentlyContinue
+$_appVersion       = if ($_versionRaw) { $_versionRaw.Trim() } else { "" }
+$_installId        = [System.Guid]::NewGuid().ToString()
+$_installChannel   = "quickstart"
+$_installMethod    = "docker"
+$_appFlavor        = "{{ app_flavor | default('gighive') }}"
+
+_PatchEnvKey "GIGHIVE_INSTALL_CHANNEL" $_installChannel $apacheEnvFile
+
+# ---------------------------------------------------------------------------
+# Bring stack up
+# ---------------------------------------------------------------------------
+
+_SendTelemetry "install_attempt"
+
+$env:GIGHIVE_AUDIO_DIR = $audioDir
+$env:GIGHIVE_VIDEO_DIR = $videoDir
+
+Write-Host "Bringing stack up..."
+Invoke-Compose up -d --build
+
+_SendTelemetry "install_success"
+
+Write-Host "Done."
+Write-Host "Next checks:"
+Write-Host "  - docker compose ps"
+Write-Host "  - docker compose logs -n 200 mysqlServer"
+Write-Host "  - docker compose logs -n 200 apacheWebServer"

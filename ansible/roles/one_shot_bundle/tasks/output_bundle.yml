@@ -50,6 +50,8 @@
       docker-compose.yml
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2') %}
       install.sh
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'install.ps1.j2') %}
+      install.ps1
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') %}
       apache/externalConfigs/entrypoint.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.j2') %}
@@ -106,6 +108,8 @@
       docker-compose.yml
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2') %}
       install.sh
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'install.ps1.j2') %}
+      install.ps1
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2') %}
       apache/externalConfigs/entrypoint.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ '.env.j2') %}
