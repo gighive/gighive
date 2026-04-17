@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
 - **If you just need a simple self-hosted web server:** Drop PHP files or static content into the default web root and off you go.
 
 ### What is it?
-- Gighive is an [open source website and database](https://github.com/gighive/gighive) that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. It includes a searchable, sortable media library stored [in the database](images/databaseErd.png) along with an [upload utility](images/uploadutility.png).
+- Gighive is [open source](https://github.com/gighive/gighive) — a self-hosted media library with a searchable [database](images/databaseErd.png), an [upload utility](images/uploadutility.png), and an [iPhone app](https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513).
 - Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
 
 <div class="media-grid">
@@ -375,7 +375,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ### Why self-host?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
-- With build targets such as Azure or virtualbox, you have your choice on how to deploy Gighive.
 - Gighive frees you from content limitations on the major providers..but you'll need to size your vm properly.
 
 ### iPhone App
@@ -383,13 +382,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ### Features
 - [Supported Media Formats](mediaFormatsSupported.html)
-- Gighive is simple. There is a home page, a page for the media library and an upload page. That's it.
+- Gighive is simple. There is a home page, a page for the media library and batch or single file upload utilities.
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
 
 <a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a> <a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Parts List</a>
+
 ### License
 GigHive is dual-licensed:
 
 - **[Licenses](LICENSE.html)**: Covers both the AGPL v3 license and the commercial license model.
 
- 👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
+### Contact Us
+
+ 👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 2em; vertical-align: middle;">
