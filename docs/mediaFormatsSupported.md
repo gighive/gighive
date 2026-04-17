@@ -8,6 +8,7 @@ GigHive ingestion support is defined in two ways:
 
 - **MIME type allowlist (preferred):** Server-side MIME sniffing is used during upload validation.
 - **File-extension fallback:** If MIME is missing/empty/unreliable, the system falls back to file extensions to classify media as `audio` vs `video`.
+- Note that many formats like HEVC, .MOV and .AVI don't autoplay in the browser, so you'll associate those with your OS's media player.
 
 ## Policy (how we decide what is “supported”)
 

@@ -369,24 +369,22 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 </div>
 
+### Requirements for Quickstart
+1. Target Machine: Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) running Docker.
+2. [Quickstart Instructions](setup_instructions_quickstart.md)
+
 ### Why self-host?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
 - With build targets such as Azure or virtualbox, you have your choice on how to deploy Gighive.
 - Gighive frees you from content limitations on the major providers..but you'll need to size your vm properly.
-- It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
-- Gighive is simple. There is a home page, a page for the media library and an upload page. That's it.
 
 ### iPhone App
 - We have an easy-to-use iPhone app for fans and wedding guests.  [Download it here](https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513)
 
-### Requirements for Quickstart 
-1. Target Machine: Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) running Docker.
-2. [Quickstart Instructions](setup_instructions_quickstart.md)
-
-### Media formats supported
-- Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4) and [a bunch more](mediaFormatsSupported.html).
-- Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo) and [a bunch more](mediaFormatsSupported.html).
-- Note that many formats like HEVC, .MOV and .AVI don't autoplay in the browser, so you'll associate those with your OS's media player.
+### Features
+- [Supported Media Formats](mediaFormatsSupported.html)
+- Gighive is simple. There is a home page, a page for the media library and an upload page. That's it.
+- It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
 
 <a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a> <a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Parts List</a>
 ### License
