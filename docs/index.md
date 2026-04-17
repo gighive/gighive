@@ -328,9 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
 - **If you're a media librarian or have a preexisting cache of files:** Use the [Admin Utilities](/images/adminUtilities.png) to import your videos and build your own historical Gighive.
 - **If you just need a simple self-hosted web server:** Drop PHP files or static content into the default web root and off you go.
 
-### What is it?
 - Gighive is [open source](https://github.com/gighive/gighive) — a self-hosted media library with a searchable [database](images/databaseErd.png), an [upload utility](images/uploadutility.png), and an [iPhone app](https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513).
-- Please read and be informed about your responsibilities via [our content policy](gighive_content_policy.html).
 
 <div class="media-grid">
   <div class="media-card">
@@ -387,10 +385,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <a href="README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a> <a href="PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Parts List</a>
 
-### License
+### License / Policy
 GigHive is dual-licensed:
 
 - **[Licenses](LICENSE.html)**: Covers both the AGPL v3 license and the commercial license model.
+- **[Content Policy](gighive_content_policy.html)**: Please read and understand your responsibilities as an operator.
 
 ### Contact Us
 
