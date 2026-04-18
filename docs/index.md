@@ -368,18 +368,18 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 ### Requirements for Quickstart
-1. Target Machine: Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) running Docker.
+1. Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) and Windows 10 or above running Docker.
 2. [Quickstart Instructions](setup_instructions_quickstart.md)
 
 ### Why self-host?
 - This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
-- Gighive frees you from content limitations on the major providers..but you'll need to size your vm properly.
+- Gighive frees you from the content limitations that the major providers set..but make sure you have enough disk for all your media files.
 
 ### iPhone App
 - We have an easy-to-use iPhone app for fans and wedding guests.  [Download it here](https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513)
 
 ### Features
-- [Supported Media Formats](mediaFormatsSupported.html)
+- [Supported media formats.](mediaFormatsSupported.html)
 - Gighive is simple. There is a home page, a page for the media library and batch or single file upload utilities.
 - It is secure [by default](SECURITY.html) and was built from the ground up to live behind the [Cloudflare shield](https://www.cloudflare.com).
 
@@ -388,9 +388,9 @@ document.addEventListener('DOMContentLoaded', function() {
 ### License / Policy
 GigHive is dual-licensed:
 
-- **[Licenses](LICENSE.html)**: Covers both the AGPL v3 license and the commercial license model.
-- **[Content Policy](gighive_content_policy.html)**: Please read and understand your responsibilities as an operator.
+- [Licenses](LICENSE.html): Covers both the AGPL v3 license and the commercial license model.
+- [Content Policy](gighive_content_policy.html): Please read and understand your responsibilities as an operator.
 
 ### Contact Us
 
- 👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 2em; vertical-align: middle;">
+ 👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 4em; vertical-align: middle;">

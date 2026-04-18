@@ -40,6 +40,43 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
     
     /* User indicator styling */
     .user-indicator { font-size: 12px; color: #666; margin: 0.5rem 0; padding-left: 2rem; }
+
+    /* Media card grid */
+    .media-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 300px));
+      gap: 16px;
+      margin: 1.2rem 0 1.5rem;
+    }
+    .media-card {
+      background-color: #1a2347;
+      border: 1px solid #2a3560;
+      border-radius: 8px;
+      overflow: hidden;
+      text-align: center;
+      transition: border-color 0.3s ease;
+    }
+    .media-card:hover { border-color: #2196F3; }
+    .media-card > a { display: block; text-decoration: none; }
+    .media-card img { width: 100%; height: auto; display: block; }
+    .media-card .card-caption {
+      padding: 10px 12px;
+      color: #ccc;
+      font-size: 0.875em;
+      line-height: 1.5;
+    }
+    .media-card:hover .card-caption { color: white; }
+    .credentials-box {
+      display: inline-block;
+      background-color: #1a2347;
+      border: 1px solid #2a3560;
+      border-radius: 6px;
+      padding: 6px 14px;
+      margin: 0.4rem 0 0.8rem;
+      font-family: monospace;
+      font-size: 0.9em;
+      color: #ccc;
+    }
   </style>
 </head>
 <body>
@@ -59,132 +96,93 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       </h1>
 
       <h2>Upload, organize, and stream your media.</h2>
-      <h3>If you're a musician</h3>
       <ul>
-      <li>You can use Gighive as a library of your bands sessions, audio and video files.</li>
-      <li>Have your fans upload videos from your gigs and utilize the footage from every conceivable angle.</li> 
+        <li><strong>If you're a musician:</strong> Use GigHive as a library for your band's sessions (audio and video) and let your fans upload footage from every angle of the gig.</li>
+        <li><strong>If you're a wedding photographer/videographer:</strong> Have guests upload their audio and video during the event, incorporate it into a compilation, then spin down the instance when you're done to save money.</li>
+        <li><strong>If you're a media librarian or have a preexisting cache of files:</strong> Use the <a href="https://gighive.app/images/adminUtilities.png">Admin Utilities</a> to import your videos and build your own historical GigHive.</li>
+        <li><strong>If you just need a simple self-hosted web server:</strong> Drop PHP files or static content into the default web root and off you go.</li>
+        <li>GigHive is <a href="https://github.com/gighive/gighive">open source</a> — a self-hosted media library with a searchable <a href="https://gighive.app/images/databaseErd.png">database</a>, an <a href="db/upload_form.php">upload utility</a>, and an <a href="https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513">iPhone app</a>.</li>
       </ul>
 
-      <h3>If you're a wedding photographer</h3>
+      <div class="media-grid">
+        <div class="media-card">
+          <a href="https://gighive.app/images/mediaLibraryCustom.png">
+            <img src="https://gighive.app/images/mediaLibraryCustom.png" alt="Customer database example">
+            <div class="card-caption">Customer Example</div>
+          </a>
+        </div>
+        <div class="media-card">
+          <a href="https://staging.gighive.app/db/database.php">
+            <img src="https://gighive.app/images/gighiveMediaLibrary.png" alt="Interactive media library example">
+            <div class="card-caption">Interactive Example ↗</div>
+          </a>
+        </div>
+      </div>
+
       <ul>
-      <li>You can have your guests upload audio and video files from a wedding that you can incorporate into a compilation video.</li>
-      <li>Collect media from everyone during the event, offload it and then spin down the compute instance after you're done, thus saving you money.</li>
+        <li>Live example: <a href="https://www.stormpigs.com">stormpigs.com</a></li>
+      </ul>
+      <div class="credentials-box">u: guest &nbsp;&nbsp;|&nbsp;&nbsp; p: stormpigsguestuser1234!</div>
+
+      <h3>Get Started</h3>
+      <ul>
+        <li>Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure, fully automated through Ansible (and Terraform for Azure). See the <a href="https://gighive.app/README.html">Setup Guide</a> or watch the quickstart videos below:</li>
       </ul>
 
-      <h3>If you are a media librarian or have a preesisting cache of media files</h3>
+      <div class="media-grid">
+        <div class="media-card">
+          <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4">
+            <img src="https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png" alt="GigHive quickstart installation video for Linux">
+            <div class="card-caption">Quickstart Installation (Linux)</div>
+          </a>
+        </div>
+        <div class="media-card">
+          <a href="https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4">
+            <img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac">
+            <div class="card-caption">Quickstart Installation (Mac)<br><a href="https://share.google/aimode/h3XkjXbeJuDx0ztgI" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Mac</a></div>
+          </a>
+        </div>
+      </div>
+
+      <h3>Requirements for Quickstart</h3>
       <ul>
-      <li>You can use the <a href="https://gighive.app/images/adminUtilities.png">Admin Utilities</a> to import your videos and create your own historical Gighive.</li>
+        <li>Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) and Windows 10 or above running Docker.</li>
+        <li><a href="https://gighive.app/setup_instructions_quickstart.html">Quickstart Instructions</a></li>
       </ul>
 
-      <h3>Or you just need a web server with basic authentication and security to host files in your own network </h3>
+      <h3>Why self-host?</h3>
       <ul>
-      <li>You can plop php files or static content in the default web root and off you go. </li>
-      </ul>
-
-      <h3>What is it?</h3>
-      <ul>
-      <li>Gighive is an <a href="https://github.com/gighive/gighive">open source website and database</a> that you, your fans or wedding guests can use as temporary or permanent storage for video and audio files. <a href="https://gighive.app/images/mediaLibraryCustom.png">Here is an image</a> of one of our customers databases.  A more interactive version is <a href="https://staging.gighive.app/db/database.php">here</a>.
-        <ul>
-          <li>
-            <span style="display: inline-flex; align-items: center; gap: 8px; margin-right: 16px;">
-              <span>Customer Example:</span>
-              <a href="https://gighive.app/images/mediaLibraryCustom.png"><img src="https://gighive.app/images/mediaLibraryCustom.png" alt="Customer database example" style="width: 320px; height: auto;"></a>
-            </span>
-            <span style="display: inline-flex; align-items: center; gap: 8px;">
-              <span>Interactive Example:</span>
-              <a href="https://staging.gighive.app/db/database.php"><img src="https://gighive.app/images/gighiveMediaLibrary.png" alt="Interactive media library example" style="width: 320px; height: auto;"></a>
-            </span>
-          </li>
-        </ul>
-      </li>
-      <li>Based on Ubuntu, you spin up the website via bash scripts and host it either in your network or in Azure. It is fully automated through a combination of Ansible and if you choose Azure as a target, Terraform. Here is the <a href="https://gighive.app/README.html">Setup Guide</a>, but you may want to jump right to the installation video below:
-        <ul>
-          <li>
-            <span style="display: inline-flex; align-items: center; gap: 8px; margin-right: 16px;">
-              <span>Quickstart Installation Video (for Linux):</span>
-              <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4"><img src="https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png" alt="GigHive quickstart installation video" style="width: 320px; height: auto;"></a>
-            </span>
-          </li>
-          <li>
-            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: nowrap; overflow-x: auto;">
-              <span style="display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;">
-                <span>Quickstart Installation Video (for Mac):</span>
-                <a href="https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4"><img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac" style="width: 320px; height: auto;"></a>
-              </span>
-              <span style="display: inline-flex; align-items: center; justify-content: center; flex: 0 0 320px; text-align: center; min-height: 180px;">
-                <a href="https://share.google/aimode/h3XkjXbeJuDx0ztgI">How to Install Docker Desktop on a Mac</a>
-              </span>
-            </div>
-          </li>
-        </ul>
-      </li>
-      <li>Example of GigHive in Action: <a href="https://www.stormpigs.com">https://www.stormpigs.com</a>
-        <br>
-       Guest creds:<br>
-       u: guest<br>
-       p: stormpigsguestuser1234!
-      </li>
-      </ul>
-
-      <h3>Why not just use YouTube?</h3>
-      <ul>
-      <li>This site is for do-it-yourselfers who don’t want to be beholden to Big Tech but be the masters of their own destiny.</li>
-      <li>With build targets such as Azure or virtualbox, you have your choice on how to deploy Gighive.</li>
-      <li>Gighive frees you from content limitations on the major providers..but you’ll need to size your vm properly.</li>
-      <li>It is <a href="https://gighive.app/SECURITY.html">secure by default</a> and was built from the ground up to live behind the <a href="https://www.cloudflare.com">Cloudflare shield</a>.</li>
-      <li>Last but not least, Gighive is simple.  There is one page for the home page, a page for the <a href="db/database.php">media library</a> and a page for the <a href="db/upload_form.php">upload utility</a>..that's all.</li>
+        <li>This site is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.</li>
+        <li>GigHive frees you from the content limitations that the major providers set..but make sure you have enough disk for all your media files.</li>
       </ul>
 
       <h3>iPhone App</h3>
       <ul>
-      <li>We have an easy-to-use iPhone app for fans and wedding guests.  <a href="https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513">Download it here</a></li>
+        <li>We have an easy-to-use iPhone app for fans and wedding guests. <a href="https://apps.apple.com/us/app/gighive-upload-music-video/id6753146513">Download it here</a></li>
       </ul>
 
-      <h3>Requirements for Quickstart</h3>
+      <h3>Features</h3>
       <ul>
-      <li>Target Machine: Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) running Docker.</li>
-      <li><a href="https://gighive.app/setup_instructions_quickstart.html">Quickstart Instructions</a></li>
+        <li><a href="https://gighive.app/mediaFormatsSupported.html">Supported media formats.</a></li>
+        <li>GigHive is simple. There is a home page, a page for the <a href="db/database.php">media library</a> and batch or single file <a href="db/upload_form.php">upload utilities</a>.</li>
+        <li>It is <a href="https://gighive.app/SECURITY.html">secure by default</a> and was built from the ground up to live behind the <a href="https://www.cloudflare.com">Cloudflare shield</a>.</li>
       </ul>
 
-      <h3>Requirements for Full Build</h3>
-      <ul>
-      <li>Control Machine: Tested on Ubuntu 24.04 and 22.04, so the requirements are any flavor of those versions or Pop-OS, installed on bare metal.</li>
-      <li>Target Machine: Your choice of virtualbox or Azure deployment targets for the vm and containerized environment.  These are shown in this <a href="https://gighive.app/images/architecture.png">architecture diagram</a>.</li>
-      <li><a href="https://gighive.app/setup_instructions_fullbuild.html">Full Build Instructions</a></li>
-      </ul>
-
-      <h3>What comes with Gighive?</h3>
-      <ul>
-      <li>Gighive includes a searchable, sortable one-page listing of media files and common attributes (date, location, people, rating, etc) stored <a href="https://gighive.app/images/databaseErd.png">in the database</a> along with an <a href="db/upload_form.php">upload utility</a>.</li> 
-      <li>Common media formats for upload are supported (shown below).</li>
-      <li>Please read and be informed about your responsibilities via <a href="https://gighive.app/gighive_content_policy.html">our content policy</a>.</li>
-      </ul>
-
-      <h3>Media formats supported</h3>
-      <ul>
-      <li>Audio formats: MP3 (audio/mpeg, audio/mp3), WAV (audio/wav, audio/x-wav), AAC (audio/aac), FLAC (audio/flac), MP4 Audio (audio/mp4) and <a href="https://gighive.app/mediaFormatsSupported.html">a bunch more</a>.</li>
-      <li>Video formats: MP4 (video/mp4), QuickTime/MOV (video/quicktime), Matroska/MKV (video/x-matroska), WebM (video/webm), AVI (video/x-msvideo) and <a href="https://gighive.app/mediaFormatsSupported.html">a bunch more</a>.</li>
-      <li>Note that HEVC, .MOV and .AVI don't autoplay in the browser, so you’ll associate those with your OS’s media player.</li>
-      </ul>
-
-      <h3>So give Gighive a try! For those with a bit of unix and command line experience, it will be a breeze to setup!</h3>
       <p><a href="https://gighive.app/README.html" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">View the README</a> <a href="https://gighive.app/PREREQS.html" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 4px; transition: background-color 0.3s;">Parts List</a></p>
       <p><a class="btn" href="/db/database.php">Database View (login required)</a></p>
       <p>Note the database is pre-populated with sample media that you can delete using the link below.</p>
       <p><a class="btn" href="/admin/admin.php">Admin Functions (Change Passwords / Data Loading)</a></p>
 
-      <h3>For the future</h3>
+      <h3>License / Policy</h3>
+      GigHive is dual-licensed:
       <ul>
-      <li>Eventually, we will develop more interesting features. But for now, we've keeping it simple and easy to manage.</li>
+        <li><a href="https://gighive.app/LICENSE_AGPLv3.html">AGPL v3 License</a>: Open source, free for personal use with strong copyleft protection for use as a SaaS.</li>
+        <li><a href="https://gighive.app/LICENSE_COMMERCIAL.html">Commercial License</a>: Required for SaaS, multi-tenant, or commercial use.</li>
+        <li><a href="https://gighive.app/gighive_content_policy.html">Content Policy</a>: Please read and understand your responsibilities as an operator.</li>
       </ul>
 
-<h3>License</h3>
-GigHive is dual-licensed:
-<ul>
-<li><a href="https://gighive.app/LICENSE_AGPLv3.html">AGPL v3 License</a>: Open source, free for personal use with strong copyleft protection for use as a SaaS.</li>
-<li><a href="https://gighive.app/LICENSE_COMMERCIAL.html">Commercial License</a>: Required for SaaS, multi-tenant, or commercial use.</li>
-</ul>
-👉 <a href="mailto:contactus@gighive.app">Contact Us</a> for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 1em; vertical-align: middle;">
+      <h3>Contact Us</h3>
+      <p>👉 <a href="mailto:contactus@gighive.app">Contact us</a> for commercial licensing or for any other questions regarding GigHive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 4em; vertical-align: middle;"></p>
     </div>
   </div>
 </body>
