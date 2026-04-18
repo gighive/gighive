@@ -362,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="media-card">
     <a href="https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4">
       <img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac">
-      <div class="card-caption">Quickstart Installation (Mac)<br><a href="https://share.google/aimode/h3XkjXbeJuDx0ztgI" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Mac</a></div>
+      <div class="card-caption">Quickstart Installation (Mac)<br><a href="https://docs.docker.com/desktop/setup/install/mac-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Mac</a></div>
     </a>
   </div>
 </div>
