@@ -162,7 +162,7 @@ img {
 /* Media card grid */
 .media-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px;
     margin: 1.2rem 0 1.5rem;
 }
@@ -364,6 +364,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac">
       <div class="card-caption">Quickstart Installation (Mac)<br><a href="https://docs.docker.com/desktop/setup/install/mac-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Mac</a></div>
     </a>
+  </div>
+  <div class="media-card">
+    <div style="aspect-ratio: 16/9; background-color: #0d1530; display: flex; align-items: center; justify-content: center; color: #555; font-size: 0.9em;">Video Coming Soon</div>
+    <div class="card-caption">Quickstart Installation (Windows)<br><a href="https://docs.docker.com/desktop/setup/install/windows-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Windows</a></div>
   </div>
 </div>
 

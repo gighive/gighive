@@ -142,6 +142,10 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
             <div class="card-caption">Quickstart Installation (Mac)<br><a href="https://docs.docker.com/desktop/setup/install/mac-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Mac</a></div>
           </a>
         </div>
+        <div class="media-card">
+          <div style="aspect-ratio: 16/9; background-color: #0d1530; display: flex; align-items: center; justify-content: center; color: #555; font-size: 0.9em;">Video Coming Soon</div>
+          <div class="card-caption">Quickstart Installation (Windows)<br><a href="https://docs.docker.com/desktop/setup/install/windows-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Windows</a></div>
+        </div>
       </div>
 
       <h3>Requirements for Quickstart</h3>
