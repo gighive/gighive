@@ -4,7 +4,7 @@
 
 ```bash
 ansible-playbook \
-  -i ansible/inventories/inventory_bootstrap.yml \
+  -i ansible/inventories/inventory_gighive.yml \
   ansible/playbooks/upload_tests_bundle.yml \
   --tags upload_tests \
   -e "mysql_appuser_password=<bundle_admin_password>"

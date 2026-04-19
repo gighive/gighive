@@ -43,7 +43,7 @@ Docker containers are **isolated environments** that run their own operating sys
 When you run the Ansible playbook, it ensures a clean rebuild:
 
 ```bash
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
+ansible-playbook -i ansible/inventories/inventory_gighive.yml \
   ansible/playbooks/site.yml \
   --skip-tags vbox_provision,blobfuse2,mysql_backup
 ```

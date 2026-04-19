@@ -37,7 +37,7 @@ In Apache 2.4+, when multiple configuration sections (`<Location>`, `<LocationMa
 ### Step 1: Verify Apache Configuration is Loaded
 
 ```bash
-ansible gighive_vm -i ansible/inventories/inventory_bootstrap.yml -m shell \
+ansible gighive_vm -i ansible/inventories/inventory_gighive.yml -m shell \
   -a "docker exec apacheWebServer apachectl -t -D DUMP_VHOSTS -D DUMP_RUN_CFG 2>&1 | grep -A20 'VirtualHost configuration'"
 ```
 
@@ -55,7 +55,7 @@ Main DocumentRoot: "/var/www/html"
 ### Step 2: Check Active Configuration in Container
 
 ```bash
-ansible gighive_vm -i ansible/inventories/inventory_bootstrap.yml -m shell \
+ansible gighive_vm -i ansible/inventories/inventory_gighive.yml -m shell \
   -a "docker exec apacheWebServer cat /etc/apache2/sites-enabled/default-ssl.conf | grep -A10 'PUBLIC HEALTH\\|EXISTING PROTECTED'"
 ```
 
@@ -79,7 +79,7 @@ ansible gighive_vm -i ansible/inventories/inventory_bootstrap.yml -m shell \
 ### Step 3: Verify File Exists
 
 ```bash
-ansible gighive_vm -i ansible/inventories/inventory_bootstrap.yml -m shell \
+ansible gighive_vm -i ansible/inventories/inventory_gighive.yml -m shell \
   -a "docker exec apacheWebServer ls -la /var/www/html/db/health.php"
 ```
 
@@ -93,7 +93,7 @@ ansible gighive_vm -i ansible/inventories/inventory_bootstrap.yml -m shell \
 ### Step 4: Check Apache Modules
 
 ```bash
-ansible gighive_vm -i ansible/inventories/inventory_bootstrap.yml -m shell \
+ansible gighive_vm -i ansible/inventories/inventory_gighive.yml -m shell \
   -a "docker exec apacheWebServer apache2ctl -M | grep -i 'authz\\|auth_basic'"
 ```
 
@@ -110,7 +110,7 @@ authz_user_module (shared)
 ### Step 5: Test Actual HTTP Response
 
 ```bash
-ansible gighive_vm -i ansible/inventories/inventory_bootstrap.yml -m shell \
+ansible gighive_vm -i ansible/inventories/inventory_gighive.yml -m shell \
   -a "docker exec apacheWebServer curl -sk -o /dev/null -w '%{http_code}' https://localhost/db/health.php"
 ```
 
@@ -249,7 +249,7 @@ After deploying the updated configuration:
 
 ```bash
 # Deploy changes
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
+ansible-playbook -i ansible/inventories/inventory_gighive.yml \
   ansible/playbooks/site.yml --tags docker,validate_app
 
 # Test health endpoint (should return 200)

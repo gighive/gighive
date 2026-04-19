@@ -36,7 +36,7 @@ Removing it would:
 The refactor is based on the current operator workflow of running the one-shot bundle directly from the playbook, for example:
 
 ```bash
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --tags one_shot_bundle --check --diff
+ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags one_shot_bundle --check --diff
 ```
 
 This supports the simplification toward a single active flow.
@@ -44,7 +44,7 @@ This supports the simplification toward a single active flow.
 ## Files Planned to Change
 
 - `ansible/roles/one_shot_bundle/tasks/main.yml`
-- `ansible/inventories/inventory_bootstrap.yml`
+- `ansible/inventories/inventory_gighive.yml`
 - `ansible/inventories/inventory_lab.yml`
 - `ansible/inventories/inventory_staging_telemetry.yml`
 - `ansible/inventories/group_vars/gighive/gighive.yml`
@@ -79,7 +79,7 @@ Result:
 
 - `main.yml` becomes the simple entrypoint for the three active one-shot-bundle YAMLs
 
-### `ansible/inventories/inventory_bootstrap.yml`
+### `ansible/inventories/inventory_gighive.yml`
 
 Planned change:
 
@@ -179,7 +179,7 @@ Rationale:
 Additional files changed:
 
 - `ansible/playbooks/site.yml` — removed `when: serve_one_shot_installer_downloads | default(false)` from the `one_shot_bundle` role
-- `ansible/inventories/inventory_bootstrap.yml` — removed `serve_one_shot_installer_downloads: true`
+- `ansible/inventories/inventory_gighive.yml` — removed `serve_one_shot_installer_downloads: true`
 - `ansible/inventories/inventory_lab.yml` — removed `serve_one_shot_installer_downloads: true`
 - `ansible/inventories/inventory_staging_telemetry.yml` — removed `serve_one_shot_installer_downloads: true`
 

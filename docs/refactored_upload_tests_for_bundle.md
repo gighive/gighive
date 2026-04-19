@@ -11,13 +11,13 @@ machine without modifying the role's task files.
 ## How the bundle is built (context that matters)
 
 ```
-script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml \
   ansible/playbooks/site.yml \
   --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" \
   ansible-playbook-gighive-bundle-$(date +%Y%m%d).log
 ```
 
-The bundle role (`ansible/roles/one_shot_bundle`) runs under `inventory_bootstrap.yml`,
+The bundle role (`ansible/roles/one_shot_bundle`) runs under `inventory_gighive.yml`,
 which puts the `gighive_vm` host in the `gighive` group. That group inherits
 `ansible/inventories/group_vars/gighive/gighive.yml`. The bundle's `.env`, htpasswd,
 container names, DB vars, and default credentials are all rendered from those group_vars
@@ -42,7 +42,7 @@ The four specific blockers:
 | 1 | `community.docker.docker_container_exec` has no `delegate_to: localhost` | Runs on the Ansible target host; for full build that is the remote VM |
 | 2 | `gighive_base_url` resolves to the remote VM's IP | Bundle listens on `localhost` |
 | 3 | `upload_media_by_hash.py` path anchored to `{{ repo_root }}/...` | Needs `repo_root` correct; SSH target assumes remote host |
-| 4 | No inventory entry / group_vars load for `localhost` as a test target | `baremetal` host in `inventory_bootstrap.yml` is localhost but not in `gighive` group |
+| 4 | No inventory entry / group_vars load for `localhost` as a test target | `baremetal` host in `inventory_gighive.yml` is localhost but not in `gighive` group |
 
 ---
 
@@ -100,7 +100,7 @@ There is no playbook that:
 
 ## Solution: `ansible/playbooks/upload_tests_bundle.yml`
 
-A new playbook targeting the `baremetal` host from `inventory_bootstrap.yml`. It loads
+A new playbook targeting the `baremetal` host from `inventory_gighive.yml`. It loads
 gighive group_vars via `vars_files` and overrides run-control variables via a
 `pre_tasks: set_fact` block.
 
@@ -163,7 +163,7 @@ See also: `docs/process_upload_tests_bundle.md` for a concise summary.
 
 ```bash
 ansible-playbook \
-  -i ansible/inventories/inventory_bootstrap.yml \
+  -i ansible/inventories/inventory_gighive.yml \
   ansible/playbooks/upload_tests_bundle.yml \
   --tags upload_tests \
   -e "mysql_appuser_password=<bundle_mysql_password>"

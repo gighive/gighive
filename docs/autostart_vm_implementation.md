@@ -102,14 +102,14 @@ Include the new role *optionally*, guarded by whether `enable_vbox_vm_autostart:
 1. Set `enable_vbox_vm_autostart: true` in `ansible/inventories/group_vars/gighive/gighive.yml`.
 2. Run controller install:
 
-   - `ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/install_controller.yml --ask-become-pass`
+   - `ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/install_controller.yml --ask-become-pass`
 
 ### Enable sometime later
 
 1. Set `enable_vbox_vm_autostart: true` in `ansible/inventories/group_vars/gighive/gighive.yml`.
 2. Run:
 
-   - `ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass`
+   - `ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass`
 
 ## Example: enable autostart after initial install (gighive)
 
@@ -129,7 +129,7 @@ This section is an example workflow for the case where:
 
 Run:
 
-- `ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass`
+- `ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass`
 
 ### 3) Validate
 

@@ -54,7 +54,7 @@ Therefore, any `site.yml` run that executes the base role's sync task will delet
 ### What the user ran (believed trigger)
 
 ```bash
-script -q -c "ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml \
   ansible/playbooks/site.yml \
   --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" \
   ansible-playbook-gighive-20260404.log

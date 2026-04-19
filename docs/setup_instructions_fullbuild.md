@@ -50,7 +50,7 @@ cp ansible/inventories/group_vars/gighive/secrets.example.yml ansible/inventorie
 - The script will ask for your sudo password, so enter it in when prompted.
 ```bash
 cd gighive
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
+ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/install_controller.yml -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false --ask-become-pass
 ```
 
 2. When the script finishes, it will prompt you to reboot.  
@@ -59,19 +59,19 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 3. Verify the installation (<1 minute).
 ```bash
 cd gighive
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
+ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/verify_controller.yml  -e target_provider=vbox -e install_virtualbox=true -e install_terraform=false -e install_azure_cli=false
 ```
 - After finishing, you should see a green checkmark and the words "All prerequisites verified successfully!" at the bottom of the Ansible output.  Otherwise, redo the steps above.
 
 4. In the inventory file below, set the "ansible_host" variable to the IP address to the IP address you decided upon in the Prerequisites. 
 ```bash
-vi ansible/inventories/inventory_bootstrap.yml 
+vi ansible/inventories/inventory_gighive.yml 
 ```
 
 5. Execute the Ansible playbook that will install Gighive (15 minutes).
 OPTIONAL: GigHive sends the [**bare minimum of information for debugging purposes**](TELEMETRY_ENDUSER.md). If you do not want GigHive to send this minimal installation telemetry, change `gighive_enable_installation_tracking` to `false` in `ansible/inventories/group_vars/gighive/gighive.yml` before installation.
 ```bash
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml --skip-tags one_shot_bundle --ask-become-pass
+ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags one_shot_bundle --ask-become-pass
 ```
 
 6. If the previous step ran without error, CONGRATULATIONS!!  You've installed Gighive!! Now access it in a browser:
@@ -81,14 +81,14 @@ https://<ansible_host IP from earlier step>
 
 OPTIONAL: It is helpful to set an alias in your .bashrc to access the vm you've created so you can check it out.
 ```bash
-alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inventory_bootstrap.yml>"
+alias gighive='ssh ubuntu@<ansible_host value found in ansible/inventories/inventory_gighive.yml>"
 ```
 
 OPTIONAL: You may want to setup the Virtualbox vm to autostart if the machine on which it is running is restarted.  If so, logon to the server that is home to your Virtualbox vm and perform these steps to create a systemd service to autostart the vm:
 ```bash
 cd $GIGHIVE_HOME
 vi ansible/inventories/group_vars/gighive/gighive.yml   # Set `enable_vbox_vm_autostart: true`
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass
+ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/vbox_autostart.yml --ask-become-pass
 ```
 After running the steps, your vm if not started, will start.  Otherwise, the autostart service will be setup. 
 

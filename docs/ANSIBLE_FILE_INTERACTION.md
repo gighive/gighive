@@ -17,7 +17,7 @@ GigHive supports multiple VM configurations (e.g., `gighive`, `gighive2`):
 ## File Interaction Flow
 
 ```
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbooks/site.yml
+ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
 │ 1. ansible.cfg (Global Settings)                                    │
@@ -28,7 +28,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml ansible/playbook
 └─────────────────────────────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│ 2. inventory_bootstrap.yml (Host Definitions)                      │
+│ 2. inventory_gighive.yml (Host Definitions)                      │
 │    - Defines group: gighive                                         │
 │    - Defines host: gighive_vm (192.168.1.248)                       │
 │    - Makes gighive a child of target_vms                            │
@@ -143,7 +143,7 @@ ssh_args = -o ControlMaster=auto -o ControlPersist=60s
 
 **Purpose:** Define hosts, groups, and their relationships.
 
-**Example: inventory_bootstrap.yml**
+**Example: inventory_gighive.yml**
 ```yaml
 all:
   children:
@@ -167,7 +167,7 @@ all:
 - **Hierarchy**: `gighive` is a child of `target_vms`
 
 **Available Inventories:**
-- `inventory_bootstrap.yml` - Primary `gighive` VM (e.g. 192.168.1.248)
+- `inventory_gighive.yml` - Primary `gighive` VM (e.g. 192.168.1.248)
 - `inventory_gighive2.yml` - Optional secondary/test VM (`gighive2`)
 - `inventory_baremetal.yml` - For bare metal Ubuntu hosts
 - `inventory_azure.yml` - For Azure cloud deployments
@@ -264,7 +264,7 @@ upload_max_mb: 6144
 
 ### Command
 ```bash
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
+ansible-playbook -i ansible/inventories/inventory_gighive.yml \
                  ansible/playbooks/site.yml \
                  --ask-become-pass \
                  --skip-tags blobfuse2
@@ -277,7 +277,7 @@ ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
    - Knows to look in `ansible/roles` for roles
    - Knows to look in `ansible/inventories` for inventory files
 
-2. **Ansible loads `inventory_bootstrap.yml`**
+2. **Ansible loads `inventory_gighive.yml`**
    - Discovers group: `gighive`
    - Discovers host: `gighive_vm` at `192.168.1.248`
    - Notes that `gighive2` is a child of `target_vms`
@@ -317,7 +317,7 @@ The playbook primarily targets the `gighive` VM, but can optionally support a se
 
 ### Typical run: gighive VM
 ```bash
-ansible-playbook -i ansible/inventories/inventory_bootstrap.yml \
+ansible-playbook -i ansible/inventories/inventory_gighive.yml \
                  ansible/playbooks/site.yml \
                  --ask-become-pass
 ```
@@ -514,7 +514,7 @@ $GIGHIVE_HOME/
 ├── ansible.cfg                                    # Global Ansible config
 ├── ansible/
 │   ├── inventories/
-│   │   ├── inventory_bootstrap.yml              # gighive group (192.168.1.248)
+│   │   ├── inventory_gighive.yml              # gighive group (192.168.1.248)
 │   │   ├── inventory_gighive2.yml                # gighive2 group (192.168.1.254)
 │   │   ├── inventory_baremetal.yml               # Bare metal hosts
 │   │   ├── inventory_azure.yml                   # Azure cloud hosts
