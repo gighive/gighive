@@ -84,7 +84,7 @@ upload_test_manifest_source_roots_reload:
 upload_test_manifest_source_roots_add:
   - "{{ audio_reduced }}"
 
-upload_test_event_date: "{{ ansible_date_time.date }}"
+upload_test_event_date: "{{ ansible_facts['date_time']['date'] }}"
 upload_test_org_name: "default"
 upload_test_event_type: "band"
 upload_test_run_upload_media_by_hash: true
