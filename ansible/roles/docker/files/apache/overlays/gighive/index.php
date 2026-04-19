@@ -126,7 +126,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>Get Started</h3>
       <ul>
-        <li>Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure, fully automated through Ansible (and Terraform for Azure). See the <a href="https://gighive.app/README.html">Setup Guide</a> or watch the quickstart videos below:</li>
+        <li>Gighive is a containerized deployment of Apache and Mysql running in Docker.  Easiest way to start is by following the quickstart instructions below:</li>
       </ul>
 
       <div class="media-grid">
@@ -143,8 +143,10 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
           </a>
         </div>
         <div class="media-card">
-          <div style="aspect-ratio: 16/9; background-color: #0d1530; display: flex; align-items: center; justify-content: center; color: #555; font-size: 0.9em;">Video Coming Soon</div>
-          <div class="card-caption">Quickstart Installation (Windows)<br><a href="https://docs.docker.com/desktop/setup/install/windows-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Windows</a></div>
+          <a href="https://staging.gighive.app/video/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.mp4">
+            <img src="https://staging.gighive.app/video/thumbnails/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.png" alt="GigHive quickstart installation video for Windows">
+            <div class="card-caption">Quickstart Installation (Windows)<br><a href="https://docs.docker.com/desktop/setup/install/windows-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Windows</a></div>
+          </a>
         </div>
       </div>
 
@@ -156,7 +158,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>Why self-host?</h3>
       <ul>
-        <li>This site is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.</li>
+        <li>This site is for do-it-yourselfers who don't want to be beholden to Big Tech but to be the masters of their own destiny.</li>
         <li>GigHive frees you from the content limitations that the major providers set..but make sure you have enough disk for all your media files.</li>
       </ul>
 
@@ -168,7 +170,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       <h3>Features</h3>
       <ul>
         <li><a href="https://gighive.app/mediaFormatsSupported.html">Supported media formats.</a></li>
-        <li>GigHive is simple. There is a home page, a page for the <a href="db/database.php">media library</a> and batch or single file <a href="db/upload_form.php">upload utilities</a>.</li>
+        <li>GigHive is simple. There is a home page, a page for the <a href="db/database.php">media library</a> and batch or single file <a href="/admin/admin_database_load_import_media_from_folder.php">upload utilities</a>.</li>
         <li>It is <a href="https://gighive.app/SECURITY.html">secure by default</a> and was built from the ground up to live behind the <a href="https://www.cloudflare.com">Cloudflare shield</a>.</li>
       </ul>
 

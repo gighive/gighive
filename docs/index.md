@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="credentials-box">u: guest &nbsp;&nbsp;|&nbsp;&nbsp; p: stormpigsguestuser1234!</div>
 
 ### Get Started
-- Based on Ubuntu, you spin up the website using bash scripts and host it either in your network or in Azure, fully automated through Ansible (and Terraform for Azure). See the [Setup Guide](README.html) or watch the quickstart videos below:
+- Gighive is a containerized deployment of Apache and Mysql running in Docker.  Easiest way to start is by following the quickstart instructions below:
 
 <div class="media-grid">
   <div class="media-card">
@@ -366,8 +366,10 @@ document.addEventListener('DOMContentLoaded', function() {
     </a>
   </div>
   <div class="media-card">
-    <div style="aspect-ratio: 16/9; background-color: #0d1530; display: flex; align-items: center; justify-content: center; color: #555; font-size: 0.9em;">Video Coming Soon</div>
-    <div class="card-caption">Quickstart Installation (Windows)<br><a href="https://docs.docker.com/desktop/setup/install/windows-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Windows</a></div>
+    <a href="https://staging.gighive.app/video/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.mp4">
+      <img src="https://staging.gighive.app/video/thumbnails/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.png" alt="GigHive quickstart installation video for Windows">
+      <div class="card-caption">Quickstart Installation (Windows)<br><a href="https://docs.docker.com/desktop/setup/install/windows-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Windows</a></div>
+    </a>
   </div>
 </div>
 
@@ -376,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
 2. [Quickstart Instructions](setup_instructions_quickstart.md)
 
 ### Why self-host?
-- This application is for do-it-yourselfers who don't want to be beholden to Big Tech but be the masters of their own destiny.
+- This application is for do-it-yourselfers who don't want to be beholden to Big Tech but to be the masters of their own destiny.
 - Gighive frees you from the content limitations that the major providers set..but make sure you have enough disk for all your media files.
 
 ### iPhone App

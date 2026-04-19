@@ -21,7 +21,7 @@ if (!$__video_exts) $__video_exts = ['mp4','mov','mkv','avi','webm','m4v'];
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Admin: Database Load, Import Media from Folder</title>
+  <title>Admin: Database Load, Import Media</title>
   <style>
     :root { font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
     body { margin:0; background:#0b1020; color:#e9eef7; }
@@ -66,7 +66,7 @@ if (!$__video_exts) $__video_exts = ['mp4','mov','mkv','avi','webm','m4v'];
     <a href="/admin/admin_system.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">System &amp; Recovery</button></a>
     <a href="/admin/admin_database_load_import.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">CSV Import</button></a>
   </div>
-  <h1 style="padding-right:210px">Admin: Database Load, Import Media from Folder</h1>
+  <h1 style="padding-right:210px">Admin: Database Load, Import Media</h1>
   <p class="muted">Signed in as <code><?= htmlspecialchars($user) ?></code>.</p>
   <p class="muted">Two-step browser-based import: <strong>Step 1</strong> hashes files and loads metadata into the DB. <strong>Step 2</strong> uploads the actual media files.</p>
 
@@ -149,6 +149,12 @@ if (!$__video_exts) $__video_exts = ['mp4','mov','mkv','avi','webm','m4v'];
         </div>
       </div>
     </details>
+  </div>
+
+  <!-- Section C -->
+  <div class="section-divider">
+    <h2>Section C: Single File Upload</h2>
+    <button type="button" class="danger" onclick="window.open('/db/upload_form.php', '_blank', 'noopener,noreferrer')">Upload Utility</button>
   </div>
 </div></div>
 

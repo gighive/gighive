@@ -3,7 +3,6 @@
  * admin_database_load_import.php — Database Load, CSV Import Admin page for GigHive
  * Section A: Upload Single CSV and Reload Database (Legacy)
  * Section B: Upload Sessions + Session Files and Reload Database (Normalized)
- * Section C: Upload Files Individually
  */
 
 $user = $_SERVER['PHP_AUTH_USER']
@@ -97,10 +96,6 @@ if ($user !== 'admin') {
         </div>
         <div id="importNormalizedStatus"></div>
         <button type="button" id="importNormalizedBtn" class="danger" onclick="confirmImportNormalized()">Upload 2 CSVs and Reload DB</button>
-      </div>
-      <div class="section-divider">
-        <h2>Section C: Upload Files Individually</h2>
-        <button type="button" class="danger" onclick="window.open('/db/upload_form.php', '_blank', 'noopener,noreferrer')">Upload Utility</button>
       </div>
     </div>
   </div>
