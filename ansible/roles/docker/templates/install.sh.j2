@@ -179,6 +179,11 @@ mkdir -p "$AUDIO_DIR" "$VIDEO_DIR"
 # Ensure config dirs exist (bundle should include them; this is defensive)
 mkdir -p apache/externalConfigs mysql/externalConfigs
 
+# Restore log dir must be writable by www-data (UID 33) inside the container
+mkdir -p apache/externalConfigs/restorelogs
+chown 33:33 apache/externalConfigs/restorelogs
+chmod 750 apache/externalConfigs/restorelogs
+
 HTPASSWD_HOST_FILE="apache/externalConfigs/gighive.htpasswd"
 
 echo "Generating BasicAuth file: ${HTPASSWD_HOST_FILE}"

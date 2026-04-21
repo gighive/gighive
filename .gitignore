@@ -39,6 +39,9 @@ user-prompts.md
 # Docker volumes (if any)
 volumes/
 
+# temp video dir
+/videos
+
 # Debug directories
 **/debug/
 

@@ -261,7 +261,28 @@ final class UploadService
 
         $hookFile = $hookDir . '/' . $uploadId . '.json';
         if (!is_file($hookFile)) {
-            throw new \RuntimeException('Upload not found or not finished yet');
+            // tusd fires the post-finish hook asynchronously: the final PATCH 204 reaches
+            // the browser (and triggers this finalize call) before the hook subprocess has
+            // finished writing its JSON file.  Poll briefly to absorb that race.
+            $maxAttempts = 10;
+            $sleepUs     = 200000; // 200 ms
+            for ($i = 0; $i < $maxAttempts; $i++) {
+                usleep($sleepUs);
+                if (is_file($hookFile)) {
+                    break;
+                }
+            }
+        }
+        if (!is_file($hookFile)) {
+            $dataFileExists = is_file($dataDir . '/' . $uploadId);
+            $infoFileExists = is_file($dataDir . '/' . $uploadId . '.info');
+            if ($dataFileExists || $infoFileExists) {
+                throw new \RuntimeException(
+                    'Upload data exists on disk but post-finish hook output has not been written yet '
+                    . '(upload_id=' . $uploadId . '). The server may still be processing; retry in a moment.'
+                );
+            }
+            throw new \RuntimeException('Upload not found: no data or hook record for upload_id=' . $uploadId);
         }
         $hookRaw = (string)@file_get_contents($hookFile);
         $hook = json_decode($hookRaw, true);

@@ -134,6 +134,18 @@ docker compose logs -n 200 apacheWebServer
 docker compose exec apacheWebServer bash -lc 'tail -n 200 /var/log/apache2/error.log'
 ```
 
+# Restart GigHive
+
+If your server was shut down, the GigHive containers will not automatically restart unless Docker is configured to do so on your system. Run the following to bring the stack back up and verify it is healthy.
+
+```bash
+cd ~/gighive-one-shot-bundle
+docker compose up -d
+docker compose ps
+docker compose logs -n 50 apacheWebServer
+docker compose logs -n 50 mysqlServer
+```
+
 # Clean reinstall / full wipe (install host)
 
 Use this when you want to restart from a known-clean state during testing.

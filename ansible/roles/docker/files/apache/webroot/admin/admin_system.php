@@ -100,8 +100,8 @@ function __format_backup_size(int $bytes): string {
     <div class="card">
       <div style="position:absolute;top:1.5rem;right:1.5rem;display:flex;flex-direction:column;gap:.4rem;align-items:flex-end">
         <a href="/admin/admin.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Password Reset</button></a>
-        <a href="/admin/admin_database_load_import_media_from_folder.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import Media Folder</button></a>
-        <a href="/admin/admin_database_load_import.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">CSV Import</button></a>
+        <a href="/admin/admin_database_load_import_media_from_folder.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import Media</button></a>
+        <a href="/admin/admin_database_load_import_csv.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">CSV Import</button></a>
       </div>
       <h1 style="padding-right:210px">Admin: System & Recovery</h1>
       <p class="muted">Signed in as <code><?= htmlspecialchars($user) ?></code>.</p>
@@ -139,6 +139,7 @@ function __format_backup_size(int $bytes): string {
         <h2>Section C: Restore Database From Backup (Destructive)</h2>
         <p class="muted">
           A full database backup is created daily by the server. Use this section to restore the entire database if something goes wrong.
+          Note that the backup only applies to the database in the container.  The backup does not backup the media files stored on the filesystem.
         </p>
         <div class="warning-box">
           <strong>⚠️ Warning:</strong> This will overwrite the current database with the selected backup.

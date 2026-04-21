@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /**
- * admin_database_load_import.php — Database Load, CSV Import Admin page for GigHive
+ * admin_database_load_import_csv.php — Database Load, CSV Import Admin page for GigHive
  * Section A: Upload Single CSV and Reload Database (Legacy)
  * Section B: Upload Sessions + Session Files and Reload Database (Normalized)
  */
@@ -52,7 +52,7 @@ if ($user !== 'admin') {
     <div class="card">
       <div style="position:absolute;top:1.5rem;right:1.5rem;display:flex;flex-direction:column;gap:.4rem;align-items:flex-end">
         <a href="/admin/admin.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Password Reset</button></a>
-        <a href="/admin/admin_database_load_import_media_from_folder.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import Media Folder</button></a>
+        <a href="/admin/admin_database_load_import_media_from_folder.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import Media</button></a>
         <a href="/admin/admin_system.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">System &amp; Recovery</button></a>
       </div>
       <h1 style="padding-right:210px">Admin: Database Load, CSV Import</h1>
