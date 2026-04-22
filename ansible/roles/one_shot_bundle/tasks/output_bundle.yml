@@ -90,6 +90,11 @@
       {{ _p | basename }}
       {% endif %}
     _one_shot_bundle_dest_dir: "{{ _one_shot_bundle_dest_file | dirname }}"
+  when: >-
+    (one_shot_bundle_exclude_source_paths | default([])
+     | map('regex_replace', '$', '/')
+     | select('in', item.path ~ '/')
+     | list | length) == 0
 
 - name: Render template files into fresh one-shot bundle output (controller)
   delegate_to: localhost
@@ -191,7 +196,12 @@
       {% else %}
       {{ _p | basename }}
       {% endif %}
-  when: not item.path.startswith(_one_shot_bundle_templates_prefix)
+  when: >-
+    not item.path.startswith(_one_shot_bundle_templates_prefix) and
+    (one_shot_bundle_exclude_source_paths | default([])
+     | map('regex_replace', '$', '/')
+     | select('in', item.path ~ '/')
+     | list | length) == 0
   register: _one_shot_bundle_non_template_copy_results
 
 - name: Preserve source modification timestamps for copied non-template files in fresh one-shot bundle output (controller)

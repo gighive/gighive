@@ -52,6 +52,11 @@
   loop: "{{ (_one_shot_bundle_inputs_find_results.results | default([])) | map(attribute='files') | list | flatten }}"
   loop_control:
     label: "{{ item.path }}"
+  when: >-
+    (one_shot_bundle_exclude_source_paths | default([])
+     | map('regex_replace', '$', '/')
+     | select('in', item.path ~ '/')
+     | list | length) == 0
   vars:
     _p: "{{ item.path }}"
     _one_shot_bundle_dest_file: >-

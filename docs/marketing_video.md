@@ -30,7 +30,7 @@ For a 20-30s iPhone app marketing video, the primary target is **fans at live mu
 - `videos/thenic/shows/shShow20111014/full.mp4`
 - `videos/stormpigs/unusedJams/20060812/Cap0001(0016).m2t`
 - https://dev.gighive.app/video/e4f151a12a19807dfb900f9616da8a800871a310ade0e9831406a0489780d2d9.mp4
-- https://dev.gighive.app/video/90fd576001dd302dcbed0758596a08e56a14ea53528742a15e03bce0eafb0cba.mp4
+
 
 ### App Demo
 - `videos/projects/gighive/iphonetutorial/iphonetutorial.mp4` — full tutorial (total ~95s)

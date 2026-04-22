@@ -179,10 +179,13 @@ mkdir -p "$AUDIO_DIR" "$VIDEO_DIR"
 # Ensure config dirs exist (bundle should include them; this is defensive)
 mkdir -p apache/externalConfigs mysql/externalConfigs
 
-# Restore log dir must be writable by www-data (UID 33) inside the container
+# Restore log dir must be writable by www-data (UID 33) inside the container.
+# Use a throwaway container (runs as root) to set ownership, so install.sh
+# does not need to be run as root.
 mkdir -p apache/externalConfigs/restorelogs
-chown 33:33 apache/externalConfigs/restorelogs
-chmod 750 apache/externalConfigs/restorelogs
+docker run --rm \
+  -v "${PWD}/apache/externalConfigs/restorelogs:/target" \
+  alpine sh -c 'chown 33:33 /target && chmod 750 /target'
 
 HTPASSWD_HOST_FILE="apache/externalConfigs/gighive.htpasswd"
 
@@ -274,6 +277,6 @@ _send_telemetry install_success
 
 echo "Done."
 echo "Next checks:"
-echo "  - ${DOCKER_COMPOSE[*]} ps"
-echo "  - ${DOCKER_COMPOSE[*]} logs -n 200 mysqlServer"
-echo "  - ${DOCKER_COMPOSE[*]} logs -n 200 apacheWebServer"
+echo "  ${DOCKER_COMPOSE[*]} ps"
+echo "  ${DOCKER_COMPOSE[*]} logs -n 200 mysqlServer"
+echo "  ${DOCKER_COMPOSE[*]} logs -n 200 apacheWebServer"

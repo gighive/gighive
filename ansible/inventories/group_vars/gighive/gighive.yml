@@ -109,6 +109,8 @@ upload_test_variants:
     section: "4"
   - name: "6_direct_upload_api"
     section: "6"
+  - name: "7_tus_finalize"
+    section: "7"
   - name: "5_manifest_add"
     section: "5"
 
@@ -391,6 +393,13 @@ one_shot_bundle_input_paths:
   - "{{ repo_root }}/ansible/roles/docker/files/mysql/externalConfigs"
   - "{{ repo_root }}/assets/audio"
   - "{{ repo_root }}/assets/video"
+
+one_shot_bundle_exclude_source_paths:
+  - "{{ repo_root }}/ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full"
+  - "{{ repo_root }}/ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod"
+  - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/images/jam"
+  - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/images/stormpigsItunesVideo.jpg"
+  - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/images/stormpigsPodcastSplash.png"
 
 # --- security_basic_auth vars ---
 apache_group: "{{ www_group | default('www-data') }}"
