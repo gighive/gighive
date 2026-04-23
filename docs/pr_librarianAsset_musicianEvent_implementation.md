@@ -44,6 +44,76 @@ PR0 → PR1 → PR3 → PR4 → PR5 → PR5b → PR6 → PR7
 
 ---
 
+## PR Quick Reference: Purpose & Verification
+
+### PR0 — Rollback snapshot
+**Purpose:** Take a known-good DB dump before any schema changes. Safety net for the entire refactor.
+**Verify:** Restore dump to a clean MySQL instance → web UI loads without errors. Record dump path.
+
+### PR1 — Canonical schema DDL + bootstrap loader
+**Purpose:** Introduce `assets`, `events`, `event_items` tables in `create_music_db.sql` and update the CSV loader to populate them on fresh installs.
+**Verify:**
+- `SHOW TABLES` confirms all three canonical tables exist.
+- `SHOW CREATE TABLE` confirms UNIQUE constraints on `checksum_sha256`, `(event_date, org_name)`, `(event_id, asset_id)`.
+- Run loader → all three tables have row counts > 0.
+
+### PR2 — Live data migration *(all known sites use CSV rebuild; no SQL migration script needed)*
+**Purpose:** Define the per-site migration path. Dev/staging/lab use `sessionsSmall.csv` Section 3B rebuild. Prod uses `sessionsLarge.csv` Section 3B rebuild; the small number of jam sessions not in the CSV are loaded post-PR5 via Section 5 manifest add (media files are on disk). `admin_database_load_import_media_from_folder.php` must NOT be used post-cutover — it is not ported and writes legacy tables.
+**Verify:**
+- No duplicate checksums: `SELECT checksum_sha256 FROM assets GROUP BY checksum_sha256 HAVING COUNT(*) > 1` returns 0 rows.
+- `COUNT(*) FROM events` matches expected session count for the site's CSV dataset.
+- No orphaned assets (every asset has at least one `event_items` link).
+- Prod only: after Section 5 manifest add for missing jam sessions, confirm those events appear in the listing.
+
+### PR3 — Media listing cutover (`/db/database.php`)
+**Purpose:** Rewrite the listing page and JSON API to read from canonical repositories, with separate librarian and event views driven by `APP_FLAVOR`.
+**Verify:**
+- `/db/database.php?view=librarian` — no duplicate rows for a checksum shared across events.
+- `/db/database.php?view=event&event_id=<id>` — assets show with event context.
+- `/db/database.php?format=json` — response includes `asset_id`, `event_id`; no `session_id` or `song_id`.
+- `APP_FLAVOR=gighive` defaults to librarian; `defaultcodebase` defaults to event.
+
+### PR4 — Upload API cutover (`POST /api/uploads`, TUS finalize)
+**Purpose:** Port the upload write path from `sessions/songs/files` to `events/assets/event_items`. Keep all endpoint URLs stable.
+**Verify:**
+- Run `test_6.yml` and `test_7.yml` — both pass.
+- POST a new file → response has `asset_id` + `event_id`, no `session_id` or `seq`.
+- POST same file again → HTTP 409/dedup; `COUNT(*) FROM assets` does not increase.
+- TUS finalize path produces same canonical field assertions.
+
+### PR5 — Manifest importer + CSV importers (Sections 3A/3B/4/5)
+**Purpose:** Port all admin import paths to write canonical tables. Update `sessionsXxx.csv` files with `org_name` and `event_type` columns first (pre-condition).
+**Verify:**
+- Pre-condition: confirm CSVs have `org_name` and `event_type` columns before running any import.
+- After each section (3A, 3B, 4, 5): `COUNT(*)` from `events`, `assets`, `event_items` matches expected totals.
+- Re-run Section 5 (add mode) with the same files — counts must not change (idempotent by checksum).
+- `org_name` in `events` must not be `'default'` for rows with a real band name.
+
+### PR5b — Binary copy tooling + automated test suite
+**Purpose:** Port `upload_media_by_hash.py` to query `assets` and update the full upload_tests suite to assert against canonical tables.
+**Verify:**
+- Full suite passes: `ansible-playbook ansible/playbooks/site.yml --tags upload_tests` — all of `test_3a`, `test_3b`, `test_4`, `test_5`, `test_6`, `test_7`, `assert_db_invariants` pass.
+- `assert_db_invariants.yml` references `events`/`assets`, not `sessions`/`files`.
+- `COUNT(*) FROM assets WHERE duration_seconds IS NOT NULL` is > 0 (populated by `upload_media_by_hash`).
+
+### PR6 — Backup schema-version tagging
+**Purpose:** Tag each DB dump with a sidecar (git SHA, schema version, timestamp) so restores are unambiguous about pre- vs post-cutover compatibility.
+**Verify:**
+- Trigger a dump → sidecar file exists alongside the `.sql` file.
+- Sidecar contains `schema_version`, `timestamp`, and `git_sha` fields.
+- You can determine pre/post-cutover from the sidecar without opening the SQL.
+
+### PR7 — Docs + OpenAPI alignment
+**Purpose:** Update `openapi.yaml` and `API_CURRENT_STATE.md` to reflect canonical vocabulary. Publish the updated contract for the iPhone app and other clients.
+**Verify:**
+- Swagger UI at `/docs/api-docs.html` — no parse errors.
+- `UploadResult` schema has `asset_id`, `event_id`, `position`; `session_id` and `seq` are gone.
+- Live `POST /api/uploads` response fields match `openapi.yaml`.
+- `GET /api/media-files` returns 501 in both spec and server.
+- iPhone app developer(s) have received and acknowledged the field-level breaking changes before coordinated client release.
+
+---
+
 ## Summary: Files that will change (quick reference)
 
 - **PR1**: **`ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql`**: introduce canonical `assets/events/event_items` tables and constraints for fresh installs.
@@ -110,8 +180,15 @@ Schema+data remodel is high-risk. A restorable rollback snapshot is the safety n
 - Ensure the dump is produced from the pre-cutover schema.
 - Store a schema identifier next to it (details in PR6).
 
-Verification
-- Restore dump to a clean MySQL instance and confirm the web UI comes up.
+### Verification
+1. Confirm dump file exists and is non-zero size.
+2. Restore to a clean MySQL instance:
+   ```sql
+   mysql -u root -p music_db < /path/to/dump.sql
+   ```
+3. Browse to the web UI root (`/db/database.php`) — page must load without DB errors.
+4. Note the dump file path and timestamp; store alongside the rollback plan.
+5. **Rollback trigger**: if any subsequent PR produces data corruption or broken UI, restore this dump and roll back application code.
 
 ---
 
@@ -175,9 +252,28 @@ The canonical model must exist in bootstrap SQL so fresh installs and rebuilds p
   updated to read those columns — otherwise fresh installs will silently fall back to
   `org_name = 'default'` instead of the real band name.
 
-Verification
-- Fresh DB init creates canonical tables.
-- Loader runs successfully and populates canonical tables.
+### Verification
+1. Run a fresh DB bootstrap (via Ansible or direct SQL apply) against the updated `create_music_db.sql`.
+2. Confirm canonical tables exist:
+   ```sql
+   SHOW TABLES LIKE 'assets';
+   SHOW TABLES LIKE 'events';
+   SHOW TABLES LIKE 'event_items';
+   ```
+3. Confirm uniqueness constraints:
+   ```sql
+   SHOW CREATE TABLE assets;        -- must include UNIQUE KEY on checksum_sha256
+   SHOW CREATE TABLE events;        -- must include UNIQUE KEY on (event_date, org_name)
+   SHOW CREATE TABLE event_items;   -- must include UNIQUE KEY on (event_id, asset_id)
+   ```
+4. Run the loader (`load_and_transform.sql`) and verify rows are populated:
+   ```sql
+   SELECT COUNT(*) FROM assets;
+   SELECT COUNT(*) FROM events;
+   SELECT COUNT(*) FROM event_items;
+   ```
+   All counts must be > 0 for a non-empty seed dataset.
+5. Confirm legacy tables (`sessions`, `songs`, `files`) are either absent or not depended on by any runtime path that runs after this PR.
 
 ---
 
@@ -186,25 +282,38 @@ Verification
 ### Rationale
 You need a bridge from existing deployed data to the canonical tables.
 
-### Production migration strategy (known sites)
+### Production migration strategy (per site)
 
-Both current production sites (`prod` / `defaultcodebase` / stormpigs and `gighive` / staging)
-have their DB state 100% reproducible from their CSV fixtures via Section 3B
-(`sessionsXxx.csv` + `session_filesXxx.csv`). Neither site has live uploads that exist
-outside the CSV source data.
+| Site | `APP_FLAVOR` | CSV rebuild | Missing data |
+|---|---|---|---|
+| gighive2 (dev) | gighive | `sessionsSmall.csv` (Section 3B) | none |
+| gighive (staging) | gighive | `sessionsSmall.csv` (Section 3B) | none |
+| gighive (lab) | gighive | `sessionsSmall.csv` (Section 3B) | none |
+| prod | gighive | `sessionsLarge.csv` (Section 3B) | a few jam sessions not in CSV — see below |
 
-For these sites the migration path is:
-1. Take a DB dump (safety snapshot — see PR0).
-2. Update Section 3B (`import_normalized.php`) to write canonical tables (part of PR5).
-3. Rebuild the DB by running Section 3B with the existing CSVs.
+**Pre-condition for all sites**: `sessionsSmall.csv` and `sessionsLarge.csv` must have
+`org_name` and `event_type` columns added before the Section 3B rebuild runs (see PR5
+pre-condition note).
 
-**A SQL migration script (live data migration) is only required for sites that have
-live uploads not covered by a CSV rebuild.** For the known production sites it is
-optional/skippable.
+#### Prod: handling jam sessions not in `sessionsLarge.csv`
 
-**Pre-condition**: before rebuilding from CSVs, both `sessionsSmall.csv` and
-`sessionsLarge.csv` must have `org_name` and `event_type` columns added (see PR5
-pre-condition note). The rebuild must not run until those columns are present.
+Prod has a small number of jam sessions whose media files exist on disk but are not
+represented in `sessionsLarge.csv`. Since a DB restore from the PR0 dump will not be
+compatible with the post-cutover schema, these cannot be recovered via restore.
+
+**Chosen approach: Section 5 manifest add (post-PR5)**
+1. After PR5 ships, the Section 5 manifest add path writes canonical tables.
+2. For each missing jam session, submit a manifest add job via the admin UI (Section 5)
+   pointing at the media files on disk.
+3. The canonical ingest pipeline (`import_manifest_lib.php` + `import_manifest_worker.php`)
+   will create the `events`, `assets`, and `event_items` rows.
+
+**⚠️ Do NOT use `admin/admin_database_load_import_media_from_folder.php` post-cutover.**
+That tool is not in the PR5 porting scope and still writes to legacy `sessions/songs/files`.
+It will fail or silently write nowhere useful once the hard cutover is complete.
+
+**A SQL migration script is not required for any known site** — all data is either covered
+by the CSV rebuild or recoverable via the canonical Section 5 manifest add path.
 
 ### Changes (optional — only required for sites with live uploads not covered by a CSV rebuild)
 - Create a migration/backfill step that:
@@ -228,10 +337,33 @@ pre-condition note). The rebuild must not run until those columns are present.
   - today: basename-derived label stored in `songs.title` and linked by `session_songs` + `song_files`
   - new: create `event_items` per `(event_id, asset_id)` with `item_type` default based on event_type
 
-Verification
-- Sample migrated dataset produces:
-  - assets unique by checksum
-  - correct event/asset link counts
+### Verification
+1. Confirm no duplicate checksums in `assets`:
+   ```sql
+   SELECT checksum_sha256, COUNT(*) AS n
+   FROM assets
+   GROUP BY checksum_sha256
+   HAVING n > 1;
+   ```
+   Must return 0 rows.
+2. Confirm event count matches expected legacy session count:
+   ```sql
+   SELECT COUNT(*) FROM events;
+   SELECT COUNT(*) FROM sessions;   -- legacy; should match
+   ```
+3. Confirm asset count matches expected legacy unique-file count:
+   ```sql
+   SELECT COUNT(*) FROM assets;
+   SELECT COUNT(DISTINCT checksum_sha256) FROM files;  -- legacy
+   ```
+4. Confirm every asset has at least one event link:
+   ```sql
+   SELECT COUNT(*) FROM assets a
+   LEFT JOIN event_items ei ON ei.asset_id = a.asset_id
+   WHERE ei.event_item_id IS NULL;
+   ```
+   Should be 0 for a clean migration (all assets are linked to at least one event).
+5. *(Skip this PR entirely for known sites using CSV rebuild via PR5.)*
 
 ---
 
@@ -282,9 +414,19 @@ Today’s listing is join-multiplicity prone and session/song/file based. Post-c
 - Event query returns assets for a given `event_id` by joining `event_items`.
 - Include `item_type`, `label`, `position` from `event_items` as the UI needs them.
 
-Verification
-- Librarian view: no duplicates for shared assets.
-- Event view: same asset can show in multiple events with clear context.
+### Verification
+1. Browse `/db/database.php` — page loads without errors.
+2. Browse `/db/database.php?view=librarian` — confirm no duplicate rows for a checksum that appears in multiple events.
+3. Browse `/db/database.php?view=event&event_id=<id>` — confirm assets show with event context (event date, org name, label).
+4. Check JSON output:
+   ```
+   GET /db/database.php?format=json
+   ```
+   Response must be valid JSON and must include `asset_id`, `event_id` (not `session_id` / `song_id`).
+5. Confirm `APP_FLAVOR` routing:
+   - `APP_FLAVOR=gighive` → default view is librarian.
+   - `APP_FLAVOR=defaultcodebase` (stormpigs) → default view is event.
+6. Spot-check that no SQL query in `AssetRepository.php` or `EventRepository.php` references `sessions`, `songs`, or `files`.
 
 ---
 
@@ -347,11 +489,28 @@ Uploads are a primary ingest path. They must write canonical tables and enforce 
 4) `UploadService::finalizeTusUpload`
 - Ensure it shares the same canonical writes as `handleUpload`.
 
-Verification
-- Duplicate checksum upload results in:
-  - no new asset row
-  - link to event is created (or idempotently ensured)
-  - user-friendly “deduped” outcome in response
+### Verification
+1. Run upload tests 6 and 7 (single-file upload and TUS finalize variants):
+   ```
+   ansible-playbook ansible/playbooks/site.yml --tags upload_tests
+   ```
+   Tests `test_6.yml` and `test_7.yml` must pass.
+2. Manual spot-check — POST a new file to `/api/uploads`:
+   - Response must include `asset_id` and `event_id`.
+   - Response must **not** include `session_id` or `seq`.
+   ```sql
+   SELECT COUNT(*) FROM assets;       -- increments by 1
+   SELECT COUNT(*) FROM event_items;  -- increments by 1
+   ```
+3. Duplicate upload test — POST the same file again (same checksum):
+   - Response must return HTTP 409 or a dedup-success response (not an error).
+   - SQL: `SELECT COUNT(*) FROM assets;` must **not** increase.
+   - SQL: `SELECT COUNT(*) FROM event_items;` must **not** increase (link already exists for same event).
+4. TUS finalize path — upload via TUS then call `POST /api/uploads/finalize`:
+   - Same canonical field assertions as step 2.
+5. Confirm `upload_form.php` manual uploader page loads and submits successfully.
+6. UI check: browse `/db/database.php` after upload — confirm the new asset appears in the listing with correct event context.
+7. Automated test: run `test_4.yml` and `test_5.yml` to ensure canonical writes are correct for multi-file uploads.
 
 ---
 
@@ -424,9 +583,26 @@ this must be done as a deliberate step immediately before this PR is implemented
   - convert CSV(s) to a manifest payload and invoke the canonical importer, or
   - load to staging tables and then canonicalize.
 
-Verification
-- Reload mode produces a canonical DB matching expected counts.
-- Add mode is idempotent by checksum.
+### Verification
+**Pre-condition check**: confirm `sessionsSmall.csv` and `sessionsLarge.csv` have `org_name` and `event_type` columns before running any import.
+
+1. **Section 3B (normalized CSV reload)** — trigger from admin UI or directly:
+   - SQL after completion:
+     ```sql
+     SELECT COUNT(*) FROM events;
+     SELECT COUNT(*) FROM assets;
+     SELECT COUNT(*) FROM event_items;
+     ```
+   - All counts must match the expected row totals for the CSV dataset.
+   - `org_name` must not be `'default'` for rows that have a real band name in the CSV.
+2. **Section 3A (CSV reload)** — trigger and run the same SQL checks.
+3. **Section 4 (manifest reload)** — trigger an async reload job, poll until complete:
+   - SQL: canonical table counts must be populated.
+   - Browse `/db/database.php` — data must appear in the listing.
+4. **Section 5 (manifest add)** — trigger an add job with a subset of files:
+   - SQL: counts increase by the number of added items.
+   - Re-run the same add job — counts must **not** change (idempotent by checksum).
+5. Spot-check that no write in any of these flows touches `sessions`, `songs`, or `files`.
 
 ---
 
@@ -459,8 +635,21 @@ Tests 4/5 are two-step: (1) import hashes/metadata, (2) copy binaries by checksu
   - `SELECT COUNT(*) FROM assets`
   - Optionally verify link table counts and uniqueness constraints.
 
-Verification
-- Tests 3A/3B/4/5 pass using canonical tables.
+### Verification
+1. Run the full upload_tests suite:
+   ```
+   ansible-playbook ansible/playbooks/site.yml --tags upload_tests
+   ```
+   All of the following must pass: `test_3a.yml`, `test_3b.yml`, `test_4.yml`, `test_5.yml`, `test_6.yml`, `test_7.yml`, `assert_db_invariants.yml`.
+2. Confirm `assert_db_invariants.yml` assertions reference `events` and `assets` (not `sessions` and `files`).
+3. Confirm `upload_media_by_hash.py` queries `assets` for checksum lookups and writes `assets.duration_seconds` / `assets.media_info` (not `files.*`).
+4. After a full test run, spot-check canonical counts:
+   ```sql
+   SELECT COUNT(*) FROM assets;
+   SELECT COUNT(*) FROM events;
+   SELECT COUNT(*) FROM event_items;
+   SELECT COUNT(*) FROM assets WHERE duration_seconds IS NOT NULL;  -- populated by upload_media_by_hash
+   ```
 
 ---
 
@@ -479,6 +668,15 @@ After cutover, restores must be unambiguous about schema compatibility.
   - git SHA (if available)
   - schema version string (manual constant or derived)
   - timestamp
+
+### Verification
+1. Trigger a DB dump.
+2. Confirm a sidecar file is written alongside the `.sql` dump with a matching timestamp prefix or name.
+3. Open the sidecar and confirm it contains:
+   - a `schema_version` field
+   - a `timestamp` field
+   - a `git_sha` field (or a clear `N/A` if git is unavailable in the dump context)
+4. Simulate a restore scenario: given only the dump file + sidecar, confirm you can determine whether the dump is pre- or post-canonical-cutover without looking at the SQL.
 
 ---
 
@@ -521,6 +719,17 @@ The following endpoint URLs are kept stable and require no client update:
 
 PR7 is the correct point to freeze and publish the updated `openapi.yaml` so external
 client developers (including the iPhone app) have an accurate contract to code against.
+
+### Verification
+1. Validate `openapi.yaml` is well-formed (view in Swagger UI at `/docs/api-docs.html` — no red parse errors).
+2. Confirm the following fields appear in the `UploadResult` schema in `openapi.yaml` and are absent from legacy names:
+   - `asset_id` present, `session_id` absent
+   - `event_id` present
+   - `position` present, `seq` absent
+3. Make a live `POST /api/uploads` request and compare the actual response fields against `openapi.yaml` — they must match.
+4. Confirm `GET /api/media-files` still shows `501` in the spec and returns 501 from the server.
+5. Review `docs/API_CURRENT_STATE.md` — confirm it describes canonical tables and does not reference `sessions/songs/files` as the authoritative runtime schema.
+6. Distribute the updated `openapi.yaml` to iPhone app developer(s) and confirm they have received and acknowledged the field-level breaking changes (`session_id`→`event_id`, `seq`→`position`) before any coordinated client release.
 
 ---
 
