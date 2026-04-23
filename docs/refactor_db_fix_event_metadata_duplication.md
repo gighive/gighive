@@ -146,11 +146,34 @@ Recommended column behavior:
 - unique
 - indexed
 
-Recommended initial derivation strategy for the stop-gap:
+### event_key value — options and decision
 
-- compute from import context before first insert
-- example format: stable slug derived from folder/event context, such as `20260318-stormpigs`
-- better than `org_name` alone because it is explicit and can remain stable after metadata edits
+Three options were considered for what the `event_key` value should contain:
+
+**Option 1: Date + org slug** (e.g., `20260318-stormpigs`)
+- Human-readable and easy to recognize
+- Still derived from `org_name` at creation time — after `org_name` is later edited, the stored key still reflects the original name, which becomes confusing
+- Collision risk across independent installs
+
+**Option 2: UUID v4 (randomly generated)** ← recommended
+- Truly stable and independent of all metadata
+- No collision risk
+- Opaque — admins cannot identify events by key alone, but `org_name` and `event_date` remain as readable display metadata alongside it
+- Safe for both the upload API path (system-generated) and Section 5 (surfaced in UI for operator visibility)
+
+**Option 3: Admin-assigned slug via Section 5 UI (prefilled, editable)**
+- Section 5 UI prefills a suggestion (e.g., date + folder name) and admin confirms or edits before submitting
+- Requires operator discipline to avoid accidental reuse or key divergence across uploads
+
+**Decision**: use UUID v4 for all system-generated `event_key` values (upload API and manifest import paths). Section 5 UI surfaces the UUID for operator visibility and confirmation but does not require the admin to type or derive it manually.
+
+### event_key — absent caller behavior and response echo requirement
+
+**Decision**: `event_key` is optional in the request. If a caller omits it, the server auto-generates a UUID v4 and uses that as the session key.
+
+Rationale: no production users exist yet, so a hard-require flag day is not necessary. Auto-generation allows callers (upload_tests, Section 5, upload API) to be updated incrementally without a coordinated cutover.
+
+**Requirement**: whenever a new session is created (whether `event_key` was supplied or auto-generated), the server must return the `event_key` in the response. Callers must capture it and reuse it on all subsequent uploads intended for the same Event. A caller that omits `event_key` on every request will silently receive a new UUID each time and create a new session on each upload — defeating the purpose of the fix.
 
 ### 2. Add migration for existing DBs
 
@@ -189,9 +212,10 @@ Preferred stop-gap UX:
 
 Update both sync and async manifest import paths so they:
 
-- validate top-level `event_key`
+- accept optional top-level `event_key`; auto-generate a UUID v4 if absent
 - use `event_key` as the session key in memory and in SQL lookup
 - create sessions with `event_key` if absent
+- return the `event_key` (supplied or generated) in the import response so callers can capture and reuse it
 
 ### 6. Preserve display metadata updates without changing identity
 
@@ -223,9 +247,10 @@ The stop-gap should not only fix Section 5. The upload service currently also fi
 
 Update it to:
 
-- accept/use `event_key`
+- accept optional `event_key`; auto-generate a UUID v4 if absent
 - reuse the same session when metadata changes later
 - avoid reintroducing the same bug through non-Section-5 upload paths
+- return the `event_key` (supplied or generated) in the finalize response so callers can capture and reuse it
 
 ## Phase 5: Listing and editing considerations
 
@@ -372,6 +397,25 @@ No direct test files were found under `ansible/roles/docker/files` that fully co
 
 should be updated if present.
 
+## Known upload_tests breaks and required fixes
+
+Two specific locations in `ansible/roles/upload_tests` will require updates once `event_key` is implemented:
+
+**Break 1: `ansible/roles/upload_tests/tasks/generate_manifest.yml`**
+- The Python manifest generator builds the payload with only `org_name`, `event_type`, and `items`
+- No `event_key` field is included
+- Fix: add an `UPLOAD_TEST_EVENT_KEY` environment variable (populated from a new `upload_test_event_key` test var, or left empty to trigger auto-generation); include it in the payload when present
+
+**Break 2: `ansible/roles/upload_tests/tasks/test_7.yml`** (TUS finalize)
+- The finalize POST body sends `upload_id`, `event_date`, `org_name`, `event_type`, `label` — no `event_key`
+- The upload service resolves sessions by `(date, org_name)` today; after the fix it will need `event_key`
+- Fix: add `event_key: "{{ upload_test_event_key }}"` to the finalize body
+
+**Auto-generate behavior during the transition**
+- Because `event_key` is optional (auto-generated when absent), both tests will continue to pass without changes during initial implementation
+- The tests will silently receive a new UUID per run until they are updated to supply a stable `upload_test_event_key`
+- Updating the tests to supply a fixed `event_key` per test run is required to verify the dedup/reuse behavior; that update should be part of Milestone B
+
 ## Implementation Notes / Guardrails
 
 ## Guardrail 1: do not treat editable metadata as identity
@@ -402,13 +446,15 @@ The stop-gap should make future migration easier by treating:
 ### Milestone A: schema + importer contract
 
 - add `sessions.event_key`
-- update manifest payload validation
+- accept optional `event_key` in manifest payload; auto-generate UUID v4 if absent
 - switch Section 5 session upsert to `event_key`
+- return `event_key` in import response
 
 ### Milestone B: UI + upload alignment
 
 - expose/confirm `event_key` in Section 5 UI
-- update upload service to use the same identity rule
+- update upload service to accept optional `event_key`; auto-generate if absent; return in finalize response
+- update `upload_tests` to supply a stable `upload_test_event_key` and assert it is returned in responses
 
 ### Milestone C: song-link safety
 

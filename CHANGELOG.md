@@ -1,5 +1,104 @@
 *** 
 releaseNotes20260422.txt
+Changes: Update openapi, protect /docs, remove improve this page
+Scope: Gig2/OSB
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260423.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260415.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260419.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260419.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260419.log
+
+# ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260422.log 
+# ONE-SHOT-BUNDLE UPLOAD TESTS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd>"  ansible-playbook-gighive-bundle-tests-20260414.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/composer.json
+	modified:   ansible/roles/docker/files/apache/webroot/docs/openapi.yaml
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/UploadController.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/OpenApi.php
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   docs/_includes/head-custom.html
+	modified:   docs/knowledge_map.html
+	new file:   docs/pr_librarianAsset_musicianEvent_example.md
+	modified:   docs/pr_librarianAsset_musicianEvent_implementation.md
+	new file:   docs/process_api_swagger_generation.md
+	modified:   docs/refactor_db_fix_event_metadata_duplication.md
+	new file:   docs/refactor_db_fix_event_metadata_example_clarity.md
+	deleted:    docs/refactor_status_as_of_20260331.md
+	new file:   docs/refactor_status_as_of_20260422.md
+
+TODO
+Marketing: Share same text I sent Annika with Pat. 
+Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
+App: Add tutorials at bottom of home page
+App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
+App: From the upload page, add a link to the supported media file types
+App: Make database scroll one-handed, like modern apps
+App: App breaks on upload when changing to Messages app
+App: Add How to Use button with link to video at bottom of home page
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Can i provide a link to the Media Details page in the app?
+App/Web: skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: Share link feature in media page
+App: Is it worthwhile to have an embed feature?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+
+Upload: should add "Still processing.." after heartbeat
+Doc Fix: Database upload options should be updated, 404 on upload limits, remove Improve this page from: gighive_content_policy.html, privacy.html, LICENSE.html, APP_TERMS_OF_SERVICE.html, API_CURRENT_STATE.html, ANSIBLE_FILE_INTERACTION.html, remove advanced section, refind UPLOAD_OPTIONS.html
+Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
+API: refactor based on docs/refactor_api_cleanup_if_desired.md
+Next: we will need an upload videos/thumbnails only after restore of database function
+Next: admin upload still allowing duplicate shas based upon different column info
+Product: Lock down / remove full build option (full build is saas)
+Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: database table name change to genericize songs 
+Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
+Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: protect the debug directory w/admin password	
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails 
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+Infra: Rebuild prod on lab machine as test, then switch to lab as prod?
+Backup: the sha versions of stormpigs aren't backed up on popos, should test on lab
+Backup: Create method to restore additional videos to staging 
+Maintenance: remove vodcast.xml, images/jam, stormpigs* from webroot for gighive, /ansible/roles/docker/files/apache/webroot/images/stormpigsItunesVideo.jpg, stormpigsPodcastSplash.png
+
+*** 
+releaseNotes20260422.txt
 Changes: Jibe group_vars, added for OSB excludes, docs for docker hardened images and sbom ffmpeg getid3
 Scope: Gig2/OSB
 
@@ -44,45 +143,6 @@ Changes to be committed:
 	new file:   docs/process_one_shot_bundle_exclude_paths.md
 	new file:   docs/refactor_security_docker_hardened_images.md
 	new file:   docs/sbom_ffmpeg_vs_getid3.md
-
-TODO
-Next: protect the debug directory w/admin password	
-Next: we will need an upload videos/thumbnails only after restore of database function
-Next: should add "Still processing.." after heartbeat
-Next: admin upload still allowing duplicate shas based upon different column info
-Testing: App breaks on upload when changing to Messages 
-Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the stormpigs dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: database table name change to genericize songs 
-Db: addd metadata to db/database.php, like "Media Create date only populated if EXIF data complete"
-App: Add How to Use button with link to video at bottom of home page
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Can i provide a link to the Media Details page in the app?
-App/Web: skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: Share link feature in media page
-App: Is it worthwhile to have an embed feature?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-Product: Lock down / remove full build option (full build is saas)
-Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails 
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
-Backup: Realize that the sha versions of stormpigs aren't backed up on popos
-Backup: Create method to restore additional videos to staging 
-Maintenance: Eventually get rid of the sp stuff like jam images in bundle
-Maintenance: remove vodcast.xml from webroot for gighive
 
 *** 
 releaseNotes20260421.txt

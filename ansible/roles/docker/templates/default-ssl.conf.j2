@@ -227,6 +227,16 @@
         Require user admin
     </Location>
 
+    # --- API DOCS: any valid user ---
+    # Swagger UI and openapi.yaml contain admin endpoint paths; not for public access.
+    <Location "/docs/">
+        AuthType Basic
+        AuthName "GigHive Protected"
+        AuthBasicProvider file
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        Require valid-user
+    </Location>
+
     # ------------------------------------------------------
     # Extra safety: never serve these sensitive files
     # ------------------------------------------------------

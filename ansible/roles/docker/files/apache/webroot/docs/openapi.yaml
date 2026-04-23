@@ -1,108 +1,104 @@
-openapi: 3.0.3
+openapi: 3.0.0
 info:
-  title: GigHive API
+  title: 'GigHive API'
+  description: 'GigHive media management API for uploading and retrieving audio/video files with session metadata.'
   version: 1.0.0
-  description: |
-    GigHive media management API for uploading and retrieving audio/video files with session metadata.
-    Supports both StormPigs and GigHive deployments with configurable organization settings.
-servers:
-  - url: /api
-    description: Upload API endpoints
-  - url: /db
-    description: Database and media listing endpoints
 paths:
   /uploads:
     post:
-      summary: Upload a media file
-      description: |
-        Accepts a media file and optional metadata. Stores file, records metadata, and optionally
-        attaches to an existing session.
+      tags:
+        - uploads
+      summary: 'Upload a media file'
+      description: 'Accepts a media file and optional metadata. Stores file, records metadata, and links to a session (created if not present) identified by event_date + org_name. File type (audio/video) is inferred from MIME type and extension.'
+      operationId: uploadMedia
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
-              type: object
-              required: [file]
+              required:
+                - file
+                - label
               properties:
                 file:
+                  description: 'The media file to upload (audio/video)'
                   type: string
                   format: binary
-                  description: The media file to upload (audio/video)
-                # Note: media_type is inferred from file extension and MIME type
                 event_date:
+                  description: 'Event date (YYYY-MM-DD). Defaults to today if omitted'
                   type: string
                   format: date
-                  description: Event date (YYYY-MM-DD). Defaults to today if omitted
                 event_type:
+                  description: 'Type of event. Defaults to band'
                   type: string
                   enum: [band, wedding]
-                  description: Type of event
                 org_name:
+                  description: 'Organization name (e.g. band name or wedding short name). Defaults by deployment'
                   type: string
-                  description: Organization name (e.g., band or wedding short name). Defaults by deployment
                 label:
+                  description: 'Song title (band) or wedding table label. Required'
                   type: string
-                  description: Song title (band) or wedding table label
                 participants:
+                  description: 'Comma-separated participant names (musicians or guests)'
                   type: string
-                  description: Comma-separated participant names (musicians or guests)
                 keywords:
+                  description: 'Keywords for searching and categorization'
                   type: string
-                  description: Keywords for searching and categorization
                 location:
+                  description: 'Venue or location name'
                   type: string
                 rating:
+                  description: 'Optional rating value'
                   type: string
                 notes:
+                  description: 'Free-form notes'
                   type: string
+              type: object
       responses:
         '201':
           description: Created
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/File'
-                  - type: object
-                    properties:
-                      session_id:
-                        type: integer
-                        format: int64
-                      event_date:
-                        type: string
-                        format: date
-                      org_name:
-                        type: string
-                      event_type:
-                        type: string
-                        enum: [band, wedding]
-                      seq:
-                        type: integer
-                      label:
-                        type: string
-                      participants:
-                        type: string
+                $ref: '#/components/schemas/UploadResult'
         '400':
-          description: Bad request (validation/mime/size)
+          description: 'Bad request (validation/mime/size)'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
           description: Unauthorized
+        '409':
+          description: 'Duplicate upload — a file with the same checksum already exists'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateError'
         '413':
-          description: Payload too large
+          description: 'Payload too large'
         '415':
-          description: Unsupported media type
+          description: 'Unsupported media type'
         '500':
-          description: Server error
-  /uploads/{id}:
+          description: 'Server error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+        -
+          url: /api
+  '/uploads/{id}':
     get:
-      summary: Get uploaded file metadata
+      tags:
+        - uploads
+      summary: 'Get uploaded file metadata'
+      description: 'Handle GET /api/uploads/{id}'
+      operationId: getUploadById
       parameters:
-        - in: path
+        -
           name: id
+          in: path
           required: true
           schema:
             type: integer
@@ -115,45 +111,300 @@ paths:
               schema:
                 $ref: '#/components/schemas/File'
         '404':
-          description: Not found
+          description: 'Not found'
         '500':
-          description: Server error
+          description: 'Server error'
+      servers:
+        -
+          url: /api
+  /uploads/finalize:
+    post:
+      tags:
+        - uploads
+      summary: 'Finalize a TUS chunked upload'
+      description: 'Finalizes a completed TUS chunked upload. The client calls this after the last TUS PATCH 204. The server reads the tusd post-finish hook output and runs the same ingestion pipeline as POST /uploads. Metadata fields supplement or override TUS upload metadata. Idempotent via a per-upload_id finalization marker.'
+      operationId: finalizeTusUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - upload_id
+              properties:
+                upload_id:
+                  description: 'The TUS upload ID returned by the TUS creation response'
+                  type: string
+                  pattern: '^[A-Za-z0-9_-]+$'
+                event_date:
+                  description: 'Event date (YYYY-MM-DD). Falls back to TUS metadata if omitted'
+                  type: string
+                  format: date
+                event_type:
+                  type: string
+                  enum: [band, wedding]
+                org_name:
+                  type: string
+                label:
+                  type: string
+                participants:
+                  type: string
+                keywords:
+                  type: string
+                location:
+                  type: string
+                rating:
+                  type: string
+                notes:
+                  type: string
+              type: object
+      responses:
+        '201':
+          description: 'Created — ingestion complete'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResult'
+        '400':
+          description: 'Bad request (missing upload_id, upload not found, empty file, etc.)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '409':
+          description: 'Duplicate upload — a file with the same checksum already exists'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateError'
+        '500':
+          description: 'Server error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+        -
+          url: /api
+  /media-files:
+    get:
+      tags:
+        - uploads
+      summary: 'List media files (not yet implemented)'
+      description: 'Planned endpoint. Currently returns 501 Not Implemented.'
+      operationId: listMediaFilesStub
+      responses:
+        '501':
+          description: 'Not Implemented'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+    post:
+      tags:
+        - uploads
+      summary: 'Upload a media file (iOS alias for POST /uploads)'
+      description: 'Alias for POST /uploads. Accepts identical request body and returns an identical response. Provided for iOS client compatibility.'
+      operationId: uploadMediaAlias
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              required:
+                - file
+                - label
+              properties:
+                file:
+                  description: 'The media file to upload (audio/video)'
+                  type: string
+                  format: binary
+                event_date:
+                  description: 'Event date (YYYY-MM-DD). Defaults to today if omitted'
+                  type: string
+                  format: date
+                event_type:
+                  type: string
+                  enum: [band, wedding]
+                org_name:
+                  type: string
+                label:
+                  description: 'Song title (band) or wedding table label. Required'
+                  type: string
+                participants:
+                  type: string
+                keywords:
+                  type: string
+                location:
+                  type: string
+                rating:
+                  type: string
+                notes:
+                  type: string
+              type: object
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResult'
+        '400':
+          description: 'Bad request'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '409':
+          description: 'Duplicate upload'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateError'
+        '413':
+          description: 'Payload too large'
+        '500':
+          description: 'Server error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /database.php:
     get:
-      summary: Get media list
-      description: |
-        Returns a list of all media files with metadata. Can return HTML view or JSON based on format parameter.
+      tags:
+        - database
+      summary: 'Get media list'
+      description: 'Returns a list of all media files with metadata. Can return HTML view or JSON based on format parameter.'
+      operationId: getMediaList
       parameters:
-        - in: query
+        -
           name: format
+          in: query
+          description: "Response format. If 'json', returns JSON array; otherwise returns HTML view"
           required: false
           schema:
             type: string
-            enum: [json]
-          description: Response format. If 'json', returns JSON array; otherwise returns HTML view
+            enum:
+              - json
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                type: object
                 properties:
-                  entries:
-                    type: array
-                    items:
-                      allOf:
-                        - $ref: '#/components/schemas/MediaEntry'
+                  entries: { type: array, items: { $ref: '#/components/schemas/MediaEntry' } }
+                type: object
             text/html:
               schema:
+                description: 'HTML page with media list'
                 type: string
-                description: HTML page with media list
         '500':
-          description: Server error
+          description: 'Server error'
+      servers:
+        -
+          url: /db
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /import_manifest_upload_finalize.php:
+    post:
+      tags:
+        - admin
+      summary: 'Finalize a manifest TUS upload (admin)'
+      description: 'Admin-only endpoint. Finalizes the TUS upload for a single file within a manifest import job. The manifest row (created by the manifest worker Step 1) must already exist in the database before calling this endpoint. Idempotent via per-upload_id finalization markers. Requires HTTP Basic authentication with the admin user.'
+      operationId: finalizeManifestUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - job_id
+                - upload_id
+                - checksum_sha256
+              properties:
+                job_id:
+                  description: 'Import job ID (format YYYYMMDD-HHMMSS-{12hex})'
+                  type: string
+                  pattern: '^\d{8}-\d{6}-[0-9a-f]{12}$'
+                upload_id:
+                  description: 'TUS upload ID'
+                  type: string
+                  pattern: '^[A-Za-z0-9_-]+$'
+                checksum_sha256:
+                  description: 'Expected SHA-256 checksum of the uploaded file'
+                  type: string
+                  pattern: '^[0-9a-f]{64}$'
+              type: object
+      responses:
+        '200':
+          description: 'Finalize succeeded'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManifestFinalizeResult'
+        '400':
+          description: 'Bad request or finalize error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManifestFinalizeError'
+        '403':
+          description: 'Forbidden — admin access required'
+        '404':
+          description: 'Job not found'
+        '405':
+          description: 'Method not allowed'
+      servers:
+        -
+          url: /admin
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
 components:
   schemas:
     File:
-      type: object
       properties:
         id:
           type: integer
@@ -162,62 +413,209 @@ components:
           type: string
         file_type:
           type: string
-          enum: [audio, video]
+          enum:
+            - audio
+            - video
         duration_seconds:
-          type: integer
-          format: int32
+          type: number
+          nullable: true
         mime_type:
           type: string
         size_bytes:
           type: integer
           format: int64
+          nullable: true
         checksum_sha256:
           type: string
+          nullable: true
         session_id:
           type: integer
           format: int64
           nullable: true
+        seq:
+          type: integer
+          nullable: true
         created_at:
           type: string
           format: date-time
-    MediaEntry:
+          nullable: true
       type: object
-      description: Media entry with session and song metadata
+    UploadResult:
+      description: 'Response returned by POST /uploads and POST /uploads/finalize'
+      allOf:
+        -
+          $ref: '#/components/schemas/File'
+        -
+          properties:
+            event_date:
+              type: string
+              format: date
+            org_name:
+              type: string
+            event_type:
+              type: string
+              enum:
+                - band
+                - wedding
+            label:
+              type: string
+            participants:
+              type: string
+            keywords:
+              type: string
+            delete_token:
+              description: 'One-time delete token. Present only on new uploads; absent if the record already existed'
+              type: string
+              nullable: true
+          type: object
+    MediaEntry:
+      description: 'Media entry with session and song metadata'
       properties:
         id:
           type: integer
           format: int64
         index:
+          description: 'Sequential index in the list'
           type: integer
-          description: Sequential index in the list
         date:
+          description: 'Event/session date'
           type: string
           format: date
-          description: Event/session date
         org_name:
+          description: 'Organization or band name'
           type: string
-          description: Organization or band name
         duration:
+          description: 'Human-readable duration (HH:MM:SS)'
           type: string
-          description: Human-readable duration (HH:MM:SS)
         duration_seconds:
+          description: 'Duration in seconds'
           type: integer
-          description: Duration in seconds
         song_title:
+          description: 'Song or event label'
           type: string
-          description: Song or event label
         file_type:
           type: string
-          enum: [audio, video]
+          enum:
+            - audio
+            - video
         file_name:
           type: string
         url:
+          description: 'Relative URL to the media file'
           type: string
-          description: Relative URL to the media file
-    Error:
       type: object
+    Error:
       properties:
         error:
           type: string
         message:
           type: string
+      type: object
+    DuplicateError:
+      properties:
+        error:
+          type: string
+          example: 'Duplicate Upload'
+        message:
+          type: string
+        existing_file_id:
+          type: integer
+          format: int64
+        checksum_sha256:
+          type: string
+      type: object
+    ManifestFinalizeResult:
+      properties:
+        success:
+          type: boolean
+          example: true
+        job_id:
+          type: string
+        checksum_sha256:
+          type: string
+        state:
+          type: string
+          enum:
+            - db_done
+            - thumbnail_done
+            - uploaded
+            - already_present
+        file_name:
+          type: string
+          nullable: true
+        duration_seconds:
+          type: number
+          nullable: true
+        thumbnail_done:
+          type: boolean
+        db_done:
+          type: boolean
+        all_done:
+          description: 'True when all files in the job have reached a terminal state'
+          type: boolean
+        trace:
+          type: array
+          items:
+            type: object
+      type: object
+    ManifestFinalizeError:
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+        failure_code:
+          type: string
+          enum:
+            - disk_full
+            - checksum_mismatch
+            - db_error
+            - thumbnail_error
+            - invalid_manifest_state
+            - finalize_error
+        retryable:
+          type: boolean
+          nullable: true
+        diagnostics:
+          properties:
+            tus_data_path:
+              type: string
+            tus_data_free_bytes:
+              type: integer
+              nullable: true
+            tus_data_total_bytes:
+              type: integer
+              nullable: true
+            tus_data_pct_used:
+              type: number
+              nullable: true
+            media_file_exists:
+              type: boolean
+            media_file_path:
+              type: string
+            thumbnail_exists:
+              type: boolean
+              nullable: true
+            hook_payload_exists:
+              type: boolean
+              nullable: true
+          type: object
+          nullable: true
+        trace:
+          type: array
+          items:
+            type: object
+      type: object
+tags:
+  -
+    name: uploads
+    description: uploads
+  -
+    name: database
+    description: database
+  -
+    name: admin
+    description: admin

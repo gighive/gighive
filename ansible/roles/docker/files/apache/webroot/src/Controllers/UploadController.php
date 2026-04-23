@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 namespace Production\Api\Controllers;
 
+use OpenApi\Attributes as OA;
 use PDO;
 use Production\Api\Exceptions\DuplicateChecksumException;
 use Production\Api\Services\UploadService;
@@ -37,6 +38,46 @@ final class UploadController
      * @param array $post  Typically $_POST
      * @return array {status:int, headers:array, body:array}
      */
+    #[OA\Post(
+        path: '/uploads',
+        operationId: 'uploadMedia',
+        summary: 'Upload a media file',
+        description: 'Accepts a media file and optional metadata. Stores file, records metadata, and links to a session (created if not present) identified by event_date + org_name. File type (audio/video) is inferred from MIME type and extension.',
+        servers: [new OA\Server(url: '/api')],
+        tags: ['uploads'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: [
+                new OA\MediaType(
+                    mediaType: 'multipart/form-data',
+                    schema: new OA\Schema(
+                        required: ['file', 'label'],
+                        properties: [
+                            new OA\Property(property: 'file', type: 'string', format: 'binary', description: 'The media file to upload (audio/video)'),
+                            new OA\Property(property: 'event_date', type: 'string', format: 'date', description: 'Event date (YYYY-MM-DD). Defaults to today if omitted'),
+                            new OA\Property(property: 'event_type', type: 'string', enum: ['band', 'wedding'], description: 'Type of event. Defaults to band'),
+                            new OA\Property(property: 'org_name', type: 'string', description: 'Organization name (e.g. band name or wedding short name). Defaults by deployment'),
+                            new OA\Property(property: 'label', type: 'string', description: 'Song title (band) or wedding table label. Required'),
+                            new OA\Property(property: 'participants', type: 'string', description: 'Comma-separated participant names (musicians or guests)'),
+                            new OA\Property(property: 'keywords', type: 'string', description: 'Keywords for searching and categorization'),
+                            new OA\Property(property: 'location', type: 'string', description: 'Venue or location name'),
+                            new OA\Property(property: 'rating', type: 'string', description: 'Optional rating value'),
+                            new OA\Property(property: 'notes', type: 'string', description: 'Free-form notes'),
+                        ]
+                    )
+                ),
+            ]
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(ref: '#/components/schemas/UploadResult')),
+            new OA\Response(response: 400, description: 'Bad request (validation/mime/size)', content: new OA\JsonContent(ref: '#/components/schemas/Error')),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 409, description: 'Duplicate upload — a file with the same checksum already exists', content: new OA\JsonContent(ref: '#/components/schemas/DuplicateError')),
+            new OA\Response(response: 413, description: 'Payload too large'),
+            new OA\Response(response: 415, description: 'Unsupported media type'),
+            new OA\Response(response: 500, description: 'Server error', content: new OA\JsonContent(ref: '#/components/schemas/Error')),
+        ]
+    )]
     public function post(array $files, array $post): array
     {
         try {
@@ -85,6 +126,21 @@ final class UploadController
     /**
      * Handle GET /api/uploads/{id}
      */
+    #[OA\Get(
+        path: '/uploads/{id}',
+        operationId: 'getUploadById',
+        summary: 'Get uploaded file metadata',
+        servers: [new OA\Server(url: '/api')],
+        tags: ['uploads'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer', format: 'int64')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/File')),
+            new OA\Response(response: 404, description: 'Not found'),
+            new OA\Response(response: 500, description: 'Server error'),
+        ]
+    )]
     public function get(int $id): array
     {
         $row = $this->files->findById($id);
@@ -117,6 +173,44 @@ final class UploadController
      * Handle POST /api/uploads/finalize
      * @param array $post JSON body (preferred) or form fields
      */
+    #[OA\Post(
+        path: '/uploads/finalize',
+        operationId: 'finalizeTusUpload',
+        summary: 'Finalize a TUS chunked upload',
+        description: 'Finalizes a completed TUS chunked upload. The client calls this after the last TUS PATCH 204. The server reads the tusd post-finish hook output and runs the same ingestion pipeline as POST /uploads. Metadata fields supplement or override TUS upload metadata. Idempotent via a per-upload_id finalization marker.',
+        servers: [new OA\Server(url: '/api')],
+        tags: ['uploads'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: [
+                new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        required: ['upload_id'],
+                        properties: [
+                            new OA\Property(property: 'upload_id', type: 'string', pattern: '^[A-Za-z0-9_-]+$', description: 'The TUS upload ID returned by the TUS creation response'),
+                            new OA\Property(property: 'event_date', type: 'string', format: 'date', description: 'Event date (YYYY-MM-DD). Falls back to TUS metadata if omitted'),
+                            new OA\Property(property: 'event_type', type: 'string', enum: ['band', 'wedding']),
+                            new OA\Property(property: 'org_name', type: 'string'),
+                            new OA\Property(property: 'label', type: 'string'),
+                            new OA\Property(property: 'participants', type: 'string'),
+                            new OA\Property(property: 'keywords', type: 'string'),
+                            new OA\Property(property: 'location', type: 'string'),
+                            new OA\Property(property: 'rating', type: 'string'),
+                            new OA\Property(property: 'notes', type: 'string'),
+                        ]
+                    )
+                ),
+            ]
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Created — ingestion complete', content: new OA\JsonContent(ref: '#/components/schemas/UploadResult')),
+            new OA\Response(response: 400, description: 'Bad request (missing upload_id, upload not found, empty file, etc.)', content: new OA\JsonContent(ref: '#/components/schemas/Error')),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 409, description: 'Duplicate upload — a file with the same checksum already exists', content: new OA\JsonContent(ref: '#/components/schemas/DuplicateError')),
+            new OA\Response(response: 500, description: 'Server error', content: new OA\JsonContent(ref: '#/components/schemas/Error')),
+        ]
+    )]
     public function finalize(array $post): array
     {
         try {

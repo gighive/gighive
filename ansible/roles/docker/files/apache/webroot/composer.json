@@ -19,6 +19,9 @@
       "Tests\\": "../tests/"
     }
   },
+  "scripts": {
+    "openapi": "vendor/bin/openapi src/ --output docs/openapi.yaml --format yaml"
+  },
   "minimum-stability": "stable",
   "license": "MIT"
 }
