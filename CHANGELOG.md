@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260422.txt
-Changes: Update openapi, protect /docs, remove improve this page.  Plus index.md and database load options.
+Changes: Update openapi, protect /docs, remove improve this page.  Plus index.md and database load options..
 Scope: Gig2
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
