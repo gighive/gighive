@@ -269,7 +269,7 @@ img {
     <h3>🔮 Advanced / Internals</h3>
     <ul>
         <li><a href="SECURITY.html">🔒 Security</a></li>
-        <li><a href="upload_options.html">⭐ SSL Certs and Upload Options</a></li>
+        <li><a href="upload_options.html">⭐ Access Options</a></li>
     </ul>
     
 </nav>
