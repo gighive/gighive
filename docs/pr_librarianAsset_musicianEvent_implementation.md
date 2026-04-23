@@ -28,6 +28,22 @@ Guiding decisions
 
 ---
 
+## Recommended Sequencing
+
+```
+PR0 → PR1 → PR3 → PR4 → PR5 → PR5b → PR6 → PR7
+                                              ↑
+                                  openapi.yaml field renames (session_id→event_id, seq→position)
+                                  + coordinate iPhone app update
+                                  + schedule URL-level renames as post-PR7 cleanup
+```
+
+**API naming cleanup relationship** (see `docs/refactor_api_cleanup_if_desired.md`):
+- Field-level renames (`session_id`→`event_id`, `seq`→`position`) are part of PR7 — already in this plan.
+- URL-level renames (`/db/database.php` → `/api/media`, `/admin/import_manifest_upload_finalize.php` → `/admin/manifest/finalize`, `/api/media-files` alias retirement) are **breaking changes deferred to post-PR7**. They should be bundled into the same coordinated client release as the iPhone app update for PR7 field changes — not done as a separate pre-pass before this refactor.
+
+---
+
 ## Summary: Files that will change (quick reference)
 
 - **PR1**: **`ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql`**: introduce canonical `assets/events/event_items` tables and constraints for fresh installs.

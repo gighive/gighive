@@ -54,23 +54,24 @@ Changes to be committed:
 TODO
 Marketing: Share same text I sent Annika with Pat. 
 Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
-App: Add tutorials at bottom of home page
+App: Add How to Use button with link to video at bottom of home page
+App: Add tutorial at bottom of upload page 
 App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
 App: From the upload page, add a link to the supported media file types
 App: Make database scroll one-handed, like modern apps
-App: App breaks on upload when changing to Messages app
-App: Add How to Use button with link to video at bottom of home page
 App: Move search to top in database
 App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Integrate changes for db events
+
+App: App breaks on upload when changing to Messages app
+App: Is it worthwhile to have an embed feature?
 App: Can i provide a link to the Media Details page in the app?
+App: Share link feature in media page
 App/Web: skin the app based on domain?
 App: not just designed for iPad, what does "not verified" on laptop mean?
-App: Share link feature in media page
-App: Is it worthwhile to have an embed feature?
 App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
 
 Upload: should add "Still processing.." after heartbeat
-Doc Fix: Database upload options should be updated, 404 on upload limits, remove Improve this page from: gighive_content_policy.html, privacy.html, LICENSE.html, APP_TERMS_OF_SERVICE.html, API_CURRENT_STATE.html, ANSIBLE_FILE_INTERACTION.html, remove advanced section, refind UPLOAD_OPTIONS.html
 Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
 API: refactor based on docs/refactor_api_cleanup_if_desired.md
 Next: we will need an upload videos/thumbnails only after restore of database function
