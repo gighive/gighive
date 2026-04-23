@@ -1,7 +1,7 @@
 *** 
 releaseNotes20260422.txt
-Changes: Update openapi, protect /docs, remove improve this page.  Plus index.md and database load options..
-Scope: Gig2
+Changes: Update openapi, protect /docs, remove improve this page.  Plus index.md and database load options. Remove outdated links from hamburger menu.
+Scope: Gig2,staging
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
@@ -45,6 +45,7 @@ Changes to be committed:
 	new file:   docs/pr_librarianAsset_musicianEvent_example.md
 	modified:   docs/pr_librarianAsset_musicianEvent_implementation.md
 	new file:   docs/process_api_swagger_generation.md
+	new file:   docs/process_upload_limits.md
 	modified:   docs/refactor_db_fix_event_metadata_duplication.md
 	new file:   docs/refactor_db_fix_event_metadata_example_clarity.md
 	deleted:    docs/refactor_status_as_of_20260331.md
