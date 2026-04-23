@@ -244,7 +244,7 @@ img {
     
     <h3>🎥 Streaming</h3>
     <ul>
-        <li><a href="CORE_UPLOAD_IMPLEMENTATION.html">📊 Upload Limits</a></li>
+        <li><a href="refactored_upload_max_bytes_one_var.html">📊 Upload Limits</a></li>
     </ul>
     
     <h3>�️ Database</h3>
@@ -278,7 +278,7 @@ img {
         <li><a href="ANSIBLE_FILE_INTERACTION.html">📋 Ansible Core Files</a></li>
         <li><a href="docker_versions_mixing_hostvm.html">🔄 Mixing Host/Container Versions</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
-        <li><a href="UPLOAD_OPTIONS.html">⭐ SSL Certs and Upload Options</a></li>
+        <li><a href="upload_options.html">⭐ SSL Certs and Upload Options</a></li>
     </ul>
     
 </nav>

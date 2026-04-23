@@ -14,47 +14,58 @@ For most end users, this is the simplest way to add music and video to GigHive. 
 
 ## Admin options
 
-The remaining options in `admin.php` are mainly for admins.
+The remaining options are in dedicated admin import pages and are mainly for admins.
 
-## Best admin option for larger imports
+## Folder-based import (`admin_database_load_import_media_from_folder.php`)
 
-Use **Choose a Folder to Scan & Refresh the Database**.
+This page has two folder-based sections plus a single-file fallback.
 
-This is the most current database-loading workflow in the admin page.
+All folder-based imports are a **two-step process**:
+- **Step 1:** Select a folder. The browser hashes all supported media files and submits metadata to the database.
+- **Step 2:** Upload the actual media files to the server.
 
-What it does:
+Both sections also have a **Previous Jobs (Recovery)** panel for retrying or resuming an interrupted import.
 
-- scans a folder you choose
-- finds supported media files
-- computes hashes for those files
-- rebuilds the media tables with the imported metadata
+### Section A: Reload Database from Folder (destructive)
 
-This is the preferred admin option when you want to load a real media collection into GigHive.
+Truncates and rebuilds all media tables from the selected folder.
 
-## File uploads without rebuilding the database
+- All existing sessions/songs/files/musicians are deleted before the import
+- Use this to replace the entire media collection from scratch
+- Requires confirmation before proceeding
 
-Use **Upload Files Individually** when you want to send media into GigHive one file at a time from the admin tools.
+### Section B: Add to Database from Folder (non-destructive)
 
-## Starting over with the sample data removed
+Adds new files from the selected folder without deleting existing data.
 
-Use **Clear Sample Media** if you want to remove the demo content that ships with GigHive.
+- Duplicate checksums are skipped automatically
+- Safe to run incrementally against an existing collection
+- Use this when you want to add new content without disturbing what is already in the database
 
-This clears the media tables but keeps the users table.
+### Section C: Single File Upload
 
-## CSV-based options
+Opens the standard upload form (`/db/upload_form.php`) for uploading one file at a time from the browser.
 
-GigHive still includes CSV-based reload options in `admin.php`, but these should be treated as **legacy** paths.
+## CSV-based import (`admin_database_load_import_csv.php`)
 
-There are two CSV choices:
+This page has two CSV-based reload options. Both are **destructive** and rebuild the media tables.
 
-- a single CSV reload
-- a normalized reload using `sessions.csv` and `session_files.csv`
+### Section A (Legacy): Single CSV reload
 
-Both are destructive and rebuild the media tables.
+Upload a single CSV file to rebuild the media database.
 
-If you are starting fresh, prefer the folder-scan workflow instead of the older single-CSV path.
+Required headers: `t_title`, `d_date`, `d_merged_song_lists`, `f_singles`
 
-If you already have normalized CSV exports that match GigHive’s expected format, the two-file normalized CSV option is the better CSV choice.
+Use this only if you have an older single-file CSV export from a legacy GigHive database.
+
+### Section B (Normalized): Two-file CSV reload
+
+Upload `sessions.csv` and `session_files.csv` to rebuild the media database.
+
+- `sessions.csv` required headers: `session_key`, `t_title`, `d_date`
+- `session_files.csv` required headers: `session_key`, `source_relpath`
+
+If you have normalized CSV exports that match GigHive's expected format, this is the better CSV option.
 
 ## Important warning
 

@@ -1,7 +1,7 @@
 *** 
 releaseNotes20260422.txt
-Changes: Update openapi, protect /docs, remove improve this page
-Scope: Gig2/OSB
+Changes: Update openapi, protect /docs, remove improve this page.  Plus index.md and database load options.
+Scope: Gig2
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
@@ -39,6 +39,8 @@ Changes to be committed:
 	new file:   ansible/roles/docker/files/apache/webroot/src/OpenApi.php
 	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
 	modified:   docs/_includes/head-custom.html
+	modified:   docs/database_load_options.md
+	modified:   docs/index.md
 	modified:   docs/knowledge_map.html
 	new file:   docs/pr_librarianAsset_musicianEvent_example.md
 	modified:   docs/pr_librarianAsset_musicianEvent_implementation.md
