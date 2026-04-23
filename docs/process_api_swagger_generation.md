@@ -94,6 +94,19 @@ Regenerate any time you change:
 
 ---
 
+## Accessing the Swagger UI
+
+`api-docs.html` is a static HTML page that loads the Swagger UI JavaScript bundle and fetches `./openapi.yaml` from the same directory. It renders the raw YAML as interactive documentation in the browser. The two files are distinct:
+
+| URL | What you get |
+|---|---|
+| `https://stagingvm.gighive.internal/docs/api-docs.html` | Interactive Swagger UI — the correct URL to share with developers |
+| `https://stagingvm.gighive.internal/docs/openapi.yaml` | Raw YAML download — not useful in a browser |
+
+Both paths are behind `valid-user` auth (see `default-ssl.conf.j2`).
+
+---
+
 ## Endpoints documented in the spec
 
 | Method | Path (relative to server) | Server prefix | Auth |

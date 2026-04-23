@@ -1,11 +1,10 @@
-# SSL Cert Requirements re:GigHive Upload Options
+# Access Options
 
 **Users of GigHive have two deployment options, each with different upload capabilities:**
 
 ## Option 1: Direct IP Address (No TLS Certificate)
 - **Access:** Web browser only
 - **Upload method:** `/db/upload_form.php` (web form)
-- **Limitation:** iOS app will NOT work due to Apple's App Transport Security (ATS) requirements
 - **Setup:** Point users directly to `https://YOUR_IP/db/upload_form.php`
 
 ## Option 2: Domain + Cloudflare (Free TLS Certificate)

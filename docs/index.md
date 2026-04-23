@@ -266,12 +266,6 @@ img {
         <li><a href="https://github.com/gighive/gighive" target="_blank">🐙 GitHub</a></li>
     </ul>
 
-    <h3>🔮 API Reference</h3>
-    <ul>
-        <li><a href="images/requestFlowBasic.png">🔄 Request Flow</a></li>
-        <li><a href="https://staging.gighive.app/docs/api-docs.html" target="_blank">📋 Swagger</a></li>
-    </ul>
-    
     <h3>🔮 Advanced / Internals</h3>
     <ul>
         <li><a href="SECURITY.html">🔒 Security</a></li>
