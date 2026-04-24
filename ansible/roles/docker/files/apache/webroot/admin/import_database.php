@@ -165,24 +165,9 @@ try {
     $pdo->exec('TRUNCATE TABLE event_items');
     $pdo->exec('TRUNCATE TABLE events');
     $pdo->exec('TRUNCATE TABLE assets');
-    $pdo->exec('TRUNCATE TABLE genres');
-    $pdo->exec('TRUNCATE TABLE styles');
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
 
     $finishStep(3, 'ok', 'Tables truncated');
-
-    $pdo->exec("INSERT IGNORE INTO genres (name) VALUES
- ('Rock'),('Jazz'),('Blues'),('Funk'),('Hip-Hop'),
- ('Classical'),('Metal'),('Pop'),('Folk'),
- ('Electronic'),('Reggae'),('Country'),
- ('Latin'),('R&B'),('Alternative'),('Experimental');");
-
-    $pdo->exec("INSERT IGNORE INTO styles (name) VALUES
- ('Acoustic'),('Electric'),('Fusion'),('Improvised'),
- ('Progressive'),('Psychedelic'),('Hard'),
- ('Soft'),('Instrumental'),('Vocal');");
-
-    $finishStep(4, 'ok', 'Seeded genres/styles');
 
     $host = getenv('DB_HOST') ?: 'localhost';
     $db = getenv('MYSQL_DATABASE') ?: 'music_db';

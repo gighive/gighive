@@ -8,23 +8,8 @@ TRUNCATE TABLE event_items;
 TRUNCATE TABLE events;
 TRUNCATE TABLE assets;
 TRUNCATE TABLE participants;
-TRUNCATE TABLE genres;
-TRUNCATE TABLE styles;
 
 SET FOREIGN_KEY_CHECKS=1;
-
--- Seed genres
-INSERT IGNORE INTO genres (name) VALUES
- ('Rock'),('Jazz'),('Blues'),('Funk'),('Hip-Hop'),
- ('Classical'),('Metal'),('Pop'),('Folk'),
- ('Electronic'),('Reggae'),('Country'),
- ('Latin'),('R&B'),('Alternative'),('Experimental');
-
--- Seed styles
-INSERT IGNORE INTO styles (name) VALUES
- ('Acoustic'),('Electric'),('Fusion'),('Improvised'),
- ('Progressive'),('Psychedelic'),('Hard'),
- ('Soft'),('Instrumental'),('Vocal');
 
 /********************************************************************************************
  * Load data into canonical tables
