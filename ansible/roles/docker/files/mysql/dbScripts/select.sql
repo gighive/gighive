@@ -1,17 +1,5 @@
 SET NAMES utf8mb4;
 
-SELECT '===== GENRES TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in genres" FROM genres;
-SELECT '' AS "\n";
-SELECT * FROM genres LIMIT 20;
-SELECT '' AS "\n\n";
-
-SELECT '===== STYLES TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in styles" FROM styles;
-SELECT '' AS "\n";
-SELECT * FROM styles LIMIT 20;
-SELECT '' AS "\n\n";
-
 SELECT '===== EVENTS TABLE =====' AS "";
 SELECT COUNT(*) AS "Total Rows in events" FROM events;
 SELECT '' AS "\n";
