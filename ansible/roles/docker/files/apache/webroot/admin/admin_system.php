@@ -566,51 +566,80 @@ function __format_backup_size(int $bytes): string {
 
     render();
 
-    const params = new URLSearchParams({ org_name: orgName, file_type: fileType });
+    const baseParams = { org_name: orgName, file_type: fileType };
 
-    fetch('export_media.php', { method: 'POST', body: params })
-      .then(async response => {
-        if (response.ok && response.headers.get('Content-Type') === 'application/zip') {
-          steps[0] = { name: 'Query database', status: 'ok',      message: 'Records found',    progress: { processed: 1, total: 1 } };
-          steps[1] = { name: 'Build archive',  status: 'ok',      message: 'Archive built',    progress: { processed: 1, total: 1 } };
-          steps[2] = { name: 'Download',       status: 'running', message: 'Receiving file…',  progress: { processed: 0, total: 1 } };
-          render();
-
-          const blob  = await response.blob();
-          const cd    = response.headers.get('Content-Disposition') || '';
-          const match = cd.match(/filename="([^"]+)"/);
-          const fname = match ? match[1] : 'gighive_export.zip';
-          const url   = URL.createObjectURL(blob);
-          const a     = document.createElement('a');
-          a.href = url; a.download = fname;
-          document.body.appendChild(a); a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-
-          steps[2] = { name: 'Download', status: 'ok', message: fname, progress: { processed: 1, total: 1 } };
-          render();
-        } else {
-          const data = await response.json().catch(() => null);
-          const msg  = (data && (data.error || data.message)) ? String(data.error || data.message) : 'HTTP ' + response.status;
-          const noRecords = msg.toLowerCase().includes('no matching records');
-          steps[0] = { name: 'Query database', status: noRecords ? 'error' : 'ok',
-                       message: noRecords ? msg : 'Records found', progress: { processed: noRecords ? 0 : 1, total: 1 } };
-          steps[1] = { name: 'Build archive',  status: noRecords ? 'pending' : 'error',
-                       message: noRecords ? '' : msg, progress: noRecords ? null : { processed: 0, total: 1 } };
-          steps[2] = { name: 'Download', status: 'pending', message: '', progress: null };
-          render();
-        }
-      })
-      .catch(err => {
+    async function exportRun() {
+      // ── Step 1: Query database (prepare call) ──────────────────────────────
+      let prepResp, prepData;
+      try {
+        prepResp = await fetch('export_media.php', {
+          method: 'POST',
+          body: new URLSearchParams({ ...baseParams, mode: 'prepare' })
+        });
+        prepData = await prepResp.json().catch(() => null);
+      } catch (err) {
         steps[0] = { name: 'Query database', status: 'error', message: 'Network error: ' + err.message };
-        steps[1] = { name: 'Build archive',  status: 'pending', message: '', progress: null };
-        steps[2] = { name: 'Download',       status: 'pending', message: '', progress: null };
         render();
-      })
-      .finally(() => {
-        btn.disabled = false;
-        btn.textContent = 'Download ZIP';
-      });
+        return;
+      }
+
+      if (!prepResp.ok || !(prepData && prepData.success)) {
+        const msg = (prepData && (prepData.error || prepData.message)) ? String(prepData.error || prepData.message) : 'HTTP ' + prepResp.status;
+        steps[0] = { name: 'Query database', status: 'error', message: msg };
+        render();
+        return;
+      }
+
+      const count = Number(prepData.count) || 0;
+      steps[0] = { name: 'Query database', status: 'ok', message: count + ' file(s) ready to export', progress: { processed: 1, total: 1 } };
+      steps[1] = { name: 'Build archive',  status: 'running', message: 'Zipping ' + count + ' file(s)…', progress: { processed: 0, total: 1 } };
+      render();
+
+      // ── Step 2: Build archive ──────────────────────────────────────────────
+      let buildResp;
+      try {
+        buildResp = await fetch('export_media.php', {
+          method: 'POST',
+          body: new URLSearchParams({ ...baseParams, mode: 'build' })
+        });
+      } catch (err) {
+        steps[1] = { name: 'Build archive', status: 'error', message: 'Network error: ' + err.message };
+        render();
+        return;
+      }
+
+      if (!(buildResp.ok && buildResp.headers.get('Content-Type') === 'application/zip')) {
+        const errData = await buildResp.json().catch(() => null);
+        const msg = (errData && (errData.error || errData.message)) ? String(errData.error || errData.message) : 'HTTP ' + buildResp.status;
+        steps[1] = { name: 'Build archive', status: 'error', message: msg };
+        render();
+        return;
+      }
+
+      steps[1] = { name: 'Build archive',  status: 'ok',      message: 'Archive built', progress: { processed: 1, total: 1 } };
+      steps[2] = { name: 'Download',       status: 'running', message: 'Receiving file…', progress: { processed: 0, total: 1 } };
+      render();
+
+      // ── Step 3: Download blob ──────────────────────────────────────────────
+      const blob  = await buildResp.blob();
+      const cd    = buildResp.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="([^"]+)"/);
+      const fname = match ? match[1] : 'gighive_export.zip';
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement('a');
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      steps[2] = { name: 'Download', status: 'ok', message: fname, progress: { processed: 1, total: 1 } };
+      render();
+    }
+
+    exportRun().finally(() => {
+      btn.disabled = false;
+      btn.textContent = 'Download ZIP';
+    });
   }
   </script>
 </body>

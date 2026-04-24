@@ -20,8 +20,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $orgFilter  = isset($_POST['org_name'])  ? trim((string)$_POST['org_name'])  : '';
 $typeFilter = isset($_POST['file_type']) ? trim((string)$_POST['file_type']) : 'all';
+$mode       = isset($_POST['mode'])      ? trim((string)$_POST['mode'])      : 'build';
 if (!in_array($typeFilter, ['all', 'audio', 'video'], true)) {
     $typeFilter = 'all';
+}
+if (!in_array($mode, ['prepare', 'build'], true)) {
+    $mode = 'build';
 }
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -73,6 +77,30 @@ if (!$rows) {
 
 $audioDir = '/var/www/html/audio';
 $videoDir = '/var/www/html/video';
+
+if ($mode === 'prepare') {
+    $found   = 0;
+    $skipped = 0;
+    foreach ($rows as $row) {
+        $type = (string)($row['file_type'] ?? '');
+        $sha  = trim((string)($row['checksum_sha256'] ?? ''));
+        $ext  = strtolower(trim((string)($row['file_ext'] ?? '')));
+        if ($sha === '' || preg_match('/^[a-f0-9]{64}$/i', $sha) !== 1) { $skipped++; continue; }
+        $dir = match($type) { 'audio' => $audioDir, 'video' => $videoDir, default => null };
+        if ($dir === null) { $skipped++; continue; }
+        $served = $ext !== '' ? ($sha . '.' . $ext) : $sha;
+        if (is_file($dir . '/' . $served)) { $found++; } else { $skipped++; }
+    }
+    if ($found === 0) {
+        http_response_code(404);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'No media files found on disk for the matching records (skipped: ' . $skipped . ')']);
+        exit;
+    }
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'count' => $found, 'skipped' => $skipped]);
+    exit;
+}
 
 $tmpFile = tempnam(sys_get_temp_dir(), 'gighive_export_');
 if ($tmpFile === false) {
