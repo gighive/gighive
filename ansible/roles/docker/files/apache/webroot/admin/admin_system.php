@@ -94,6 +94,8 @@ function __format_backup_size(int $bytes): string {
     .alert-err { background:#3b0d14; border:1px solid #b4232a; padding:.8rem 1rem; border-radius:10px; margin-bottom:1rem; }
     .muted { color:#a8b3cf; font-size:.95rem; }
   </style>
+  <link rel="stylesheet" href="/admin/assets/import_progress.css" />
+  <script src="/admin/assets/import_progress.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -543,19 +545,39 @@ function __format_backup_size(int $bytes): string {
     const orgName  = (document.getElementById('export_org_name').value  || '').trim();
     const fileType = (document.getElementById('export_file_type').value || 'all');
     const btn      = document.getElementById('exportMediaBtn');
-    const status   = document.getElementById('exportMediaStatus');
+    const statusEl = document.getElementById('exportMediaStatus');
 
     btn.disabled = true;
     btn.textContent = 'Building ZIP…';
-    status.innerHTML = '<div class="muted">Querying files and building archive…</div>';
+
+    if (typeof resetProgressLatch === 'function') resetProgressLatch();
+
+    const steps = [
+      { name: 'Query database', status: 'running', message: 'Finding matching records…',   progress: { processed: 0, total: 1 } },
+      { name: 'Build archive',  status: 'running', message: 'Collecting and zipping files…', progress: { processed: 0, total: 1 } },
+      { name: 'Download',       status: 'pending', message: '',                              progress: null },
+    ];
+
+    function render() {
+      if (typeof renderImportStepsShared === 'function') {
+        statusEl.innerHTML = renderImportStepsShared(steps, { showProgressBar: false, label: 'Export:', statusIndentPx: 80 });
+      }
+    }
+
+    render();
 
     const params = new URLSearchParams({ org_name: orgName, file_type: fileType });
 
     fetch('export_media.php', { method: 'POST', body: params })
       .then(async response => {
         if (response.ok && response.headers.get('Content-Type') === 'application/zip') {
-          const blob = await response.blob();
-          const cd   = response.headers.get('Content-Disposition') || '';
+          steps[0] = { name: 'Query database', status: 'ok',      message: 'Records found',    progress: { processed: 1, total: 1 } };
+          steps[1] = { name: 'Build archive',  status: 'ok',      message: 'Archive built',    progress: { processed: 1, total: 1 } };
+          steps[2] = { name: 'Download',       status: 'running', message: 'Receiving file…',  progress: { processed: 0, total: 1 } };
+          render();
+
+          const blob  = await response.blob();
+          const cd    = response.headers.get('Content-Disposition') || '';
           const match = cd.match(/filename="([^"]+)"/);
           const fname = match ? match[1] : 'gighive_export.zip';
           const url   = URL.createObjectURL(blob);
@@ -564,15 +586,26 @@ function __format_backup_size(int $bytes): string {
           document.body.appendChild(a); a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-          status.innerHTML = '<div class="alert-ok">Downloaded <strong>' + fname.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</strong></div>';
+
+          steps[2] = { name: 'Download', status: 'ok', message: fname, progress: { processed: 1, total: 1 } };
+          render();
         } else {
           const data = await response.json().catch(() => null);
-          const msg  = (data && (data.error || data.message)) ? (data.error || data.message) : 'No files found or server error (HTTP ' + response.status + ')';
-          status.innerHTML = '<div class="alert-err">Export failed: ' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+          const msg  = (data && (data.error || data.message)) ? String(data.error || data.message) : 'HTTP ' + response.status;
+          const noRecords = msg.toLowerCase().includes('no matching records');
+          steps[0] = { name: 'Query database', status: noRecords ? 'error' : 'ok',
+                       message: noRecords ? msg : 'Records found', progress: { processed: noRecords ? 0 : 1, total: 1 } };
+          steps[1] = { name: 'Build archive',  status: noRecords ? 'pending' : 'error',
+                       message: noRecords ? '' : msg, progress: noRecords ? null : { processed: 0, total: 1 } };
+          steps[2] = { name: 'Download', status: 'pending', message: '', progress: null };
+          render();
         }
       })
       .catch(err => {
-        status.innerHTML = '<div class="alert-err">Network error: ' + err.message + '</div>';
+        steps[0] = { name: 'Query database', status: 'error', message: 'Network error: ' + err.message };
+        steps[1] = { name: 'Build archive',  status: 'pending', message: '', progress: null };
+        steps[2] = { name: 'Download',       status: 'pending', message: '', progress: null };
+        render();
       })
       .finally(() => {
         btn.disabled = false;
