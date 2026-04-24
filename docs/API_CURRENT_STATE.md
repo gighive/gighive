@@ -1,5 +1,12 @@
 # API Current State (Webroot)
 
+> **Schema status (as of 2026-04-24):** The canonical schema is fully in effect.
+> The legacy tables `sessions`, `songs`, `files`, `session_musicians`, `session_songs`, and `song_files`
+> have been dropped. All ingestion paths (direct upload, TUS finalize, manifest reload/add, CSV import)
+> write to the canonical tables: `assets`, `events`, `event_items`, `participants`, `event_participants`.
+> API response fields `session_id` and `seq` have been replaced by `event_id` and `position`.
+> See `openapi.yaml` for the current schema contract.
+
 This document describes the **current, implemented API behavior** under
 `ansible/roles/docker/files/apache/webroot` and outlines planned enhancements.
 

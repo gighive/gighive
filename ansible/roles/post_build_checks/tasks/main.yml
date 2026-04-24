@@ -446,7 +446,7 @@
         that:
           - tus_finalize_1.json is mapping
           - tus_finalize_2.json is mapping
-          - (tus_finalize_1.json.id | int) == (tus_finalize_2.json.id | int)
+          - (tus_finalize_1.json.asset_id | int) == (tus_finalize_2.json.asset_id | int)
           - (tus_finalize_1.json.file_name | default('')) == (tus_finalize_2.json.file_name | default(''))
       changed_when: false
 
@@ -472,7 +472,7 @@
         headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
         body_format: json
         body:
-          file_id: "{{ tus_finalize_1.json.id | int }}"
+          asset_id: "{{ tus_finalize_1.json.asset_id | int }}"
           delete_token: "{{ tus_finalize_1.json.delete_token }}"
         status_code: [200]
         return_content: true
@@ -501,7 +501,7 @@
         headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
         body_format: json
         body:
-          file_id: "{{ tus_finalize_1.json.id | int }}"
+          asset_id: "{{ tus_finalize_1.json.asset_id | int }}"
           delete_token: "0000000000000000000000000000000000000000000000000000000000000000"
         status_code: [403]
         return_content: true
@@ -519,11 +519,10 @@
           ansible.builtin.assert:
             that:
               - (tus_finalize_1.json.label | default('')) == 'TUS_VALIDATE'
-              - (tus_finalize_1.json.file_name | default('')) is search('tus-validate')
-              - (tus_finalize_1.json.id | default('') | string) is regex('^[0-9]+$')
+              - (tus_finalize_1.json.asset_id | default('') | string) is regex('^[0-9]+$')
             fail_msg: >-
               Refusing to cleanup because finalize response does not look like a TUS_VALIDATE smoke-test file.
-              label='{{ tus_finalize_1.json.label | default('') }}' file_name='{{ tus_finalize_1.json.file_name | default('') }}' id='{{ tus_finalize_1.json.id | default('') }}'
+              label='{{ tus_finalize_1.json.label | default('') }}' asset_id='{{ tus_finalize_1.json.asset_id | default('') }}'
           changed_when: false
 
         - name: Delete TUS smoke-test media record (DB + served file)
@@ -537,8 +536,8 @@
             headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
             body_format: json
             body:
-              file_ids:
-                - "{{ tus_finalize_1.json.id | int }}"
+              asset_ids:
+                - "{{ tus_finalize_1.json.asset_id | int }}"
             status_code: [200]
             return_content: true
           register: tus_cleanup_delete

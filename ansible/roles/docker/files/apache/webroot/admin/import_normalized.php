@@ -393,7 +393,22 @@ CREATE TEMPORARY TABLE IF NOT EXISTS song_files (
 "JOIN songs sg ON sg.song_id = ss.song_id\n" .
 "JOIN song_files sf ON sf.song_id = sg.song_id\n" .
 "JOIN files f ON f.file_id = sf.file_id AND f.checksum_sha256 IS NOT NULL AND f.checksum_sha256 != ''\n" .
-"JOIN assets a ON a.checksum_sha256 = f.checksum_sha256;\n";
+"JOIN assets a ON a.checksum_sha256 = f.checksum_sha256;\n\n" .
+
+"-- Canonicalize participants from musicians\n" .
+"INSERT INTO participants (name)\n" .
+"SELECT DISTINCT name FROM musicians WHERE name IS NOT NULL AND name != ''\n" .
+"ON DUPLICATE KEY UPDATE participant_id = participant_id;\n\n" .
+
+"-- Canonicalize event_participants from session_musicians\n" .
+"INSERT INTO event_participants (event_id, participant_id)\n" .
+"SELECT DISTINCT e.event_id, p.participant_id\n" .
+"FROM session_musicians sm\n" .
+"JOIN sessions s ON sm.session_id = s.session_id\n" .
+"JOIN events e ON e.event_date = s.date AND e.org_name = COALESCE(NULLIF(s.org_name,''), 'default')\n" .
+"JOIN musicians m ON sm.musician_id = m.musician_id\n" .
+"JOIN participants p ON p.name = m.name\n" .
+"ON DUPLICATE KEY UPDATE participant_id = participant_id;\n";
 
     if (@file_put_contents($sqlFile, $sql) === false) {
         throw new RuntimeException('Failed to write SQL import file');

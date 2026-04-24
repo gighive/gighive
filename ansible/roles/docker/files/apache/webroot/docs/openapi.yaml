@@ -402,13 +402,118 @@ paths:
         -
           url: /admin
           description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /delete_media_files.php:
+    post:
+      tags:
+        - database
+      summary: 'Delete media assets'
+      description: |
+        Deletes one or more assets from the database and disk.
+        Admin users supply an array of asset_ids.
+        Uploader users supply a single asset_id + delete_token (the one-time token returned by the original upload).
+      operationId: deleteMediaFiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                -
+                  description: 'Admin: delete multiple assets by ID'
+                  required:
+                    - asset_ids
+                  properties:
+                    asset_ids:
+                      type: array
+                      items:
+                        type: integer
+                        format: int64
+                  type: object
+                -
+                  description: 'Uploader: delete a single asset with one-time token'
+                  required:
+                    - asset_id
+                    - delete_token
+                  properties:
+                    asset_id:
+                      type: integer
+                      format: int64
+                    delete_token:
+                      type: string
+                  type: object
+      responses:
+        '200':
+          description: 'Deletion result (check success field; partial failures are possible)'
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                  deleted:
+                    type: array
+                    items:
+                      properties:
+                        asset_id:
+                          type: integer
+                          format: int64
+                      type: object
+                  errors:
+                    type: array
+                    items:
+                      properties:
+                        asset_id:
+                          type: integer
+                          format: int64
+                        error:
+                          type: string
+                      type: object
+                type: object
+        '400':
+          description: 'Bad request (missing or invalid asset_ids / delete_token)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 'Forbidden (invalid delete_token or insufficient role)'
+        '405':
+          description: 'Method not allowed'
+        '500':
+          description: 'Server error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+        -
+          url: /db
 components:
   schemas:
     File:
       properties:
         id:
+          description: 'Asset identifier (same value as asset_id; retained for backward compatibility)'
           type: integer
           format: int64
+        asset_id:
+          description: 'Canonical asset identifier'
+          type: integer
+          format: int64
+        event_id:
+          description: 'Event that this asset belongs to'
+          type: integer
+          format: int64
+          nullable: true
+        event_item_id:
+          description: 'Event-item link identifier (event × asset)'
+          type: integer
+          format: int64
+          nullable: true
+        position:
+          description: 'Position of this item within the event'
+          type: integer
+          nullable: true
         file_name:
           type: string
         file_type:
@@ -427,13 +532,6 @@ components:
           nullable: true
         checksum_sha256:
           type: string
-          nullable: true
-        session_id:
-          type: integer
-          format: int64
-          nullable: true
-        seq:
-          type: integer
           nullable: true
         created_at:
           type: string
@@ -518,7 +616,7 @@ components:
           example: 'Duplicate Upload'
         message:
           type: string
-        existing_file_id:
+        existing_asset_id:
           type: integer
           format: int64
         checksum_sha256:

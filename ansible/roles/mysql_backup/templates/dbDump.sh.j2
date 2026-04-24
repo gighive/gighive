@@ -68,9 +68,13 @@ fi
 BACKUPS_DIR="{{ mysql_backups_dir }}"
 mkdir -p "$BACKUPS_DIR"
 
+# --- Capture git SHA for schema sidecar (best-effort; N/A if unavailable) ---
+GIT_SHA="$(git -C "{{ gighive_home }}" rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
+
 # --- Compose output file name with date+time to prevent same-day overwrite ---
 STAMP="$(date +'%F_%H%M%S')"
 OUTFILE="${BACKUPS_DIR}/${DB_NAME}_${STAMP}.sql.gz"
+SIDECAR="${BACKUPS_DIR}/${DB_NAME}_${STAMP}.schema.json"
 
 echo "$(date -Is) START: dumping ${DB_NAME} from container ${CONTAINER} to ${OUTFILE}"
 
@@ -89,6 +93,14 @@ then
     # update "latest" symlink
     ln -sfn "$(basename "$OUTFILE")" "${BACKUPS_DIR}/${DB_NAME}_latest.sql.gz"
     echo "$(date -Is) INFO: updated latest symlink -> ${DB_NAME}_latest.sql.gz"
+    # Write schema-version sidecar
+    printf '{\n  "schema_version": "canonical-v1",\n  "timestamp": "%s",\n  "dump_file": "%s",\n  "git_sha": "%s"\n}\n' \
+      "$(date -Is)" "$(basename "$OUTFILE")" "$GIT_SHA" \
+      > "$SIDECAR"
+    chgrp "{{ apache_group | default('www-data') }}" "$SIDECAR" || true
+    chmod 0640 "$SIDECAR"
+    ln -sfn "$(basename "$SIDECAR")" "${BACKUPS_DIR}/${DB_NAME}_latest.schema.json"
+    echo "$(date -Is) INFO: wrote schema sidecar -> $(basename "$SIDECAR") (schema_version=canonical-v1, git_sha=$GIT_SHA)"
   else
     echo "$(date -Is) ERROR: gzip integrity check failed for $OUTFILE"
     exit 1

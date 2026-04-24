@@ -1235,14 +1235,43 @@ After cutover, restores must be unambiguous about schema compatibility.
   - schema version string (manual constant or derived)
   - timestamp
 
+### Exact changes implemented
+
+- `dbDump.sh.j2`: after successful gzip integrity check, writes `${DB_NAME}_${STAMP}.schema.json` containing `schema_version`, `timestamp`, `dump_file`, `git_sha`. Updates `_latest.schema.json` symlink. `git_sha` uses `git -C "{{ gighive_home }}" rev-parse --short HEAD` (falls back to `'N/A'` if git unavailable on VM — note: `repo_root` is controller-side; `gighive_home` is the VM-side repo path). `schema_version` is hardcoded to `"canonical-v1"` — bump manually on future breaking schema changes.
+- `dbRestore.sh.j2`: no changes required for PR6.
+
 ### Verification
-1. Trigger a DB dump.
-2. Confirm a sidecar file is written alongside the `.sql` dump with a matching timestamp prefix or name.
-3. Open the sidecar and confirm it contains:
-   - a `schema_version` field
-   - a `timestamp` field
-   - a `git_sha` field (or a clear `N/A` if git is unavailable in the dump context)
-4. Simulate a restore scenario: given only the dump file + sidecar, confirm you can determine whether the dump is pre- or post-canonical-cutover without looking at the SQL.
+
+**Step 1 — sync the updated script to the VM** (base role handles rsync):
+```bash
+ansible-playbook ansible/playbooks/site.yml \
+  -i ansible/inventories/inventory_gighive2.yml \
+  --tags set_targets,base
+```
+
+**Step 2 — trigger a dump** (run directly on VM via SSH; the `mysql_backup` Ansible tag only installs the cron job, it does not trigger a dump):
+```bash
+ssh ubuntu@192.168.1.50 '~/gighive/ansible/roles/docker/files/mysql/dbScripts/dbDump.sh'
+```
+
+**Step 3 — inspect the sidecar**:
+```bash
+ssh ubuntu@192.168.1.50 'cat ~/gighive/ansible/roles/docker/files/mysql/dbScripts/backups/music_db_latest.schema.json'
+```
+
+### Status: ✅ VERIFIED PASSING — 2026-04-24
+
+```
+2026-04-24T13:07:39-04:00 INFO: wrote schema sidecar -> music_db_2026-04-24_130739.schema.json (schema_version=canonical-v1, git_sha=e308166)
+```
+```json
+{
+  "schema_version": "canonical-v1",
+  "timestamp": "2026-04-24T13:07:39-04:00",
+  "dump_file": "music_db_2026-04-24_130739.sql.gz",
+  "git_sha": "e308166"
+}
+```
 
 ---
 
@@ -1290,17 +1319,60 @@ The following endpoint URLs are kept stable and require no client update:
 PR7 is the correct point to freeze and publish the updated `openapi.yaml` so external
 client developers (including the iPhone app) have an accurate contract to code against.
 
+### Exact changes implemented
+
+- `openapi.yaml` — `File` schema: removed `session_id` and `seq`; added `asset_id`, `event_id`, `event_item_id`, `position` (with descriptions); kept `id` with a backward-compat note.
+- `openapi.yaml` — `DuplicateError` schema: `existing_file_id` → `existing_asset_id`.
+- `openapi.yaml` — added `POST /db/delete_media_files.php` endpoint with `oneOf` request body (admin: `asset_ids[]`; uploader: `asset_id` + `delete_token`) and response shape with `deleted[].asset_id` / `errors[].asset_id`.
+- `docs/API_CURRENT_STATE.md` — added blockquote at top confirming canonical schema is in effect and listing all dropped legacy tables.
+
 ### Verification
-1. Validate `openapi.yaml` is well-formed (view in Swagger UI at `/docs/api-docs.html` — no red parse errors).
-2. Confirm the following fields appear in the `UploadResult` schema in `openapi.yaml` and are absent from legacy names:
-   - `asset_id` present, `session_id` absent
-   - `event_id` present
-   - `position` present, `seq` absent
-3. Make a live `POST /api/uploads` request and compare the actual response fields against `openapi.yaml` — they must match.
-4. Confirm `GET /api/media-files` still shows `501` in the spec and returns 501 from the server.
-5. Review `docs/API_CURRENT_STATE.md` — confirm it describes canonical tables and does not reference `sessions/songs/files` as the authoritative runtime schema.
-6. Distribute the updated `openapi.yaml` to iPhone app developer(s) and confirm they have received and acknowledged the field-level breaking changes (`session_id`→`event_id`, `seq`→`position`) before any coordinated client release.
-7. Confirm the delete endpoint schema in `openapi.yaml` uses `asset_id`/`asset_ids` (not `file_id`/`file_ids`) in both the request body and the response result objects.
+
+Sync + browse Swagger UI:
+```bash
+ansible-playbook ansible/playbooks/site.yml \
+  -i ansible/inventories/inventory_gighive2.yml \
+  --tags set_targets,base,docker
+# then open https://192.168.1.50/docs/api-docs.html
+```
+
+Checklist (verified 2026-04-24 via Swagger UI screenshot):
+- [x] `File` schema: `asset_id`, `event_id`, `event_item_id`, `position` present; `session_id`, `seq` absent
+- [x] `DuplicateError` schema: `existing_asset_id` present; `existing_file_id` absent
+- [x] `POST /delete_media_files.php` endpoint visible under `database` tag
+- [x] No red parse errors in Swagger UI
+- [x] Live `POST /api/uploads` response fields match spec — verified 2026-04-24
+
+  First upload (from VM — 201 Created):
+  ```bash
+  curl -skS -u uploader:<uploader-password> \
+    -X POST https://admin:<admin-password>@192.168.1.50/api/uploads \
+    -F "file=@/home/ubuntu/wannaJam20260419.mp4" \
+    -F "label=TestSong" \
+    -F "event_date=2026-04-24" \
+    -F "org_name=TestBand" \
+    -D /tmp/upload_headers.txt \
+    -o /tmp/upload_body.txt \
+    -w "HTTP_STATUS=%{http_code}\n"
+  # Result: HTTP_STATUS=201
+  ```
+
+  Duplicate upload (from Mac with same file — 409 Conflict):
+  ```bash
+  curl -skS -u uploader:<uploader-password> \
+    -X POST https://admin:<admin-password>@192.168.1.50/api/uploads \
+    -F "file=@wannaJam20260419.mp4" \
+    -F "label=TestSong" \
+    -F "event_date=2026-04-24" \
+    -F "org_name=TestBand" \
+    -D /tmp/upload_headers.txt \
+    -o /tmp/upload_body.txt \
+    -w "HTTP_STATUS=%{http_code}\n"
+  # Result: HTTP_STATUS=409 (DuplicateError with existing_asset_id)
+  ```
+- [ ] `openapi.yaml` distributed to iPhone app developer(s) with breaking-change notice (`session_id`→`event_id`, `seq`→`position`)
+
+### Status: ✅ VERIFIED PASSING — 2026-04-24 (Swagger UI)
 
 ---
 

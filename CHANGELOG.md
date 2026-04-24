@@ -77,6 +77,7 @@ App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
 
 Upload: should add "Still processing.." after heartbeat
 Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
+Security: Interesting that security_basic_auth is always needed after docker run
 API: refactor based on docs/refactor_api_cleanup_if_desired.md
 Next: we will need an upload videos/thumbnails only after restore of database function
 Next: admin upload still allowing duplicate shas based upon different column info
