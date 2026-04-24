@@ -40,7 +40,13 @@ PR0 → PR1 → PR3 → PR4 → PR5 → PR5b → PR6 → PR7
 
 **API naming cleanup relationship** (see `docs/refactor_api_cleanup_if_desired.md`):
 - Field-level renames (`session_id`→`event_id`, `seq`→`position`) are part of PR7 — already in this plan.
-- URL-level renames (`/db/database.php` → `/api/media`, `/admin/import_manifest_upload_finalize.php` → `/admin/manifest/finalize`, `/api/media-files` alias retirement) are **breaking changes deferred to post-PR7**. They should be bundled into the same coordinated client release as the iPhone app update for PR7 field changes — not done as a separate pre-pass before this refactor.
+- URL-level renames are **breaking changes deferred to post-PR7**. They should be bundled into the same coordinated client release as the iPhone app update for PR7 field changes — not done as a separate pre-pass before this refactor. Full deferred list:
+  - `/db/database.php` → `/api/media`
+  - `/db/delete_media_files.php` → `DELETE /api/assets/{id}` (or `POST /api/assets/delete`)
+  - `/db/database_edit_save.php` → `PATCH /api/events/{event_id}/items/{event_item_id}`
+  - `/db/database_edit_musicians_preview.php` → `POST /api/participants/preview`
+  - `/admin/import_manifest_upload_finalize.php` → `/admin/manifest/finalize`
+  - `POST /api/media-files` alias retirement
 
 ---
 
@@ -134,18 +140,18 @@ PR0 → PR1 → PR3 → PR4 → PR5 → PR5b → PR6 → PR7
 - **PR4**: **`ansible/roles/docker/files/apache/webroot/src/Repositories/EventItemRepository.php`**: new canonical writes for event-scoped typed labels.
 - **PR4**: **`ansible/roles/docker/files/apache/webroot/db/upload_form.php`**: update manual upload UI to use canonical endpoints/fields and ensure finalize has enough metadata.
 
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_lib.php`**: port manifest import core logic and step reporting to write canonical tables.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_worker.php`**: port worker execution to call canonical import logic.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_add_async.php`**: keep external contract but ensure queued jobs result in canonical writes.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_reload_async.php`**: keep external contract but ensure reload mode truncates/rebuilds canonical tables.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_status.php`**: update status payloads (including any table counts) to reflect canonical tables.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_cancel.php`**: keep cancellation semantics compatible with canonical worker.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_replay.php`**: keep replay semantics compatible with canonical worker.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php`**: keep job listing UI compatible with canonical worker results.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_manifest_lib.php`**: port manifest import core logic and step reporting to write canonical tables.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_manifest_worker.php`**: port worker execution to call canonical import logic.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_manifest_add_async.php`**: keep external contract but ensure queued jobs result in canonical writes.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_manifest_reload_async.php`**: keep external contract but ensure reload mode truncates/rebuilds canonical tables.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_manifest_status.php`**: update status payloads (including any table counts) to reflect canonical tables.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_manifest_cancel.php`**: keep cancellation semantics compatible with canonical worker.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_manifest_replay.php`**: keep replay semantics compatible with canonical worker.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_manifest_jobs.php`**: keep job listing UI compatible with canonical worker results.
 
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_database.php`**: port admin 3A CSV reload endpoint to canonical import. **Preferred approach: convert-to-manifest** so the path runs through `import_manifest_worker.php` (W1) and inherits the Unified Ingestion Core automatically. Direct canonical mapping is a fallback only.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/import_normalized.php`**: port admin 3B normalized CSV reload endpoint to canonical import.
-- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin.php`**: ensure admin UI sections 3A/3B/4/5 still trigger working canonical import flows (minimal wiring/text changes only).
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_database.php`**: port admin 3A CSV reload endpoint to canonical import. **Preferred approach: convert-to-manifest** so the path runs through `admin/import_manifest_worker.php` (W1) and inherits the Unified Ingestion Core automatically. Direct canonical mapping is a fallback only.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/import_normalized.php`**: port admin 3B normalized CSV reload endpoint to canonical import.
+- **PR5**: **`ansible/roles/docker/files/apache/webroot/admin/admin.php`**: ensure admin UI sections 3A/3B/4/5 still trigger working canonical import flows (minimal wiring/text changes only).
 
 - **PR5b**: **`ansible/roles/docker/files/apache/webroot/tools/upload_media_by_hash.py`**: port binary copy tool to query/update canonical assets instead of legacy `files`.
 
@@ -202,7 +208,16 @@ The canonical model must exist in bootstrap SQL so fresh installs and rebuilds p
   - `assets` (unique `checksum_sha256`)
   - `events`
   - `event_items` (typed, event-scoped labels; also serves as the event↔asset join)
-- Remove or stop creating legacy runtime tables (`sessions/songs/files/...`) unless they remain required for unrelated features. Under “no compat layer”, the app runtime must not depend on them.
+- Remove or stop creating legacy runtime tables (`sessions/songs/files/session_songs/song_files/session_musicians`) unless they remain required for unrelated features. Under "no compat layer", the app runtime must not depend on them.
+- **Participants rename**: rename `musicians` → `participants` and `session_musicians` → `event_participants` (Plex Person+Role model — generic enough for band members, videographers, wedding guests, photographers, etc.):
+  - `participants` (`participant_id`, `name`, timestamps)
+  - `event_participants` (`event_id`, `participant_id`, `role VARCHAR`) — `role` carries the specific role string (e.g., `band_member`, `videographer`, `guest`)
+- Keep non-legacy tables: `genres`, `styles`, `users`, `participants` (renamed from `musicians`).
+- `event_items.item_type` ENUM is **`('song', 'loop', 'clip', 'highlight')`**:
+  - `song` — a discrete performed/recorded song (band/musician context; maps to legacy `songs.type='song'`)
+  - `loop` — a backing or reference loop track (maps to legacy `songs.type='loop'`)
+  - `clip` — a generic audio/video segment: ceremony, speech, table video, candid footage, etc. (generalizes legacy `songs.type='event_label'`; label carries the specific name)
+  - `highlight` — a curated or best-of cut (cross-context: setlist reel, edited wedding highlight)
 
 ### Files to change/add
 - Change:
@@ -236,8 +251,12 @@ The canonical model must exist in bootstrap SQL so fresh installs and rebuilds p
     - `event_item_id` PK
     - `event_id` FK
     - `asset_id` FK
-    - `item_type` ENUM(...) or VARCHAR
-    - `label` VARCHAR
+    - `item_type` ENUM('song', 'loop', 'clip', 'highlight') NOT NULL
+      - `song` — a discrete performed/recorded song (band/musician context; maps to legacy `songs.type='song'`)
+      - `loop` — a backing or reference loop track (maps to legacy `songs.type='loop'`)
+      - `clip` — a generic audio/video segment: ceremony, speech, table video, candid footage, etc. (generalizes legacy `songs.type='event_label'`; label carries the specific name)
+      - `highlight` — a curated or best-of cut (cross-context: setlist reel, edited wedding highlight)
+    - `label` VARCHAR (human-readable name for this item within its event, e.g. "Stairway to Heaven", "Table 7 Toast")
     - `position` INT NULL (event-local ordering, replacing legacy `files.seq`)
     - unique constraint `(event_id, asset_id)` to prevent duplicate links
 
@@ -247,10 +266,14 @@ The canonical model must exist in bootstrap SQL so fresh installs and rebuilds p
   - (A) New canonical CSV formats (recommended long-term)
   - (B) Keep existing CSV files but map their columns into canonical tables
 - Under hard cutover, ensure the loader does not populate only `sessions/songs/files`.
-- **Cross-reference**: this file reads from `sessionsXxx.csv`. When the PR5 pre-condition
+  - **Cross-reference**: this file reads from `sessionsXxx.csv`. When the PR5 pre-condition
   adds `org_name` and `event_type` columns to those CSVs, this loader must also be
   updated to read those columns — otherwise fresh installs will silently fall back to
   `org_name = 'default'` instead of the real band name.
+  - **Participants CSV rename**: the loader currently reads `musicians.csv` → `musicians` and
+  `session_musicians.csv` → `session_musicians`. These must be updated to read the renamed
+  CSV files (`participants.csv` → `participants` and `event_participants.csv` → `event_participants`)
+  to match the PR1 table rename.
 
 ### Verification
 1. Run a fresh DB bootstrap (via Ansible or direct SQL apply) against the updated `create_music_db.sql`.
@@ -273,7 +296,8 @@ The canonical model must exist in bootstrap SQL so fresh installs and rebuilds p
    SELECT COUNT(*) FROM event_items;
    ```
    All counts must be > 0 for a non-empty seed dataset.
-5. Confirm legacy tables (`sessions`, `songs`, `files`) are either absent or not depended on by any runtime path that runs after this PR.
+5. Confirm `create_music_db.sql` no longer creates legacy tables (`sessions`, `songs`, `files`, `session_songs`, `song_files`, `session_musicians`) — fresh installs after PR1 will not have them.
+   > ⚠️ On **existing installations**, legacy tables physically persist (they were created before PR1 and are not auto-dropped by DDL changes). The runtime PHP still reads from them until PR3+PR4 ship. **Do not manually drop legacy tables from existing installations** until both PR3 and PR4 have been deployed and verified.
 
 ---
 
@@ -387,6 +411,9 @@ Today’s listing is join-multiplicity prone and session/song/file based. Post-c
   - `ansible/roles/docker/files/apache/webroot/src/Controllers/RandomController.php` (if it picks random media from legacy tables)
 - Replace or supplement:
   - `ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php`
+- Change (inline-edit endpoints — write to `sessions/songs/musicians/session_musicians`; will break at PR1 unless ported here):
+  - `ansible/roles/docker/files/apache/webroot/db/database_edit_save.php` — hard-cutover field renames (request + response): `session_id`→`event_id`, `song_id`→`event_item_id`, `song_title`→`item_label`, `musicians_csv`→`participants_csv`; response: `musicians`→`participants`, `new_musicians`→`new_participants`; backing table writes: `musicians`→`participants`, `session_musicians`→`event_participants`
+  - `ansible/roles/docker/files/apache/webroot/db/database_edit_musicians_preview.php` — hard-cutover field renames: request `musicians_csv`→`participants_csv`; response arrays `existing`/`new`/`normalized` stay, backing query `SELECT FROM musicians`→`SELECT FROM participants`
 - Add:
   - `ansible/roles/docker/files/apache/webroot/src/Repositories/AssetRepository.php`
   - `ansible/roles/docker/files/apache/webroot/src/Repositories/EventRepository.php`
@@ -414,7 +441,27 @@ Today’s listing is join-multiplicity prone and session/song/file based. Post-c
 - Event query returns assets for a given `event_id` by joining `event_items`.
 - Include `item_type`, `label`, `position` from `event_items` as the UI needs them.
 
+5) `db/database_edit_save.php` — hard-cutover wire renames
+- Request body field renames (no backward compat):
+  - `session_id` → `event_id`
+  - `song_id` → `event_item_id`
+  - `song_title` → `item_label`
+  - `musicians_csv` → `participants_csv`
+- Response JSON field renames:
+  - `session_id` → `event_id`
+  - `song_id` → `event_item_id`
+  - `song_title` → `item_label`
+  - `musicians` → `participants`
+  - `new_musicians` → `new_participants`
+- Backing SQL: replace all `sessions`/`songs`/`session_songs` pair-check with canonical `events`/`event_items`; `musicians`→`participants`, `session_musicians`→`event_participants`.
+
+6) `db/database_edit_musicians_preview.php` — hard-cutover wire renames
+- Request body: `musicians_csv` → `participants_csv`.
+- Response: `existing`, `new`, `normalized` arrays stay; backing query `SELECT FROM musicians` → `SELECT FROM participants`.
+
 ### Verification
+> **Data availability note**: on an *existing* environment (dev/staging upgraded from pre-PR1), canonical tables are empty until a 3B CSV rebuild (PR5) runs. PR3 verification that checks listing content requires either (a) a fresh install (which populates via `load_and_transform.sql`) or (b) manually running a 3B rebuild after PR5 is available. Verifying the page loads without errors is sufficient for an upgraded environment until PR5 data is in place.
+
 1. Browse `/db/database.php` — page loads without errors.
 2. Browse `/db/database.php?view=librarian` — confirm no duplicate rows for a checksum that appears in multiple events.
 3. Browse `/db/database.php?view=event&event_id=<id>` — confirm assets show with event context (event date, org name, label).
@@ -427,6 +474,10 @@ Today’s listing is join-multiplicity prone and session/song/file based. Post-c
    - `APP_FLAVOR=gighive` → default view is librarian.
    - `APP_FLAVOR=defaultcodebase` (stormpigs) → default view is event.
 6. Spot-check that no SQL query in `AssetRepository.php` or `EventRepository.php` references `sessions`, `songs`, or `files`.
+7. Confirm inline-edit endpoint field renames — with data present, POST to `/db/database_edit_save.php` using canonical field names:
+   - Send `event_id`, `event_item_id`, `item_label`, `participants_csv` in the request body.
+   - Response must return `event_id` and `event_item_id` (not `session_id` or `song_id`).
+   - POST to `/db/database_edit_musicians_preview.php` with `participants_csv` — response `existing`/`new`/`normalized` arrays must be populated.
 
 ---
 
@@ -454,6 +505,9 @@ Uploads are a primary ingest path. They must write canonical tables and enforce 
   - `ansible/roles/docker/files/apache/webroot/src/Repositories/EventRepository.php`
 - Add:
   - `ansible/roles/docker/files/apache/webroot/src/Repositories/EventItemRepository.php`
+- Change (per-file delete endpoint — queries/deletes from `files` by `file_id`; called from listing UI, upload forms, and smoke tests):
+  - `ansible/roles/docker/files/apache/webroot/db/delete_media_files.php`
+  - `ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php` (JS caller: `file_id`/`file_ids` → `asset_id`/`asset_ids`)
 - Change (update assertions to canonical response fields):
   - `ansible/roles/upload_tests/tasks/test_6.yml`
   - `ansible/roles/upload_tests/tasks/test_7.yml`
@@ -489,6 +543,16 @@ Uploads are a primary ingest path. They must write canonical tables and enforce 
 4) `UploadService::finalizeTusUpload`
 - Ensure it shares the same canonical writes as `handleUpload`.
 
+5) `db/delete_media_files.php` + JS callers
+- Port endpoint:
+  - Replace `SELECT … FROM files WHERE file_id` / `DELETE FROM files WHERE file_id` with canonical equivalents against `assets` using `asset_id`.
+  - `FileRepository::getDeleteTokenHashById()` → equivalent lookup on `assets`.
+  - Keep the `delete_token` flow for the `uploader` role unchanged (token validation logic stays; only the backing table changes).
+- Update JS in all three callers to send `asset_id`/`asset_ids` instead of `file_id`/`file_ids`:
+  - `db/upload_form.php` — already in file list above
+  - `db/upload_form_admin.php` — already in file list above
+  - `src/Views/media/list.php` — already in PR3 scope; delete JS update is a PR4 concern (coordinate with PR3 author or do in this PR)
+
 ### Verification
 1. Run upload tests 6 and 7 (single-file upload and TUS finalize variants):
    ```
@@ -502,15 +566,13 @@ Uploads are a primary ingest path. They must write canonical tables and enforce 
    SELECT COUNT(*) FROM assets;       -- increments by 1
    SELECT COUNT(*) FROM event_items;  -- increments by 1
    ```
-3. Duplicate upload test — POST the same file again (same checksum):
-   - Response must return HTTP 409 or a dedup-success response (not an error).
-   - SQL: `SELECT COUNT(*) FROM assets;` must **not** increase.
-   - SQL: `SELECT COUNT(*) FROM event_items;` must **not** increase (link already exists for same event).
+3. Duplicate upload test — two sub-cases:
+   - **Same file, same event**: POST the same checksum to the same event → dedup; `COUNT(*) FROM assets` must not increase; `COUNT(*) FROM event_items` must not increase (link already exists).
+   - **Same file, different event**: POST the same checksum to a different `event_id` / different date+org → `COUNT(*) FROM assets` must not increase (asset reused); `COUNT(*) FROM event_items` **must** increase by 1 (new link for new event). Response must not error.
 4. TUS finalize path — upload via TUS then call `POST /api/uploads/finalize`:
    - Same canonical field assertions as step 2.
 5. Confirm `upload_form.php` manual uploader page loads and submits successfully.
 6. UI check: browse `/db/database.php` after upload — confirm the new asset appears in the listing with correct event context.
-7. Automated test: run `test_4.yml` and `test_5.yml` to ensure canonical writes are correct for multi-file uploads.
 
 ---
 
@@ -526,23 +588,32 @@ Admin imports are operationally critical and now covered by tests. They currentl
 ### Files to change/add
 Manifest async pipeline (already exists and must be ported):
 - Change:
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_lib.php`
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_worker.php`
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_add_async.php`
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_reload_async.php`
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_status.php`
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_cancel.php`
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_replay.php`
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_jobs.php`
+  - `ansible/roles/docker/files/apache/webroot/src/Services/UnifiedIngestionCore.php` — replace `ensureSession()`/`ensureSong()` with `ensureEvent()`/`ensureAsset()`/`ensureEventItem()`; this is the central service the manifest lib routes through and **must be ported or the manifest lib changes have no effect**
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_lib.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_worker.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_add_async.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_reload_async.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_status.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_cancel.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_replay.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_jobs.php`
 
 CSV import endpoints (admin Sections 3A/3B):
 - Change:
-  - `ansible/roles/docker/files/apache/webroot/import_database.php`
-  - `ansible/roles/docker/files/apache/webroot/import_normalized.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_database.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_normalized.php`
 
 Admin UI (optional text changes only if needed):
 - Change (only if UI wording or wiring needs to change):
-  - `ansible/roles/docker/files/apache/webroot/admin.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/admin.php`
+
+Additional manifest files — **decide before implementing**:
+These files exist in `admin/` but are not in the scope above. Each needs an explicit decision:
+- `admin/import_manifest_prepare.php` — likely coordinates import pipeline setup; **probably needs porting**
+- `admin/import_manifest_finalize.php` — likely finalizes import state; **probably needs porting**
+- `admin/import_manifest_duplicates.php` — likely queries legacy tables for duplicate analysis; **probably needs porting** to query `assets`
+- `admin/import_manifest_add.php` — synchronous variant of add; if used, **needs porting** alongside the async version
+- `admin/import_manifest_upload_start.php` / `import_manifest_upload_status.php` / `import_manifest_upload_finalize.php` — chunked manifest file upload (not the DB import itself); likely no table writes, **probably no change needed** but verify
 
 ### Exact changes
 1) Manifest import contract (preserve external interface)
@@ -553,7 +624,7 @@ Admin UI (optional text changes only if needed):
 - Replace legacy “steps” semantics and underlying DB logic:
   - Remove truncate/seed/upsert logic for `sessions/songs/files`.
   - Replace with canonical equivalents:
-    - (reload mode) truncate canonical tables (`event_items`, `events`, `assets` or a safe subset) and reseed any reference data if you add it.
+    - (reload mode) truncate canonical tables **in FK-safe order**: `event_participants` → `event_items` → `events` → `assets` (violating this order will cause FK constraint errors); reseed any reference data if you add it.
     - ensure events by `(event_date, org_name)` (or your updated uniqueness contract)
     - upsert assets by `checksum_sha256`
     - upsert event_items by `(event_id, asset_id)` (typed label + link in one row)
@@ -634,6 +705,11 @@ Tests 4/5 are two-step: (1) import hashes/metadata, (2) copy binaries by checksu
   - `SELECT COUNT(*) FROM events`
   - `SELECT COUNT(*) FROM assets`
   - Optionally verify link table counts and uniqueness constraints.
+- **Variable rename**: the task sets/reads Ansible facts named `upload_tests_db_sessions_count`,
+  `upload_tests_db_files_count`, `upload_tests_expect_sessions_count`, and
+  `upload_tests_expect_files_count`. Rename all four (and any corresponding vars in the
+  calling tests `test_3a`–`test_5`) to `*_events_count` and `*_assets_count` respectively
+  to stay consistent with canonical table names and avoid misleading fact names in test output.
 
 ### Verification
 1. Run the full upload_tests suite:
@@ -694,6 +770,9 @@ Docs must match behavior and prevent accidental re-introduction of legacy assump
 ### Exact changes
 - Update payload schemas to reference canonical concepts (`event_id`, `asset_id`, `event_item_id`).
 - Ensure `GET /api/media-files` remains 501.
+- **`db/delete_media_files.php`** — add a `DELETE /db/delete_media_files` entry (or update the existing informal path) to `openapi.yaml`:
+  - Request body: replace `file_ids` (array of `file_id` integers) with `asset_ids` (array of `asset_id` integers); keep `delete_token` for uploader flow.
+  - Response: replace `file_id` in result objects with `asset_id`.
 
 ### External application impact (iPhone app and any other API consumers)
 
@@ -710,6 +789,7 @@ Specifically, the following fields change in API responses:
 | `session_id` | `event_id` | `POST /api/uploads`, `/api/uploads/finalize` |
 | `seq` | `position` | same |
 | session/song/file JSON shape | `asset_id`, `event_id`, `item_type`, `label`, `position` | `db/database.php` listing |
+| `file_id` | `asset_id` | `POST /db/delete_media_files.php` request + response |
 
 The following fields survive unchanged and require no client update:
 - `checksum_sha256`, `file_type`, `duration_seconds`, `mime_type`, `size_bytes`
@@ -730,6 +810,38 @@ client developers (including the iPhone app) have an accurate contract to code a
 4. Confirm `GET /api/media-files` still shows `501` in the spec and returns 501 from the server.
 5. Review `docs/API_CURRENT_STATE.md` — confirm it describes canonical tables and does not reference `sessions/songs/files` as the authoritative runtime schema.
 6. Distribute the updated `openapi.yaml` to iPhone app developer(s) and confirm they have received and acknowledged the field-level breaking changes (`session_id`→`event_id`, `seq`→`position`) before any coordinated client release.
+7. Confirm the delete endpoint schema in `openapi.yaml` uses `asset_id`/`asset_ids` (not `file_id`/`file_ids`) in both the request body and the response result objects.
+
+---
+
+## Schema end state (post-PR5b)
+
+**Dropped** (removed entirely — no runtime path may reference these after cutover):
+
+| Table | Notes |
+|---|---|
+| `sessions` | replaced by `events` |
+| `songs` | replaced by `event_items.label` + `item_type` |
+| `files` | replaced by `assets` |
+| `session_songs` | join dissolved into `event_items` |
+| `song_files` | join dissolved into `event_items` |
+
+**Renamed** (data preserved, table and column names change):
+
+| Old name | New name | Key column changes |
+|---|---|---|
+| `musicians` | `participants` | `musician_id` → `participant_id` |
+| `session_musicians` | `event_participants` | `musician_id` → `participant_id`; `session_id` → `event_id`; add `role VARCHAR` |
+
+**Added** (net-new canonical tables):
+
+| Table | Purpose |
+|---|---|
+| `assets` | globally unique media entity, keyed on `checksum_sha256` |
+| `events` | capture container (gig, wedding, etc.), keyed on `(event_date, org_name)` |
+| `event_items` | event-scoped typed label + event↔asset join; keyed on `(event_id, asset_id)` |
+
+> `genres`, `styles`, and `users` are unaffected and carry over unchanged.
 
 ---
 
@@ -738,7 +850,7 @@ client developers (including the iPhone app) have an accurate contract to code a
 - DB uniqueness invariants
   - assets unique by checksum
   - event_items unique by (event_id, asset_id)
-- “Same binary, different event” behavior
+- "Same binary, different event" behavior
   - must create a new link and new event item, not reject.
 - Operational invariants
   - admin 3A/3B and 4/5 endpoints remain callable with the same URLs and basic payload shapes, but now write canonical tables.

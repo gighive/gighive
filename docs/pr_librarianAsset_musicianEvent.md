@@ -57,14 +57,11 @@ The redesign must:
 
 ### FR3: Event Items (lightly typed)
 - The system MUST support event-scoped items with a light `item_type`.
-- Beta `item_type` set:
-  - `song`
-  - `moment`
-  - `speech`
-  - `ceremony`
-  - `reception`
-  - `artifact`
-  - `other`
+- Decided `item_type` ENUM: **`('song', 'loop', 'clip', 'highlight')`**
+  - `song` — a discrete performed/recorded song (band/musician context)
+  - `loop` — a backing or reference loop track
+  - `clip` — a generic audio/video segment: ceremony, speech, table video, candid footage, etc.
+  - `highlight` — a curated or best-of cut (cross-context: setlist reel, edited wedding highlight)
 
 ### FR4: Media listing must support two views
 The existing listing entrypoint (`/db/database.php`) MUST support two UI views via a parameter:
@@ -82,7 +79,7 @@ Current implementation note:
 - Upload MUST support selecting Event Item type via a dropdown.
 - Defaults:
   - `APP_FLAVOR=gighive` musician/band capture default item type: `song`.
-  - Wedding/videographer capture default item type: `reception`.
+  - Wedding/videographer capture default item type: `clip`.
 
 ### FR6: Upload API behavior
 - `POST /api/uploads` MUST ingest media into the new canonical model.
@@ -104,8 +101,7 @@ Current implementation note:
 - The new canonical Event/Assets schema MUST include:
   - `assets` (unique checksum)
   - `events`
-  - `event_assets` (join)
-  - `event_items` (event-scoped typed items)
+  - `event_items` (event-scoped typed items; also serves as the event↔asset join — no separate `event_assets` table)
 - Relationship tables MUST have unique constraints to prevent duplication.
 - DB bootstrap changes introducing assets/events tables must update:
   - `ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql`
@@ -200,7 +196,7 @@ Current implementation note:
   - Any consumer expecting the legacy response fields (e.g., `session_id` or `seq`) must be updated to use canonical event/asset concepts.
 - **Minimum DB-facing contracts to port (to keep `/api/uploads`, alias, and tusd finalize working)**:
   - Upload must be able to create or resolve an `asset` by `checksum_sha256` (global dedupe).
-  - Upload must be able to create or resolve an `event` (capture flow) and create a link row (`event_assets`) between the event and the asset.
+  - Upload must be able to create or resolve an `event` (capture flow) and create an `event_items` row linking the event and the asset (typed label + join in one row; no separate `event_assets` table).
   - Upload must be able to create at least one `event_item` associated with the event+asset with fields sufficient to support the capture UI (`item_type` + label/title).
   - Upload must persist enough asset fields for downstream tooling and listing:
     - checksum identity (`checksum_sha256`)
@@ -215,13 +211,16 @@ Current implementation note:
 ### PR5: Manifest import cutover
 - **Purpose**: Make manifest import write the new canonical model; prevent basename/global-label collisions.
 - **Likely files**:
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_add.php`
-  - `ansible/roles/docker/files/apache/webroot/import_manifest_reload.php`
-  - `ansible/roles/docker/files/apache/webroot/admin.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_add_async.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_reload_async.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_lib.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/import_manifest_worker.php`
+  - `ansible/roles/docker/files/apache/webroot/src/Services/UnifiedIngestionCore.php`
+  - `ansible/roles/docker/files/apache/webroot/admin/admin.php`
 - **What will break without porting (admin Sections 3A/3B/4/5 + upload tests)**:
   - **Admin Section 3A** (`POST /import_database.php` with `database_csv`) truncates and loads legacy tables (`sessions/songs/files/...`). Under hard cutover, it will fail or populate tables that no longer drive the app.
   - **Admin Section 3B** (`POST /import_normalized.php` with `sessions_csv` + `session_files_csv`) also truncates and loads legacy tables. Same breakage.
-  - **Admin Sections 4/5** (`POST /import_manifest_reload_async.php` / `POST /import_manifest_add_async.php`) currently enqueue a worker whose load pipeline ultimately targets legacy tables. Under hard cutover, these jobs will not produce canonical `assets/events/event_assets/event_items` unless rewritten.
+  - **Admin Sections 4/5** (`POST /import_manifest_reload_async.php` / `POST /import_manifest_add_async.php`) currently enqueue a worker whose load pipeline ultimately targets legacy tables. Under hard cutover, these jobs will not produce canonical `assets/events/event_items` unless rewritten.
   - **Upload tests 3A/3B/4/5** will fail until updated because they currently assert DB invariants by querying `SELECT COUNT(*) FROM sessions` and `SELECT COUNT(*) FROM files`.
   - **Step 2 of tests 4/5** (`tools/upload_media_by_hash.py`) currently queries the legacy `files` table by `checksum_sha256` and updates legacy `files.*` metadata fields. Under hard cutover, it must be ported to query/update the canonical asset storage rows.
 - **Minimum DB-facing contracts to port (so Sections 3A/3B/4/5 survive hard cutover)**:
@@ -239,8 +238,8 @@ Current implementation note:
       - compute/record checksum
       - create/resolve the asset row
       - create/resolve the event row
-      - create the event↔asset link
-      - optionally create event item(s)
+      - create the event↔asset link via an `event_items` row (typed label + join in one row)
+      - `item_type` and `label` are set per item (no separate `event_assets` table)
   - **Binary copy tool contract** (`upload_media_by_hash.py`):
     - It must be able to query “assets that need binaries copied” by `checksum_sha256` and a source path (`source_relpath`) from the canonical schema.
     - After copying, it must be able to write back media-derived metadata (duration + ffprobe JSON + tool name) to the canonical asset row.
