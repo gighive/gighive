@@ -192,6 +192,21 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-readfile($tmpFile);
+// Disable any remaining output buffering / compression so chunks reach the browser incrementally
+@ini_set('zlib.output_compression', 'off');
+while (ob_get_level() > 0) { ob_end_clean(); }
+
+// Stream in 256 KB chunks so the browser ReadableStream sees incremental data
+$handle = @fopen($tmpFile, 'rb');
+if ($handle !== false) {
+    while (!feof($handle) && !connection_aborted()) {
+        $data = fread($handle, 262144);
+        if ($data === false || $data === '') break;
+        echo $data;
+        if (ob_get_level() > 0) ob_flush();
+        flush();
+    }
+    fclose($handle);
+}
 @unlink($tmpFile);
 exit;

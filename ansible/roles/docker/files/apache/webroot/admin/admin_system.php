@@ -637,20 +637,26 @@ function __format_backup_size(int $bytes): string {
 
       const reader = buildResp.body.getReader();
       const chunks = [];
-      let received  = 0;
-      let lastRender = 0;
+      let received        = 0;
+      let rafScheduled    = false;
+
+      function scheduleRender() {
+        if (!rafScheduled) {
+          rafScheduled = true;
+          requestAnimationFrame(() => { rafScheduled = false; render(); });
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value);
         received += value.length;
-        if (contentLength > 0 && Date.now() - lastRender > 80) {
-          lastRender = Date.now();
+        if (contentLength > 0) {
           steps[2] = { name: 'Download', status: 'running',
                        message: fmtBytes(received) + ' / ' + fmtBytes(contentLength),
                        progress: { processed: received, total: contentLength } };
-          render();
+          scheduleRender();
         }
       }
 
