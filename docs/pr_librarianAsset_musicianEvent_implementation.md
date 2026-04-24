@@ -276,7 +276,29 @@ The canonical model must exist in bootstrap SQL so fresh installs and rebuilds p
   to match the PR1 table rename.
 
 ### Verification
-1. Run a fresh DB bootstrap (via Ansible or direct SQL apply) against the updated `create_music_db.sql`.
+
+#### How to trigger a fresh bootstrap on an existing dev/staging install
+
+`docker-entrypoint-initdb.d` scripts only fire on a **fresh container init with an empty data directory** — they do not re-run on a normal redeploy. On an existing install, running `site.yml` syncs the updated SQL/CSV files but does **not** re-bootstrap the DB. The `validate_app` role runs `select.sql` which now queries canonical tables; if the canonical tables do not exist yet, it will error.
+
+**`rebuild_mysql_data: true` is NOT sufficient** — it recreates the container but the MySQL Docker volume persists, so `docker-entrypoint-initdb.d` never fires (MySQL sees an existing data directory and skips init).
+
+**Correct procedure**: run `site.yml` first (so the new SQL/CSV files are synced to the VM), then run `reloadMyDatabase.sh` directly on the VM:
+```bash
+bash ~/gighive/ansible/roles/docker/files/mysql/dbScripts/reloadMyDatabase.sh
+```
+This executes `create_music_db.sql` (which opens with `DROP DATABASE IF EXISTS music_db`) and `load_and_transform.sql` directly against the running container, bypassing the volume init restriction. Then re-run `validate_app` separately:
+```bash
+ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags validate_app
+```
+
+#### Expected known failure during PR1 validation (before PR4)
+
+The `post_build_checks` TUS smoke test (`/api/uploads/finalize`) will fail during PR1 validation. This is **expected and not a PR1 bug**. The PHP upload/finalize code still writes to `sessions`/`files` (legacy tables). With a fresh DB init under the canonical schema, those legacy tables no longer exist, so the finalize path errors. This confirms PR4 is needed. Skip or ignore `post_build_checks` TUS failures until PR4 is complete.
+
+#### Verification steps
+
+1. Run a fresh DB bootstrap via `reloadMyDatabase.sh` (see above) after `site.yml` has synced the files to the VM.
 2. Confirm canonical tables exist:
    ```sql
    SHOW TABLES LIKE 'assets';

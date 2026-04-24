@@ -11,7 +11,7 @@ Scope: Gig2,staging + telemetry
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260423.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260424.log
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260415.log
 # LAB, rebuild 

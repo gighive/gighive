@@ -12,46 +12,34 @@ SELECT '' AS "\n";
 SELECT * FROM styles LIMIT 20;
 SELECT '' AS "\n\n";
 
-SELECT '===== JAM SESSIONS TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in sessions" FROM sessions;
+SELECT '===== EVENTS TABLE =====' AS "";
+SELECT COUNT(*) AS "Total Rows in events" FROM events;
 SELECT '' AS "\n";
-SELECT * FROM sessions LIMIT 20;
+SELECT * FROM events LIMIT 20;
 SELECT '' AS "\n\n";
 
-SELECT '===== SONGS TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in songs" FROM songs;
+SELECT '===== ASSETS TABLE =====' AS "";
+SELECT COUNT(*) AS "Total Rows in assets" FROM assets;
 SELECT '' AS "\n";
-SELECT * FROM songs LIMIT 20;
+SELECT * FROM assets LIMIT 20;
 SELECT '' AS "\n\n";
 
-SELECT '===== FILES TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in files" FROM files;
+SELECT '===== EVENT ITEMS TABLE =====' AS "";
+SELECT COUNT(*) AS "Total Rows in event_items" FROM event_items;
 SELECT '' AS "\n";
-SELECT * FROM files LIMIT 20;
+SELECT * FROM event_items LIMIT 20;
 SELECT '' AS "\n\n";
 
-SELECT '===== JAM SESSION SONGS TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in session_songs" FROM session_songs;
+SELECT '===== PARTICIPANTS TABLE =====' AS "";
+SELECT COUNT(*) AS "Total Rows in participants" FROM participants;
 SELECT '' AS "\n";
-SELECT * FROM session_songs LIMIT 20;
+SELECT * FROM participants LIMIT 20;
 SELECT '' AS "\n\n";
 
-SELECT '===== SONG FILES TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in song_files" FROM song_files;
+SELECT '===== EVENT PARTICIPANTS TABLE =====' AS "";
+SELECT COUNT(*) AS "Total Rows in event_participants" FROM event_participants;
 SELECT '' AS "\n";
-SELECT * FROM song_files LIMIT 20;
-SELECT '' AS "\n\n";
-
-SELECT '===== MUSICIANS TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in musicians" FROM musicians;
-SELECT '' AS "\n";
-SELECT * FROM musicians LIMIT 20;
-SELECT '' AS "\n\n";
-
-SELECT '===== SESSION MUSICIANS TABLE =====' AS "";
-SELECT COUNT(*) AS "Total Rows in session_musicians" FROM session_musicians;
-SELECT '' AS "\n";
-SELECT * FROM session_musicians LIMIT 20;
+SELECT * FROM event_participants LIMIT 20;
 SELECT '' AS "\n\n";
 
 SELECT '===== USERS TABLE =====' AS "";
