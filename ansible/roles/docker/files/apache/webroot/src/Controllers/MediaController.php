@@ -2,13 +2,15 @@
 namespace Production\Api\Controllers;
 
 use GuzzleHttp\Psr7\Response;
-use Production\Api\Repositories\SessionRepository;
+use Production\Api\Repositories\AssetRepository;
+use Production\Api\Repositories\EventRepository;
 use Production\Api\Presentation\ViewRenderer;
 
 final class MediaController
 {
     public function __construct(
-        private SessionRepository $repo,
+        private AssetRepository $assetRepo,
+        private ?EventRepository $eventRepo = null,
         private ?ViewRenderer $view = null
     ) {
         $this->view = $this->view ?? new ViewRenderer();
@@ -272,19 +274,19 @@ final class MediaController
         return sprintf('%02d:%02d:%02d', $h, $m, $sec);
     }
 
-    private static function servedFileName(?string $checksumSha256, string $sourceRelpath, string $fallbackFileName): string
+    private static function servedFileName(?string $checksumSha256, string $sourceRelpath, string $fileExt): string
     {
         $checksumSha256 = $checksumSha256 !== null ? trim($checksumSha256) : '';
-        $ext = strtolower(pathinfo($sourceRelpath, PATHINFO_EXTENSION));
+        $ext = trim($fileExt);
         if ($ext === '') {
-            $ext = strtolower(pathinfo($fallbackFileName, PATHINFO_EXTENSION));
+            $ext = strtolower(pathinfo($sourceRelpath, PATHINFO_EXTENSION));
         }
 
         if ($checksumSha256 !== '' && preg_match('/^[a-f0-9]{64}$/i', $checksumSha256) === 1) {
             return $ext !== '' ? ($checksumSha256 . '.' . $ext) : $checksumSha256;
         }
 
-        return $fallbackFileName;
+        return '';
     }
 
     private static function getFiltersFromRequest(): array
@@ -297,9 +299,8 @@ final class MediaController
             'location',
             'summary',
             'crew',
-            'song_title',
+            'item_label',
             'file_type',
-            'file_name',
             'source_relpath',
             'duration_seconds',
             'media_info',
@@ -319,14 +320,19 @@ final class MediaController
 
     public function list(): Response
     {
-        $filters = self::getFiltersFromRequest();
-        [$filterErrors, $filterWarnings] = $this->repo->validateMediaListFilters($filters);
+        $filters   = self::getFiltersFromRequest();
+        $view      = $this->resolveView();
+        $eventId   = $this->getEventIdFromRequest();
 
         $appFlavor = getenv('APP_FLAVOR');
         $appFlavor = $appFlavor !== false ? trim((string)$appFlavor) : '';
         if ($appFlavor === '') {
             $appFlavor = 'defaultcodebase';
         }
+
+        [$filterErrors, $filterWarnings] = $view === 'librarian'
+            ? $this->assetRepo->validateLibrarianFilters($filters)
+            : $this->eventRepo->validateEventFilters($filters);
 
         $threshold = self::envInt('MEDIA_LIST_PAGINATION_THRESHOLD', 750);
         if (!empty($filterErrors)) {
@@ -335,42 +341,42 @@ final class MediaController
             if ($targetOrg === '') {
                 $targetOrg = isset($_GET['org_name']) ? trim((string)$_GET['org_name']) : '';
             }
-
             if ($targetDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) {
                 $targetDate = '';
             }
-
             $query = $_GET;
             unset($query['page']);
-
             return $this->view->render('media/list.php', [
-                'rows'       => [],
-                'targetDate' => $targetDate !== '' ? $targetDate : null,
-                'targetOrg'  => $targetOrg  !== '' ? $targetOrg  : null,
-                'pagination' => [
-                    'enabled' => false,
-                    'total' => 0,
+                'rows'           => [],
+                'targetDate'     => $targetDate !== '' ? $targetDate : null,
+                'targetOrg'      => $targetOrg  !== '' ? $targetOrg  : null,
+                'pagination'     => [
+                    'enabled'   => false,
+                    'total'     => 0,
                     'threshold' => $threshold,
-                    'page' => 1,
-                    'pageSize' => $threshold,
+                    'page'      => 1,
+                    'pageSize'  => $threshold,
                     'pageCount' => 1,
-                    'start' => 0,
-                    'end' => 0,
+                    'start'     => 0,
+                    'end'       => 0,
                 ],
-                'query' => $query,
-                'appFlavor' => $appFlavor,
-                'searchErrors' => $filterErrors,
+                'query'          => $query,
+                'appFlavor'      => $appFlavor,
+                'view'           => $view,
+                'searchErrors'   => $filterErrors,
                 'searchWarnings' => $filterWarnings,
             ]);
         }
 
-        $totalRows = $this->repo->countMediaListRows($filters);
+        $totalRows = $view === 'librarian'
+            ? $this->assetRepo->countLibrarianRows($filters)
+            : $this->eventRepo->countEventViewRows($eventId, $filters);
 
-        $pageSize = $threshold;
-        $page = self::getPageFromRequest();
-        $pageCount = 1;
+        $pageSize          = $threshold;
+        $page              = self::getPageFromRequest();
+        $pageCount         = 1;
         $paginationEnabled = $totalRows >= $threshold;
-        $offset = 0;
+        $offset            = 0;
 
         if ($paginationEnabled) {
             $pageCount = (int)max(1, (int)ceil($totalRows / $pageSize));
@@ -383,12 +389,18 @@ final class MediaController
 
         if ($paginationEnabled) {
             $offset = ($page - 1) * $pageSize;
-            $rows = $this->repo->fetchMediaListPage($filters, $pageSize, $offset);
+            $rows   = $view === 'librarian'
+                ? $this->assetRepo->fetchLibrarianPage($filters, $pageSize, $offset)
+                : $this->eventRepo->fetchEventViewPage($eventId, $filters, $pageSize, $offset);
         } else {
             if (!empty($filters)) {
-                $rows = $this->repo->fetchMediaListFiltered($filters);
+                $rows = $view === 'librarian'
+                    ? $this->assetRepo->fetchLibrarianFiltered($filters)
+                    : $this->eventRepo->fetchEventViewFiltered($eventId, $filters);
             } else {
-                $rows = $this->repo->fetchMediaList();
+                $rows = $view === 'librarian'
+                    ? $this->assetRepo->fetchLibrarian()
+                    : $this->eventRepo->fetchEventView($eventId);
             }
         }
 
@@ -398,73 +410,72 @@ final class MediaController
             $targetOrg = isset($_GET['org_name']) ? trim((string)$_GET['org_name']) : '';
         }
 
-        // Basic validation: expect YYYY-MM-DD for date; empty strings are treated as nulls
         if ($targetDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) {
             $targetDate = '';
         }
 
-        $counter = $paginationEnabled ? ($offset + 1) : 1;
+        $counter  = $paginationEnabled ? ($offset + 1) : 1;
         $viewRows = [];
         foreach ($rows as $row) {
-            $id        = isset($row['id']) ? (string)$row['id'] : '';
-            $sessionId = isset($row['session_id']) ? (string)$row['session_id'] : '';
-            $songId    = isset($row['song_id']) ? (string)$row['song_id'] : '';
-            $date      = (string)($row['date'] ?? '');
-            $orgName   = (string)($row['org_name'] ?? '');
-            $rating    = (string)($row['rating'] ?? '');
-            $keywords  = (string)($row['keywords'] ?? '');
-            $duration  = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
-            $durationSec = isset($row['duration_seconds']) && $row['duration_seconds'] !== null
+            $id             = (string)($row['id'] ?? '');
+            $eventId_v      = (string)($row['event_id'] ?? '');
+            $eventItemId    = (string)($row['event_item_id'] ?? '');
+            $date           = (string)($row['date'] ?? '');
+            $orgName        = (string)($row['org_name'] ?? '');
+            $rating         = (string)($row['rating'] ?? '');
+            $keywords       = (string)($row['keywords'] ?? '');
+            $duration       = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
+            $durationSec    = isset($row['duration_seconds']) && $row['duration_seconds'] !== null
                 ? (string)$row['duration_seconds']
                 : '';
-            $location  = (string)($row['location'] ?? '');
-            $summary   = (string)($row['summary'] ?? '');
-            $crew      = (string)($row['crew'] ?? '');
-            $songTitle = (string)($row['song_title'] ?? '');
-            $typeRaw   = (string)($row['file_type'] ?? '');
-            $file      = (string)($row['file_name'] ?? '');
-            $sourceRelpath = (string)($row['source_relpath'] ?? '');
+            $location       = (string)($row['location'] ?? '');
+            $summary        = (string)($row['summary'] ?? '');
+            $crew           = (string)($row['crew'] ?? '');
+            $itemLabel      = (string)($row['item_label'] ?? '');
+            $typeRaw        = (string)($row['file_type'] ?? '');
+            $fileExt        = (string)($row['file_ext'] ?? '');
+            $sourceRelpath  = (string)($row['source_relpath'] ?? '');
             $checksumSha256 = isset($row['checksum_sha256']) ? (string)$row['checksum_sha256'] : '';
-            $mediaSummary = self::mediaInfoSummary(isset($row['media_info']) ? (string)$row['media_info'] : null);
+            $mediaSummary   = self::mediaInfoSummary(isset($row['media_info']) ? (string)$row['media_info'] : null);
             $mediaCreatedAt = (string)($row['media_created_at'] ?? '');
 
-            $servedFile = self::servedFileName($checksumSha256 !== '' ? $checksumSha256 : null, $sourceRelpath, $file);
-            $dir = ($typeRaw === 'audio' || $typeRaw === 'video') ? ('/' . $typeRaw) : '';
-            $url = ($dir && $servedFile) ? $dir . '/' . rawurlencode($servedFile) : '';
+            $servedFile = self::servedFileName($checksumSha256 !== '' ? $checksumSha256 : null, $sourceRelpath, $fileExt);
+            $dir        = ($typeRaw === 'audio' || $typeRaw === 'video') ? ('/' . $typeRaw) : '';
+            $url        = ($dir && $servedFile) ? $dir . '/' . rawurlencode($servedFile) : '';
 
             $viewRows[] = [
-                'id'        => $id,
-                'session_id' => $sessionId,
-                'song_id'   => $songId,
-                'idx'       => $counter++,
-                'date'      => $date,
-                'org_name'  => $orgName,
-                'rating'    => $rating,
-                'keywords'  => $keywords,
-                'duration'  => $duration,
-                'durationSec' => $durationSec,
-                'location'  => $location,
-                'summary'   => $summary,
-                'crew'      => $crew,
-                'songTitle' => $songTitle,
-                'type'      => $typeRaw,
-                'url'       => $url,
-                'mediaSummary' => $mediaSummary,
+                'id'             => $id,
+                'event_id'       => $eventId_v,
+                'event_item_id'  => $eventItemId,
+                'idx'            => $counter++,
+                'date'           => $date,
+                'org_name'       => $orgName,
+                'rating'         => $rating,
+                'keywords'       => $keywords,
+                'duration'       => $duration,
+                'durationSec'    => $durationSec,
+                'location'       => $location,
+                'summary'        => $summary,
+                'crew'           => $crew,
+                'itemLabel'      => $itemLabel,
+                'type'           => $typeRaw,
+                'url'            => $url,
+                'mediaSummary'   => $mediaSummary,
                 'mediaCreatedAt' => $mediaCreatedAt,
-                'sourceRelpath' => $sourceRelpath,
+                'sourceRelpath'  => $sourceRelpath,
                 'checksumSha256' => $checksumSha256,
             ];
         }
 
         $start = 0;
-        $end = 0;
+        $end   = 0;
         if ($totalRows > 0) {
             if ($paginationEnabled) {
                 $start = (($page - 1) * $pageSize) + 1;
-                $end = min($totalRows, $page * $pageSize);
+                $end   = min($totalRows, $page * $pageSize);
             } else {
                 $start = 1;
-                $end = $totalRows;
+                $end   = $totalRows;
             }
         }
 
@@ -472,41 +483,68 @@ final class MediaController
         unset($query['page']);
 
         return $this->view->render('media/list.php', [
-            'rows'       => $viewRows,
-            'targetDate' => $targetDate !== '' ? $targetDate : null,
-            'targetOrg'  => $targetOrg  !== '' ? $targetOrg  : null,
-            'pagination' => [
-                'enabled' => $paginationEnabled,
-                'total' => $totalRows,
+            'rows'           => $viewRows,
+            'targetDate'     => $targetDate !== '' ? $targetDate : null,
+            'targetOrg'      => $targetOrg  !== '' ? $targetOrg  : null,
+            'pagination'     => [
+                'enabled'   => $paginationEnabled,
+                'total'     => $totalRows,
                 'threshold' => $threshold,
-                'page' => $page,
-                'pageSize' => $pageSize,
+                'page'      => $page,
+                'pageSize'  => $pageSize,
                 'pageCount' => $pageCount,
-                'start' => $start,
-                'end' => $end,
+                'start'     => $start,
+                'end'       => $end,
             ],
-            'query' => $query,
-            'appFlavor' => $appFlavor,
-            'searchErrors' => $filterErrors,
+            'query'          => $query,
+            'appFlavor'      => $appFlavor,
+            'view'           => $view,
+            'searchErrors'   => $filterErrors,
             'searchWarnings' => $filterWarnings,
         ]);
     }
 
+    private function resolveView(): string
+    {
+        $explicit = isset($_GET['view']) ? strtolower(trim((string)$_GET['view'])) : '';
+        if ($explicit === 'librarian' || $explicit === 'event') {
+            return $explicit;
+        }
+        $flavor = getenv('APP_FLAVOR');
+        $flavor = $flavor !== false ? trim((string)$flavor) : '';
+        return ($flavor === 'gighive') ? 'librarian' : 'event';
+    }
+
+    private function getEventIdFromRequest(): ?int
+    {
+        $raw = isset($_GET['event_id']) ? trim((string)$_GET['event_id']) : '';
+        if ($raw === '' || !ctype_digit($raw)) {
+            return null;
+        }
+        $v = (int)$raw;
+        return $v > 0 ? $v : null;
+    }
+
     /**
-     * Return media list as JSON instead of HTML
+     * Return media list as JSON instead of HTML.
+     * JSON output field names are kept backward-compatible until PR7.
      */
     public function listJson(): Response
     {
         $filters = self::getFiltersFromRequest();
+        $view    = $this->resolveView();
+        $eventId = $this->getEventIdFromRequest();
 
         $threshold = self::envInt('MEDIA_LIST_PAGINATION_THRESHOLD', 750);
-        $totalRows = $this->repo->countMediaListRows($filters);
+        $totalRows = $view === 'librarian'
+            ? $this->assetRepo->countLibrarianRows($filters)
+            : $this->eventRepo->countEventViewRows($eventId, $filters);
 
-        $pageSize = $threshold;
-        $page = self::getPageFromRequest();
-        $pageCount = 1;
+        $pageSize          = $threshold;
+        $page              = self::getPageFromRequest();
+        $pageCount         = 1;
         $paginationEnabled = $totalRows >= $threshold;
-        $offset = 0;
+        $offset            = 0;
 
         if ($paginationEnabled) {
             $pageCount = (int)max(1, (int)ceil($totalRows / $pageSize));
@@ -519,35 +557,41 @@ final class MediaController
 
         if ($paginationEnabled) {
             $offset = ($page - 1) * $pageSize;
-            $rows = $this->repo->fetchMediaListPage($filters, $pageSize, $offset);
+            $rows   = $view === 'librarian'
+                ? $this->assetRepo->fetchLibrarianPage($filters, $pageSize, $offset)
+                : $this->eventRepo->fetchEventViewPage($eventId, $filters, $pageSize, $offset);
         } else {
             if (!empty($filters)) {
-                $rows = $this->repo->fetchMediaListFiltered($filters);
+                $rows = $view === 'librarian'
+                    ? $this->assetRepo->fetchLibrarianFiltered($filters)
+                    : $this->eventRepo->fetchEventViewFiltered($eventId, $filters);
             } else {
-                $rows = $this->repo->fetchMediaList();
+                $rows = $view === 'librarian'
+                    ? $this->assetRepo->fetchLibrarian()
+                    : $this->eventRepo->fetchEventView($eventId);
             }
         }
 
         $counter = $paginationEnabled ? ($offset + 1) : 1;
         $entries = [];
         foreach ($rows as $row) {
-            $id        = isset($row['id']) ? (int)$row['id'] : 0;
-            $date      = (string)($row['date'] ?? '');
-            $orgName   = (string)($row['org_name'] ?? '');
-            $duration  = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
-            $durationSec = isset($row['duration_seconds']) && $row['duration_seconds'] !== null
+            $id             = isset($row['id']) ? (int)$row['id'] : 0;
+            $date           = (string)($row['date'] ?? '');
+            $orgName        = (string)($row['org_name'] ?? '');
+            $duration       = self::secondsToHms(isset($row['duration_seconds']) ? (string)$row['duration_seconds'] : '');
+            $durationSec    = isset($row['duration_seconds']) && $row['duration_seconds'] !== null
                 ? (int)$row['duration_seconds']
                 : 0;
-            $songTitle = (string)($row['song_title'] ?? '');
-            $typeRaw   = (string)($row['file_type'] ?? '');
-            $file      = (string)($row['file_name'] ?? '');
-            $sourceRelpath = (string)($row['source_relpath'] ?? '');
+            $itemLabel      = (string)($row['item_label'] ?? '');
+            $typeRaw        = (string)($row['file_type'] ?? '');
+            $fileExt        = (string)($row['file_ext'] ?? '');
+            $sourceRelpath  = (string)($row['source_relpath'] ?? '');
             $checksumSha256 = isset($row['checksum_sha256']) ? (string)$row['checksum_sha256'] : '';
-            $mediaSummary = self::mediaInfoSummary(isset($row['media_info']) ? (string)$row['media_info'] : null);
+            $mediaSummary   = self::mediaInfoSummary(isset($row['media_info']) ? (string)$row['media_info'] : null);
 
-            $servedFile = self::servedFileName($checksumSha256 !== '' ? $checksumSha256 : null, $sourceRelpath, $file);
-            $dir = ($typeRaw === 'audio' || $typeRaw === 'video') ? ('/' . $typeRaw) : '';
-            $url = ($dir && $servedFile) ? $dir . '/' . rawurlencode($servedFile) : '';
+            $servedFile = self::servedFileName($checksumSha256 !== '' ? $checksumSha256 : null, $sourceRelpath, $fileExt);
+            $dir        = ($typeRaw === 'audio' || $typeRaw === 'video') ? ('/' . $typeRaw) : '';
+            $url        = ($dir && $servedFile) ? $dir . '/' . rawurlencode($servedFile) : '';
 
             $entries[] = [
                 'id'               => $id,
@@ -556,7 +600,7 @@ final class MediaController
                 'org_name'         => $orgName,
                 'duration'         => $duration,
                 'duration_seconds' => $durationSec,
-                'song_title'       => $songTitle,
+                'song_title'       => $itemLabel,
                 'file_type'        => $typeRaw,
                 'file_name'        => $servedFile,
                 'url'              => $url,
@@ -566,27 +610,27 @@ final class MediaController
         }
 
         $start = 0;
-        $end = 0;
+        $end   = 0;
         if ($totalRows > 0) {
             if ($paginationEnabled) {
                 $start = (($page - 1) * $pageSize) + 1;
-                $end = min($totalRows, $page * $pageSize);
+                $end   = min($totalRows, $page * $pageSize);
             } else {
                 $start = 1;
-                $end = $totalRows;
+                $end   = $totalRows;
             }
         }
 
         $body = json_encode([
             'pagination' => [
-                'enabled' => $paginationEnabled,
-                'total' => $totalRows,
+                'enabled'   => $paginationEnabled,
+                'total'     => $totalRows,
                 'threshold' => $threshold,
-                'page' => $page,
-                'pageSize' => $pageSize,
+                'page'      => $page,
+                'pageSize'  => $pageSize,
                 'pageCount' => $pageCount,
-                'start' => $start,
-                'end' => $end,
+                'start'     => $start,
+                'end'       => $end,
             ],
             'entries' => $entries,
         ], JSON_PRETTY_PRINT);

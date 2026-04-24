@@ -3,7 +3,7 @@ namespace Production\Api\Controllers;
 
 use Production\Api\Controllers\RandomController;
 use Production\Api\Infrastructure\Database;
-use Production\Api\Repositories\SessionRepository;
+use Production\Api\Repositories\AssetRepository;
 use GuzzleHttp\Psr7\Response;
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -13,8 +13,8 @@ error_reporting(E_ALL);
 
 try {
     $pdo        = Database::createFromEnv();
-    $repo       = new SessionRepository($pdo);
-    $controller = new RandomController($repo);
+    $assetRepo  = new AssetRepository($pdo);
+    $controller = new RandomController($assetRepo);
     $response   = $controller->playRandom();
 } catch (\Throwable $e) {
     $body = json_encode([

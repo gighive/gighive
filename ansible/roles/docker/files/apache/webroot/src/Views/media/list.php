@@ -217,10 +217,10 @@
           ['key' => 'date', 'label' => 'Date', 'title' => 'Date', 'search' => 'date'],
           ['key' => 'org', 'label' => 'Band or Event', 'title' => 'Band or Event', 'search' => 'org_name'],
           ['key' => 'file_type', 'label' => 'File Type', 'title' => 'File Type', 'search' => 'file_type'],
-          ['key' => 'song_name', 'label' => 'Song Name', 'title' => 'Song Name', 'search' => 'song_title'],
+          ['key' => 'song_name', 'label' => 'Song Name', 'title' => 'Song Name', 'search' => 'item_label'],
           ['key' => 'source_relpath', 'label' => 'File Path', 'title' => 'File Path', 'search' => 'source_relpath'],
           ['key' => 'thumbnail', 'label' => 'Thumbnail', 'title' => 'Thumbnail', 'search' => null, 'h4Style' => 'white-space:nowrap;'],
-          ['key' => 'download', 'label' => 'Download / View', 'title' => 'Download / View', 'search' => 'file_name'],
+          ['key' => 'download', 'label' => 'Download / View', 'title' => 'Download / View', 'search' => null],
           ['key' => 'duration', 'label' => 'Duration', 'title' => 'Duration', 'search' => 'duration_seconds'],
           ['key' => 'media_info', 'label' => 'Media File Info', 'title' => 'Media File Info', 'search' => 'media_info'],
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
@@ -236,9 +236,9 @@
           ['key' => 'location', 'label' => 'Location', 'title' => 'Location', 'search' => 'location'],
           ['key' => 'summary', 'label' => 'Summary', 'title' => 'Summary', 'search' => 'summary'],
           ['key' => 'file_type', 'label' => 'File Type', 'title' => 'File Type', 'search' => 'file_type'],
-          ['key' => 'song_name', 'label' => 'Song Name', 'title' => 'Song Name', 'search' => 'song_title'],
+          ['key' => 'song_name', 'label' => 'Song Name', 'title' => 'Song Name', 'search' => 'item_label'],
           ['key' => 'thumbnail', 'label' => 'Thumbnail', 'title' => 'Thumbnail', 'search' => null, 'h4Style' => 'white-space:nowrap;'],
-          ['key' => 'download', 'label' => 'Download / View', 'title' => 'Download / View', 'search' => 'file_name'],
+          ['key' => 'download', 'label' => 'Download / View', 'title' => 'Download / View', 'search' => null],
           ['key' => 'duration', 'label' => 'Duration', 'title' => 'Duration', 'search' => 'duration_seconds'],
           ['key' => 'media_info', 'label' => 'Media File Info', 'title' => 'Media File Info', 'search' => 'media_info'],
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
@@ -384,8 +384,8 @@
           class="media-row"
           data-date="<?= htmlspecialchars($r['date'] ?? '', ENT_QUOTES) ?>"
           data-org="<?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?>"
-          data-session-id="<?= htmlspecialchars((string)($r['session_id'] ?? ''), ENT_QUOTES) ?>"
-          data-song-id="<?= htmlspecialchars((string)($r['song_id'] ?? ''), ENT_QUOTES) ?>"
+          data-event-id="<?= htmlspecialchars((string)($r['event_id'] ?? ''), ENT_QUOTES) ?>"
+          data-event-item-id="<?= htmlspecialchars((string)($r['event_item_id'] ?? ''), ENT_QUOTES) ?>"
         >
           <?php foreach ($columns as $col): ?>
             <?php $key = (string)$col['key']; ?>
@@ -427,7 +427,7 @@
                     class="media-download-link"
                     data-media-id="<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>"
                     data-file-type="<?= htmlspecialchars((string)($r['type'] ?? ''), ENT_QUOTES) ?>"
-                    data-song-name="<?= htmlspecialchars((string)($r['songTitle'] ?? ''), ENT_QUOTES) ?>"
+                    data-item-label="<?= htmlspecialchars((string)($r['itemLabel'] ?? ''), ENT_QUOTES) ?>"
                     data-org-name="<?= htmlspecialchars((string)($r['org_name'] ?? ''), ENT_QUOTES) ?>"
                     data-date="<?= htmlspecialchars((string)($r['date'] ?? ''), ENT_QUOTES) ?>"
                     data-checksum-sha256="<?= htmlspecialchars((string)($r['checksumSha256'] ?? ''), ENT_QUOTES) ?>"
@@ -453,7 +453,7 @@
                       class="media-download-link"
                       data-media-id="<?= htmlspecialchars((string)($r['id'] ?? ''), ENT_QUOTES) ?>"
                       data-file-type="<?= htmlspecialchars((string)($r['type'] ?? ''), ENT_QUOTES) ?>"
-                      data-song-name="<?= htmlspecialchars((string)($r['songTitle'] ?? ''), ENT_QUOTES) ?>"
+                      data-item-label="<?= htmlspecialchars((string)($r['itemLabel'] ?? ''), ENT_QUOTES) ?>"
                       data-org-name="<?= htmlspecialchars((string)($r['org_name'] ?? ''), ENT_QUOTES) ?>"
                       data-date="<?= htmlspecialchars((string)($r['date'] ?? ''), ENT_QUOTES) ?>"
                       data-checksum-sha256="<?= htmlspecialchars((string)($r['checksumSha256'] ?? ''), ENT_QUOTES) ?>"
@@ -500,7 +500,7 @@
                 } elseif ($key === 'file_type') {
                     $value = (string)($r['type'] ?? '');
                 } elseif ($key === 'song_name') {
-                    $value = (string)($r['songTitle'] ?? '');
+                    $value = (string)($r['itemLabel'] ?? '');
                 } elseif ($key === 'source_relpath') {
                     $value = (string)($r['sourceRelpath'] ?? '');
                 } elseif ($key === 'musicians') {
@@ -523,9 +523,9 @@
                   } elseif ($key === 'summary') {
                       $inputName = 'summary';
                   } elseif ($key === 'song_name') {
-                      $inputName = 'song_title';
+                      $inputName = 'item_label';
                   } elseif ($key === 'musicians') {
-                      $inputName = 'musicians_csv';
+                      $inputName = 'participants_csv';
                   }
                 ?>
                 <td data-col="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
@@ -579,7 +579,7 @@
     const basicUser = <?= json_encode($user) ?>;
     const viewMode = <?= $isGighive ? json_encode('gighive') : json_encode('defaultcodebase') ?>;
     const supportsExtendedSessionMetadata = viewMode === 'defaultcodebase';
-    const supportsMusiciansEdit = viewMode === 'defaultcodebase';
+    const supportsParticipantsEdit = viewMode === 'defaultcodebase';
 
     function debounce(fn, ms){
       let t = null;
@@ -618,13 +618,13 @@
       if(el){ el.textContent = ''; }
     }
 
-    function rowGetSessionId(row){
-      const v = row && row.dataset ? String(row.dataset.sessionId || '') : '';
+    function rowGetEventId(row){
+      const v = row && row.dataset ? String(row.dataset.eventId || '') : '';
       return v;
     }
 
-    function rowGetSongId(row){
-      const v = row && row.dataset ? String(row.dataset.songId || '') : '';
+    function rowGetEventItemId(row){
+      const v = row && row.dataset ? String(row.dataset.eventItemId || '') : '';
       return v;
     }
 
@@ -663,13 +663,13 @@
       });
     }
 
-    function updateAllVisibleRowsForSession(sessionId, fields){
-      if(!sessionId){ return; }
+    function updateAllVisibleRowsForEvent(eventId, fields){
+      if(!eventId){ return; }
       const table = document.getElementById('searchableTable');
       if(!table){ return; }
       const rows = Array.from(table.querySelectorAll('tbody tr.media-row'));
       rows.forEach((r)=>{
-        if(String(r.dataset.sessionId || '') !== String(sessionId)){ return; }
+        if(String(r.dataset.eventId || '') !== String(eventId)){ return; }
         const mappings = [
           ['org', 'org_name'],
         ];
@@ -681,8 +681,8 @@
             ['summary', 'summary']
           );
         }
-        if(supportsMusiciansEdit){
-          mappings.push(['musicians', 'musicians']);
+        if(supportsParticipantsEdit){
+          mappings.push(['musicians', 'participants']);
         }
         mappings.forEach(([col, field])=>{
           if(typeof fields[field] !== 'string'){ return; }
@@ -699,18 +699,18 @@
     }
 
 
-    function updateAllVisibleRowsForSong(songId, songTitle){
-      if(!songId){ return; }
+    function updateAllVisibleRowsForEventItem(eventItemId, itemLabel){
+      if(!eventItemId){ return; }
       const table = document.getElementById('searchableTable');
       if(!table){ return; }
       const rows = Array.from(table.querySelectorAll('tbody tr.media-row'));
       rows.forEach((r)=>{
-        if(String(r.dataset.songId || '') !== String(songId)){ return; }
+        if(String(r.dataset.eventItemId || '') !== String(eventItemId)){ return; }
         const tdSong = r.querySelector('td[data-col="song_name"]');
         const span = tdSong ? tdSong.querySelector('span.edit-cell-text') : null;
         const inp = tdSong ? tdSong.querySelector('input.edit-cell-input') : null;
-        if(span){ span.textContent = songTitle; }
-        if(inp && inp instanceof HTMLInputElement){ inp.value = songTitle; }
+        if(span){ span.textContent = itemLabel; }
+        if(inp && inp instanceof HTMLInputElement){ inp.value = itemLabel; }
       });
     }
 
@@ -725,7 +725,7 @@
         const resp = await fetch('/db/database_edit_musicians_preview.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ musicians_csv: raw }),
+          body: JSON.stringify({ participants_csv: raw }),
           credentials: 'same-origin'
         });
         const data = await resp.json().catch(()=>null);
@@ -785,7 +785,7 @@
             setRowEditMode(row, true);
             setSaveEnabled(true);
 
-            if(supportsMusiciansEdit){
+            if(supportsParticipantsEdit){
               const musInput = row.querySelector('td[data-col="musicians"] input.edit-cell-input');
               if(musInput && musInput instanceof HTMLInputElement){
                 previewMusiciansDebounced(musInput.value);
@@ -798,7 +798,7 @@
           }
         });
 
-        if(supportsMusiciansEdit){
+        if(supportsParticipantsEdit){
           const musInput = row.querySelector('td[data-col="musicians"] input.edit-cell-input');
           if(musInput && musInput instanceof HTMLInputElement){
             musInput.addEventListener('input', function(){
@@ -822,17 +822,17 @@
       if(!isAdmin){ return; }
       const row = getActiveEditRow();
       if(!row){ return; }
-      const sid = rowGetSessionId(row);
-      const gid = rowGetSongId(row);
+      const eid = rowGetEventId(row);
+      const eiid = rowGetEventItemId(row);
       const orgInput = row.querySelector('td[data-col="org"] input.edit-cell-input');
-      const songInput = row.querySelector('td[data-col="song_name"] input.edit-cell-input');
+      const itemInput = row.querySelector('td[data-col="song_name"] input.edit-cell-input');
       const orgName = orgInput && orgInput instanceof HTMLInputElement ? orgInput.value : '';
-      const songTitle = songInput && songInput instanceof HTMLInputElement ? songInput.value : '';
+      const itemLabel = itemInput && itemInput instanceof HTMLInputElement ? itemInput.value : '';
       const payload = {
-        session_id: Number(sid),
-        song_id: Number(gid),
+        event_id: Number(eid),
+        event_item_id: Number(eiid),
         org_name: orgName,
-        song_title: songTitle,
+        item_label: itemLabel,
       };
       if(supportsExtendedSessionMetadata){
         const ratingInput = row.querySelector('td[data-col="rating"] input.edit-cell-input');
@@ -844,9 +844,9 @@
         payload.location = locationInput && locationInput instanceof HTMLInputElement ? locationInput.value : '';
         payload.summary = summaryInput && summaryInput instanceof HTMLInputElement ? summaryInput.value : '';
       }
-      if(supportsMusiciansEdit){
+      if(supportsParticipantsEdit){
         const musInput = row.querySelector('td[data-col="musicians"] input.edit-cell-input');
-        payload.musicians_csv = musInput && musInput instanceof HTMLInputElement ? musInput.value : '';
+        payload.participants_csv = musInput && musInput instanceof HTMLInputElement ? musInput.value : '';
       }
 
       setEditStatus('Saving...');
@@ -870,21 +870,21 @@
         }
 
         const savedOrg = String(data.org_name || '');
-        const savedSong = String(data.song_title || '');
-        const sessionFields = {
+        const savedItemLabel = String(data.item_label || '');
+        const eventFields = {
           org_name: savedOrg,
         };
         if(supportsExtendedSessionMetadata){
-          sessionFields.rating = String(data.rating || '');
-          sessionFields.keywords = String(data.keywords || '');
-          sessionFields.location = String(data.location || '');
-          sessionFields.summary = String(data.summary || '');
+          eventFields.rating = String(data.rating || '');
+          eventFields.keywords = String(data.keywords || '');
+          eventFields.location = String(data.location || '');
+          eventFields.summary = String(data.summary || '');
         }
-        if(supportsMusiciansEdit){
-          sessionFields.musicians = Array.isArray(data.musicians) ? data.musicians.join(', ') : '';
+        if(supportsParticipantsEdit){
+          eventFields.participants = Array.isArray(data.participants) ? data.participants.join(', ') : '';
         }
-        updateAllVisibleRowsForSession(sid, sessionFields);
-        updateAllVisibleRowsForSong(gid, savedSong);
+        updateAllVisibleRowsForEvent(eid, eventFields);
+        updateAllVisibleRowsForEventItem(eiid, savedItemLabel);
 
         const cb = row.querySelector('input.edit-checkbox');
         if(cb && cb instanceof HTMLInputElement){ cb.checked = false; }
@@ -1421,7 +1421,7 @@
         media_id: String(link.dataset.mediaId || ''),
         org_name: String(link.dataset.orgName || ''),
         date: String(link.dataset.date || ''),
-        song_name: String(link.dataset.songName || ''),
+        item_label: String(link.dataset.itemLabel || ''),
         checksum_sha256: String(link.dataset.checksumSha256 || ''),
         source_relpath: String(link.dataset.sourceRelpath || ''),
         download_source: String(link.dataset.downloadSource || ''),

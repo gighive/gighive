@@ -39,7 +39,7 @@ if (!is_array($payload)) {
     $payload = [];
 }
 
-$raw = $payload['musicians_csv'] ?? '';
+$raw = $payload['participants_csv'] ?? '';
 $raw = is_string($raw) ? trim($raw) : '';
 
 $split = static function (string $s): array {
@@ -63,13 +63,13 @@ $names = $split($raw);
 $validateName = static function (string $name): ?string {
     $name = trim($name);
     if ($name === '') {
-        return 'Empty musician name.';
+        return 'Empty participant name.';
     }
     if (mb_strlen($name) > 80) {
-        return 'Musician name too long (max 80 chars).';
+        return 'Participant name too long (max 80 chars).';
     }
     if (preg_match('/[\x00-\x1F\x7F]/', $name)) {
-        return 'Musician name contains control characters.';
+        return 'Participant name contains control characters.';
     }
     return null;
 };
@@ -88,7 +88,7 @@ if ($errors) {
     echo json_encode([
         'success' => false,
         'error' => 'Bad Request',
-        'message' => 'Invalid musician list',
+        'message' => 'Invalid participant list',
         'errors' => $errors,
         'existing' => [],
         'new' => [],
@@ -112,7 +112,7 @@ try {
             $params[$k] = mb_strtolower($n);
         }
 
-        $sql = 'SELECT musician_id, name FROM musicians WHERE LOWER(name) IN (' . implode(',', $placeholders) . ')';
+        $sql = 'SELECT participant_id, name FROM participants WHERE LOWER(name) IN (' . implode(',', $placeholders) . ')';
         $stmt = $pdo->prepare($sql);
         foreach ($params as $k => $v) {
             $stmt->bindValue($k, $v, PDO::PARAM_STR);

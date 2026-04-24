@@ -3,7 +3,8 @@ namespace Production\Api\Controllers;
 
 use Production\Api\Controllers\MediaController;
 use Production\Api\Infrastructure\Database;
-use Production\Api\Repositories\SessionRepository;
+use Production\Api\Repositories\AssetRepository;
+use Production\Api\Repositories\EventRepository;
 use GuzzleHttp\Psr7\Response;
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -13,8 +14,9 @@ error_reporting(E_ALL);
 
 try {
     $pdo        = Database::createFromEnv();
-    $repo       = new SessionRepository($pdo);
-    $controller = new MediaController($repo);
+    $assetRepo  = new AssetRepository($pdo);
+    $eventRepo  = new EventRepository($pdo);
+    $controller = new MediaController($assetRepo, $eventRepo);
 
     // Check if JSON format is requested via query parameter
     $wantsJson = isset($_GET['format']) && $_GET['format'] === 'json';

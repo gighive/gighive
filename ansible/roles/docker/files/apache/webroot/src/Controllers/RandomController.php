@@ -2,13 +2,13 @@
 namespace Production\Api\Controllers;
 
 use GuzzleHttp\Psr7\Response;
-use Production\Api\Repositories\SessionRepository;
+use Production\Api\Repositories\AssetRepository;
 use Production\Api\Presentation\ViewRenderer;
 
 final class RandomController
 {
     public function __construct(
-        private SessionRepository $repo,
+        private AssetRepository $assetRepo,
         private ?ViewRenderer $view = null
     ) {
         $this->view = $this->view ?? new ViewRenderer();
@@ -16,26 +16,28 @@ final class RandomController
 
     public function playRandom(): Response
     {
-        $rows = $this->repo->fetchMediaList();
+        $rows = $this->assetRepo->fetchAll();
 
-        // Normalize rows to compute URL similarly to MediaController
         $playable = [];
         foreach ($rows as $row) {
-            $file      = (string)($row['file_name'] ?? '');
-            $typeRaw   = (string)($row['file_type'] ?? '');
-            $ext       = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-            $dir       = ($ext === 'mp3') ? '/audio' : (($ext === 'mp4') ? '/video' : '');
-            if ($dir === '' && ($typeRaw === 'audio' || $typeRaw === 'video')) {
-                $dir = '/' . $typeRaw;
-            }
-            $url = ($dir && $file) ? $dir . '/' . rawurlencode($file) : '';
+            $checksumSha256 = (string)($row['checksum_sha256'] ?? '');
+            $fileExt        = (string)($row['file_ext'] ?? '');
+            $typeRaw        = (string)($row['file_type'] ?? '');
+            $sourceRelpath  = (string)($row['source_relpath'] ?? '');
+
+            $ext = $fileExt !== '' ? strtolower($fileExt) : strtolower(pathinfo($sourceRelpath, PATHINFO_EXTENSION));
+            $servedFile = ($checksumSha256 !== '' && preg_match('/^[a-f0-9]{64}$/i', $checksumSha256) === 1)
+                ? ($ext !== '' ? $checksumSha256 . '.' . $ext : $checksumSha256)
+                : '';
+            $dir = ($typeRaw === 'audio' || $typeRaw === 'video') ? '/' . $typeRaw : '';
+            $url = ($dir && $servedFile) ? $dir . '/' . rawurlencode($servedFile) : '';
             if ($url !== '') {
                 $playable[] = [
                     'url'       => $url,
-                    'file_name' => $file,
+                    'file_name' => $servedFile,
                     'crew'      => (string)($row['crew'] ?? ''),
                     'date'      => (string)($row['date'] ?? ''),
-                    'type'      => ($ext === 'mp4' ? 'video' : ($ext === 'mp3' ? 'audio' : $typeRaw)),
+                    'type'      => $typeRaw,
                 ];
             }
         }
