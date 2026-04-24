@@ -604,16 +604,27 @@ function __format_backup_size(int $bytes): string {
 
       // ── Step 2: Build archive ──────────────────────────────────────────────
       let buildResp;
+      const buildStart = Date.now();
+      const buildTimer = setInterval(() => {
+        const elapsed = ((Date.now() - buildStart) / 1000).toFixed(1);
+        steps[1] = { name: 'Build archive', status: 'running',
+                     message: 'Zipping ' + count + ' file(s)\u2026 ' + elapsed + 's',
+                     progress: { processed: 0, total: 1 } };
+        render();
+      }, 250);
+
       try {
         buildResp = await fetch('export_media.php', {
           method: 'POST',
           body: new URLSearchParams({ ...baseParams, mode: 'build' })
         });
       } catch (err) {
+        clearInterval(buildTimer);
         steps[1] = { name: 'Build archive', status: 'error', message: 'Network error: ' + err.message };
         render();
         return;
       }
+      clearInterval(buildTimer);
 
       if (!(buildResp.ok && (buildResp.headers.get('Content-Type') || '').startsWith('application/zip'))) {
         const errData = await buildResp.json().catch(() => null);
@@ -623,7 +634,8 @@ function __format_backup_size(int $bytes): string {
         return;
       }
 
-      steps[1] = { name: 'Build archive', status: 'ok', message: 'Archive built', progress: { processed: 1, total: 1 } };
+      const buildElapsed = ((Date.now() - buildStart) / 1000).toFixed(1);
+      steps[1] = { name: 'Build archive', status: 'ok', message: 'Archive built in ' + buildElapsed + 's', progress: { processed: 1, total: 1 } };
 
       // ── Step 3: Download blob with progress ─────────────────────────────
       // Use total_bytes from prepare (sum of source file sizes) as the denominator;
