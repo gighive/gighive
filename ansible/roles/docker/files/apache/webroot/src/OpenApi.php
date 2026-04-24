@@ -81,7 +81,7 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'error', type: 'string', example: 'Duplicate Upload'),
         new OA\Property(property: 'message', type: 'string'),
-        new OA\Property(property: 'existing_file_id', type: 'integer', format: 'int64'),
+        new OA\Property(property: 'existing_asset_id', type: 'integer', format: 'int64'),
         new OA\Property(property: 'checksum_sha256', type: 'string'),
     ]
 )]

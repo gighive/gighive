@@ -1326,6 +1326,25 @@ client developers (including the iPhone app) have an accurate contract to code a
 - `openapi.yaml` — added `POST /db/delete_media_files.php` endpoint with `oneOf` request body (admin: `asset_ids[]`; uploader: `asset_id` + `delete_token`) and response shape with `deleted[].asset_id` / `errors[].asset_id`.
 - `docs/API_CURRENT_STATE.md` — added blockquote at top confirming canonical schema is in effect and listing all dropped legacy tables.
 
+### Follow-on fixes discovered during SDLC testing (2026-04-24)
+
+All callers of `delete_media_files.php` and the delete UI in `database.php` were still sending legacy field names. Fixed across the board:
+
+| File | Change |
+|---|---|
+| `ansible/roles/post_build_checks/tasks/main.yml` | 3 tasks: `file_id`/`file_ids` → `asset_id`/`asset_ids`; stale `file_name is search('tus-validate')` assertion removed; idempotency check updated to `asset_id` |
+| `src/Views/media/list.php` | Delete checkbox value: `$r['id']` → `$r['asset_id']`; JS body: `file_ids` → `asset_ids` |
+| `db/upload_form.php` | JS body: `{ file_ids: [...], file_id: ... }` → `{ asset_id: ... }` |
+| `db/upload_form_admin.php` | Same as above |
+| `src/OpenApi.php` | PHP annotation: `existing_file_id` → `existing_asset_id` (aligns with `openapi.yaml` fix) |
+| `admin/import_manifest_upload_start.php` | DB check for Step 2 completion: `SELECT file_name FROM files` → `SELECT asset_id FROM assets` (canonical table; presence of row = ingestion complete) |
+| `admin/clear_media.php` | Full rewrite: replace legacy `TRUNCATE files/songs/sessions/session_musicians/session_songs/song_files/musicians` with canonical `TRUNCATE event_participants/event_items/assets/events/participants/genres/styles` |
+
+Also added during this session:
+- `admin/admin_system.php` — Section E: Export Media to ZIP (filter by org_name / file type, download preserving original filenames)
+- `admin/export_media.php` — backend: queries `assets → event_items → events`, zips from disk, streams `Content-Disposition: attachment`
+- `admin/import_normalized.php` — canonicalization now populates `participants` and `event_participants` from `musicians`/`session_musicians` temp tables (fixes missing Musicians column in event view after CSV import)
+
 ### Verification
 
 Sync + browse Swagger UI:
@@ -1404,6 +1423,54 @@ Checklist (verified 2026-04-24 via Swagger UI screenshot):
 | `event_items` | event-scoped typed label + event↔asset join; keyed on `(event_id, asset_id)` |
 
 > `genres`, `styles`, and `users` are unaffected and carry over unchanged.
+
+---
+
+## Testing Implementation Through the SDLC
+
+### labvm example — 2026-04-24
+
+**Step 1 — Set nuclear rebuild flag in `ansible/inventories/group_vars/gighive/gighive.yml`:**
+```yaml
+rebuild_mysql_data: true
+```
+
+**Step 2 — Run the full playbook (skipping non-essential tags):**
+```bash
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260424.log
+```
+
+**Step 3 — Reset nuclear flag immediately after:**
+```yaml
+rebuild_mysql_data: false
+```
+
+**Step 4 — Re-import CSV data via admin UI** to populate `participants` / `event_participants`.
+
+**Step 5 — Verify PR6 sidecar:**
+```bash
+ssh ubuntu@labvm.gighive.internal '~/gighive/ansible/roles/docker/files/mysql/dbScripts/dbDump.sh'
+# Output:
+# 2026-04-24T14:36:42-04:00 START: dumping music_db from container mysqlServer to .../music_db_2026-04-24_143642.sql.gz
+# 2026-04-24T14:36:42-04:00 OK: wrote 6296 bytes to .../music_db_2026-04-24_143642.sql.gz
+# 2026-04-24T14:36:42-04:00 INFO: updated latest symlink -> music_db_latest.sql.gz
+# 2026-04-24T14:36:42-04:00 INFO: wrote schema sidecar -> music_db_2026-04-24_143642.schema.json (schema_version=canonical-v1, git_sha=93178b2)
+```
+
+**Step 6 — Verify canonical schema:**
+```bash
+ssh ubuntu@labvm.gighive.internal "docker exec mysqlServer mysql -u root -p<password> music_db -e 'SHOW TABLES;'"
+# Expected tables: assets, event_items, event_participants, events, genres, participants, styles, users
+# (no sessions, songs, files, session_musicians, session_songs, song_files)
+```
+
+**Step 7 — Verify event view with Musicians populated:**
+```
+https://labvm.gighive.internal/db/database.php?view=event
+```
+Confirm Musicians column shows participant names (not blank).
+
+**Result: ✅ PASSED — 2026-04-24**
 
 ---
 

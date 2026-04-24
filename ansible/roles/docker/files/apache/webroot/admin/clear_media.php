@@ -64,29 +64,27 @@ try {
     // Disable foreign key checks temporarily
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
     error_log("clear_media.php: Foreign key checks disabled");
-    
-    // Truncate junction tables first
-    $pdo->exec('TRUNCATE TABLE session_musicians');
-    $pdo->exec('TRUNCATE TABLE session_songs');
-    $pdo->exec('TRUNCATE TABLE song_files');
+
+    // Truncate canonical junction tables first (FK dependents)
+    $pdo->exec('TRUNCATE TABLE event_participants');
+    $pdo->exec('TRUNCATE TABLE event_items');
     error_log("clear_media.php: Junction tables truncated");
-    
-    // Truncate core media tables
-    $pdo->exec('TRUNCATE TABLE files');
-    $pdo->exec('TRUNCATE TABLE songs');
-    $pdo->exec('TRUNCATE TABLE sessions');
+
+    // Truncate canonical core media tables
+    $pdo->exec('TRUNCATE TABLE assets');
+    $pdo->exec('TRUNCATE TABLE events');
+    $pdo->exec('TRUNCATE TABLE participants');
     error_log("clear_media.php: Core media tables truncated");
-    
+
     // Truncate reference tables
-    $pdo->exec('TRUNCATE TABLE musicians');
     $pdo->exec('TRUNCATE TABLE genres');
     $pdo->exec('TRUNCATE TABLE styles');
     error_log("clear_media.php: Reference tables truncated");
-    
+
     // Re-enable foreign key checks
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
     error_log("clear_media.php: Foreign key checks re-enabled - all tables cleared successfully");
-    
+
     $response = [
         'status' => 200,
         'headers' => ['Content-Type' => 'application/json'],
@@ -94,9 +92,9 @@ try {
             'success' => true,
             'message' => 'All media tables cleared successfully. Users table preserved.',
             'tables_cleared' => [
-                'junction' => ['session_musicians', 'session_songs', 'song_files'],
-                'media' => ['files', 'songs', 'sessions'],
-                'reference' => ['musicians', 'genres', 'styles']
+                'junction'   => ['event_participants', 'event_items'],
+                'media'      => ['assets', 'events', 'participants'],
+                'reference'  => ['genres', 'styles'],
             ]
         ]
     ];

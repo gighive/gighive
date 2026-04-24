@@ -391,7 +391,7 @@
             <?php $key = (string)$col['key']; ?>
             <?php if ($key === 'delete'): ?>
               <td data-col="delete">
-                <?php $deleteId = (int)($r['id'] ?? 0); ?>
+                <?php $deleteId = (int)($r['asset_id'] ?? $r['id'] ?? 0); ?>
                 <input
                   class="delete-checkbox"
                   type="checkbox"
@@ -1341,7 +1341,7 @@
         const resp = await fetch('/db/delete_media_files.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file_ids: ids })
+          body: JSON.stringify({ asset_ids: ids })
         });
         const data = await resp.json().catch(() => null);
         if(status){

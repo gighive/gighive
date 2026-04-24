@@ -169,7 +169,7 @@
               const resp = await fetch('/db/delete_media_files.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ file_ids: [Number(fileId)], file_id: Number(fileId), delete_token: token }),
+                body: JSON.stringify({ asset_id: Number(fileId), delete_token: token }),
                 credentials: 'same-origin'
               });
               const text = await resp.text();

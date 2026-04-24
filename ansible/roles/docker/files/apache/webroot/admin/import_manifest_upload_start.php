@@ -168,15 +168,11 @@ try {
             $thumbState = is_file($thumbPath) ? 'done' : 'pending';
         }
 
-        // DB check: Step 2 completion sets file_name to {checksum}.{ext}.
-        // If file_name still holds the original manifest name, Step 2 has not run yet.
+        // DB check: asset row exists iff ingestion (Step 2) has completed for this checksum.
         $dbDone = false;
-        $stmt   = $pdo->prepare('SELECT file_name FROM files WHERE checksum_sha256 = :cs LIMIT 1');
+        $stmt   = $pdo->prepare('SELECT asset_id FROM assets WHERE checksum_sha256 = :cs LIMIT 1');
         $stmt->execute([':cs' => $checksum]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row && isset($row['file_name'])) {
-            $dbDone = ((string)$row['file_name'] === $storedName);
-        }
+        $dbDone = ($stmt->fetch(PDO::FETCH_ASSOC) !== false);
 
         $mediaState = $mediaPresent ? 'done' : 'pending';
         $dbState    = $dbDone ? 'done' : 'pending';

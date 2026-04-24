@@ -109,7 +109,7 @@ function __format_backup_size(int $bytes): string {
       <div class="section-divider">
         <h2>Section A: Clear Database</h2>
         <p class="muted">
-          Remove all content (sessions, songs, files, musicians) from the database.
+          Remove all content (events, assets, event items, participants) from the database.
           This action is <strong>irreversible</strong> and will clear all media tables.
         </p>
         <div class="warning-box">
@@ -192,6 +192,29 @@ function __format_backup_size(int $bytes): string {
         <button type="button" id="writeResizeRequestBtn" class="danger" onclick="confirmWriteResizeRequest()">Write Resize Request</button>
       </div>
       <?php endif; ?>
+
+      <div class="section-divider">
+        <h2>Section E: Export Media to ZIP</h2>
+        <p class="muted">
+          Download a ZIP of media files currently on disk, filtered by band/event name and/or file type.
+          Use this to preserve custom files (e.g. tutorial videos) before a database reset, then
+          re-import via <a href="/admin/admin_database_load_import_media_from_folder.php" style="color:#60a5fa">Import Media (folder)</a> after rebuilding.
+        </p>
+        <div class="row">
+          <label for="export_org_name">Band / Event filter <span class="muted">(leave blank to export all media)</span></label>
+          <input type="text" id="export_org_name" name="org_name" placeholder="e.g. tutorial" />
+        </div>
+        <div class="row">
+          <label for="export_file_type">File type</label>
+          <select id="export_file_type" name="file_type">
+            <option value="all">All (audio + video)</option>
+            <option value="audio">Audio only</option>
+            <option value="video">Video only</option>
+          </select>
+        </div>
+        <div id="exportMediaStatus"></div>
+        <button type="button" id="exportMediaBtn" onclick="doExportMedia()">Download ZIP</button>
+      </div>
     </div>
   </div>
 
@@ -270,7 +293,7 @@ function __format_backup_size(int $bytes): string {
   }
 
   function confirmClearMedia() {
-    if (!confirm('Are you sure you want to clear ALL media data?\n\nThis will permanently delete:\n- All sessions\n- All songs\n- All files\n- All musicians\n- All genres and styles\n\nThis action CANNOT be undone!')) {
+    if (!confirm('Are you sure you want to clear ALL media data?\n\nThis will permanently delete:\n- All events\n- All assets\n- All event items\n- All participants\n- All genres and styles\n\nThis action CANNOT be undone!')) {
       return;
     }
 
@@ -514,6 +537,47 @@ function __format_backup_size(int $bytes): string {
 
   function renderOkBannerWithDbLink(message, linkLabel) {
     return '<div class="alert-ok">' + String(message) + renderDbLinkButton(linkLabel) + '</div>';
+  }
+
+  function doExportMedia() {
+    const orgName  = (document.getElementById('export_org_name').value  || '').trim();
+    const fileType = (document.getElementById('export_file_type').value || 'all');
+    const btn      = document.getElementById('exportMediaBtn');
+    const status   = document.getElementById('exportMediaStatus');
+
+    btn.disabled = true;
+    btn.textContent = 'Building ZIP…';
+    status.innerHTML = '<div class="muted">Querying files and building archive…</div>';
+
+    const params = new URLSearchParams({ org_name: orgName, file_type: fileType });
+
+    fetch('export_media.php', { method: 'POST', body: params })
+      .then(async response => {
+        if (response.ok && response.headers.get('Content-Type') === 'application/zip') {
+          const blob = await response.blob();
+          const cd   = response.headers.get('Content-Disposition') || '';
+          const match = cd.match(/filename="([^"]+)"/);
+          const fname = match ? match[1] : 'gighive_export.zip';
+          const url   = URL.createObjectURL(blob);
+          const a     = document.createElement('a');
+          a.href = url; a.download = fname;
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          status.innerHTML = '<div class="alert-ok">Downloaded <strong>' + fname.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</strong></div>';
+        } else {
+          const data = await response.json().catch(() => null);
+          const msg  = (data && (data.error || data.message)) ? (data.error || data.message) : 'No files found or server error (HTTP ' + response.status + ')';
+          status.innerHTML = '<div class="alert-err">Export failed: ' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+        }
+      })
+      .catch(err => {
+        status.innerHTML = '<div class="alert-err">Network error: ' + err.message + '</div>';
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Download ZIP';
+      });
   }
   </script>
 </body>
