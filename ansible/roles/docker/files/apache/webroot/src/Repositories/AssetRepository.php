@@ -215,4 +215,101 @@ SQL;
     {
         return $this->fetchLibrarian();
     }
+
+    public function create(array $data): int
+    {
+        $sql = 'INSERT INTO assets'
+             . ' (checksum_sha256, file_ext, file_type, source_relpath, size_bytes,'
+             . '  duration_seconds, media_info, media_info_tool, mime_type, media_created_at)'
+             . ' VALUES'
+             . ' (:checksum_sha256, :file_ext, :file_type, :source_relpath, :size_bytes,'
+             . '  :duration_seconds, :media_info, :media_info_tool, :mime_type, :media_created_at)';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':checksum_sha256'  => $data['checksum_sha256'] ?? '',
+            ':file_ext'         => $data['file_ext'] ?? '',
+            ':file_type'        => $data['file_type'] ?? '',
+            ':source_relpath'   => $data['source_relpath'] ?? null,
+            ':size_bytes'       => isset($data['size_bytes']) ? (int)$data['size_bytes'] : null,
+            ':duration_seconds' => isset($data['duration_seconds']) ? (int)$data['duration_seconds'] : null,
+            ':media_info'       => $data['media_info'] ?? null,
+            ':media_info_tool'  => $data['media_info_tool'] ?? null,
+            ':mime_type'        => $data['mime_type'] ?? null,
+            ':media_created_at' => $data['media_created_at'] ?? null,
+        ]);
+        return (int)$this->pdo->lastInsertId();
+    }
+
+    public function findById(int $id): ?array
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM assets WHERE asset_id = :id');
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function findByChecksum(string $sha256): ?array
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM assets WHERE checksum_sha256 = :c LIMIT 1');
+        $stmt->execute([':c' => $sha256]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function getDeleteTokenHashById(int $assetId): ?string
+    {
+        $stmt = $this->pdo->prepare('SELECT delete_token_hash FROM assets WHERE asset_id = :id');
+        $stmt->execute([':id' => $assetId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        $v = $row['delete_token_hash'] ?? null;
+        if ($v === null) {
+            return null;
+        }
+        $s = trim((string)$v);
+        return $s !== '' ? $s : null;
+    }
+
+    public function setDeleteTokenHashIfNull(int $assetId, string $hash): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE assets SET delete_token_hash = :h WHERE asset_id = :id AND delete_token_hash IS NULL'
+        );
+        $stmt->execute([':h' => $hash, ':id' => $assetId]);
+        return $stmt->rowCount() === 1;
+    }
+
+    public function updateProbeMetadata(
+        int $assetId,
+        string $fileExt,
+        int $sizeBytes,
+        ?string $mimeType,
+        ?int $durationSeconds,
+        ?string $mediaInfo,
+        ?string $mediaInfoTool,
+        ?string $mediaCreatedAt = null
+    ): void {
+        $sql = 'UPDATE assets SET'
+             . '  file_ext         = :file_ext,'
+             . '  size_bytes       = :size_bytes,'
+             . '  mime_type        = :mime_type,'
+             . '  duration_seconds = :duration_seconds,'
+             . '  media_info       = :media_info,'
+             . '  media_info_tool  = :media_info_tool,'
+             . '  media_created_at = :media_created_at'
+             . ' WHERE asset_id = :asset_id';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':file_ext'         => $fileExt,
+            ':size_bytes'       => $sizeBytes,
+            ':mime_type'        => $mimeType,
+            ':duration_seconds' => $durationSeconds,
+            ':media_info'       => $mediaInfo,
+            ':media_info_tool'  => $mediaInfoTool,
+            ':media_created_at' => $mediaCreatedAt,
+            ':asset_id'         => $assetId,
+        ]);
+    }
 }

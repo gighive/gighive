@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
-use Production\Api\Repositories\FileRepository;
+use Production\Api\Repositories\AssetRepository;
 use PDO;
 
 $user = $_SERVER['PHP_AUTH_USER']
@@ -44,19 +44,19 @@ if (!is_array($payload)) {
 $deleteToken = null;
 
 if ($user === 'admin') {
-    if (!isset($payload['file_ids']) || !is_array($payload['file_ids'])) {
+    if (!isset($payload['asset_ids']) || !is_array($payload['asset_ids'])) {
         http_response_code(400);
         header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
             'error' => 'Bad Request',
-            'message' => 'Expected JSON body with file_ids array',
+            'message' => 'Expected JSON body with asset_ids array',
         ]);
         exit;
     }
 
-    $fileIds = [];
-    foreach ($payload['file_ids'] as $v) {
+    $assetIds = [];
+    foreach ($payload['asset_ids'] as $v) {
         if (is_int($v)) {
             $n = $v;
         } elseif (is_string($v) && ctype_digit($v)) {
@@ -65,16 +65,16 @@ if ($user === 'admin') {
             continue;
         }
         if ($n > 0) {
-            $fileIds[$n] = true;
+            $assetIds[$n] = true;
         }
     }
-    $fileIds = array_keys($fileIds);
+    $assetIds = array_keys($assetIds);
 } else {
-    $fileId = $payload['file_id'] ?? null;
-    if (is_int($fileId)) {
-        $n = $fileId;
-    } elseif (is_string($fileId) && ctype_digit($fileId)) {
-        $n = (int)$fileId;
+    $assetId = $payload['asset_id'] ?? null;
+    if (is_int($assetId)) {
+        $n = $assetId;
+    } elseif (is_string($assetId) && ctype_digit($assetId)) {
+        $n = (int)$assetId;
     } else {
         $n = 0;
     }
@@ -87,21 +87,21 @@ if ($user === 'admin') {
         echo json_encode([
             'success' => false,
             'error' => 'Bad Request',
-            'message' => 'Expected JSON body with file_id and delete_token',
+            'message' => 'Expected JSON body with asset_id and delete_token',
         ]);
         exit;
     }
 
-    $fileIds = [$n];
+    $assetIds = [$n];
 }
 
-if (!$fileIds) {
+if (!$assetIds) {
     http_response_code(400);
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
         'error' => 'Bad Request',
-        'message' => 'No valid file_ids provided',
+        'message' => 'No valid asset_ids provided',
     ]);
     exit;
 }
@@ -112,26 +112,6 @@ $shaOk = static function (?string $sha): bool {
     }
     $sha = trim($sha);
     return $sha !== '' && preg_match('/^[a-f0-9]{64}$/i', $sha) === 1;
-};
-
-$extFromPath = static function (?string $path): string {
-    if ($path === null) {
-        return '';
-    }
-    $path = trim($path);
-    if ($path === '') {
-        return '';
-    }
-    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    return $ext !== '' ? $ext : '';
-};
-
-$servedName = static function (string $sha, ?string $sourceRelpath, ?string $fallbackFileName) use ($extFromPath): string {
-    $ext = $extFromPath($sourceRelpath);
-    if ($ext === '') {
-        $ext = $extFromPath($fallbackFileName);
-    }
-    return $ext !== '' ? ($sha . '.' . $ext) : $sha;
 };
 
 $root = '/var/www/html';
@@ -150,11 +130,11 @@ $results = [
 try {
     $pdo = Database::createFromEnv();
 
-    $filesRepo = new FileRepository($pdo);
+    $assetsRepo = new AssetRepository($pdo);
 
     if ($user === 'uploader') {
-        $fileIdToDelete = (int)$fileIds[0];
-        $storedHash = $filesRepo->getDeleteTokenHashById($fileIdToDelete);
+        $assetIdToDelete = (int)$assetIds[0];
+        $storedHash = $assetsRepo->getDeleteTokenHashById($assetIdToDelete);
         $providedHash = hash('sha256', (string)$deleteToken);
 
         if (!is_string($storedHash) || $storedHash === '' || !hash_equals($storedHash, $providedHash)) {
@@ -169,57 +149,59 @@ try {
         }
     }
 
-    $select = $pdo->prepare('SELECT file_id, file_type, file_name, source_relpath, checksum_sha256 FROM files WHERE file_id = :id');
-    $delete = $pdo->prepare('DELETE FROM files WHERE file_id = :id');
+    $select      = $pdo->prepare('SELECT asset_id, file_type, file_ext, checksum_sha256 FROM assets WHERE asset_id = :id');
+    $deleteItems = $pdo->prepare('DELETE FROM event_items WHERE asset_id = :id');
+    $deleteAsset = $pdo->prepare('DELETE FROM assets WHERE asset_id = :id');
 
-    foreach ($fileIds as $id) {
+    foreach ($assetIds as $id) {
         $select->execute([':id' => $id]);
         $row = $select->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
-            $results['errors'][] = ['file_id' => $id, 'error' => 'Not found'];
+            $results['errors'][] = ['asset_id' => $id, 'error' => 'Not found'];
             continue;
         }
 
         $type = isset($row['file_type']) ? (string)$row['file_type'] : '';
-        $sha = isset($row['checksum_sha256']) ? (string)$row['checksum_sha256'] : '';
-        $sourceRelpath = isset($row['source_relpath']) ? (string)$row['source_relpath'] : '';
-        $fileName = isset($row['file_name']) ? (string)$row['file_name'] : '';
+        $sha  = isset($row['checksum_sha256']) ? (string)$row['checksum_sha256'] : '';
+        $ext  = isset($row['file_ext']) ? strtolower(trim((string)$row['file_ext'])) : '';
 
-        if (!$shaOk($sha)) {
-            $results['errors'][] = ['file_id' => $id, 'error' => 'Missing/invalid checksum_sha256 (checksum-only delete)'];
+        $sha = trim($sha);
+        if ($sha === '' || preg_match('/^[a-f0-9]{64}$/i', $sha) !== 1) {
+            $results['errors'][] = ['asset_id' => $id, 'error' => 'Missing/invalid checksum_sha256'];
             continue;
         }
 
         if ($type !== 'audio' && $type !== 'video') {
-            $results['errors'][] = ['file_id' => $id, 'error' => 'Unknown file_type'];
+            $results['errors'][] = ['asset_id' => $id, 'error' => 'Unknown file_type'];
             continue;
         }
 
-        $served = $servedName($sha, $sourceRelpath !== '' ? $sourceRelpath : null, $fileName !== '' ? $fileName : null);
+        $served    = $ext !== '' ? ($sha . '.' . $ext) : $sha;
         $mediaPath = ($type === 'audio') ? ($audioDir . '/' . $served) : ($videoDir . '/' . $served);
         $thumbPath = $thumbDir . '/' . $sha . '.png';
 
         if (is_file($mediaPath)) {
             if (!@unlink($mediaPath)) {
-                $results['errors'][] = ['file_id' => $id, 'error' => 'Failed to delete media file on disk'];
+                $results['errors'][] = ['asset_id' => $id, 'error' => 'Failed to delete media file on disk'];
                 continue;
             }
         }
 
         if ($type === 'video' && is_file($thumbPath)) {
             if (!@unlink($thumbPath)) {
-                $results['errors'][] = ['file_id' => $id, 'error' => 'Failed to delete thumbnail on disk'];
+                $results['errors'][] = ['asset_id' => $id, 'error' => 'Failed to delete thumbnail on disk'];
                 continue;
             }
         }
 
-        $delete->execute([':id' => $id]);
-        if ($delete->rowCount() < 1) {
-            $results['errors'][] = ['file_id' => $id, 'error' => 'Database delete did not remove any rows'];
+        $deleteItems->execute([':id' => $id]);
+        $deleteAsset->execute([':id' => $id]);
+        if ($deleteAsset->rowCount() < 1) {
+            $results['errors'][] = ['asset_id' => $id, 'error' => 'Database delete did not remove any rows'];
             continue;
         }
 
-        $results['deleted'][] = ['file_id' => $id];
+        $results['deleted'][] = ['asset_id' => $id];
     }
 
     $ok = count($results['errors']) === 0;

@@ -746,6 +746,181 @@ Uploads are a primary ingest path. They must write canonical tables and enforce 
 5. Confirm `upload_form.php` manual uploader page loads and submits successfully.
 6. UI check: browse `/db/database.php` after upload — confirm the new asset appears in the listing with correct event context.
 
+#### Implementation status — files changed
+
+- `src/Exceptions/DuplicateChecksumException.php` — `file_id` → `asset_id` throughout.
+- `src/Repositories/AssetRepository.php` — added 6 write methods: `create`, `findById`, `findByChecksum`, `getDeleteTokenHashById`, `setDeleteTokenHashIfNull`, `updateProbeMetadata`.
+- `src/Repositories/EventRepository.php` — added `ensureEvent()` (find-or-create by `event_date + org_name`).
+- `src/Repositories/EventItemRepository.php` — **new file**: `findLink`, `nextPosition`, `ensureEventItem`.
+- `src/Services/UploadService.php` — constructor drops `FileRepository`; adds `AssetRepository`, `EventRepository`, `EventItemRepository`; `handleUpload()` rewritten to write `events/assets/event_items`; cross-event reuse path added; `attachParticipants()` ported to `participants/event_participants`; `isDuplicateChecksumException()` updated for `assets_uq_checksum`; `finalizeManifestTusUpload()` wraps legacy `FileRepository` locally (TODO PR5).
+- `src/Controllers/UploadController.php` — `FileRepository` → `AssetRepository`; `duplicateChecksumResponse()` uses `getExistingAssetId()`; `get()` returns canonical `asset_id` fields.
+- `db/delete_media_files.php` — ported to `assets` table; `file_ids`/`file_id` → `asset_ids`/`asset_id` in request/response; `event_items` rows deleted before asset row.
+- `ansible/roles/upload_tests/tasks/query_db_counts.yml` — queries `events` and `assets` (was `sessions` and `files`); renamed fact vars to `*_events_count` / `*_assets_count`.
+- `ansible/roles/upload_tests/tasks/test_6.yml` — assertions updated to `asset_id`, `event_id`, `event_item_id`; DB count assertions updated.
+- `ansible/roles/upload_tests/tasks/test_7.yml` — same as test_6.
+
+#### Copy-pastable verification commands
+
+**Ansible upload tests (test_6 + test_7):**
+```bash
+ansible-playbook ansible/playbooks/site.yml \
+  -i ansible/inventories/inventory_gighive.yml \
+  --tags upload_tests \
+  -e "upload_tests_variants=['test_6','test_7']"
+```
+
+**Manual POST /api/uploads — canonical field check:**
+```bash
+docker exec apacheWebServer curl -sk -u admin:secretadmin \
+  -F "file=@/tmp/test.mp3" \
+  -F "event_date=2026-04-24" \
+  -F "org_name=TestBand" \
+  -F "event_type=band" \
+  -F "label=Test Song" \
+  https://localhost/api/uploads \
+| python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert 'asset_id'      in d, f'FAIL: missing asset_id — {list(d.keys())}'
+assert 'event_id'      in d, f'FAIL: missing event_id — {list(d.keys())}'
+assert 'event_item_id' in d, f'FAIL: missing event_item_id — {list(d.keys())}'
+assert 'session_id'    not in d, 'FAIL: session_id still present'
+assert 'seq'           not in d, 'FAIL: seq still present'
+print('PASS: upload response field assertions')
+print(f'  asset_id={d[\"asset_id\"]}  event_id={d[\"event_id\"]}  event_item_id={d[\"event_item_id\"]}')
+"
+```
+
+**DB count checks (pre/post upload):**
+```sql
+-- Run before and after a test upload to confirm counts increment correctly.
+docker exec mysqlServer mysql -u root -pmusiclibrary music_db -e "
+SELECT 'assets count'      AS check_name, COUNT(*) AS result FROM assets
+UNION ALL
+SELECT 'events count',       COUNT(*) FROM events
+UNION ALL
+SELECT 'event_items count',  COUNT(*) FROM event_items;"
+```
+
+**Duplicate upload test (same file, same event → HTTP 409; assets count unchanged):**
+```bash
+# Upload same file twice — second should return 409
+docker exec apacheWebServer curl -sk -u admin:secretadmin \
+  -F "file=@/tmp/test.mp3" \
+  -F "event_date=2026-04-24" \
+  -F "org_name=TestBand" \
+  -F "event_type=band" \
+  -F "label=Test Song" \
+  -o /dev/null -w "%{http_code}\n" \
+  https://localhost/api/uploads
+# Expected: 409
+```
+
+**Cross-event reuse test (same file, different event → 201; assets count unchanged, event_items +1):**
+```bash
+docker exec apacheWebServer curl -sk -u admin:secretadmin \
+  -F "file=@/tmp/test.mp3" \
+  -F "event_date=2026-04-25" \
+  -F "org_name=TestBand" \
+  -F "event_type=band" \
+  -F "label=Test Song Reprise" \
+  https://localhost/api/uploads \
+| python3 -c "
+import json, sys; d = json.load(sys.stdin)
+assert d.get('asset_id'), f'FAIL: {d}'
+print(f'PASS: cross-event reuse — asset_id={d[\"asset_id\"]}  event_item_id={d[\"event_item_id\"]}')
+"
+```
+
+#### Executed test run — gighive2 VM, April 24 2026
+
+All commands run as `ubuntu@gighive2`. Apache container: `apacheWebServer`. DB container: `mysqlServer`.
+
+**Step 1 — Deploy + validate_app (passed):**
+```bash
+script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,post_build_checks,validate_app --skip-tags tus" ansible-playbook-gighive2-20260424b.log
+```
+
+**Step 2 — Ansible upload tests test_6 + test_7 (passed):**
+```bash
+ansible-playbook ansible/playbooks/site.yml \
+  -i ansible/inventories/inventory_gighive.yml \
+  --tags set_targets,upload_tests \
+  -e "upload_tests_variants=['test_6','test_7']"
+# gighive_vm : ok=18  changed=1  unreachable=0  failed=0  skipped=8  rescued=0  ignored=0
+```
+
+**Step 3 — Prep test fixture + POST /api/uploads canonical field check (passed):**
+```bash
+docker cp ~/gighive/ansible/fixtures/audio apacheWebServer:/tmp/test.mp3
+
+docker exec apacheWebServer curl -sk -u admin:secretadmin \
+  -F "file=@/tmp/test.mp3" \
+  -F "event_date=2026-04-24" \
+  -F "org_name=TestBand" \
+  -F "event_type=band" \
+  -F "label=Test Song" \
+  https://localhost/api/uploads \
+| python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert 'asset_id'      in d, f'FAIL: missing asset_id — {list(d.keys())}'
+assert 'event_id'      in d, f'FAIL: missing event_id — {list(d.keys())}'
+assert 'event_item_id' in d, f'FAIL: missing event_item_id — {list(d.keys())}'
+assert 'session_id'    not in d, 'FAIL: session_id still present'
+assert 'seq'           not in d, 'FAIL: seq still present'
+print('PASS')
+print(f'  asset_id={d[\"asset_id\"]}  event_id={d[\"event_id\"]}  event_item_id={d[\"event_item_id\"]}')
+"
+# PASS
+#   asset_id=17  event_id=4  event_item_id=17
+```
+
+**Step 4 — DB count sanity (passed):**
+```bash
+docker exec mysqlServer mysql -u root -pmusiclibrary music_db -e "
+SELECT 'assets count'     AS c, COUNT(*) FROM assets
+UNION ALL SELECT 'events count',      COUNT(*) FROM events
+UNION ALL SELECT 'event_items count', COUNT(*) FROM event_items;"
+# c                  COUNT(*)
+# assets count       17
+# events count       4
+# event_items count  17
+```
+
+**Step 5 — Duplicate upload same file + same event → 409 (passed):**
+```bash
+docker exec apacheWebServer curl -sk -u admin:secretadmin \
+  -F "file=@/tmp/test.mp3" \
+  -F "event_date=2026-04-24" \
+  -F "org_name=TestBand" \
+  -F "event_type=band" \
+  -F "label=Test Song" \
+  -o /dev/null -w "%{http_code}\n" \
+  https://localhost/api/uploads
+# 409
+```
+
+**Step 6 — Cross-event reuse same file + different event → 201, asset_id unchanged, new event_item_id (passed):**
+```bash
+docker exec apacheWebServer curl -sk -u admin:secretadmin \
+  -F "file=@/tmp/test.mp3" \
+  -F "event_date=2026-04-25" \
+  -F "org_name=TestBand" \
+  -F "event_type=band" \
+  -F "label=Reprise" \
+  https://localhost/api/uploads \
+| python3 -c "
+import json, sys; d = json.load(sys.stdin)
+assert d.get('asset_id'), f'FAIL: {d}'
+print(f'PASS: asset_id={d[\"asset_id\"]}  event_item_id={d[\"event_item_id\"]}')
+"
+# PASS: asset_id=17  event_item_id=18
+# Note: asset_id=17 reused (no new disk write); event_item_id=18 is the new event↔asset link
+```
+
+**PR4 overall result: PASS**
+
 ---
 
 ## PR5: Manifest import cutover (admin Sections 4/5) + port CSV imports (admin Sections 3A/3B)

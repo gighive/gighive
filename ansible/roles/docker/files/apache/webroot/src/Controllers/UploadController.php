@@ -5,17 +5,17 @@ use OpenApi\Attributes as OA;
 use PDO;
 use Production\Api\Exceptions\DuplicateChecksumException;
 use Production\Api\Services\UploadService;
-use Production\Api\Repositories\FileRepository;
+use Production\Api\Repositories\AssetRepository;
 
 final class UploadController
 {
     private UploadService $service;
-    private FileRepository $files;
+    private AssetRepository $assets;
 
     public function __construct(private PDO $pdo)
     {
         $this->service = new UploadService($pdo);
-        $this->files   = new FileRepository($pdo);
+        $this->assets  = new AssetRepository($pdo);
     }
 
     private function duplicateChecksumResponse(DuplicateChecksumException $e): array
@@ -26,7 +26,7 @@ final class UploadController
             'body'    => [
                 'error' => 'Duplicate Upload',
                 'message' => 'A file with the same checksum_sha256 already exists on the server. Upload rejected to prevent duplicates.',
-                'existing_file_id' => $e->getExistingFileId(),
+                'existing_asset_id' => $e->getExistingAssetId(),
                 'checksum_sha256' => $e->getChecksumSha256(),
             ],
         ];
@@ -143,7 +143,7 @@ final class UploadController
     )]
     public function get(int $id): array
     {
-        $row = $this->files->findById($id);
+        $row = $this->assets->findById($id);
         if (!$row) {
             return [
                 'status'  => 404,
@@ -151,20 +151,23 @@ final class UploadController
                 'body'    => ['error' => 'Not Found'],
             ];
         }
-        // Normalize payload keys to match OpenAPI File schema
+        $ext = (string)($row['file_ext'] ?? '');
+        $checksum = (string)($row['checksum_sha256'] ?? '');
+        $fileName = ($checksum !== '' && $ext !== '') ? ($checksum . '.' . $ext) : $checksum;
         return [
             'status'  => 200,
             'headers' => ['Content-Type' => 'application/json'],
             'body'    => [
-                'id'               => (int)($row['file_id'] ?? 0),
-                'file_name'        => (string)($row['file_name'] ?? ''),
+                'id'               => (int)($row['asset_id'] ?? 0),
+                'asset_id'         => (int)($row['asset_id'] ?? 0),
+                'file_name'        => $fileName,
+                'file_ext'         => $ext,
                 'file_type'        => (string)($row['file_type'] ?? ''),
                 'mime_type'        => (string)($row['mime_type'] ?? ''),
                 'size_bytes'       => isset($row['size_bytes']) ? (int)$row['size_bytes'] : null,
-                'checksum_sha256'  => $row['checksum_sha256'] ?? null,
-                'session_id'       => isset($row['session_id']) ? (int)$row['session_id'] : null,
-                'seq'              => isset($row['seq']) ? (int)$row['seq'] : null,
-                'created_at'       => $row['created_at'] ?? null,
+                'checksum_sha256'  => $checksum !== '' ? $checksum : null,
+                'duration_seconds' => isset($row['duration_seconds']) ? (int)$row['duration_seconds'] : null,
+                'source_relpath'   => $row['source_relpath'] ?? null,
             ],
         ];
     }

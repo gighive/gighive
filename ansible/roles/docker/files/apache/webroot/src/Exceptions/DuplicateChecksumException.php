@@ -3,19 +3,19 @@ namespace Production\Api\Exceptions;
 
 final class DuplicateChecksumException extends \RuntimeException
 {
-    private int $existingFileId;
+    private int $existingAssetId;
     private string $checksumSha256;
 
-    public function __construct(int $existingFileId, string $checksumSha256)
+    public function __construct(int $existingAssetId, string $checksumSha256)
     {
         parent::__construct('Duplicate upload');
-        $this->existingFileId = $existingFileId;
-        $this->checksumSha256 = $checksumSha256;
+        $this->existingAssetId = $existingAssetId;
+        $this->checksumSha256  = $checksumSha256;
     }
 
-    public function getExistingFileId(): int
+    public function getExistingAssetId(): int
     {
-        return $this->existingFileId;
+        return $this->existingAssetId;
     }
 
     public function getChecksumSha256(): string

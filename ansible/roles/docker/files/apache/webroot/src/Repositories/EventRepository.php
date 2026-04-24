@@ -259,4 +259,42 @@ SQL;
         }
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function ensureEvent(
+        string $date,
+        string $orgName,
+        string $eventType,
+        string $location = '',
+        string $rating   = '',
+        string $notes    = '',
+        string $keywords = ''
+    ): int {
+        $stmt = $this->pdo->prepare(
+            'SELECT event_id FROM events WHERE event_date = :d AND org_name = :o LIMIT 1'
+        );
+        $stmt->execute([':d' => $date, ':o' => $orgName]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row && isset($row['event_id'])) {
+            $eid = (int)$row['event_id'];
+            if ($keywords !== '') {
+                $this->pdo->prepare('UPDATE events SET keywords = :kw WHERE event_id = :eid')
+                    ->execute([':kw' => $keywords, ':eid' => $eid]);
+            }
+            return $eid;
+        }
+        $ratingVal = ($rating !== '' && ctype_digit($rating)) ? (int)$rating : null;
+        $sql = 'INSERT INTO events (event_date, org_name, event_type, location, summary, rating, keywords)'
+             . ' VALUES (:date, :org, :etype, :location, :summary, :rating, :kw)';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':date'     => $date,
+            ':org'      => $orgName,
+            ':etype'    => $eventType  !== '' ? $eventType  : null,
+            ':location' => $location   !== '' ? $location   : null,
+            ':summary'  => $notes      !== '' ? $notes      : null,
+            ':rating'   => $ratingVal,
+            ':kw'       => $keywords   !== '' ? $keywords   : null,
+        ]);
+        return (int)$this->pdo->lastInsertId();
+    }
 }

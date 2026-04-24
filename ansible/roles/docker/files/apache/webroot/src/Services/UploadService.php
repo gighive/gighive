@@ -4,7 +4,9 @@ namespace Production\Api\Services;
 use Production\Api\Config\MediaTypes;
 use Production\Api\Exceptions\DuplicateChecksumException;
 use Production\Api\Infrastructure\FileStorage;
-use Production\Api\Repositories\FileRepository;
+use Production\Api\Repositories\AssetRepository;
+use Production\Api\Repositories\EventItemRepository;
+use Production\Api\Repositories\EventRepository;
 use Production\Api\Validation\UploadValidator;
 use PDO;
 
@@ -15,23 +17,30 @@ final class UploadService
         private PDO $pdo,
         private ?UploadValidator $validator = null,
         private ?FileStorage $storage = null,
-        private ?FileRepository $files = null,
         private ?MediaProbeService $probe = null,
         private ?UnifiedIngestionCore $uic = null,
         private ?TextNormalizer $normalizer = null,
+        private ?AssetRepository $assetRepo = null,
+        private ?EventRepository $eventRepo = null,
+        private ?EventItemRepository $eventItemRepo = null,
     ) {
-        $this->validator  = $this->validator  ?? new UploadValidator();
-        $this->storage    = $this->storage    ?? new FileStorage();
-        $this->files      = $this->files      ?? new FileRepository($pdo);
-        $this->probe      = $this->probe      ?? new MediaProbeService();
-        $this->normalizer = $this->normalizer ?? new TextNormalizer();
-        $this->uic        = $this->uic        ?? new UnifiedIngestionCore($pdo, $this->files, $this->probe, $this->normalizer);
+        $this->validator     = $this->validator     ?? new UploadValidator();
+        $this->storage       = $this->storage       ?? new FileStorage();
+        $this->probe         = $this->probe         ?? new MediaProbeService();
+        $this->normalizer    = $this->normalizer    ?? new TextNormalizer();
+        $this->assetRepo     = $this->assetRepo     ?? new AssetRepository($pdo);
+        $this->eventRepo     = $this->eventRepo     ?? new EventRepository($pdo);
+        $this->eventItemRepo = $this->eventItemRepo ?? new EventItemRepository($pdo);
+        if ($this->uic === null) {
+            $legacyFilesForUic = new \Production\Api\Repositories\FileRepository($pdo);
+            $this->uic = new UnifiedIngestionCore($pdo, $legacyFilesForUic, $this->probe, $this->normalizer);
+        }
     }
 
     /**
      * Handle a single file upload. Returns a map suitable for API JSON response.
      * @param array $files Typically $_FILES
-     * @param array $post  Typically $_POST (may include session_id, title, etc.)
+     * @param array $post  Typically $_POST
      */
     public function handleUpload(array $files, array $post): array
     {
@@ -67,150 +76,161 @@ final class UploadService
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $eventDate)) {
             throw new \InvalidArgumentException('Invalid event_date format; expected YYYY-MM-DD');
         }
-        $orgName   = trim((string)($post['org_name'] ?? 'Band')); // default for blue_green
-        $eventType = trim((string)($post['event_type'] ?? 'band'));
-        $label     = trim((string)($post['label'] ?? ''));
+        $orgName      = $this->normalizer->normalizeForStorage(trim((string)($post['org_name'] ?? 'Band')));
+        $eventType    = trim((string)($post['event_type'] ?? 'band'));
+        $label        = trim((string)($post['label'] ?? ''));
         $participants = trim((string)($post['participants'] ?? ''));
-        $keywords   = trim((string)($post['keywords'] ?? ''));
-        $location  = trim((string)($post['location'] ?? ''));
-        $rating    = trim((string)($post['rating'] ?? ''));
-        $notes     = trim((string)($post['notes'] ?? ''));
+        $keywords     = trim((string)($post['keywords'] ?? ''));
+        $location     = trim((string)($post['location'] ?? ''));
+        $rating       = trim((string)($post['rating'] ?? ''));
+        $notes        = trim((string)($post['notes'] ?? ''));
 
         // Validate required fields
         if ($label === '') {
             throw new \InvalidArgumentException('Label is required');
         }
 
-        // Ensure a session exists (by date + org_name); create if not present
-        $sessionId = $this->uic->ensureSession($eventDate, $orgName, $eventType, $location, $rating, $notes, $keywords);
+        // Ensure an event exists (by date + org_name); create if not present
+        $eventId = $this->eventRepo->ensureEvent($eventDate, $orgName, $eventType, $location, $rating, $notes, $keywords);
 
-        // Compute next per-session sequence
-        $seq = $this->files->nextSequence($sessionId);
+        // Derive source_relpath for provenance (position now lives in event_items)
+        $orgSlug       = $this->slugify($orgName);
+        $ymd           = str_replace('-', '', $eventDate);
+        $labelSlug     = $label !== '' ? $this->slugify($label) : 'media';
+        $sourceRelpath = sprintf('%s%s_%s.%s', $orgSlug, $ymd, $labelSlug, $ext ?: 'bin');
 
-        // Canonical filename: {orgslug}{YYYYMMDD}_{seqPadded}_{labelslug}.{ext}
-        $orgSlug   = $this->slugify($orgName);
-        $ymd       = str_replace('-', '', $eventDate);
-        $padWidthEnv = getenv('FILENAME_SEQ_PAD');
-        $padWidth = is_string($padWidthEnv) && ctype_digit($padWidthEnv) ? max(1, min(9, (int)$padWidthEnv)) : 5;
-        $seqPadded = str_pad((string)$seq, $padWidth, '0', STR_PAD_LEFT);
-        $labelSlug = $label !== '' ? $this->slugify($label) : 'media';
-        $finalName = sprintf('%s%s_%s_%s.%s', $orgSlug, $ymd, $seqPadded, $labelSlug, $ext ?: 'bin');
-
-        $baseDir  = dirname(__DIR__, 2); // .../webroot (app web root directory)
-        $targetDir = $baseDir . '/' . $fileType; // /audio or /video under webroot
+        $baseDir   = dirname(__DIR__, 2); // .../webroot
+        $targetDir = $baseDir . '/' . $fileType;
         $this->storage->ensureDir($targetDir);
-        $targetPath = $this->uniquePath($targetDir, $finalName);
 
-        // Compute checksum (before move for reliability)
+        // Compute checksum before moving the file
         $checksum = @hash_file('sha256', $tmpPath) ?: null;
 
-        // Store on disk as {sha256}.{ext} when possible, but keep canonical name in DB.
+        // Stored filename is always {sha256}.{ext}
+        $storedName = null;
         if ($checksum !== null) {
             $checksumNorm = strtolower(trim($checksum));
             if (preg_match('/^[0-9a-f]{64}$/', $checksumNorm) === 1) {
                 $storedName = $ext !== '' ? ($checksumNorm . '.' . $ext) : $checksumNorm;
-                $targetPath = $this->uniquePath($targetDir, $storedName);
-                $checksum = $checksumNorm;
+                $checksum   = $checksumNorm;
             }
         }
+        if ($storedName === null) {
+            $storedName = basename($this->uniquePath($targetDir, $sourceRelpath));
+        }
+        $targetPath = $targetDir . '/' . $storedName;
 
-        // Server policy: reject duplicate uploads by checksum_sha256 (server-wide).
-        // Do this before moving the file so we don't persist duplicate bytes.
+        // Cross-event reuse and duplicate detection (before disk write)
         if (is_string($checksum) && preg_match('/^[0-9a-f]{64}$/', $checksum) === 1) {
-            $existing = $this->files->findByChecksum($checksum);
-            if ($existing && isset($existing['file_id'])) {
-                throw new DuplicateChecksumException((int)$existing['file_id'], (string)$checksum);
+            $existingAsset = $this->assetRepo->findByChecksum($checksum);
+            if ($existingAsset !== null) {
+                $existingAssetId = (int)$existingAsset['asset_id'];
+                $existingLinkId  = $this->eventItemRepo->findLink($eventId, $existingAssetId);
+                if ($existingLinkId !== null) {
+                    // Same file already linked to this event — true duplicate
+                    throw new DuplicateChecksumException($existingAssetId, $checksum);
+                }
+                // Cross-event reuse: create event_items link; no disk write needed
+                $itemType    = ($eventType === 'wedding') ? 'event_label' : 'song';
+                $position    = $this->eventItemRepo->nextPosition($eventId);
+                $eventItemId = $this->eventItemRepo->ensureEventItem($eventId, $existingAssetId, $itemType, $label, $position);
+                $this->attachParticipants($eventId, $participants);
+                $reusedName = $ext !== '' ? ($checksum . '.' . $ext) : $checksum;
+                return [
+                    'id'              => $existingAssetId,
+                    'asset_id'        => $existingAssetId,
+                    'event_id'        => $eventId,
+                    'event_item_id'   => $eventItemId,
+                    'position'        => $position,
+                    'file_name'       => $reusedName,
+                    'file_type'       => (string)($existingAsset['file_type'] ?? $fileType),
+                    'mime_type'       => $mime,
+                    'size_bytes'      => $size,
+                    'checksum_sha256' => $checksum,
+                    'event_date'      => $eventDate,
+                    'org_name'        => $orgName,
+                    'event_type'      => $eventType,
+                    'label'           => $label,
+                    'participants'    => $participants,
+                    'keywords'        => $keywords,
+                    'duration_seconds'=> isset($existingAsset['duration_seconds']) ? (int)$existingAsset['duration_seconds'] : null,
+                ];
             }
         }
 
         // Move the file
         $this->storage->moveUploadedFile($tmpPath, $targetPath);
 
-        // Optional: probe duration via ffprobe if available
+        // Probe duration and media info
         $durationSeconds = $this->probe->probeDuration($targetPath);
-
         if ($fileType === 'video' && is_string($checksum) && preg_match('/^[0-9a-f]{64}$/', $checksum) === 1) {
             $this->probe->generateVideoThumbnail($targetPath, $checksum, $durationSeconds);
         }
-
-        $mediaInfo = $this->probe->probeMediaInfo($targetPath);
+        $mediaInfo     = $this->probe->probeMediaInfo($targetPath);
         $mediaInfoTool = $mediaInfo !== null ? $this->probe->ffprobeToolString() : null;
         $mediaCreatedAt = $this->probe->probeMediaCreatedAt($mediaInfo);
 
         $deleteToken = null;
-        $createdNew = true;
 
-        // Persist metadata (with session linkage and seq)
+        // Persist asset
         try {
-            $id = $this->files->create([
-                'file_name'       => basename($targetPath),
-                'source_relpath'  => $finalName,
-                'file_type'       => $fileType,
-                'session_id'      => $sessionId,
-                'seq'             => $seq,
-                'duration_seconds'=> $durationSeconds,
-                'media_info'      => $mediaInfo,
-                'media_info_tool' => $mediaInfoTool,
-                'mime_type'       => $mime ?: null,
-                'size_bytes'      => $size ?: null,
-                'checksum_sha256' => $checksum,
-                'media_created_at'=> $mediaCreatedAt,
+            $assetId = $this->assetRepo->create([
+                'checksum_sha256'  => $checksum,
+                'file_ext'         => $ext,
+                'file_type'        => $fileType,
+                'source_relpath'   => $sourceRelpath,
+                'duration_seconds' => $durationSeconds,
+                'media_info'       => $mediaInfo,
+                'media_info_tool'  => $mediaInfoTool,
+                'mime_type'        => $mime ?: null,
+                'size_bytes'       => $size ?: null,
+                'media_created_at' => $mediaCreatedAt,
             ]);
         } catch (\PDOException $e) {
             if (!is_string($checksum) || preg_match('/^[0-9a-f]{64}$/', $checksum) !== 1 || !$this->isDuplicateChecksumException($e)) {
                 throw $e;
             }
-
-            $existing = $this->files->findByChecksum($checksum);
-            if (!$existing || !isset($existing['file_id'])) {
+            $existingAsset = $this->assetRepo->findByChecksum($checksum);
+            if (!$existingAsset || !isset($existingAsset['asset_id'])) {
                 throw $e;
             }
-
-            $existingFileName = (string)($existing['file_name'] ?? '');
-            if ($existingFileName !== '' && basename($targetPath) !== $existingFileName && is_file($targetPath)) {
+            $existingAssetId = (int)$existingAsset['asset_id'];
+            if (is_file($targetPath)) {
                 @unlink($targetPath);
             }
-
-            // Server policy: reject duplicate uploads by checksum.
-            // We already cleaned up any newly-stored file bytes above.
-            throw new DuplicateChecksumException((int)$existing['file_id'], (string)$checksum);
+            throw new DuplicateChecksumException($existingAssetId, (string)$checksum);
         }
 
-        if ($createdNew) {
-            $deleteToken = bin2hex(random_bytes(32));
-            $hash = hash('sha256', $deleteToken);
-            $stored = $this->files->setDeleteTokenHashIfNull($id, $hash);
-            if (!$stored) {
-                $deleteToken = null;
-            }
+        // Set delete token
+        $deleteToken = bin2hex(random_bytes(32));
+        $hash = hash('sha256', $deleteToken);
+        if (!$this->assetRepo->setDeleteTokenHashIfNull($assetId, $hash)) {
+            $deleteToken = null;
         }
 
-        // Link to a label (song or wedding table name)
-        $songType = ($eventType === 'wedding') ? 'event_label' : 'song';
-        $songId = $this->uic->ensureSong($label, $songType);
-        $this->uic->ensureSessionSong($sessionId, $songId);
-        $this->uic->linkSongFile($songId, $id);
+        // Create event_items link
+        $itemType    = ($eventType === 'wedding') ? 'event_label' : 'song';
+        $position    = $this->eventItemRepo->nextPosition($eventId);
+        $eventItemId = $this->eventItemRepo->ensureEventItem($eventId, $assetId, $itemType, $label, $position);
 
-        // Optional: participants mapping (now gated by env to avoid session-wide pollution)
-        // Set UPLOAD_PARTICIPANTS_MODE to 'session' to enable previous behavior.
-        // Future modes could include 'file' or 'song' after schema changes.
-        $participantsMode = getenv('UPLOAD_PARTICIPANTS_MODE') ?: 'none'; // default: do nothing
-        if ($participantsMode === 'session' && $participants !== '') {
-            $this->attachParticipants($sessionId, $participants);
-        }
+        // Attach participants
+        $this->attachParticipants($eventId, $participants);
 
+        $storedFileName = $ext !== '' ? ($checksum . '.' . $ext) : ($checksum ?? $storedName);
         $resp = [
-            'id'              => $id,
-            'file_name'       => $finalName,
+            'id'              => $assetId,
+            'asset_id'        => $assetId,
+            'event_id'        => $eventId,
+            'event_item_id'   => $eventItemId,
+            'position'        => $position,
+            'file_name'       => $storedFileName,
             'file_type'       => $fileType,
             'mime_type'       => $mime,
             'size_bytes'      => $size,
             'checksum_sha256' => $checksum,
-            'session_id'      => $sessionId,
             'event_date'      => $eventDate,
             'org_name'        => $orgName,
             'event_type'      => $eventType,
-            'seq'             => $seq,
             'label'           => $label,
             'participants'    => $participants,
             'keywords'        => $keywords,
@@ -227,10 +247,10 @@ final class UploadService
         $info = $e->errorInfo;
         if (is_array($info) && isset($info[1]) && (int)$info[1] === 1062) {
             $msg = $e->getMessage();
-            return str_contains($msg, 'files_uq_files_checksum_sha256') || str_contains($msg, 'checksum_sha256');
+            return str_contains($msg, 'assets_uq_checksum') || str_contains($msg, 'checksum_sha256');
         }
         $msg = $e->getMessage();
-        return str_contains($msg, 'SQLSTATE[23000]') && str_contains($msg, '1062') && (str_contains($msg, 'checksum_sha256') || str_contains($msg, 'files_uq_files_checksum_sha256'));
+        return str_contains($msg, 'SQLSTATE[23000]') && str_contains($msg, '1062') && (str_contains($msg, 'checksum_sha256') || str_contains($msg, 'assets_uq_checksum'));
     }
 
     /**
@@ -424,8 +444,9 @@ final class UploadService
             );
         }
 
-        // The manifest row MUST already exist — this is not a new-upload path.
-        $existing = $this->files->findByChecksum($checksum);
+        // TODO PR5: Port this path to AssetRepository when manifest import worker is ported.
+        $legacyFilesRepo = new \Production\Api\Repositories\FileRepository($this->pdo);
+        $existing = $legacyFilesRepo->findByChecksum($checksum);
         if (!$existing || !isset($existing['file_id'])) {
             throw new \RuntimeException(
                 'No manifest row found for checksum ' . $checksum . '; Step 1 must complete before Step 2'
@@ -528,26 +549,28 @@ final class UploadService
         return $this->normalizer->slugifyForFilename($s);
     }
 
-    private function attachParticipants(int $sessionId, string $csv): void
+    private function attachParticipants(int $eventId, string $csv): void
     {
         $names = array_filter(array_map('trim', explode(',', $csv)));
         if (!$names) return;
         foreach ($names as $name) {
-            // ensure musician row
-            $stmt = $this->pdo->prepare('SELECT musician_id FROM musicians WHERE name = :n LIMIT 1');
+            $name = $this->normalizer->normalizeForStorage($name);
+            if ($name === '') continue;
+            // Find or create participant
+            $stmt = $this->pdo->prepare('SELECT participant_id FROM participants WHERE name = :n LIMIT 1');
             $stmt->execute([':n' => $name]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            $mid = $row['musician_id'] ?? null;
-            if (!$mid) {
-                $this->pdo->prepare('INSERT INTO musicians (name) VALUES (:n)')->execute([':n' => $name]);
-                $mid = (int)$this->pdo->lastInsertId();
+            $pid = $row['participant_id'] ?? null;
+            if (!$pid) {
+                $this->pdo->prepare('INSERT INTO participants (name) VALUES (:n)')->execute([':n' => $name]);
+                $pid = (int)$this->pdo->lastInsertId();
             } else {
-                $mid = (int)$mid;
+                $pid = (int)$pid;
             }
-            // link to session
-            $sql = 'INSERT INTO session_musicians (session_id, musician_id) VALUES (:s, :m)'
-                 . ' ON DUPLICATE KEY UPDATE role = role';
-            $this->pdo->prepare($sql)->execute([':s' => $sessionId, ':m' => $mid]);
+            // Link to event
+            $sql = 'INSERT INTO event_participants (event_id, participant_id)'
+                 . ' VALUES (:e, :p) ON DUPLICATE KEY UPDATE participant_id = participant_id';
+            $this->pdo->prepare($sql)->execute([':e' => $eventId, ':p' => $pid]);
         }
     }
 }
