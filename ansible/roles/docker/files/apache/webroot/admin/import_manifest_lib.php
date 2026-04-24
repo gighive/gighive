@@ -118,7 +118,6 @@ function gighive_manifest_init_steps(string $mode): array {
 
     if ($mode === 'reload') {
         $startStep('Truncate tables');
-        $startStep('Seed genres/styles');
     }
 
     $startStep('Upsert events');
@@ -243,28 +242,12 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
         $pdo->exec('TRUNCATE TABLE event_items');
         $pdo->exec('TRUNCATE TABLE events');
         $pdo->exec('TRUNCATE TABLE assets');
-        $pdo->exec('TRUNCATE TABLE genres');
-        $pdo->exec('TRUNCATE TABLE styles');
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
 
         gighive_manifest_set_step($steps, 2, 'ok', 'Tables truncated');
         $writeStatus('running', 'Tables truncated', $steps);
 
         gighive_manifest_throw_if_canceled($jobDir);
-
-        $pdo->exec("INSERT IGNORE INTO genres (name) VALUES
-('Rock'),('Jazz'),('Blues'),('Funk'),('Hip-Hop'),
-('Classical'),('Metal'),('Pop'),('Folk'),
-('Electronic'),('Reggae'),('Country'),
-('Latin'),('R&B'),('Alternative'),('Experimental');");
-
-        $pdo->exec("INSERT IGNORE INTO styles (name) VALUES
-('Acoustic'),('Electric'),('Fusion'),('Improvised'),
-('Progressive'),('Psychedelic'),('Hard'),
-('Soft'),('Instrumental'),('Vocal');");
-
-        gighive_manifest_set_step($steps, 3, 'ok', 'Seeded genres/styles');
-        $writeStatus('running', 'Seeded genres/styles', $steps);
 
         gighive_manifest_throw_if_canceled($jobDir);
     }
@@ -277,7 +260,7 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
         }
     }
 
-    $eventsStep = ($mode === 'add') ? 2 : 4;
+    $eventsStep = ($mode === 'add') ? 2 : 3;
     gighive_manifest_set_step($steps, $eventsStep, 'ok', 'Events ensured: ' . count($eventsByKey));
     $writeStatus('running', 'Upserted events', $steps);
 

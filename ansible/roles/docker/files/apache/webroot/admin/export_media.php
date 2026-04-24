@@ -79,8 +79,9 @@ $audioDir = '/var/www/html/audio';
 $videoDir = '/var/www/html/video';
 
 if ($mode === 'prepare') {
-    $found   = 0;
-    $skipped = 0;
+    $found      = 0;
+    $skipped    = 0;
+    $totalBytes = 0;
     foreach ($rows as $row) {
         $type = (string)($row['file_type'] ?? '');
         $sha  = trim((string)($row['checksum_sha256'] ?? ''));
@@ -89,7 +90,8 @@ if ($mode === 'prepare') {
         $dir = match($type) { 'audio' => $audioDir, 'video' => $videoDir, default => null };
         if ($dir === null) { $skipped++; continue; }
         $served = $ext !== '' ? ($sha . '.' . $ext) : $sha;
-        if (is_file($dir . '/' . $served)) { $found++; } else { $skipped++; }
+        $path   = $dir . '/' . $served;
+        if (is_file($path)) { $found++; $totalBytes += (int)filesize($path); } else { $skipped++; }
     }
     if ($found === 0) {
         http_response_code(404);
@@ -98,7 +100,7 @@ if ($mode === 'prepare') {
         exit;
     }
     header('Content-Type: application/json');
-    echo json_encode(['success' => true, 'count' => $found, 'skipped' => $skipped]);
+    echo json_encode(['success' => true, 'count' => $found, 'skipped' => $skipped, 'total_bytes' => $totalBytes]);
     exit;
 }
 
@@ -187,7 +189,8 @@ $size      = (int)filesize($tmpFile);
 
 header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('Content-Length: ' . $size);
+// Intentionally omitting Content-Length so Apache mod_proxy_fcgi streams
+// the response incrementally rather than buffering the full FCGI body first
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');

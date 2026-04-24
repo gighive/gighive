@@ -596,8 +596,9 @@ function __format_backup_size(int $bytes): string {
         return;
       }
 
-      const count = Number(prepData.count) || 0;
-      steps[0] = { name: 'Query database', status: 'ok', message: count + ' file(s) ready to export', progress: { processed: 1, total: 1 } };
+      const count      = Number(prepData.count)       || 0;
+      const totalBytes = Number(prepData.total_bytes)  || 0;
+      steps[0] = { name: 'Query database', status: 'ok', message: count + ' file(s) ready to export (' + fmtBytes(totalBytes) + ')', progress: { processed: 1, total: 1 } };
       steps[1] = { name: 'Build archive',  status: 'running', message: 'Zipping ' + count + ' file(s)…', progress: { processed: 0, total: 1 } };
       render();
 
@@ -614,7 +615,7 @@ function __format_backup_size(int $bytes): string {
         return;
       }
 
-      if (!(buildResp.ok && buildResp.headers.get('Content-Type') === 'application/zip')) {
+      if (!(buildResp.ok && (buildResp.headers.get('Content-Type') || '').startsWith('application/zip'))) {
         const errData = await buildResp.json().catch(() => null);
         const msg = (errData && (errData.error || errData.message)) ? String(errData.error || errData.message) : 'HTTP ' + buildResp.status;
         steps[1] = { name: 'Build archive', status: 'error', message: msg };
@@ -625,7 +626,9 @@ function __format_backup_size(int $bytes): string {
       steps[1] = { name: 'Build archive', status: 'ok', message: 'Archive built', progress: { processed: 1, total: 1 } };
 
       // ── Step 3: Download blob with progress ─────────────────────────────
-      const contentLength = parseInt(buildResp.headers.get('Content-Length') || '0', 10);
+      // Use total_bytes from prepare (sum of source file sizes) as the denominator;
+      // the build response has no Content-Length so Apache streams instead of buffering
+      const contentLength = totalBytes;
       const cd    = buildResp.headers.get('Content-Disposition') || '';
       const match = cd.match(/filename="([^"]+)"/);
       const fname = match ? match[1] : 'gighive_export.zip';
