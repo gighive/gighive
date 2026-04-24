@@ -752,7 +752,7 @@ Uploads are a primary ingest path. They must write canonical tables and enforce 
 - `src/Repositories/AssetRepository.php` — added 6 write methods: `create`, `findById`, `findByChecksum`, `getDeleteTokenHashById`, `setDeleteTokenHashIfNull`, `updateProbeMetadata`.
 - `src/Repositories/EventRepository.php` — added `ensureEvent()` (find-or-create by `event_date + org_name`).
 - `src/Repositories/EventItemRepository.php` — **new file**: `findLink`, `nextPosition`, `ensureEventItem`.
-- `src/Services/UploadService.php` — constructor drops `FileRepository`; adds `AssetRepository`, `EventRepository`, `EventItemRepository`; `handleUpload()` rewritten to write `events/assets/event_items`; cross-event reuse path added; `attachParticipants()` ported to `participants/event_participants`; `isDuplicateChecksumException()` updated for `assets_uq_checksum`; `finalizeManifestTusUpload()` wraps legacy `FileRepository` locally (TODO PR5).
+- `src/Services/UploadService.php` — constructor drops `FileRepository`; adds `AssetRepository`, `EventRepository`, `EventItemRepository`; `handleUpload()` rewritten to write `events/assets/event_items`; cross-event reuse path added; `attachParticipants()` ported to `participants/event_participants`; `isDuplicateChecksumException()` updated for `assets_uq_checksum`; `finalizeManifestTusUpload()` was left wrapping legacy `FileRepository` locally as a TODO — fully ported to `AssetRepository` in PR5.
 - `src/Controllers/UploadController.php` — `FileRepository` → `AssetRepository`; `duplicateChecksumResponse()` uses `getExistingAssetId()`; `get()` returns canonical `asset_id` fields.
 - `db/delete_media_files.php` — ported to `assets` table; `file_ids`/`file_id` → `asset_ids`/`asset_id` in request/response; `event_items` rows deleted before asset row.
 - `ansible/roles/upload_tests/tasks/query_db_counts.yml` — queries `events` and `assets` (was `sessions` and `files`); renamed fact vars to `*_events_count` / `*_assets_count`.
@@ -1022,6 +1022,109 @@ this must be done as a deliberate step immediately before this PR is implemented
    - Re-run the same add job — counts must **not** change (idempotent by checksum).
 5. Spot-check that no write in any of these flows touches `sessions`, `songs`, or `files`.
 
+#### Implementation notes (actual approach vs plan)
+
+- **`import_manifest_worker.php`, `_async` variants, `_status`, `_cancel`, `_replay`, `_jobs`** required no changes — they delegate entirely to `import_manifest_lib.php` and the async queue. Only the lib needed updating.
+- **Sync variants** (`import_manifest_reload.php`, `import_manifest_add.php`) were confirmed in use and fully ported alongside the async path.
+- **CSV approach**: "load to staging (legacy) tables then canonicalize" was chosen over "convert-to-manifest". The Python preprocessing scripts and the LOAD DATA statements are unchanged. Canonicalization SQL is appended to the same SQL file, run in the same mysql client call.
+- **3A (mysqlPrep_full.py) has no checksums** in its `files.csv` output, so only `events` are canonicalized from `sessions`. Assets and `event_items` remain empty after a 3A import.
+- **Pre-condition (CSV `org_name`/`event_type` columns)**: blocking pre-condition was avoided by using `COALESCE(NULLIF(org_name,''), 'default')` and `COALESCE(NULLIF(event_type,''), 'band')` in the canonicalization SQL, providing safe fallbacks for CSVs that omit those columns.
+- **`UploadService::finalizeManifestTusUpload()`**: PR4 left this using a local `FileRepository` (marked TODO PR5). It is now ported: uses `$this->assetRepo->findByChecksum()`, reads `file_ext` from the asset row, calls `$this->uic->ingestComplete($assetId, …)`, and returns `asset_id` instead of `file_id`.
+
+#### Implementation status — files changed
+
+- `src/Services/UnifiedIngestionCore.php` — `ingestStub()` rewritten to write `assets`; `ingestComplete()` updated to accept `asset_id`; legacy `ensureSession`/`ensureSong`/`ensureSessionSong`/`linkSongFile` marked `@deprecated`.
+- `src/Services/UploadService.php` — `finalizeManifestTusUpload()` ported from `FileRepository` to `$this->assetRepo`; falls back on `file_ext` asset column (not `file_name`); returns `asset_id`.
+- `admin/import_manifest_lib.php` — added `use` for `AssetRepository`/`EventItemRepository`/`EventRepository`; step names updated; canonical truncation order in reload mode; `ensureEvent()` replaces `ensureSession()`; `ingestStub()` now writes `assets`; `ensureEventItem()` replaces song-linking; canonical table counts in job result.
+- `admin/import_manifest_reload.php` — full rewrite: all legacy closures removed; uses `EventRepository`/`AssetRepository`/`EventItemRepository` directly; canonical truncation; canonical table counts.
+- `admin/import_manifest_add.php` — same rewrite pattern; additive (no truncation).
+- `admin/import_database.php` (Section 3A) — legacy TRUNCATEs removed; `CREATE TEMPORARY TABLE IF NOT EXISTS` for all 7 legacy staging tables prepended to SQL file; events-only canonicalization appended; reports `events`/`assets`/`event_items` counts.
+- `admin/import_normalized.php` (Section 3B) — same TRUNCATE fix; full canonicalization SQL appended (events + assets + event_items via legacy junction join using `ROW_NUMBER() OVER`); `item_type` sourced from `sg.type` not `f.file_type`; reports `events`/`assets`/`event_items` counts.
+- `ansible/roles/upload_tests/tasks/assert_db_invariants.yml` — queries `events`/`assets`; all facts/params renamed to `*_events_count`/`*_assets_count`.
+- `ansible/roles/upload_tests/tasks/test_3a.yml` — invariant call: `events_count = expected_sessions_count`, `assets_count = null`.
+- `ansible/roles/upload_tests/tasks/test_3b.yml` — invariant call: `events_count = expected_sessions_count`, `assets_count = expected_files_count`.
+- `ansible/roles/upload_tests/tasks/test_4.yml` — before-count SQL queries `events`/`assets`; invariant params updated.
+- `ansible/roles/upload_tests/tasks/test_5.yml` — fact names updated to `assets_before`/`assets_after`.
+
+#### Copy-pastable validation commands
+
+**Ansible upload tests (sections 3A, 3B, 4, 5) — see exact verified commands in the PR5b status section below.**
+
+**Manual manifest reload (sync endpoint, small payload):**
+```bash
+docker exec apacheWebServer curl -sk -u admin:secretadmin \
+  -X POST https://localhost/admin/import_manifest_reload.php \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_name": "TestBand",
+    "event_type": "band",
+    "items": [{
+      "checksum_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "file_type": "audio",
+      "file_name": "test.mp3",
+      "event_date": "2026-04-24",
+      "size_bytes": 123456
+    }]
+  }' \
+| python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert d.get('success'), f'FAIL: {d.get(\"message\", d)}'
+tc = d.get('table_counts', {})
+print('PASS: manifest reload succeeded')
+print(f'  table_counts={tc}')
+assert tc.get('assets', 0) > 0, 'FAIL: no assets written'
+assert tc.get('events', 0) > 0, 'FAIL: no events written'
+assert tc.get('event_items', 0) > 0, 'FAIL: no event_items written'
+print('PASS: all canonical table counts > 0')
+"
+```
+
+**DB counts after manifest reload:**
+```bash
+docker exec mysqlServer mysql -u root -pmusiclibrary music_db -e "
+SELECT 'events'      AS tbl, COUNT(*) AS cnt FROM events
+UNION ALL SELECT 'assets',      COUNT(*) FROM assets
+UNION ALL SELECT 'event_items', COUNT(*) FROM event_items;"
+```
+
+**Confirm legacy tables are gone (schema verification):**
+```bash
+docker exec mysqlServer mysql -u root -pmusiclibrary music_db -e "
+SHOW TABLES LIKE 'sessions';
+SHOW TABLES LIKE 'files';
+SHOW TABLES LIKE 'songs';"
+# Expected: all empty result sets — legacy tables were dropped in the canonical schema cutover
+```
+
+**TUS finalize after manifest reload — response must contain asset_id:**
+```bash
+# After a manifest reload that inserted checksum <sha256>, call finalize:
+docker exec apacheWebServer curl -sk -u admin:secretadmin \
+  -X POST https://localhost/api/uploads/finalize \
+  -H "Content-Type: application/json" \
+  -d '{"upload_id": "<tus_upload_id>", "checksum_sha256": "<sha256>"}' \
+| python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert 'asset_id' in d, f'FAIL: missing asset_id — {list(d.keys())}'
+assert 'file_id'  not in d, 'FAIL: legacy file_id still present'
+print(f'PASS: finalize returned asset_id={d[\"asset_id\"]}')
+"
+```
+
+**Section 3B (normalized CSV reload) — canonical count check:**
+```bash
+# After triggering import_normalized.php reload, query canonical tables:
+docker exec mysqlServer mysql -u root -pmusiclibrary music_db -e "
+SELECT 'events'      AS tbl, COUNT(*) FROM events
+UNION ALL SELECT 'assets',      COUNT(*) FROM assets
+UNION ALL SELECT 'event_items', COUNT(*) FROM event_items;"
+# events count should match sessions.csv row count
+# assets count should match files.csv rows with non-empty checksum_sha256
+# event_items count should match total song_files links with valid checksums
+```
+
 ---
 
 ## PR5b (required for PR5 verification): Port binary copy tooling + tests
@@ -1073,6 +1176,46 @@ Tests 4/5 are two-step: (1) import hashes/metadata, (2) copy binaries by checksu
    SELECT COUNT(*) FROM event_items;
    SELECT COUNT(*) FROM assets WHERE duration_seconds IS NOT NULL;  -- populated by upload_media_by_hash
    ```
+
+### Status: ✅ VERIFIED PASSING — 2026-04-24
+
+Full test run result: `ok=192  changed=8  failed=0  skipped=13` (1m 23s, gighive2 inventory).
+
+**Exact commands used during verification:**
+
+Upload tests only — use when only Ansible YAML / controller-side Python files changed (no Apache container sync needed):
+```bash
+ansible-playbook ansible/playbooks/site.yml \
+  -i ansible/inventories/inventory_gighive2.yml \
+  --tags set_targets,upload_tests \
+  -e "allow_destructive=true" \
+  -e "upload_test_destructive_confirm=false"
+```
+
+With base + docker sync — use when PHP files inside the Apache container changed (e.g. `import_*.php`, `import_manifest_lib.php`):
+```bash
+ansible-playbook ansible/playbooks/site.yml \
+  -i ansible/inventories/inventory_gighive2.yml \
+  --tags set_targets,base,docker,upload_tests \
+  -e "allow_destructive=true" \
+  -e "upload_test_destructive_confirm=false"
+```
+
+Notes:
+- `allow_destructive=true` permits sections 3A/3B/4 (which truncate the database).
+- `upload_test_destructive_confirm=false` skips the interactive pause prompt (required for non-interactive runs).
+- `upload_test_variants` defaults are defined in `ansible/inventories/group_vars/gighive2/gighive2.yml`; override on the command line with `-e 'upload_test_variants=[...]'` if you want a subset.
+- `base` syncs all files from the Ansible controller to the VM via rsync; `docker` restarts the Apache container to pick them up.
+
+**Bugs discovered and fixed during verification run (not covered by original plan):**
+
+| File | Bug | Fix |
+|---|---|---|
+| `import_database.php` | `TRUNCATE TABLE session_musicians` (and 6 other legacy tables) — tables removed from schema | Remove legacy TRUNCATEs; prepend `CREATE TEMPORARY TABLE IF NOT EXISTS` for all 7 staging tables before `LOAD DATA LOCAL INFILE` |
+| `import_normalized.php` | Same as above; additionally `INSERT INTO event_items` used `f.file_type` (`'audio'`/`'video'`) for `item_type` ENUM (`'song'`,`'loop'`,`'clip'`,`'highlight'`) | Same TRUNCATE fix; change `item_type` source to `sg.type` |
+| `import_manifest_lib.php`, `import_manifest_reload.php`, `import_manifest_add.php` | `ensureEventItem(... $it['file_type'] ...)` passes `'audio'`/`'video'` as `item_type` | Change to hardcoded `'clip'` (correct default for manifest imports lacking musical classification) |
+| `derive_expected_files_from_prepped_csv.yml` | `expected_loaded_rows = empty + uniq` counted checksum-less files; canonicalization only inserts rows with checksums | Change to `expected_loaded_rows = uniq` |
+| `upload_media_by_hash.py` | All queries reference `files` / `file_id` instead of `assets` / `asset_id` | Replace `FROM files` → `FROM assets`, `ORDER BY file_id` → `ORDER BY asset_id`, `UPDATE files SET` → `UPDATE assets SET` throughout |
 
 ---
 

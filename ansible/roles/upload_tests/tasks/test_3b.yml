@@ -82,5 +82,5 @@
 - name: Upload tests 3B - DB count assertions
   ansible.builtin.include_tasks: assert_db_invariants.yml
   vars:
-    upload_tests_expect_sessions_count: "{{ upload_tests_expected_sessions_count }}"
-    upload_tests_expect_files_count: "{{ upload_tests_expected_files_count }}"
+    upload_tests_expect_events_count: "{{ upload_tests_expected_sessions_count }}"
+    upload_tests_expect_assets_count: "{{ upload_tests_expected_files_count }}"

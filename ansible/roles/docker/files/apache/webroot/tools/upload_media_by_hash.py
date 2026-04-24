@@ -279,9 +279,9 @@ def mysql_query_rows(
 
     q = (
         "SELECT checksum_sha256, file_type, source_relpath "
-        "FROM files "
+        "FROM assets "
         f"WHERE {where_sql} "
-        "ORDER BY file_id ASC "
+        "ORDER BY asset_id ASC "
         f"LIMIT {int(limit)};"
     )
 
@@ -333,7 +333,7 @@ def mysql_query_file_counts(*, host: str, port: int, user: str, password: str, d
         "COUNT(*) AS total, "
         "SUM(source_relpath IS NOT NULL AND source_relpath <> '') AS with_relpath, "
         "SUM(checksum_sha256 IS NOT NULL AND checksum_sha256 <> '') AS with_sha "
-        "FROM files;"
+        "FROM assets;"
     )
 
     env = os.environ.copy()
@@ -391,7 +391,7 @@ def mysql_query_sample_files(
         "COALESCE(checksum_sha256,''), "
         "COALESCE(file_type,''), "
         "COALESCE(source_relpath,'') "
-        "FROM files ORDER BY file_id ASC LIMIT %d;" % int(limit)
+        "FROM assets ORDER BY asset_id ASC LIMIT %d;" % int(limit)
     )
 
     env = os.environ.copy()
@@ -454,7 +454,7 @@ def mysql_update_media_info(
     tool_sql = sql_quote_nullable(media_info_tool)
 
     q = (
-        "UPDATE files SET "
+        "UPDATE assets SET "
         f"duration_seconds = {dur_sql}, "
         f"media_info = CAST(CONVERT(FROM_BASE64({sql_quote(media_info_b64)}) USING utf8mb4) AS JSON), "
         f"media_info_tool = {tool_sql} "
@@ -690,12 +690,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument(
         "--single-source-relpath",
         default=None,
-        help="Only process DB rows whose files.source_relpath matches exactly (skips scanning many DB rows)",
+        help="Only process DB rows whose assets.source_relpath matches exactly (skips scanning many DB rows)",
     )
     p.add_argument(
         "--single-checksum",
         default=None,
-        help="Only process DB rows whose files.checksum_sha256 matches exactly (skips scanning many DB rows)",
+        help="Only process DB rows whose assets.checksum_sha256 matches exactly (skips scanning many DB rows)",
     )
     p.add_argument("--infer-type-if-missing", action="store_true", help="If DB file_type is not audio/video, infer from extension")
     p.add_argument("--dry-run", action="store_true", help="Do not transfer; only report what would happen")
@@ -801,8 +801,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                     eprint(
                         "  MYSQL_PWD=... mysql -h <dbhost> -u <dbuser> <dbname> -e "
                         + sql_quote(
-                            "SELECT file_id,file_type,checksum_sha256,source_relpath "
-                            f"FROM files WHERE source_relpath LIKE '%{needle}%' LIMIT 20;"
+                            "SELECT asset_id,file_type,checksum_sha256,source_relpath "
+                            f"FROM assets WHERE source_relpath LIKE '%{needle}%' LIMIT 20;"
                         )
                     )
 
@@ -814,7 +814,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 password=args.db_password,
                 dbname=args.db_name,
             )
-            eprint(f"DB diagnostics: files.total={total} files.with_relpath={with_relpath} files.with_sha={with_sha}")
+            eprint(f"DB diagnostics: assets.total={total} assets.with_relpath={with_relpath} assets.with_sha={with_sha}")
             sample = mysql_query_sample_files(
                 host=args.db_host,
                 port=args.db_port,
@@ -831,8 +831,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             eprint(f"DB diagnostics failed: {e}")
 
         eprint(
-            "Hint: this uploader only processes rows where files.checksum_sha256 is non-empty. "
-            "If files.with_sha=0, your import path did not populate checksum_sha256."
+            "Hint: this uploader only processes rows where assets.checksum_sha256 is non-empty. "
+            "If assets.with_sha=0, your import path did not populate checksum_sha256."
         )
 
     print("STATUS\tFILE_TYPE\tSOURCE_RELPATH\tDEST")

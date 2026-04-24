@@ -3,6 +3,9 @@
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
+use Production\Api\Repositories\AssetRepository;
+use Production\Api\Repositories\EventItemRepository;
+use Production\Api\Repositories\EventRepository;
 
 $user = $_SERVER['PHP_AUTH_USER']
     ?? $_SERVER['REMOTE_USER']
@@ -52,9 +55,9 @@ $startStep('Upload received');
 $startStep('Validate request');
 $startStep('Truncate tables');
 $startStep('Seed genres/styles');
-$startStep('Upsert sessions');
-$startStep('Insert files (dedupe by checksum_sha256)');
-$startStep('Link labels (songs)');
+$startStep('Upsert events');
+$startStep('Insert assets (dedupe by checksum_sha256)');
+$startStep('Link event_items');
 
 $lockPath = '/var/www/private/import_database.lock';
 $jobRoot = '/var/www/private/import_jobs';
@@ -85,58 +88,6 @@ if (!flock($lockFp, LOCK_EX | LOCK_NB)) {
     fclose($lockFp);
     exit;
 }
-
-$ensureSession = function(PDO $pdo, string $eventDate, string $orgName, string $eventType): int {
-    $stmt = $pdo->prepare('SELECT session_id FROM sessions WHERE date = :d AND org_name = :o LIMIT 1');
-    $stmt->execute([':d' => $eventDate, ':o' => $orgName]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($row && isset($row['session_id'])) {
-        return (int)$row['session_id'];
-    }
-
-    $sql = 'INSERT INTO sessions (title, date, event_type, org_name) VALUES (:title, :date, :etype, :org)';
-    $stmt = $pdo->prepare($sql);
-    $title = $orgName . ' ' . $eventDate;
-    $stmt->execute([
-        ':title' => $title,
-        ':date' => $eventDate,
-        ':etype' => $eventType !== '' ? $eventType : null,
-        ':org' => $orgName,
-    ]);
-    return (int)$pdo->lastInsertId();
-};
-
-$nextSeq = function(PDO $pdo, int $sessionId): int {
-    $stmt = $pdo->prepare('SELECT COALESCE(MAX(seq), 0) AS max_seq FROM files WHERE session_id = :sid');
-    $stmt->execute([':sid' => $sessionId]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $max = (int)($row['max_seq'] ?? 0);
-    return $max + 1;
-};
-
-$ensureSong = function(PDO $pdo, string $title, string $type): int {
-    $stmt = $pdo->prepare('SELECT song_id FROM songs WHERE title = :t AND type = :ty LIMIT 1');
-    $stmt->execute([':t' => $title, ':ty' => $type]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($row && isset($row['song_id'])) {
-        return (int)$row['song_id'];
-    }
-    $stmt = $pdo->prepare('INSERT INTO songs (title, type) VALUES (:t, :ty)');
-    $stmt->execute([':t' => $title, ':ty' => $type]);
-    return (int)$pdo->lastInsertId();
-};
-
-$ensureSessionSong = function(PDO $pdo, int $sessionId, int $songId): void {
-    $sql = 'INSERT INTO session_songs (session_id, song_id) VALUES (:s, :g)'
-        . ' ON DUPLICATE KEY UPDATE position = position';
-    $pdo->prepare($sql)->execute([':s' => $sessionId, ':g' => $songId]);
-};
-
-$linkSongFile = function(PDO $pdo, int $songId, int $fileId): void {
-    $sql = 'INSERT INTO song_files (song_id, file_id) VALUES (:g, :f)'
-        . ' ON DUPLICATE KEY UPDATE file_id = file_id';
-    $pdo->prepare($sql)->execute([':g' => $songId, ':f' => $fileId]);
-};
 
 $basenameNoExt = function(string $pathOrName): string {
     $s = trim($pathOrName);
@@ -236,16 +187,16 @@ try {
 
     $finishStep(1, 'ok', 'Validated ' . count($validated) . ' item(s)');
 
-    $pdo = Database::createFromEnv();
+    $pdo          = Database::createFromEnv();
+    $eventRepo    = new EventRepository($pdo);
+    $assetRepo    = new AssetRepository($pdo);
+    $eventItemRepo = new EventItemRepository($pdo);
 
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
-    $pdo->exec('TRUNCATE TABLE session_musicians');
-    $pdo->exec('TRUNCATE TABLE session_songs');
-    $pdo->exec('TRUNCATE TABLE song_files');
-    $pdo->exec('TRUNCATE TABLE files');
-    $pdo->exec('TRUNCATE TABLE songs');
-    $pdo->exec('TRUNCATE TABLE sessions');
-    $pdo->exec('TRUNCATE TABLE musicians');
+    $pdo->exec('TRUNCATE TABLE event_participants');
+    $pdo->exec('TRUNCATE TABLE event_items');
+    $pdo->exec('TRUNCATE TABLE events');
+    $pdo->exec('TRUNCATE TABLE assets');
     $pdo->exec('TRUNCATE TABLE genres');
     $pdo->exec('TRUNCATE TABLE styles');
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
@@ -265,23 +216,19 @@ try {
 
     $finishStep(3, 'ok', 'Seeded genres/styles');
 
-    $sessionsByKey = [];
+    $eventsByKey = [];
     foreach ($validated as $it) {
         $key = $it['event_date'] . '|' . $orgName;
-        if (!isset($sessionsByKey[$key])) {
-            $sessionsByKey[$key] = $ensureSession($pdo, $it['event_date'], $orgName, $eventType);
+        if (!isset($eventsByKey[$key])) {
+            $eventsByKey[$key] = $eventRepo->ensureEvent($it['event_date'], $orgName, $eventType);
         }
     }
-    $finishStep(4, 'ok', 'Sessions ensured: ' . count($sessionsByKey));
+    $finishStep(4, 'ok', 'Events ensured: ' . count($eventsByKey));
 
     $inserted = 0;
     $duplicates = 0;
     $duplicateSamples = [];
     $seen = [];
-
-    $insertSql = 'INSERT INTO files (file_name, source_relpath, file_type, session_id, seq, size_bytes, checksum_sha256)'
-        . ' VALUES (:file_name, :source_relpath, :file_type, :session_id, :seq, :size_bytes, :checksum)';
-    $insertStmt = $pdo->prepare($insertSql);
 
     foreach ($validated as $it) {
         $checksum = $it['checksum_sha256'];
@@ -298,61 +245,52 @@ try {
         }
         $seen[$checksum] = true;
 
-        $sessionId = $sessionsByKey[$it['event_date'] . '|' . $orgName];
+        $eventId = $eventsByKey[$it['event_date'] . '|' . $orgName];
+        $srcRelpath = $it['source_relpath'] !== '' ? $it['source_relpath'] : $it['file_name'];
+        $ext = strtolower(pathinfo($srcRelpath, PATHINFO_EXTENSION));
 
-        try {
-            $seq = $nextSeq($pdo, (int)$sessionId);
-            $insertStmt->execute([
-                ':file_name' => $it['file_name'],
-                ':source_relpath' => $it['source_relpath'] !== '' ? $it['source_relpath'] : null,
-                ':file_type' => $it['file_type'],
-                ':session_id' => $sessionId,
-                ':seq' => $seq,
-                ':size_bytes' => $it['size_bytes'],
-                ':checksum' => $checksum,
+        $existing = $assetRepo->findByChecksum($checksum);
+        if ($existing !== null) {
+            $assetId = (int)$existing['asset_id'];
+            $duplicates++;
+            if (count($duplicateSamples) < 25) {
+                $duplicateSamples[] = [
+                    'file_name' => $it['file_name'],
+                    'source_relpath' => $it['source_relpath'],
+                    'checksum_sha256' => $checksum,
+                ];
+            }
+        } else {
+            $assetId = $assetRepo->create([
+                'checksum_sha256'  => $checksum,
+                'file_ext'         => $ext,
+                'file_type'        => $it['file_type'],
+                'source_relpath'   => $srcRelpath !== '' ? $srcRelpath : null,
+                'size_bytes'       => $it['size_bytes'],
+                'duration_seconds' => null,
+                'media_info'       => null,
+                'media_info_tool'  => null,
+                'mime_type'        => null,
+                'media_created_at' => null,
             ]);
-
-            $fileId = (int)$pdo->lastInsertId();
             $inserted++;
-
-            $labelSource = $it['file_name'] !== '' ? $it['file_name'] : $it['source_relpath'];
-            $label = $basenameNoExt($labelSource);
-            if ($label !== '') {
-                $songType = 'song';
-                $songId = $ensureSong($pdo, $label, $songType);
-                $ensureSessionSong($pdo, (int)$sessionId, $songId);
-                $linkSongFile($pdo, $songId, $fileId);
-            }
-
-        } catch (PDOException $e) {
-            if (($e->getCode() ?? '') === '23000') {
-                $duplicates++;
-                if (count($duplicateSamples) < 25) {
-                    $duplicateSamples[] = [
-                        'file_name' => $it['file_name'],
-                        'source_relpath' => $it['source_relpath'],
-                        'checksum_sha256' => $checksum,
-                    ];
-                }
-                continue;
-            }
-            throw $e;
         }
+
+        $labelSource = $it['file_name'] !== '' ? $it['file_name'] : $it['source_relpath'];
+        $label = $basenameNoExt($labelSource);
+        $eventItemRepo->ensureEventItem((int)$eventId, $assetId, 'clip', $label, null);
     }
 
-    $finishStep(5, 'ok', 'Inserted: ' . $inserted . ', duplicates skipped: ' . $duplicates);
-    $finishStep(6, 'ok', 'Label links created for newly inserted files');
+    $finishStep(5, 'ok', 'Inserted: ' . $inserted . ', duplicates: ' . $duplicates);
+    $finishStep(6, 'ok', 'event_items linked');
 
     $tableCounts = [];
     try {
         $tableCounts = [
-            'sessions' => (int)$pdo->query('SELECT COUNT(*) FROM sessions')->fetchColumn(),
-            'musicians' => (int)$pdo->query('SELECT COUNT(*) FROM musicians')->fetchColumn(),
-            'songs' => (int)$pdo->query('SELECT COUNT(*) FROM songs')->fetchColumn(),
-            'files' => (int)$pdo->query('SELECT COUNT(*) FROM files')->fetchColumn(),
-            'session_musicians' => (int)$pdo->query('SELECT COUNT(*) FROM session_musicians')->fetchColumn(),
-            'session_songs' => (int)$pdo->query('SELECT COUNT(*) FROM session_songs')->fetchColumn(),
-            'song_files' => (int)$pdo->query('SELECT COUNT(*) FROM song_files')->fetchColumn(),
+            'events'       => (int)$pdo->query('SELECT COUNT(*) FROM events')->fetchColumn(),
+            'assets'       => (int)$pdo->query('SELECT COUNT(*) FROM assets')->fetchColumn(),
+            'event_items'  => (int)$pdo->query('SELECT COUNT(*) FROM event_items')->fetchColumn(),
+            'participants' => (int)$pdo->query('SELECT COUNT(*) FROM participants')->fetchColumn(),
         ];
     } catch (Throwable $e) {
         $tableCounts = [];

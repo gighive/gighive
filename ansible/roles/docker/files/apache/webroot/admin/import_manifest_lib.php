@@ -3,6 +3,9 @@
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
+use Production\Api\Repositories\AssetRepository;
+use Production\Api\Repositories\EventItemRepository;
+use Production\Api\Repositories\EventRepository;
 use Production\Api\Services\TextNormalizer;
 use Production\Api\Services\UnifiedIngestionCore;
 
@@ -118,9 +121,9 @@ function gighive_manifest_init_steps(string $mode): array {
         $startStep('Seed genres/styles');
     }
 
-    $startStep('Upsert sessions');
-    $startStep('Insert files (deduped by checksum_sha256)', 'may take a minute or two for progress meter to appear');
-    $startStep('Link labels (songs)');
+    $startStep('Upsert events');
+    $startStep('Insert assets (deduped by checksum_sha256)', 'may take a minute or two for progress meter to appear');
+    $startStep('Link event_items');
 
     return $steps;
 }
@@ -229,18 +232,17 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
     gighive_manifest_throw_if_canceled($jobDir);
 
     $pdo = Database::createFromEnv();
-    $uic = new UnifiedIngestionCore($pdo);
+    $uic          = new UnifiedIngestionCore($pdo);
+    $eventRepo    = new EventRepository($pdo);
+    $eventItemRepo = new EventItemRepository($pdo);
 
     if ($mode === 'reload') {
         gighive_manifest_throw_if_canceled($jobDir);
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
-        $pdo->exec('TRUNCATE TABLE session_musicians');
-        $pdo->exec('TRUNCATE TABLE session_songs');
-        $pdo->exec('TRUNCATE TABLE song_files');
-        $pdo->exec('TRUNCATE TABLE files');
-        $pdo->exec('TRUNCATE TABLE songs');
-        $pdo->exec('TRUNCATE TABLE sessions');
-        $pdo->exec('TRUNCATE TABLE musicians');
+        $pdo->exec('TRUNCATE TABLE event_participants');
+        $pdo->exec('TRUNCATE TABLE event_items');
+        $pdo->exec('TRUNCATE TABLE events');
+        $pdo->exec('TRUNCATE TABLE assets');
         $pdo->exec('TRUNCATE TABLE genres');
         $pdo->exec('TRUNCATE TABLE styles');
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
@@ -267,21 +269,21 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
         gighive_manifest_throw_if_canceled($jobDir);
     }
 
-    $sessionsByKey = [];
+    $eventsByKey = [];
     foreach ($validated as $it) {
         $key = $it['event_date'] . '|' . $orgName;
-        if (!isset($sessionsByKey[$key])) {
-            $sessionsByKey[$key] = $uic->ensureSession($it['event_date'], $orgName, $eventType);
+        if (!isset($eventsByKey[$key])) {
+            $eventsByKey[$key] = $eventRepo->ensureEvent($it['event_date'], $orgName, $eventType);
         }
     }
 
-    $sessionsStep = ($mode === 'add') ? 2 : 4;
-    gighive_manifest_set_step($steps, $sessionsStep, 'ok', 'Sessions ensured: ' . count($sessionsByKey));
-    $writeStatus('running', 'Upserted sessions', $steps);
+    $eventsStep = ($mode === 'add') ? 2 : 4;
+    gighive_manifest_set_step($steps, $eventsStep, 'ok', 'Events ensured: ' . count($eventsByKey));
+    $writeStatus('running', 'Upserted events', $steps);
 
     gighive_manifest_throw_if_canceled($jobDir);
 
-    $insertStep = $sessionsStep + 1;
+    $insertStep = $eventsStep + 1;
     $linkStep = $insertStep + 1;
 
     $inserted = 0;
@@ -324,18 +326,18 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
             $seen[$checksum] = true;
         }
 
-        $sessionId = $sessionsByKey[$it['event_date'] . '|' . $orgName];
+        $eventId = $eventsByKey[$it['event_date'] . '|' . $orgName];
 
         $result = $uic->ingestStub([
             'checksum_sha256' => $checksum,
             'file_type'       => $it['file_type'],
             'file_name'       => $it['file_name'],
             'source_relpath'  => $it['source_relpath'],
-            'session_id'      => (int)$sessionId,
             'size_bytes'      => $it['size_bytes'],
         ]);
 
         if ($result['status'] === 'skipped') {
+            $assetId = (int)$result['asset_id'];
             $duplicates++;
             if (count($duplicateSamples) < 25) {
                 $duplicateSamples[] = [
@@ -344,27 +346,22 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
                     'checksum_sha256' => $checksum,
                 ];
             }
-            continue;
+        } else {
+            $assetId = (int)$result['asset_id'];
+            $inserted++;
         }
-
-        $fileId = $result['file_id'];
-        $inserted++;
 
         $labelSource = $it['file_name'] !== '' ? $it['file_name'] : $it['source_relpath'];
         $label = gighive_manifest_basename_no_ext($labelSource);
-        if ($label !== '') {
-            $songId = $uic->ensureSong($label, 'song');
-            $uic->ensureSessionSong((int)$sessionId, $songId);
-            $uic->linkSongFile($songId, $fileId);
-        }
+        $eventItemRepo->ensureEventItem((int)$eventId, $assetId, 'clip', $label, null);
     }
 
     if (isset($steps[$insertStep]) && is_array($steps[$insertStep])) {
         $steps[$insertStep]['progress'] = ['processed' => $totalToProcess, 'total' => $totalToProcess];
     }
-    gighive_manifest_set_step($steps, $insertStep, 'ok', 'Inserted: ' . $inserted . ', duplicates skipped: ' . $duplicates);
-    gighive_manifest_set_step($steps, $linkStep, 'ok', 'Label links created for newly inserted files');
-    $writeStatus('running', 'Inserted files', $steps);
+    gighive_manifest_set_step($steps, $insertStep, 'ok', 'Inserted: ' . $inserted . ', duplicates: ' . $duplicates);
+    gighive_manifest_set_step($steps, $linkStep, 'ok', 'event_items linked');
+    $writeStatus('running', 'Inserted assets', $steps);
 
     gighive_manifest_throw_if_canceled($jobDir);
 
@@ -372,13 +369,10 @@ function gighive_manifest_import_run(string $jobDir, string $jobId, string $mode
     if ($mode === 'reload') {
         try {
             $tableCounts = [
-                'sessions' => (int)$pdo->query('SELECT COUNT(*) FROM sessions')->fetchColumn(),
-                'musicians' => (int)$pdo->query('SELECT COUNT(*) FROM musicians')->fetchColumn(),
-                'songs' => (int)$pdo->query('SELECT COUNT(*) FROM songs')->fetchColumn(),
-                'files' => (int)$pdo->query('SELECT COUNT(*) FROM files')->fetchColumn(),
-                'session_musicians' => (int)$pdo->query('SELECT COUNT(*) FROM session_musicians')->fetchColumn(),
-                'session_songs' => (int)$pdo->query('SELECT COUNT(*) FROM session_songs')->fetchColumn(),
-                'song_files' => (int)$pdo->query('SELECT COUNT(*) FROM song_files')->fetchColumn(),
+                'events'      => (int)$pdo->query('SELECT COUNT(*) FROM events')->fetchColumn(),
+                'assets'      => (int)$pdo->query('SELECT COUNT(*) FROM assets')->fetchColumn(),
+                'event_items' => (int)$pdo->query('SELECT COUNT(*) FROM event_items')->fetchColumn(),
+                'participants' => (int)$pdo->query('SELECT COUNT(*) FROM participants')->fetchColumn(),
             ];
         } catch (Throwable $e) {
             $tableCounts = [];

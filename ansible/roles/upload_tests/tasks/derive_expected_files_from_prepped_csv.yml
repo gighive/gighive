@@ -12,7 +12,7 @@
       chks=[(((row.get(chk_col) if chk_col else '') or '').strip().lower()) for row in rows];
       empty=sum(1 for c in chks if c=='');
       uniq=len(set(c for c in chks if c!=''));
-      out={'path':p,'fieldnames':fieldnames,'checksum_column':chk_col,'total_rows':len(rows),'empty_checksum_rows':empty,'unique_nonempty_checksums':uniq,'expected_loaded_rows':empty+uniq};
+      out={'path':p,'fieldnames':fieldnames,'checksum_column':chk_col,'total_rows':len(rows),'empty_checksum_rows':empty,'unique_nonempty_checksums':uniq,'expected_loaded_rows':uniq};
       print(json.dumps(out))"
   register: upload_tests_prepped_files_diag
   changed_when: false

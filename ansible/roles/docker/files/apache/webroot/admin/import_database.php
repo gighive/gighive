@@ -60,6 +60,7 @@ $startStep('Load files');
 $startStep('Load session_musicians');
 $startStep('Load session_songs');
 $startStep('Load song_files');
+$startStep('Canonicalize to events');
 
 $lockPath = '/var/www/private/import_database.lock';
 $lockFp = @fopen($lockPath, 'c');
@@ -160,13 +161,10 @@ try {
     $pdo = Database::createFromEnv();
 
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
-    $pdo->exec('TRUNCATE TABLE session_musicians');
-    $pdo->exec('TRUNCATE TABLE session_songs');
-    $pdo->exec('TRUNCATE TABLE song_files');
-    $pdo->exec('TRUNCATE TABLE files');
-    $pdo->exec('TRUNCATE TABLE songs');
-    $pdo->exec('TRUNCATE TABLE sessions');
-    $pdo->exec('TRUNCATE TABLE musicians');
+    $pdo->exec('TRUNCATE TABLE event_participants');
+    $pdo->exec('TRUNCATE TABLE event_items');
+    $pdo->exec('TRUNCATE TABLE events');
+    $pdo->exec('TRUNCATE TABLE assets');
     $pdo->exec('TRUNCATE TABLE genres');
     $pdo->exec('TRUNCATE TABLE styles');
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
@@ -201,7 +199,38 @@ try {
     $files = addslashes($preppedDir . '/files.csv');
     $songFiles = addslashes($preppedDir . '/song_files.csv');
 
-    $sql = "LOAD DATA LOCAL INFILE '{$sessions}'\n" .
+    $sql =
+"CREATE TEMPORARY TABLE IF NOT EXISTS sessions (
+    session_id INT NOT NULL, title VARCHAR(255), date DATE,
+    org_name VARCHAR(128) DEFAULT 'default', event_type VARCHAR(64),
+    description TEXT, cover_image_url TEXT, location VARCHAR(255),
+    rating DECIMAL(2,1), summary TEXT, published_at VARCHAR(64),
+    explicit TINYINT(1), duration_seconds INT, keywords TEXT
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS musicians (
+    musician_id INT NOT NULL, name VARCHAR(255)
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS session_musicians (
+    session_id INT NOT NULL, musician_id INT NOT NULL
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS songs (
+    song_id INT NOT NULL, title VARCHAR(255), type VARCHAR(64),
+    duration_seconds INT, genre_id INT, style_id INT
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS session_songs (
+    session_id INT NOT NULL, song_id INT NOT NULL,
+    position INT NULL DEFAULT NULL
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS files (
+    file_id INT NOT NULL, file_name VARCHAR(512),
+    source_relpath VARCHAR(512), file_type ENUM('audio','video'),
+    duration_seconds INT, media_info TEXT, media_info_tool VARCHAR(64)
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS song_files (
+    song_id INT NOT NULL, file_id INT NOT NULL
+);
+" .
+"LOAD DATA LOCAL INFILE '{$sessions}'\n" .
 "INTO TABLE sessions\n" .
 "FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\'\n" .
 "LINES TERMINATED BY '\\r\\n'\n" .
@@ -310,7 +339,12 @@ try {
 "FIELDS TERMINATED BY ','\n" .
 "LINES TERMINATED BY '\\r\\n'\n" .
 "IGNORE 1 LINES\n" .
-"(song_id, file_id);\n";
+"(song_id, file_id);\n" .
+
+"-- Canonicalize events from sessions (no checksums in 3A files CSV, assets/event_items skipped)\n" .
+"INSERT INTO events (event_date, org_name, event_type)\n" .
+"SELECT date, COALESCE(NULLIF(org_name,''), 'default'), COALESCE(NULLIF(event_type,''), 'band')\n" .
+"FROM sessions;\n";
 
     if (@file_put_contents($sqlFile, $sql) === false) {
         throw new RuntimeException('Failed to write SQL import file');
@@ -361,22 +395,17 @@ try {
     $finishStep(9, 'ok', 'session_musicians loaded');
     $finishStep(10, 'ok', 'session_songs loaded');
     $finishStep(11, 'ok', 'song_files loaded');
+    $finishStep(12, 'ok', 'Canonicalized to events (assets skipped: no checksums in 3A CSV)');
 
-    $fileCount = null;
     $tableCounts = [];
     try {
-        $fileCount = (int)$pdo->query('SELECT COUNT(*) FROM files')->fetchColumn();
         $tableCounts = [
+            'events'  => (int)$pdo->query('SELECT COUNT(*) FROM events')->fetchColumn(),
+            'assets'  => (int)$pdo->query('SELECT COUNT(*) FROM assets')->fetchColumn(),
             'sessions' => (int)$pdo->query('SELECT COUNT(*) FROM sessions')->fetchColumn(),
-            'musicians' => (int)$pdo->query('SELECT COUNT(*) FROM musicians')->fetchColumn(),
-            'songs' => (int)$pdo->query('SELECT COUNT(*) FROM songs')->fetchColumn(),
-            'files' => $fileCount,
-            'session_musicians' => (int)$pdo->query('SELECT COUNT(*) FROM session_musicians')->fetchColumn(),
-            'session_songs' => (int)$pdo->query('SELECT COUNT(*) FROM session_songs')->fetchColumn(),
-            'song_files' => (int)$pdo->query('SELECT COUNT(*) FROM song_files')->fetchColumn(),
+            'files'    => (int)$pdo->query('SELECT COUNT(*) FROM files')->fetchColumn(),
         ];
     } catch (Throwable $e) {
-        $fileCount = null;
         $tableCounts = [];
     }
 

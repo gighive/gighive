@@ -60,6 +60,7 @@ $startStep('Load files');
 $startStep('Load session_musicians');
 $startStep('Load session_songs');
 $startStep('Load song_files');
+$startStep('Canonicalize to events/assets/event_items');
 
 $lockPath = '/var/www/private/import_database.lock';
 $lockFp = @fopen($lockPath, 'c');
@@ -178,13 +179,10 @@ try {
     $pdo = Database::createFromEnv();
 
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
-    $pdo->exec('TRUNCATE TABLE session_musicians');
-    $pdo->exec('TRUNCATE TABLE session_songs');
-    $pdo->exec('TRUNCATE TABLE song_files');
-    $pdo->exec('TRUNCATE TABLE files');
-    $pdo->exec('TRUNCATE TABLE songs');
-    $pdo->exec('TRUNCATE TABLE sessions');
-    $pdo->exec('TRUNCATE TABLE musicians');
+    $pdo->exec('TRUNCATE TABLE event_participants');
+    $pdo->exec('TRUNCATE TABLE event_items');
+    $pdo->exec('TRUNCATE TABLE events');
+    $pdo->exec('TRUNCATE TABLE assets');
     $pdo->exec('TRUNCATE TABLE genres');
     $pdo->exec('TRUNCATE TABLE styles');
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
@@ -219,7 +217,39 @@ try {
     $files = addslashes($preppedDir . '/files.csv');
     $songFiles = addslashes($preppedDir . '/song_files.csv');
 
-    $sql = "LOAD DATA LOCAL INFILE '{$sessions}'\n" .
+    $sql =
+"CREATE TEMPORARY TABLE IF NOT EXISTS sessions (
+    session_id INT NOT NULL, title VARCHAR(255), date DATE,
+    org_name VARCHAR(128) DEFAULT 'default', event_type VARCHAR(64),
+    description TEXT, cover_image_url TEXT, location VARCHAR(255),
+    rating DECIMAL(2,1), summary TEXT, published_at VARCHAR(64),
+    explicit TINYINT(1), duration_seconds INT, keywords TEXT
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS musicians (
+    musician_id INT NOT NULL, name VARCHAR(255)
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS session_musicians (
+    session_id INT NOT NULL, musician_id INT NOT NULL
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS songs (
+    song_id INT NOT NULL, title VARCHAR(255), type VARCHAR(64),
+    duration_seconds INT, genre_id INT, style_id INT
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS session_songs (
+    session_id INT NOT NULL, song_id INT NOT NULL,
+    position INT NULL DEFAULT NULL
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS files (
+    file_id INT NOT NULL, file_name VARCHAR(512),
+    source_relpath VARCHAR(512), checksum_sha256 CHAR(64),
+    file_type ENUM('audio','video'),
+    duration_seconds INT, media_info TEXT, media_info_tool VARCHAR(64)
+);
+CREATE TEMPORARY TABLE IF NOT EXISTS song_files (
+    song_id INT NOT NULL, file_id INT NOT NULL
+);
+" .
+"LOAD DATA LOCAL INFILE '{$sessions}'\n" .
 "INTO TABLE sessions\n" .
 "FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\'\n" .
 "LINES TERMINATED BY '\\r\\n'\n" .
@@ -329,7 +359,41 @@ try {
 "FIELDS TERMINATED BY ','\n" .
 "LINES TERMINATED BY '\\r\\n'\n" .
 "IGNORE 1 LINES\n" .
-"(song_id, file_id);\n";
+"(song_id, file_id);\n" .
+
+"-- Canonicalize events from sessions\n" .
+"INSERT INTO events (event_date, org_name, event_type)\n" .
+"SELECT date, COALESCE(NULLIF(org_name,''), 'default'), COALESCE(NULLIF(event_type,''), 'band')\n" .
+"FROM sessions;\n\n" .
+
+"-- Canonicalize assets from files (only rows with checksum)\n" .
+"INSERT INTO assets (checksum_sha256, file_ext, file_type, source_relpath, duration_seconds, media_info, media_info_tool)\n" .
+"SELECT\n" .
+"  f.checksum_sha256,\n" .
+"  LOWER(IF(LOCATE('.', f.file_name) > 0, SUBSTRING_INDEX(f.file_name, '.', -1), '')),\n" .
+"  f.file_type,\n" .
+"  f.source_relpath,\n" .
+"  f.duration_seconds,\n" .
+"  f.media_info,\n" .
+"  f.media_info_tool\n" .
+"FROM files f\n" .
+"WHERE f.checksum_sha256 IS NOT NULL AND f.checksum_sha256 != '';\n\n" .
+
+"-- Canonicalize event_items via legacy junction tables\n" .
+"INSERT INTO event_items (event_id, asset_id, item_type, label, position)\n" .
+"SELECT\n" .
+"  e.event_id,\n" .
+"  a.asset_id,\n" .
+"  sg.type,\n" .
+"  sg.title,\n" .
+"  ROW_NUMBER() OVER (PARTITION BY e.event_id ORDER BY ss.position, sf.file_id)\n" .
+"FROM sessions sess\n" .
+"JOIN events e ON e.event_date = sess.date AND e.org_name = sess.org_name\n" .
+"JOIN session_songs ss ON ss.session_id = sess.session_id\n" .
+"JOIN songs sg ON sg.song_id = ss.song_id\n" .
+"JOIN song_files sf ON sf.song_id = sg.song_id\n" .
+"JOIN files f ON f.file_id = sf.file_id AND f.checksum_sha256 IS NOT NULL AND f.checksum_sha256 != ''\n" .
+"JOIN assets a ON a.checksum_sha256 = f.checksum_sha256;\n";
 
     if (@file_put_contents($sqlFile, $sql) === false) {
         throw new RuntimeException('Failed to write SQL import file');
@@ -377,22 +441,16 @@ try {
     $finishStep(9, 'ok', 'session_musicians loaded');
     $finishStep(10, 'ok', 'session_songs loaded');
     $finishStep(11, 'ok', 'song_files loaded');
+    $finishStep(12, 'ok', 'Canonicalized to events/assets/event_items');
 
-    $fileCount = null;
     $tableCounts = [];
     try {
-        $fileCount = (int)$pdo->query('SELECT COUNT(*) FROM files')->fetchColumn();
         $tableCounts = [
-            'sessions' => (int)$pdo->query('SELECT COUNT(*) FROM sessions')->fetchColumn(),
-            'musicians' => (int)$pdo->query('SELECT COUNT(*) FROM musicians')->fetchColumn(),
-            'songs' => (int)$pdo->query('SELECT COUNT(*) FROM songs')->fetchColumn(),
-            'files' => $fileCount,
-            'session_musicians' => (int)$pdo->query('SELECT COUNT(*) FROM session_musicians')->fetchColumn(),
-            'session_songs' => (int)$pdo->query('SELECT COUNT(*) FROM session_songs')->fetchColumn(),
-            'song_files' => (int)$pdo->query('SELECT COUNT(*) FROM song_files')->fetchColumn(),
+            'events'       => (int)$pdo->query('SELECT COUNT(*) FROM events')->fetchColumn(),
+            'assets'       => (int)$pdo->query('SELECT COUNT(*) FROM assets')->fetchColumn(),
+            'event_items'  => (int)$pdo->query('SELECT COUNT(*) FROM event_items')->fetchColumn(),
         ];
     } catch (Throwable $e) {
-        $fileCount = null;
         $tableCounts = [];
     }
 

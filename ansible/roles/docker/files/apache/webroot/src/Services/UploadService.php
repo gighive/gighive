@@ -444,15 +444,13 @@ final class UploadService
             );
         }
 
-        // TODO PR5: Port this path to AssetRepository when manifest import worker is ported.
-        $legacyFilesRepo = new \Production\Api\Repositories\FileRepository($this->pdo);
-        $existing = $legacyFilesRepo->findByChecksum($checksum);
-        if (!$existing || !isset($existing['file_id'])) {
+        $existing = $this->assetRepo->findByChecksum($checksum);
+        if (!$existing || !isset($existing['asset_id'])) {
             throw new \RuntimeException(
                 'No manifest row found for checksum ' . $checksum . '; Step 1 must complete before Step 2'
             );
         }
-        $fileId   = (int)$existing['file_id'];
+        $assetId  = (int)$existing['asset_id'];
         $fileType = (string)($existing['file_type'] ?? '');
         if (!in_array($fileType, ['audio', 'video'], true)) {
             throw new \RuntimeException('Invalid file_type in manifest row: ' . $fileType);
@@ -477,7 +475,7 @@ final class UploadService
             }
         }
         if ($ext === '') {
-            $ext = strtolower(pathinfo((string)($existing['file_name'] ?? ''), PATHINFO_EXTENSION));
+            $ext = strtolower((string)($existing['file_ext'] ?? ''));
         }
 
         // Store as {checksum}.{ext} — matches upload_media_by_hash.py naming convention.
@@ -502,8 +500,8 @@ final class UploadService
             $mime = $detected;
         }
 
-        // Delegate probe + UPDATE to UIC (upsert-aware: fills in stub row written by W1).
-        $uicResult       = $this->uic->ingestComplete($fileId, $targetPath, $storedName, $size, $mime, $fileType, $checksum);
+        // Delegate probe + UPDATE to UIC (fills in stub asset row written by W1).
+        $uicResult       = $this->uic->ingestComplete($assetId, $targetPath, $storedName, $size, $mime, $fileType, $checksum);
         $durationSeconds = $uicResult['duration_seconds'];
 
         $thumbnailDone = false;
@@ -513,7 +511,7 @@ final class UploadService
         }
 
         $result = [
-            'file_id'          => $fileId,
+            'asset_id'         => $assetId,
             'file_name'        => $storedName,
             'file_type'        => $fileType,
             'size_bytes'       => $size,
