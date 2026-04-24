@@ -1,4 +1,8 @@
 *** 
+releaseNotes20260424.txt
+Changes: Marker before large repository change for asset-librarian, event-musician 
+
+*** 
 releaseNotes20260423.txt
 Changes: Update openapi, protect /docs, remove improve this page.  Plus index.md and database load options. Remove outdated links from hamburger menu.
 Scope: Gig2,staging + telemetry
