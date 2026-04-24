@@ -553,14 +553,20 @@ function __format_backup_size(int $bytes): string {
     if (typeof resetProgressLatch === 'function') resetProgressLatch();
 
     const steps = [
-      { name: 'Query database', status: 'running', message: 'Finding matching records…',   progress: { processed: 0, total: 1 } },
-      { name: 'Build archive',  status: 'running', message: 'Collecting and zipping files…', progress: { processed: 0, total: 1 } },
-      { name: 'Download',       status: 'pending', message: '',                              progress: null },
+      { name: 'Query database', status: 'running', message: 'Finding matching records\u2026', progress: { processed: 0, total: 1 } },
+      { name: 'Build archive',  status: 'pending', message: '',                             progress: null },
+      { name: 'Download',       status: 'pending', message: '',                             progress: null },
     ];
+
+    function fmtBytes(n) {
+      if (n < 1024)        return n + ' B';
+      if (n < 1048576)     return (n / 1024).toFixed(1) + ' KB';
+      return (n / 1048576).toFixed(1) + ' MB';
+    }
 
     function render() {
       if (typeof renderImportStepsShared === 'function') {
-        statusEl.innerHTML = renderImportStepsShared(steps, { showProgressBar: false, label: 'Export:', statusIndentPx: 80 });
+        statusEl.innerHTML = renderImportStepsShared(steps, { showProgressBar: true, label: 'Export:', statusIndentPx: 80 });
       }
     }
 
@@ -616,23 +622,47 @@ function __format_backup_size(int $bytes): string {
         return;
       }
 
-      steps[1] = { name: 'Build archive',  status: 'ok',      message: 'Archive built', progress: { processed: 1, total: 1 } };
-      steps[2] = { name: 'Download',       status: 'running', message: 'Receiving file…', progress: { processed: 0, total: 1 } };
-      render();
+      steps[1] = { name: 'Build archive', status: 'ok', message: 'Archive built', progress: { processed: 1, total: 1 } };
 
-      // ── Step 3: Download blob ──────────────────────────────────────────────
-      const blob  = await buildResp.blob();
+      // ── Step 3: Download blob with progress ─────────────────────────────
+      const contentLength = parseInt(buildResp.headers.get('Content-Length') || '0', 10);
       const cd    = buildResp.headers.get('Content-Disposition') || '';
       const match = cd.match(/filename="([^"]+)"/);
       const fname = match ? match[1] : 'gighive_export.zip';
-      const url   = URL.createObjectURL(blob);
-      const a     = document.createElement('a');
+
+      steps[2] = { name: 'Download', status: 'running',
+                   message: contentLength > 0 ? '0 B / ' + fmtBytes(contentLength) : 'Receiving\u2026',
+                   progress: contentLength > 0 ? { processed: 0, total: contentLength } : null };
+      render();
+
+      const reader = buildResp.body.getReader();
+      const chunks = [];
+      let received  = 0;
+      let lastRender = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (contentLength > 0 && Date.now() - lastRender > 80) {
+          lastRender = Date.now();
+          steps[2] = { name: 'Download', status: 'running',
+                       message: fmtBytes(received) + ' / ' + fmtBytes(contentLength),
+                       progress: { processed: received, total: contentLength } };
+          render();
+        }
+      }
+
+      const blob = new Blob(chunks);
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
       a.href = url; a.download = fname;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      steps[2] = { name: 'Download', status: 'ok', message: fname, progress: { processed: 1, total: 1 } };
+      steps[2] = { name: 'Download', status: 'ok', message: fname + ' (' + fmtBytes(received) + ')', progress: { processed: received || contentLength, total: contentLength || received } };
       render();
     }
 
