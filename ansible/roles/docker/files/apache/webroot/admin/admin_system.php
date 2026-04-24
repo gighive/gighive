@@ -635,17 +635,13 @@ function __format_backup_size(int $bytes): string {
                    progress: contentLength > 0 ? { processed: 0, total: contentLength } : null };
       render();
 
+      // Yield one frame so the browser paints the "0 B / X MB" state before the loop starts
+      await new Promise(resolve => setTimeout(resolve, 16));
+
       const reader = buildResp.body.getReader();
       const chunks = [];
-      let received        = 0;
-      let rafScheduled    = false;
-
-      function scheduleRender() {
-        if (!rafScheduled) {
-          rafScheduled = true;
-          requestAnimationFrame(() => { rafScheduled = false; render(); });
-        }
-      }
+      let received     = 0;
+      let lastYieldPct = -1;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -653,10 +649,17 @@ function __format_backup_size(int $bytes): string {
         chunks.push(value);
         received += value.length;
         if (contentLength > 0) {
-          steps[2] = { name: 'Download', status: 'running',
-                       message: fmtBytes(received) + ' / ' + fmtBytes(contentLength),
-                       progress: { processed: received, total: contentLength } };
-          scheduleRender();
+          const pct = received / contentLength;
+          // Yield to the browser every 1% so the progress bar actually repaints
+          // even when the entire response was already buffered by the proxy
+          if (pct - lastYieldPct >= 0.01) {
+            lastYieldPct = pct;
+            steps[2] = { name: 'Download', status: 'running',
+                         message: fmtBytes(received) + ' / ' + fmtBytes(contentLength),
+                         progress: { processed: received, total: contentLength } };
+            render();
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
         }
       }
 

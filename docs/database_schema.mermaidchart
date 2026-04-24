@@ -1,0 +1,101 @@
+erDiagram
+
+    %% ── Reference / Lookup ──────────────────────────────────────────────────
+    genres {
+        int          genre_id    PK
+        varchar(255) name        "UNIQUE NOT NULL"
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    styles {
+        int          style_id    PK
+        varchar(255) name        "UNIQUE NOT NULL"
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    %% ── Core Media ──────────────────────────────────────────────────────────
+    assets {
+        int          asset_id          PK
+        char(64)     checksum_sha256   "UNIQUE NOT NULL"
+        enum         file_type         "audio | video"
+        varchar(16)  file_ext
+        varchar(4096) source_relpath
+        bigint       size_bytes
+        varchar(255) mime_type
+        int          duration_seconds
+        json         media_info
+        varchar(255) media_info_tool
+        char(64)     delete_token_hash
+        datetime     media_created_at
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    %% ── Events ──────────────────────────────────────────────────────────────
+    events {
+        int          event_id         PK
+        date         event_date       "NOT NULL"
+        varchar(128) org_name         "DEFAULT default"
+        enum         event_type       "band | wedding | other"
+        varchar(255) title
+        datetime     published_at
+        int          duration_seconds
+        varchar(1024) cover_image_url
+        varchar(255) location
+        text         description
+        text         summary
+        text         keywords
+        decimal(2_1) rating
+        tinyint(1)   explicit         "DEFAULT 0"
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    %% ── Event–Asset junction ────────────────────────────────────────────────
+    event_items {
+        int          event_item_id    PK
+        int          event_id         FK "CASCADE"
+        int          asset_id         FK "CASCADE"
+        enum         item_type        "song | loop | clip | highlight"
+        varchar(255) label
+        int          position
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    %% ── People ──────────────────────────────────────────────────────────────
+    participants {
+        int          participant_id   PK
+        varchar(255) name             "UNIQUE NOT NULL"
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    %% ── Event–Participant junction ───────────────────────────────────────────
+    event_participants {
+        int          event_id         PK "FK CASCADE"
+        int          participant_id   PK "FK CASCADE"
+        varchar(255) role
+    }
+
+    %% ── Auth ────────────────────────────────────────────────────────────────
+    users {
+        int          id               PK
+        varchar(255) email            "UNIQUE NOT NULL"
+        char(60)     password_hash    "NOT NULL"
+        tinyint(1)   is_active        "DEFAULT 0"
+        char(32)     activation_token
+        char(32)     reset_token
+        datetime     reset_expires
+        int          failed_logins    "DEFAULT 0"
+        datetime     locked_until
+        datetime     created_at       "NOT NULL"
+    }
+
+    %% ── Relationships ───────────────────────────────────────────────────────
+    events          ||--o{ event_items        : "contains"
+    assets          ||--o{ event_items        : "linked via"
+    events          ||--o{ event_participants : "features"
+    participants    ||--o{ event_participants : "appears in"
