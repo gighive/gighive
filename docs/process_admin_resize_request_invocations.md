@@ -6,7 +6,7 @@ GigHive VMs are provisioned with a default virtual disk size of 64 GB. Over time
 as media assets accumulate, the disk may need to grow. The resize workflow is a
 two-step process:
 
-1. **Write the request** — an admin uses Section D of the System & Recovery admin
+1. **Write the request** — an admin uses Section E of the System & Recovery admin
    page to write a JSON resize request file onto the VM's filesystem.
 2. **Execute the resize** — the admin runs `run_resize_request.sh` on the
    VirtualBox host to consume the request, power off the VM, grow the VDI via

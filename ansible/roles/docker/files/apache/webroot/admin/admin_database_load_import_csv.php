@@ -233,7 +233,7 @@ if ($user !== 'admin') {
   }
 
   function confirmImportDatabase() {
-    if (!confirm('Are you sure you want to upload a CSV and reload the database?\n\nThis will permanently delete and replace ALL media data (sessions/songs/files/musicians/genres/styles).\n\nThis action CANNOT be undone!')) {
+    if (!confirm('Are you sure you want to upload a CSV and reload the database?\n\nThis will permanently delete and replace ALL media data (events/assets/event_items/participants).\n\nThis action CANNOT be undone!')) {
       return;
     }
 
@@ -298,7 +298,7 @@ if ($user !== 'admin') {
   }
 
   function confirmImportNormalized() {
-    if (!confirm('Are you sure you want to upload sessions.csv + session_files.csv and reload the database?\n\nThis will permanently delete and replace ALL media data (sessions/songs/files/musicians/genres/styles).\n\nThis action CANNOT be undone!')) {
+    if (!confirm('Are you sure you want to upload sessions.csv + session_files.csv and reload the database?\n\nThis will permanently delete and replace ALL media data (events/assets/event_items/participants).\n\nThis action CANNOT be undone!')) {
       return;
     }
 

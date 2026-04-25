@@ -3,9 +3,9 @@
  * admin.php — Admin page for GigHive
  * Section A: Update passwords for 'admin', 'viewer', and 'uploader' in Apache .htpasswd
  * Section B: Clear all media data from the database
- * Section C: Delete all media files from disk
- * Section D: Write disk resize request
- * Section E: Restore database from backup
+ * Section C: Restore database from backup
+ * Section D: Delete all media files from disk
+ * Section E: Write disk resize request
  * Point to the target file with env var GIGHIVE_HTPASSWD_PATH (recommended).
  * Default matches your vhost variable path for Option 1:
  *   /var/www/private/gighive.htpasswd

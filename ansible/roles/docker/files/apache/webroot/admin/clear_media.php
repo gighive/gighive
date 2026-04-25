@@ -76,11 +76,6 @@ try {
     $pdo->exec('TRUNCATE TABLE participants');
     error_log("clear_media.php: Core media tables truncated");
 
-    // Truncate reference tables
-    $pdo->exec('TRUNCATE TABLE genres');
-    $pdo->exec('TRUNCATE TABLE styles');
-    error_log("clear_media.php: Reference tables truncated");
-
     // Re-enable foreign key checks
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
     error_log("clear_media.php: Foreign key checks re-enabled - all tables cleared successfully");
@@ -94,7 +89,6 @@ try {
             'tables_cleared' => [
                 'junction'   => ['event_participants', 'event_items'],
                 'media'      => ['assets', 'events', 'participants'],
-                'reference'  => ['genres', 'styles'],
             ]
         ]
     ];

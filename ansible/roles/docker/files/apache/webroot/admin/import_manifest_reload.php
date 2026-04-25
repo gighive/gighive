@@ -54,7 +54,6 @@ $finishStep = function(int $i, string $status, string $message = '') use (&$step
 $startStep('Upload received');
 $startStep('Validate request');
 $startStep('Truncate tables');
-$startStep('Seed genres/styles');
 $startStep('Upsert events');
 $startStep('Insert assets (dedupe by checksum_sha256)');
 $startStep('Link event_items');
@@ -197,24 +196,9 @@ try {
     $pdo->exec('TRUNCATE TABLE event_items');
     $pdo->exec('TRUNCATE TABLE events');
     $pdo->exec('TRUNCATE TABLE assets');
-    $pdo->exec('TRUNCATE TABLE genres');
-    $pdo->exec('TRUNCATE TABLE styles');
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
 
     $finishStep(2, 'ok', 'Tables truncated');
-
-    $pdo->exec("INSERT IGNORE INTO genres (name) VALUES
-('Rock'),('Jazz'),('Blues'),('Funk'),('Hip-Hop'),
-('Classical'),('Metal'),('Pop'),('Folk'),
-('Electronic'),('Reggae'),('Country'),
-('Latin'),('R&B'),('Alternative'),('Experimental');");
-
-    $pdo->exec("INSERT IGNORE INTO styles (name) VALUES
-('Acoustic'),('Electric'),('Fusion'),('Improvised'),
-('Progressive'),('Psychedelic'),('Hard'),
-('Soft'),('Instrumental'),('Vocal');");
-
-    $finishStep(3, 'ok', 'Seeded genres/styles');
 
     $eventsByKey = [];
     foreach ($validated as $it) {
@@ -223,7 +207,7 @@ try {
             $eventsByKey[$key] = $eventRepo->ensureEvent($it['event_date'], $orgName, $eventType);
         }
     }
-    $finishStep(4, 'ok', 'Events ensured: ' . count($eventsByKey));
+    $finishStep(3, 'ok', 'Events ensured: ' . count($eventsByKey));
 
     $inserted = 0;
     $duplicates = 0;
@@ -281,8 +265,8 @@ try {
         $eventItemRepo->ensureEventItem((int)$eventId, $assetId, 'clip', $label, null);
     }
 
-    $finishStep(5, 'ok', 'Inserted: ' . $inserted . ', duplicates: ' . $duplicates);
-    $finishStep(6, 'ok', 'event_items linked');
+    $finishStep(4, 'ok', 'Inserted: ' . $inserted . ', duplicates: ' . $duplicates);
+    $finishStep(5, 'ok', 'event_items linked');
 
     $tableCounts = [];
     try {

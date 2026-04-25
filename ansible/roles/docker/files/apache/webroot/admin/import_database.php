@@ -52,7 +52,6 @@ $startStep('Upload received');
 $startStep('Preprocess CSV (mysqlPrep_full.py)');
 $startStep('Validate generated CSVs');
 $startStep('Truncate tables');
-$startStep('Seed genres/styles');
 $startStep('Load sessions');
 $startStep('Load musicians');
 $startStep('Load songs');
@@ -373,14 +372,14 @@ CREATE TEMPORARY TABLE IF NOT EXISTS song_files (
         throw new RuntimeException("MySQL load failed:\n" . trim($stdout . "\n" . $stderr));
     }
 
-    $finishStep(5, 'ok', 'Sessions loaded');
-    $finishStep(6, 'ok', 'Musicians loaded');
-    $finishStep(7, 'ok', 'Songs loaded');
-    $finishStep(8, 'ok', 'Files loaded');
-    $finishStep(9, 'ok', 'session_musicians loaded');
-    $finishStep(10, 'ok', 'session_songs loaded');
-    $finishStep(11, 'ok', 'song_files loaded');
-    $finishStep(12, 'ok', 'Canonicalized to events (assets skipped: no checksums in 3A CSV)');
+    $finishStep(4, 'ok', 'Sessions loaded');
+    $finishStep(5, 'ok', 'Musicians loaded');
+    $finishStep(6, 'ok', 'Songs loaded');
+    $finishStep(7, 'ok', 'Files loaded');
+    $finishStep(8, 'ok', 'session_musicians loaded');
+    $finishStep(9, 'ok', 'session_songs loaded');
+    $finishStep(10, 'ok', 'song_files loaded');
+    $finishStep(11, 'ok', 'Canonicalized to events (assets skipped: no checksums in 3A CSV)');
 
     $tableCounts = [];
     try {

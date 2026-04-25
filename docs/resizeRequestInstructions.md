@@ -4,7 +4,7 @@
 
 > **Note:** Do **not** run the resize script with `sudo`. VBoxManage reads from `$HOME/.config/VirtualBox`; running as root points it at `/root/.config/VirtualBox` and breaks the VM lookup.
 
-1) In the GigHive admin page, go to **System & Recovery → Section D: Write Disk Resize Request (Optional)** to create a disk resize request. After writing the request, the admin page will display the exact command to run on your VirtualBox host, with a **Copy Command** button.
+1) In the GigHive admin page, go to **System & Recovery → Section E: Write Disk Resize Request (Optional)** to create a disk resize request. After writing the request, the admin page will display the exact command to run on your VirtualBox host, with a **Copy Command** button.
 <img src="/images/diskResizeRequest.png" alt="Database Import Process" style="height: 400px; width: auto;">
 
 2) From the VirtualBox host, `cd` into the gighive directory and run a dry-run to confirm what would happen:

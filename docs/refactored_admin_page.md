@@ -113,9 +113,9 @@ For each refactor phase, re-test:
 **`admin.php` (Clear Passwords, Database Wipe / Restore and Disk Resize)**
 - Section A: Change default passwords
 - Section B: Clear Database
-- Section C: Delete All Media Files from Disk
-- Section D: Write Disk Resize Request
-- Section E: Restore from backup + log polling
+- Section C: Restore from backup + log polling
+- Section D: Delete All Media Files from Disk
+- Section E: Write Disk Resize Request
 
 **`admin_database_load_import.php` (Database Load, File Import)**
 - Section A: Legacy CSV import + reload

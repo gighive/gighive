@@ -123,22 +123,7 @@ function __format_backup_size(int $bytes): string {
       </div>
 
       <div class="section-divider">
-        <h2>Section B: Delete All Media Files from Disk</h2>
-        <p class="muted">
-          Permanently deletes all audio, video, and thumbnail files stored on the server.
-          The database is <strong>not</strong> affected — run Section A first if you also want to clear database records.
-        </p>
-        <div class="warning-box">
-          <strong>⚠️ Warning:</strong> This deletes actual files from disk. Unlike the database,
-          files cannot be recovered from a database backup. Ensure <strong>no uploads are currently in progress</strong>
-          before proceeding.
-        </div>
-        <div id="clearMediaFilesStatus"></div>
-        <button type="button" id="clearMediaFilesBtn" class="danger" onclick="confirmClearMediaFiles()">Delete All Media Files</button>
-      </div>
-
-      <div class="section-divider">
-        <h2>Section C: Restore Database From Backup (Destructive)</h2>
+        <h2>Section B: Restore Database From Backup (Destructive)</h2>
         <p class="muted">
           A full database backup is created daily by the server. Use this section to restore the entire database if something goes wrong.
           Note that the backup only applies to the database in the container.  The backup does not backup the media files stored on the filesystem.
@@ -173,30 +158,23 @@ function __format_backup_size(int $bytes): string {
         <button type="button" id="restoreDbBtn" class="danger" onclick="confirmRestoreDatabase()" <?php if (!count($__restore_backup_files)): ?>disabled<?php endif; ?>>Restore Database</button>
       </div>
 
-      <?php if ($__show_disk_resize): ?>
       <div class="section-divider">
-        <h2>Section D: Write Disk Resize Request (Optional)</h2>
+        <h2>Section C: Delete All Media Files from Disk</h2>
         <p class="muted">
-          This creates a resize request file on the server. It does not resize the VM immediately. <a href="https://gighive.app/resizeRequestInstructions.html" target="_blank" rel="noopener noreferrer">Instructions here</a>
+          Permanently deletes all audio, video, and thumbnail files stored on the server.
+          The database is <strong>not</strong> affected — run Section A first if you also want to clear database records.
         </p>
         <div class="warning-box">
-          <strong>⚠️ Warning:</strong> Gighive builds a VM with a default virtual disk size of 64GB.  This command with provide a method to increase the size of the disk.  You will first request a disk resize operation. Then you will run an Ansible script to enlarge the disk. Note that the resize only grows, it DOES NOT SHRINK the virtual disk.
+          <strong>⚠️ Warning:</strong> This deletes actual files from disk. Unlike the database,
+          files cannot be recovered from a database backup. Ensure <strong>no uploads are currently in progress</strong>
+          before proceeding.
         </div>
-        <div class="row">
-          <label for="resize_inventory_host">Inventory host</label>
-          <input type="text" id="resize_inventory_host" name="resize_inventory_host" value="gighive" />
-        </div>
-        <div class="row">
-          <label for="resize_disk_size_gib">Target disk size (GiB)</label>
-          <input type="number" id="resize_disk_size_gib" name="resize_disk_size_gib" min="16" step="1" value="256" />
-        </div>
-        <div id="resizeRequestStatus"></div>
-        <button type="button" id="writeResizeRequestBtn" class="danger" onclick="confirmWriteResizeRequest()">Write Resize Request</button>
+        <div id="clearMediaFilesStatus"></div>
+        <button type="button" id="clearMediaFilesBtn" class="danger" onclick="confirmClearMediaFiles()">Delete All Media Files</button>
       </div>
-      <?php endif; ?>
 
       <div class="section-divider">
-        <h2>Section E: Export Media to ZIP</h2>
+        <h2>Section D: Export Media to ZIP</h2>
         <p class="muted">
           Download a ZIP of media files currently on disk, filtered by band/event name and/or file type.
           Use this to preserve custom files (e.g. tutorial videos) before a database reset, then
@@ -217,6 +195,28 @@ function __format_backup_size(int $bytes): string {
         <div id="exportMediaStatus"></div>
         <button type="button" id="exportMediaBtn" onclick="doExportMedia()">Download ZIP</button>
       </div>
+
+      <?php if ($__show_disk_resize): ?>
+      <div class="section-divider">
+        <h2>Section E: Write Disk Resize Request (Optional)</h2>
+        <p class="muted">
+          This creates a resize request file on the server. It does not resize the VM immediately. <a href="https://gighive.app/resizeRequestInstructions.html" target="_blank" rel="noopener noreferrer">Instructions here</a>
+        </p>
+        <div class="warning-box">
+          <strong>⚠️ Warning:</strong> Gighive builds a VM with a default virtual disk size of 64GB.  This command with provide a method to increase the size of the disk.  You will first request a disk resize operation. Then you will run an Ansible script to enlarge the disk. Note that the resize only grows, it DOES NOT SHRINK the virtual disk.
+        </div>
+        <div class="row">
+          <label for="resize_inventory_host">Inventory host</label>
+          <input type="text" id="resize_inventory_host" name="resize_inventory_host" value="gighive" />
+        </div>
+        <div class="row">
+          <label for="resize_disk_size_gib">Target disk size (GiB)</label>
+          <input type="number" id="resize_disk_size_gib" name="resize_disk_size_gib" min="16" step="1" value="256" />
+        </div>
+        <div id="resizeRequestStatus"></div>
+        <button type="button" id="writeResizeRequestBtn" class="danger" onclick="confirmWriteResizeRequest()">Write Resize Request</button>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -295,7 +295,7 @@ function __format_backup_size(int $bytes): string {
   }
 
   function confirmClearMedia() {
-    if (!confirm('Are you sure you want to clear ALL media data?\n\nThis will permanently delete:\n- All events\n- All assets\n- All event items\n- All participants\n- All genres and styles\n\nThis action CANNOT be undone!')) {
+    if (!confirm('Are you sure you want to clear ALL media data?\n\nThis will permanently delete:\n- All events\n- All assets\n- All event items\n- All participants\n\nThis action CANNOT be undone!')) {
       return;
     }
 
@@ -561,7 +561,8 @@ function __format_backup_size(int $bytes): string {
     function fmtBytes(n) {
       if (n < 1024)        return n + ' B';
       if (n < 1048576)     return (n / 1024).toFixed(1) + ' KB';
-      return (n / 1048576).toFixed(1) + ' MB';
+      if (n < 1073741824)  return (n / 1048576).toFixed(1) + ' MB';
+      return (n / 1073741824).toFixed(1) + ' GB';
     }
 
     function render() {
@@ -599,6 +600,16 @@ function __format_backup_size(int $bytes): string {
       const count      = Number(prepData.count)       || 0;
       const totalBytes = Number(prepData.total_bytes)  || 0;
       steps[0] = { name: 'Query database', status: 'ok', message: count + ' file(s) ready to export (' + fmtBytes(totalBytes) + ')', progress: { processed: 1, total: 1 } };
+      const confirmMsg = 'You are about to zip ' + fmtBytes(totalBytes) + ' of files.\n\n' +
+                         'Make sure you have enough free space to accommodate this download.\n\n' +
+                         'Do you wish to continue?';
+      if (!window.confirm(confirmMsg)) {
+        steps[1] = { name: 'Build archive', status: 'pending', message: 'Canceled before ZIP build', progress: null };
+        steps[2] = { name: 'Download',      status: 'pending', message: '', progress: null };
+        render();
+        return;
+      }
+
       steps[1] = { name: 'Build archive',  status: 'running', message: 'Zipping ' + count + ' file(s)…', progress: { processed: 0, total: 1 } };
       render();
 
