@@ -510,9 +510,7 @@ final class MediaController
         if ($explicit === 'librarian' || $explicit === 'event') {
             return $explicit;
         }
-        $flavor = getenv('APP_FLAVOR');
-        $flavor = $flavor !== false ? trim((string)$flavor) : '';
-        return ($flavor === 'gighive') ? 'librarian' : 'event';
+        return 'event';
     }
 
     private function getEventIdFromRequest(): ?int

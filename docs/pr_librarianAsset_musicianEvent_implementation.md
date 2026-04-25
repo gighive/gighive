@@ -446,16 +446,15 @@ Today’s listing is join-multiplicity prone and session/song/file based. Post-c
 
 ### Exact changes
 1) `db/database.php` and `view` parameter handling
-- `resolveView()` is already implemented: explicit `?view=event|librarian` wins; fallback is `APP_FLAVOR` (`gighive`→librarian, else→event).
-- Every current link to `database.php` omits `?view=` — all silently fall through to the APP_FLAVOR default.
+- `resolveView()`: explicit `?view=event|librarian` wins; fallback is always `event` regardless of `APP_FLAVOR`. The original `gighive→librarian` default was removed — event view shows significantly more data and is the better default for all deployments until the home page role fork is built.
+- Every prior link to `database.php` omitted `?view=` — all silently fell through to the APP_FLAVOR default (now universally `event`).
 - Inbound links must pass `?view=` explicitly based on user action, not APP_FLAVOR (see `docs/navigation_event_librarian.md`):
   - Upload success (`upload_form.php`, `upload_form_admin.php`, `src/index.php`) → `?view=event` (owned by PR4)
   - CSV import success (`admin_database_load_import_csv.php`) → `?view=event` (owned by PR5)
   - Folder import + restore (`admin_database_load_import_media_from_folder.php`, `admin_system.php`) → `?view=librarian` (folder import owned by PR5; restore owned by this PR)
   - Search form (`list.php`) → add hidden `view=` input to preserve view across submissions (owned by this PR)
-- `header.php` nav link and direct/bookmark navigation continue to rely on the APP_FLAVOR fallback — intentional (no context available).
+- `header.php` nav link and direct/bookmark navigation fall back to `event` (universal fallback — no context available).
 - "Reset to Default View" preserves `?view=` — it resets UI state (search, filters, columns) only, not view mode.
-- APP_FLAVOR remains a valid last-resort default; it is not the primary signal for inbound links.
 - See `docs/navigation_event_librarian.md` for full flow map and rationale.
 - Keep `event_id` filter and `format=json` contract unchanged.
 

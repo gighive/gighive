@@ -29,14 +29,14 @@ signal — the server config shouldn't decide what the user sees after their act
 | Imported event data from CSV (Sections 3A/3B) | `?view=event` |
 | Reloaded or added media from a folder (Sections A/B in folder import) | `?view=librarian` |
 | Restored the database (`admin_system.php`) | `?view=librarian` |
-| Clicked "the database" in the site header (`header.php`) | APP_FLAVOR fallback |
-| Navigated directly / used a bookmark | APP_FLAVOR fallback |
+| Clicked "the database" in the site header (`header.php`) | `event` (fallback) |
+| Navigated directly / used a bookmark | `event` (fallback) |
 | Clicked "Reset to Default View" | Same `?view=` as current page — resets UI state only, not view mode |
 
-**Also note — search form bug**: the search form on the listing page submits via GET
-and does not include a hidden `view=` input. Every search submission silently resets
-the view to the APP_FLAVOR default, even if the user was intentionally in
-`?view=librarian`. Fix is a single hidden input in `list.php` (see flow inventory below).
+**Also note — search form bug** (now fixed): the search form submitted via GET without
+a hidden `view=` input, so every search silently dropped back to the fallback (`event`).
+Fix: hidden `view=` input added to `list.php` preserves the current view across search
+submissions.
 
 The folder import (Reload/Add from Folder) is the librarian's bulk ingestion workflow.
 Even though the server creates event records internally, the user's intent is
@@ -45,7 +45,7 @@ Sending them to the librarian view after a folder import is correct.
 
 ---
 
-## How `resolveView()` works (already implemented)
+## How `resolveView()` works
 
 ```php
 // MediaController.php
@@ -55,15 +55,27 @@ private function resolveView(): string
     if ($explicit === 'librarian' || $explicit === 'event') {
         return $explicit;
     }
-    $flavor = getenv('APP_FLAVOR');
-    return ($flavor === 'gighive') ? 'librarian' : 'event';
+    return 'event';
 }
 ```
 
 Priority order:
 1. **Explicit `?view=event|librarian`** — always wins.
-2. **`APP_FLAVOR=gighive`** → `librarian`.
-3. **Anything else** (including `defaultcodebase`) → `event`.
+2. **Fallback** — always `event`, regardless of `APP_FLAVOR`.
+
+### Why event is always the fallback
+
+The event view shows significantly more data than the librarian view: Band/Event name,
+Song Name, Musicians, Media File Info are all populated in event view and empty in
+librarian view. For any user encountering the page cold — via a bookmark, the home page
+link, or the site header — event view puts the software on better footing and is more
+immediately useful.
+
+The original `APP_FLAVOR=gighive → librarian` default was a premature design decision
+that made gighive deployments show *less* information by default. With the home page
+role fork not yet built, there is no good reason to default to the lower-information
+view on any deployment. `?view=librarian` remains fully functional for users and flows
+that explicitly need it.
 
 ---
 
@@ -139,8 +151,8 @@ flowchart LR
         B_NAV["Direct nav / header / Reset"] -->|"no ?view="| B_RV
         B_SF["Search form<br/>⚠ bug: view= lost"] -->|"no ?view="| B_RV
         B_RV{"APP_FLAVOR<br/>decides all"}
-        B_RV -->|"gighive"| B_LIB[("librarian view")]
-        B_RV -->|"else"| B_EVT[("event view")]
+        B_RV -->|"APP_FLAVOR=gighive"| B_LIB[("librarian view")]
+        B_RV -->|"APP_FLAVOR=defaultcodebase<br/>or unset"| B_EVT[("event view")]
     end
 
     subgraph AFTER["✅ After: User action decides"]
@@ -151,9 +163,8 @@ flowchart LR
         A_SYS["Restore<br/>(admin_system)"] -->|"?view=librarian"| A_LIB
         A_NAV["Direct nav / header / Reset"] -->|"no ?view="| A_RV
         A_SF["Search form<br/>hidden view= input"] -->|"view= preserved"| A_SAME
-        A_RV{"APP_FLAVOR<br/>fallback only"}
-        A_RV -->|"gighive"| A_LIB
-        A_RV -->|"else"| A_EVT
+        A_RV{"fallback:<br/>always event"}
+        A_RV --> A_EVT
         A_EVT[("event view")]
         A_LIB[("librarian view")]
         A_SAME[("same view as before")]
@@ -258,7 +269,7 @@ Add a hidden input immediately after the opening `<form>` tag:
 ---
 
 ### Do not change
-- `header.php` — `<a href="db/database.php">` — no action context; APP_FLAVOR fallback is correct
+- `header.php` — `<a href="db/database.php">` — no action context; falls back to `event` (universal fallback)
 - `list.php` `$buildUrl` pagination — already preserves the full query string including `view=`
 
 ### Already fixed (preserves `?view=`, resets UI state only)
@@ -268,8 +279,9 @@ Add a hidden input immediately after the opening `<form>` tag:
 
 ## Future: role fork on home page
 
-The remaining APP_FLAVOR-driven path (`header.php` nav link, direct URL, bookmark) still
-requires the server to guess the user's intent. The natural resolution is a home page that
+Direct URLs, bookmarks, and the `header.php` nav link all arrive without a `?view=` param
+and currently fall back to `event` (the universal fallback). This is better than before
+but still relies on the server choosing for the user. The natural resolution is a home page that
 presents an explicit role fork:
 
 > **"I'm a musician / event planner"** → `db/database.php?view=event`
