@@ -30,7 +30,8 @@ signal — the server config shouldn't decide what the user sees after their act
 | Reloaded or added media from a folder (Sections A/B in folder import) | `?view=librarian` |
 | Restored the database (`admin_system.php`) | `?view=librarian` |
 | Clicked "the database" in the site header (`header.php`) | APP_FLAVOR fallback |
-| Navigated directly / used a bookmark / hit "Reset to Default View" | APP_FLAVOR fallback |
+| Navigated directly / used a bookmark | APP_FLAVOR fallback |
+| Clicked "Reset to Default View" | Same `?view=` as current page — resets UI state only, not view mode |
 
 **Also note — search form bug**: the search form on the listing page submits via GET
 and does not include a hidden `view=` input. Every search submission silently resets
@@ -102,10 +103,10 @@ modified event data — but they show whatever view the server is configured for
 
 | Source | Link | Reason |
 |---|---|---|
-| `db/database.php` list view — "Reset to Default View" | `<a href="database.php">` | Intentionally clears all filters/params; APP_FLAVOR default is the right landing state |
 | `header.php` persistent nav | `<a href="db/database.php">the database</a>` | Top-nav link with no action context; APP_FLAVOR fallback is appropriate |
 | Direct navigation / bookmark | `/db/database.php` | No context available; server default is appropriate |
-| Pagination links (`$buildUrl`) in `list.php` | `database.php?page=N&...` | Preserves the existing query string, so `view=` is carried forward if already present |
+| Pagination links (`$buildUrl`) in `list.php` | `database.php?page=N&...` | Preserves the existing query string including `view=` |
+| `list.php` "Reset to Default View" | `database.php?view=<?= $view ?>` | Preserves `?view=` — resets UI state (filters, search, columns) only, not view mode |
 
 ### ⚠️ Search form — view is lost on submission
 
@@ -258,8 +259,10 @@ Add a hidden input immediately after the opening `<form>` tag:
 
 ### Do not change
 - `header.php` — `<a href="db/database.php">` — no action context; APP_FLAVOR fallback is correct
-- `list.php` "Reset to Default View" — intentionally clears all params including `view=`
-- `list.php` `$buildUrl` pagination — already preserves the full query string including `view=` if present
+- `list.php` `$buildUrl` pagination — already preserves the full query string including `view=`
+
+### Already fixed (preserves `?view=`, resets UI state only)
+- `list.php` "Reset to Default View" — `database.php?view=<?= $view ?>` — carries `view=` through; clears search, filters, column state
 
 ---
 

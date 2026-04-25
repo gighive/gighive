@@ -453,7 +453,8 @@ Today’s listing is join-multiplicity prone and session/song/file based. Post-c
   - CSV import success (`admin_database_load_import_csv.php`) → `?view=event` (owned by PR5)
   - Folder import + restore (`admin_database_load_import_media_from_folder.php`, `admin_system.php`) → `?view=librarian` (folder import owned by PR5; restore owned by this PR)
   - Search form (`list.php`) → add hidden `view=` input to preserve view across submissions (owned by this PR)
-- "Reset to Default View", `header.php` nav link, and direct/bookmark navigation continue to rely on the APP_FLAVOR fallback — intentional.
+- `header.php` nav link and direct/bookmark navigation continue to rely on the APP_FLAVOR fallback — intentional (no context available).
+- "Reset to Default View" preserves `?view=` — it resets UI state (search, filters, columns) only, not view mode.
 - APP_FLAVOR remains a valid last-resort default; it is not the primary signal for inbound links.
 - See `docs/navigation_event_librarian.md` for full flow map and rationale.
 - Keep `event_id` filter and `format=json` contract unchanged.

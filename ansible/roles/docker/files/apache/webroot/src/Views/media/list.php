@@ -202,7 +202,7 @@
      <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?>. v1.0 view</div>
      <div class="home-link">
        <a href="/index.php">Return to Home Page</a><br>
-       <a href="database.php" id="resetViewLink">Reset to Default View</a>
+       <a href="database.php?view=<?= htmlspecialchars($view ?? '', ENT_QUOTES) ?>" id="resetViewLink">Reset to Default View</a>
      </div>
    </div>
   <h1 id="all" class="header-block">Media Library</h1>
