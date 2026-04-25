@@ -338,6 +338,7 @@
   <?php endif; ?>
 
   <form id="searchForm" method="get" action="database.php">
+  <input type="hidden" name="view" value="<?= htmlspecialchars($view ?? '', ENT_QUOTES) ?>">
   <div style="margin:0 auto;">
   <table id="searchableTable" class="<?= $isGighive ? 'table-gighive' : 'table-defaultcodebase' ?>" data-sort-order="asc">
     <thead>

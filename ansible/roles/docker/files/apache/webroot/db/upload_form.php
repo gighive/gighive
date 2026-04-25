@@ -467,7 +467,7 @@
 
                   const link = document.createElement('a');
                   link.id = 'viewFileInDatabaseLink';
-                  link.href = '/db/database.php';
+                  link.href = '/db/database.php?view=event';
                   link.textContent = 'View File in Database';
                   link.style.display = 'inline-block';
                   link.style.marginTop = '10px';

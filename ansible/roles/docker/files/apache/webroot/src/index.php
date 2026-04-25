@@ -95,7 +95,7 @@ try {
         if (is_array($resp['body']) && isset($resp['body']['id'])) {
             $newId = (string)$resp['body']['id'];
         }
-        $dbUrl = $newId !== '' ? ('/db/database.php#media-' . rawurlencode($newId)) : '/db/database.php#all';
+        $dbUrl = $newId !== '' ? ('/db/database.php?view=event#media-' . rawurlencode($newId)) : '/db/database.php?view=event#all';
         echo "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Upload " . ($ok ? "Success" : "Status") . "</title>\n<style>body{font-family:system-ui,Arial,sans-serif;margin:20px;} pre{background:#f7f7f7;padding:12px;overflow:auto;} .status{font-weight:700;color:" . ($ok ? "#0a0" : "#a00") . ";}</style>\n</head>\n<body>\n<h1 class=\"status\">" . ($ok ? "Upload completed" : "Upload status: " . (int)($resp['status'] ?? 0)) . "</h1>\n<p><a href=\"$dbUrl\">Go to database</a></p>\n<details><summary>Response details</summary><pre>$bodyPretty</pre></details>\n</body>\n</html>";
     } else {
         header('Content-Type: application/json');

@@ -108,7 +108,7 @@ if ($user !== 'admin') {
   const __dbLinkStyle = 'display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;';
 
   function renderDbLinkButton(label) {
-    return ' <a href="/db/database.php" target="_blank" rel="noopener noreferrer" style="' + __dbLinkStyle + '">' + String(label) + '</a>';
+    return ' <a href="/db/database.php?view=event" target="_blank" rel="noopener noreferrer" style="' + __dbLinkStyle + '">' + String(label) + '</a>';
   }
 
   function renderOkBannerWithDbLink(message, linkLabel) {

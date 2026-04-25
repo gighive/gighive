@@ -1,7 +1,7 @@
 *** 
 releaseNotes20260425.txt
-Changes: Fixes for styles/genres removal, add export media function, remove mysql_data=true, doc updates
-Scope: Gig2,OSB,lab,staging,telemetry,lab as sp prod,sp prod
+Changes: Update database.php view param to user flow, doc'd in navigation_event_librarian.md, setup playwright test scripts for admin pages
+Scope: Gig2
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
@@ -13,7 +13,7 @@ Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/invento
 # LAB, rebuild 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
 # LAB PUSH
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260419.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260425.log
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
 # GIG STAGING PUSH
@@ -25,6 +25,7 @@ Last run (staging: run from staging to reinstall telemetry): script -q -c "ansib
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260425.log 
 # ONE-SHOT-BUNDLE UPLOAD TESTS
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd>"  ansible-playbook-gighive-bundle-tests-20260414.log
+
 sodo@pop-os:~/gighive$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
@@ -32,19 +33,15 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin.php
 	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_csv.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
 	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/clear_media.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/import_database.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/import_manifest_reload.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/import_normalized.php
-	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	new file:   docs/admin_export_media.md
-	modified:   docs/process_admin_resize_request_invocations.md
-	modified:   docs/refactored_admin_page.md
-	modified:   docs/resizeRequestInstructions.md
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/index.php
+	new file:   docs/navigation_event_librarian.md
+	modified:   docs/pr_librarianAsset_musicianEvent_implementation.md
 
 TODO
 Marketing: Share same text I sent Annika with Pat. 
@@ -96,6 +93,55 @@ Infra: Rebuild prod on lab machine as test, then switch to lab as prod?
 Backup: the sha versions of stormpigs aren't backed up on popos, should test on lab
 Backup: Create method to restore additional videos to staging 
 Maintenance: remove vodcast.xml, images/jam, stormpigs* from webroot for gighive, /ansible/roles/docker/files/apache/webroot/images/stormpigsItunesVideo.jpg, stormpigsPodcastSplash.png
+
+*** 
+releaseNotes20260425.txt
+Changes: Fixes for styles/genres removal, add export media function, remove mysql_data=true, doc updates
+Scope: Gig2,OSB
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260425.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260415.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260425.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260423.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260423.log
+
+# ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260425.log 
+# ONE-SHOT-BUNDLE UPLOAD TESTS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd>"  ansible-playbook-gighive-bundle-tests-20260414.log
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_csv.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/clear_media.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_database.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_manifest_reload.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_normalized.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	new file:   docs/admin_export_media.md
+	modified:   docs/process_admin_resize_request_invocations.md
+	modified:   docs/refactored_admin_page.md
+	modified:   docs/resizeRequestInstructions.md
 
 *** 
 releaseNotes20260424.txt

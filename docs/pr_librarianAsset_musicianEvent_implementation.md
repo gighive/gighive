@@ -431,9 +431,10 @@ Today’s listing is join-multiplicity prone and session/song/file based. Post-c
 - Change:
   - `ansible/roles/docker/files/apache/webroot/db/database.php`
   - `ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php`
-  - `ansible/roles/docker/files/apache/webroot/src/Views/media/list.php`
+  - `ansible/roles/docker/files/apache/webroot/src/Views/media/list.php` (canonical listing + hidden `view=` input on search form)
   - `ansible/roles/docker/files/apache/webroot/src/Controllers/RandomController.php`
   - `ansible/roles/docker/files/apache/webroot/db/singlesRandomPlayer.php` — switch from `SessionRepository` to `AssetRepository`
+  - `ansible/roles/docker/files/apache/webroot/admin/admin_system.php` — `renderDbLinkButton` href → `/db/database.php?view=librarian` (restore is a library-level operation)
 - Replace or supplement:
   - `ansible/roles/docker/files/apache/webroot/src/Repositories/SessionRepository.php`
 - Change (inline-edit endpoints — write to `sessions/songs/musicians/session_musicians`; will break at PR1 unless ported here):
@@ -444,13 +445,18 @@ Today’s listing is join-multiplicity prone and session/song/file based. Post-c
   - `ansible/roles/docker/files/apache/webroot/src/Repositories/EventRepository.php`
 
 ### Exact changes
-1) `db/database.php`
-- Replace `SessionRepository` usage with the canonical repositories.
-- Parse query params:
-  - `view` default driven by `APP_FLAVOR`: `defaultcodebase` → `event`, `gighive` → `librarian`.
-    Also support explicit `view=librarian|event` override.
-  - `event_id` for event view
-  - keep `format=json` contract
+1) `db/database.php` and `view` parameter handling
+- `resolveView()` is already implemented: explicit `?view=event|librarian` wins; fallback is `APP_FLAVOR` (`gighive`→librarian, else→event).
+- Every current link to `database.php` omits `?view=` — all silently fall through to the APP_FLAVOR default.
+- Inbound links must pass `?view=` explicitly based on user action, not APP_FLAVOR (see `docs/navigation_event_librarian.md`):
+  - Upload success (`upload_form.php`, `upload_form_admin.php`, `src/index.php`) → `?view=event` (owned by PR4)
+  - CSV import success (`admin_database_load_import_csv.php`) → `?view=event` (owned by PR5)
+  - Folder import + restore (`admin_database_load_import_media_from_folder.php`, `admin_system.php`) → `?view=librarian` (folder import owned by PR5; restore owned by this PR)
+  - Search form (`list.php`) → add hidden `view=` input to preserve view across submissions (owned by this PR)
+- "Reset to Default View", `header.php` nav link, and direct/bookmark navigation continue to rely on the APP_FLAVOR fallback — intentional.
+- APP_FLAVOR remains a valid last-resort default; it is not the primary signal for inbound links.
+- See `docs/navigation_event_librarian.md` for full flow map and rationale.
+- Keep `event_id` filter and `format=json` contract unchanged.
 
 2) `MediaController.php`
 - Split listing into two code paths:

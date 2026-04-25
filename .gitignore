@@ -42,6 +42,14 @@ volumes/
 # temp video dir
 /videos
 
+# tests dir
+/tests
+
+# Node / Playwright
+node_modules/
+playwright-report/
+test-results/
+
 # Debug directories
 **/debug/
 
