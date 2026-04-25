@@ -18,7 +18,7 @@ Store in `tests/.env` (never commit):
 ADMIN_URL=https://gighive2.yourdomain.com
 ADMIN_USER=admin
 ADMIN_PASS=<admin htpasswd password>
-TEST_ADMIN_PW=<same value as ADMIN_PASS — must match HTTP Basic Auth for steps 2–12>
+TEST_ADMIN_PW=<new admin password to set — can differ from ADMIN_PASS>
 TEST_VIEWER_PW=<viewer password to set>
 TEST_UPLOADER_PW=<uploader password to set>
 MEDIA_FOLDER=/tmp/gighive-media

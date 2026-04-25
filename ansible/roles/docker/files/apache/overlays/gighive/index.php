@@ -126,7 +126,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>Get Started</h3>
       <ul>
-        <li>Gighive is a containerized deployment of Apache and Mysql running in Docker.  Easiest way to start is by following the quickstart instructions below:</li>
+        <li>Gighive is a containerized deployment of Apache and Mysql running in Docker.  Easiest way to start is by installing Docker and then, the Gighive Quickstart docker bundle.  Follow the instructions below for both:</li>
       </ul>
 
       <div class="media-grid">
@@ -152,7 +152,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>Requirements for Quickstart</h3>
       <ul>
-        <li>Most flavors of Linux x86/64 (Tested on Ubuntu 24.04, 22.04 and Mac Sequoia 15.6.1) and Windows 10 or above running Docker.</li>
+        <li>Most flavors of Linux x86/64 (tested on Ubuntu 24.04 and 22.04), Mac Sequoia 15.6.1 and Windows 10 or above running Docker.</li>
         <li><a href="https://gighive.app/setup_instructions_quickstart.html">Quickstart Instructions</a></li>
       </ul>
 
