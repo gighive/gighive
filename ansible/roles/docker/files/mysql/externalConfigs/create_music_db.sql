@@ -7,7 +7,7 @@ USE music_db;  -- ensure subsequent statements target music_db
  ****************************/
 CREATE TABLE assets (
     asset_id INT PRIMARY KEY AUTO_INCREMENT,
-    checksum_sha256 CHAR(64) NOT NULL,
+    checksum_sha256 CHAR(64) NULL,
     file_type ENUM('audio','video') NOT NULL,
     file_ext VARCHAR(16) NULL,
     source_relpath VARCHAR(4096) NULL,
