@@ -402,6 +402,7 @@ one_shot_bundle_exclude_source_paths:
   - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/images/jam"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/images/stormpigsItunesVideo.jpg"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/images/stormpigsPodcastSplash.png"
+  - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/vodcast.xml"
 
 # --- security_basic_auth vars ---
 apache_group: "{{ www_group | default('www-data') }}"

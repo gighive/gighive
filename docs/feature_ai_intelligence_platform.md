@@ -15,6 +15,18 @@ This framework is designed to:
 
 ---
 
+## Feature Branch Docs
+
+As individual helpers are designed and scoped, they branch off into their own documents. This file remains the central framework reference.
+
+| Helper | Doc | Status |
+|--------|-----|--------|
+| AI Video Tagger (`llm_categorize_v1`) | [feature_ai_video_tagger.md](feature_ai_video_tagger.md) | Draft |
+| Platform Trust & Provenance | [feature_trust_and_provenance.md](feature_trust_and_provenance.md) | Concept |
+
+
+---
+
 ## Guiding Principles
 
 1. **Deterministic, replayable runs**  
@@ -286,9 +298,9 @@ Example helper ids:
    - detect cut points, stable segments, “good edit points”
 3. **Energy / Motion Scoring**
    - audio loudness + motion magnitude → “hype score”
-4. **Context Tagging**
-   - crowd vs rehearsal vs studio vs stage
-   - closeup vs wide vs selfie
+4. **Context Tagging / AI Video Tagger** — [`llm_categorize_v1`](feature_ai_video_tagger.md)
+   - LLM-driven tagging of people, objects, places, activities from video frames
+   - See [feature_ai_video_tagger.md](feature_ai_video_tagger.md) for full design and implementation plan
 5. **Instrument Presence (later)**
    - “drums visible”, “guitar visible”, etc.
 
@@ -386,6 +398,21 @@ Store per-job metrics:
    - energy scoring
    - poster frame generator
    - (optional) simple highlight reel builder using the intelligence outputs
+
+
+---
+
+## Platform Trust & Provenance
+
+GigHive is committed to being a platform of authentic human capture. Three complementary mechanisms enforce this:
+
+1. **C2PA provenance manifests** — cryptographically signed chain-of-custody attached to every ingested video (who, when, from which account)
+2. **Invisible digital watermarking** — a steganographic signal embedded in the media itself that survives re-encoding and metadata stripping
+3. **AI-generated content detection** (`ai_gen_detector_v1`) — an AI helper that screens uploads for synthetic/deepfake content at ingest
+
+This is broader than the AI Intelligence Platform — signing and watermarking happen in the upload pipeline before AI workers run. The detection and verification helpers plug into the standard helper registry model.
+
+See [feature_trust_and_provenance.md](feature_trust_and_provenance.md) for the full concept, architectural placement, and open questions.
 
 
 ---
