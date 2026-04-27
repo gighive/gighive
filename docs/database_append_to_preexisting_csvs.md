@@ -25,13 +25,15 @@ that already exist as part of the session finalization workflow.
 
 ```bash
 python3 ansible/roles/docker/files/apache/webroot/tools/add_jam_session.py \
-  --dir     ~/videos/stormpigs/finals/20260318/ \
-  --songs   ~/videos/stormpigs/finals/songlists/StormPigs20260318.txt \
-  --meta    ~/videos/stormpigs/finals/metadata/StormPigs20260318_metadata.txt \
-  --ssh     ubuntu@prod.gighive.internal \
-  --csv-dir ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full \
-  [--dry-run]   # print what would happen; make no changes
-  [--no-push]   # skip git commit/push
+  --dir      ~/videos/stormpigs/finals/20260318/ \
+  --songs    ~/videos/stormpigs/finals/songlists/StormPigs20260318.txt \
+  --meta     ~/videos/stormpigs/finals/metadata/StormPigs20260318_metadata.txt \
+  --ssh      ubuntu@prod.gighive.internal \
+  --csv-dir  ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full \
+  --repo-dir .                      # git root; defaults to cwd
+  [--org     StormPigs]             # org_name; defaults to StormPigs
+  [--dry-run]                       # print what would happen; make no changes
+  [--no-push]                       # skip git commit/push
 ```
 
 ---
@@ -85,9 +87,11 @@ Parsed fields:
 
 - Parse `metadata.txt` → session dict
 - Parse `songlist.txt` → ordered list of `{position, title}` dicts
-- Scan `--dir` for video/audio files matching `YYYYMMDD_N_Title.ext` pattern
-- Sort files by the embedded sequence number `N`
-- Validate: file count matches songlist line count (warn if mismatch)
+- Scan `--dir` for video/audio files; classify each:
+  - Matches `YYYYMMDD_N_Title.ext` → individual song file (`type='song'`)
+  - Does **not** match that pattern (e.g. SHA256-named or `YYYYMMDD_entirejam.ext`) → whole-jam clip (`type='event_label'`); treated as a single extra entry appended after all songs with `position=NULL`
+- Sort song files by the extracted sequence number `N`
+- Validate: song file count matches songlist line count (warn if mismatch; whole-jam file is excluded from this count)
 
 ### Step 2 — Determine next IDs from CSVs
 
@@ -99,8 +103,15 @@ next_song_id    = max(int(r['song_id'])    for r in songs_csv)    + 1
 next_session_id = max(int(r['session_id']) for r in sessions_csv) + 1
 ```
 
-Check that `next_session_id` does not already exist in `sessions.csv` (guard against
-running the script twice for the same session).
+**Guard — duplicate session date**: Check that the session date parsed from
+`metadata.txt` does not already appear in `sessions.csv`. If it does, abort.
+(Checking `next_session_id` is not meaningful — it is always `max+1` by definition.)
+
+**Guard — prod event_id collision**: Before inserting, query production for
+`SELECT COUNT(*) FROM events WHERE event_id = next_session_id`. If a row already
+exists (auto-created by the folder uploader), the SQL step must use
+`INSERT INTO events ... ON DUPLICATE KEY UPDATE` rather than a bare `INSERT`,
+because a bare `INSERT IGNORE` would silently leave wrong metadata in place.
 
 ### Step 3 — Compute SHA256 locally
 
@@ -117,7 +128,9 @@ rsync -avz --progress \
 ```
 
 Uses `--ignore-existing` to skip files already present (safe to re-run). After
-rsync, verify each remote file's SHA256 matches the locally computed value.
+rsync, verify integrity using rsync's own `--checksum` flag on a second pass
+(avoids N extra SSH round-trips for individual sha256sum calls). If any checksum
+fails, abort before touching the database.
 
 ### Step 5 — Run ffprobe remotely
 
@@ -203,7 +216,10 @@ One row per song, mapping `song_id` → `file_id`:
 | next_song_id+1 | next_file_id+1 |
 | … | … |
 
-Files are matched to songs by sorting both lists by their embedded sequence number `N`.
+Files are matched to songs by **explicit sequence number `N`** extracted from
+filenames (e.g. `StormPigs20260318_3_canyoufeelit.mp4` → N=3). The songlist
+position is also `N`. Both are matched on `N`, not on list index — this is safe
+even if sequence numbers are non-consecutive or don't start at 1.
 
 #### `event_participants.csv`
 
@@ -218,8 +234,18 @@ One row per crew member:
 No rebuild needed. The script generates and executes SQL directly:
 
 ```sql
--- Insert event
-INSERT INTO events (event_id, event_date, org_name, ...) VALUES (...);
+-- Insert event (use ON DUPLICATE KEY UPDATE to handle auto-created placeholder rows)
+INSERT INTO events (event_id, event_date, org_name, event_type, title,
+  cover_image_url, location, rating, summary, published_at, explicit,
+  duration_seconds, keywords)
+VALUES (...)
+ON DUPLICATE KEY UPDATE
+  event_date=VALUES(event_date), org_name=VALUES(org_name),
+  event_type=VALUES(event_type), title=VALUES(title),
+  cover_image_url=VALUES(cover_image_url), location=VALUES(location),
+  rating=VALUES(rating), summary=VALUES(summary),
+  published_at=VALUES(published_at), explicit=VALUES(explicit),
+  duration_seconds=VALUES(duration_seconds), keywords=VALUES(keywords);
 
 -- Insert assets (one per file)
 INSERT IGNORE INTO assets (asset_id, file_name, source_relpath, checksum_sha256,
@@ -267,13 +293,13 @@ Skipped if `--no-push` is passed.
 
 | Condition | Behavior |
 |---|---|
-| Session date already in `sessions.csv` | Abort with error |
+| Session **date** already in `sessions.csv` | Abort with error (not session_id — that's always new by definition) |
 | Crew member not in `participants.csv` | Abort; print exact CSV row to add manually |
 | File count ≠ songlist line count | Warn; proceed with what matches |
-| File already exists on prod (rsync) | Skip copy, still run ffprobe |
+| File already exists on prod (rsync) | Skip copy via `--ignore-existing`; still run ffprobe |
 | SHA256 mismatch after transfer | Abort |
 | `--dry-run` | Print all proposed CSV rows and SQL; no writes |
-| Re-run after partial failure | IDs re-derived from CSVs; SQL uses `INSERT IGNORE` |
+| Re-run after partial failure | IDs re-derived from CSVs; `INSERT IGNORE` on assets/event_items/event_participants; `ON DUPLICATE KEY UPDATE` on events |
 
 ---
 
@@ -292,6 +318,7 @@ Skipped if `--no-push` is passed.
 
 ## What Is NOT Automated
 
-- Adding a new participant to `participants.csv` (must be done manually)
+- Adding a new participant to `participants.csv` (must be done manually before running)
 - Thumbnail generation (handled by the existing PHP app on first page load, or separately via `upload_media_by_hash.py`)
 - Updating `cover_image_url` if the image filename doesn't follow `images/jam/YYYYMMDD.jpg`
+- `org_name` defaults to `StormPigs`; pass `--org` to override for other bands
