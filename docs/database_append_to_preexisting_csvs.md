@@ -38,6 +38,96 @@ python3 ansible/roles/docker/files/apache/webroot/tools/add_jam_session.py \
 
 ---
 
+## How to Use
+
+### Prerequisites
+
+1. **Video files are finalized** — files are in their final form in a local directory,
+   named using the StormPigs convention: `StormPigs20260318_1_SongTitle.mp4`
+2. **`songlist.txt` exists** — one line per song in the standard format (see below)
+3. **`metadata.txt` exists** — crew, location, rating, summary, etc. (see below)
+4. **Crew members are in `participants.csv`** — run the script with `--dry-run` first
+   to catch any unknown names before touching prod
+5. **SSH access to prod** — `ssh ubuntu@prod.gighive.internal` works from your machine
+6. **Run from the repo root** — so relative paths and `git` work correctly
+
+### Workflow
+
+**Step 1 — Dry run first (always)**
+
+```bash
+python3 ansible/roles/docker/files/apache/webroot/tools/add_jam_session.py \
+  --dir     ~/videos/stormpigs/finals/20260318/ \
+  --songs   ~/videos/stormpigs/finals/songlists/StormPigs20260318.txt \
+  --meta    ~/videos/stormpigs/finals/metadata/StormPigs20260318_metadata.txt \
+  --ssh     ubuntu@prod.gighive.internal \
+  --csv-dir ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full \
+  --dry-run
+```
+
+Review the output:
+- Confirm session ID, date, org, metadata look correct
+- Confirm all crew names resolved to participants
+- Confirm song list order (positions 1, 2, 3…) matches the songlist
+- Confirm file count matches songlist line count
+
+**Step 2 — Fix any issues**
+
+If a crew member is unknown, add them manually to `participants.csv` first:
+```
+<next_id>,NewPerson
+```
+Then re-run `--dry-run` to confirm.
+
+**Step 3 — Run for real**
+
+```bash
+python3 ansible/roles/docker/files/apache/webroot/tools/add_jam_session.py \
+  --dir     ~/videos/stormpigs/finals/20260318/ \
+  --songs   ~/videos/stormpigs/finals/songlists/StormPigs20260318.txt \
+  --meta    ~/videos/stormpigs/finals/metadata/StormPigs20260318_metadata.txt \
+  --ssh     ubuntu@prod.gighive.internal \
+  --csv-dir ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full
+```
+
+The script will:
+- Compute SHA256 on local files
+- rsync files to prod
+- Run ffprobe on prod for each file
+- Append rows to all 6 CSVs
+- Apply SQL directly to the live production DB
+- Print a verification summary
+- `git commit` and `git push` the updated CSVs
+
+**Step 4 — Check the verification summary**
+
+```
+Session 137 (2026-03-18):
+  events:              1 row  ✓
+  assets:             12 rows ✓
+  event_items:        12 rows ✓
+  event_participants:  5 rows ✓
+  positions set:      12      ✓
+```
+
+If any row count is wrong, check the error output. The script is re-runnable —
+re-running after a partial failure is safe (`INSERT IGNORE` / `ON DUPLICATE KEY UPDATE`
+prevent duplicate rows).
+
+**Step 5 — Verify in the UI**
+
+Open `stormpigs.com/db/database.php?view=event&date=YYYY-MM-DD` and confirm the
+session appears with correct metadata, song order, and participants.
+
+### If Something Goes Wrong Mid-Run
+
+The script is safe to re-run. IDs are always re-derived from the current state of
+the CSVs, and all SQL uses either `INSERT IGNORE` or `ON DUPLICATE KEY UPDATE`. If
+the CSVs were partially written, restore from git (`git checkout -- <file>`) and
+re-run from scratch.
+
+---
+
 ## Input File Formats
 
 ### `songlist.txt`
