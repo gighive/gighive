@@ -132,7 +132,8 @@ IGNORE 1 LINES
 -- 6) Staging: session → song links
 CREATE TEMPORARY TABLE IF NOT EXISTS _stg_session_songs (
     session_id INT NOT NULL,
-    song_id INT NOT NULL
+    song_id INT NOT NULL,
+    position INT NULL
 );
 
 LOAD DATA INFILE '/var/lib/mysql-files/session_songs.csv'
@@ -140,7 +141,8 @@ INTO TABLE _stg_session_songs
 FIELDS TERMINATED BY ','
 LINES TERMINATED BY '\r\n'
 IGNORE 1 LINES
-(session_id, song_id);
+(session_id, song_id, @pos_raw)
+SET position = NULLIF(@pos_raw, '');
 
 -- 7) Staging: song → file links
 CREATE TEMPORARY TABLE IF NOT EXISTS _stg_song_files (
@@ -168,7 +170,7 @@ SELECT
         ELSE                    'clip'
     END,
     s.title,
-    NULL
+    ss.position
 FROM _stg_song_files sf
 JOIN _stg_songs s ON s.song_id = sf.song_id
 JOIN _stg_session_songs ss ON ss.song_id = sf.song_id;
