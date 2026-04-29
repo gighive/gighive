@@ -1,4 +1,8 @@
 *** 
+releaseNotes20260429.txt
+Changes: Plan for video tagger finalized
+
+*** 
 releaseNotes20260426.txt
 Changes: Changes to files.csv (ffmpeg additions) and prod.yml for prod db sync
 Scope: egrep -A1 'PROD' CHANGELOG.md | head -20
@@ -48,6 +52,7 @@ What's next: promote to staging (reupload five tutorials and change out thumbnai
 What's next: iphone app updates
 Marketing: Share same text I sent Annika with Pat. 
 Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
+App: Does the media player have to open a separate window? 
 App: Add How to Use button with link to video at bottom of home page
 App: Add tutorial at bottom of upload page 
 App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?

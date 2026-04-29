@@ -410,3 +410,19 @@ gighive_admin_user: "{{ admin_user | default('admin') }}"
 gighive_viewer_user: "{{ viewer_user | default('viewer') }}"
 gighive_admin_password: "CHANGE_ME_ADMIN"
 gighive_viewer_password: "CHANGE_ME_VIEWER"
+
+# --------------------------------------------------------------------
+# AI worker (video_tagger_v1)
+# OPENAI_API_KEY belongs in secrets.yml (gitignored), not here
+# --------------------------------------------------------------------
+ai_worker_enabled: false
+llm_provider: "openai"
+openai_model: "gpt-4.1"
+llm_base_url: "https://api.openai.com/v1"
+ai_frame_interval_seconds: 5
+ai_max_frames_per_job: 48
+ai_max_frames_per_chunk: 6
+ai_frame_retention_days: 30
+ai_worker_poll_interval: 5
+ai_worker_max_attempts: 3
+gighive_ai_assets_root: "/data/ai_assets"

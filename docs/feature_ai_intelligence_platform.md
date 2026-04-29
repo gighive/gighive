@@ -3,6 +3,8 @@
 Date: 2026-02-21  
 Status: Draft / Working design doc
 
+> **Schema alignment (updated 2026-04-27)**: Domain tables in this document use the canonical post-cutover schema (`assets`, `events`, `event_items`, `participants`, `event_participants`) defined in [pr_librarianAsset_musicianEvent_implementation.md](pr_librarianAsset_musicianEvent_implementation.md) and visualized in the [database ERD](https://gighive.app/images/databaseErd.png). AI platform framework tables (`ai_jobs`, `helper_runs`, `derived_assets`, `tags`, `taggings`) are new additions layered on top of the canonical schema. Note: `derived_assets` (AI-produced artifacts such as sampled frames and face thumbnails) is a **separate table** from the canonical `assets` table (original uploaded media).
+
 ## Goal
 
 Turn GigHive into a **hosting + intelligence** platform by adding a general-purpose framework that can ingest media (audio/video), run multiple AI “helpers” against it, and persist results back into the GigHive database — enabling search, analytics, and creative transformations (e.g., stylization/cartoonization) over time.
@@ -21,7 +23,7 @@ As individual helpers are designed and scoped, they branch off into their own do
 
 | Helper | Doc | Status |
 |--------|-----|--------|
-| AI Video Tagger (`llm_categorize_v1`) | [feature_ai_video_tagger.md](feature_ai_video_tagger.md) | Draft |
+| AI Video Tagger (`video_tagger_v1`) | [feature_ai_video_tagger.md](feature_ai_video_tagger.md) | Draft |
 | Platform Trust & Provenance | [feature_trust_and_provenance.md](feature_trust_and_provenance.md) | Concept |
 
 
@@ -130,34 +132,36 @@ ai_assets/
 
 These tables are helper-agnostic plumbing that enable many helpers.
 
-### 1) `media_files`
-Registers video/audio assets known to GigHive.
+### 1) `assets`
+Registers video/audio assets known to GigHive. **Canonical table name per PR1 cutover.** *(Previously `media_files` in earlier drafts of this doc.)*
 
-Suggested key fields:
-- `id`
-- `media_type` ENUM('video','audio')
+Key fields:
+- `asset_id` PK
+- `file_type` ENUM('audio','video')
+- `checksum_sha256` CHAR(64) UNIQUE NOT NULL
 - `storage_backend` VARCHAR
-- `storage_locator` TEXT  (or `relative_path`)
-- `duration_seconds`, `width`, `height`, `fps`
-- `codec_video`, `codec_audio`
-- `sha256` (optional, for dedupe)
+- `storage_locator` TEXT (relative path today)
+- `duration_seconds`, `size_bytes`, `mime_type`
+- `media_info` JSON (codec, width, height, fps — populated by ffprobe)
 - `created_at`, `updated_at`
 
-### 2) `media_file_links`
-Connect media to domain entities.
+### 2) `event_items`
+Connects assets to events (canonical join table per PR1 cutover). *(Previously `media_file_links` in earlier drafts of this doc.)*
 
-- `id`
-- `media_file_id`
-- `entity_type` ENUM('jam_session','song','musician')
-- `entity_id`
-- `role` ENUM('primary','broll','single','loop') (optional)
+- `event_item_id` PK
+- `event_id` FK → `events`
+- `asset_id` FK → `assets`
+- `item_type` ENUM('song','loop','clip','highlight')
+- `label` VARCHAR (human-readable name within the event)
+- `position` INT NULL (event-local ordering)
+- UNIQUE(`event_id`, `asset_id`)
 
 ### 3) `ai_jobs` (DB-backed queue)
 A generic job queue for all helpers.
 
 - `id`
 - `job_type` VARCHAR (e.g., `index_video_faces`, `cluster_faces`, `stylize_cartoon`)
-- `target_type` ENUM('media_file','jam_session','song','musician') (optional)
+- `target_type` ENUM('asset','event','event_item','participant') (optional)
 - `target_id` BIGINT (optional)
 - `params_json` JSON (helper config: fps sampling, thresholds, model version)
 - `status` ENUM('queued','running','failed','done')
@@ -165,8 +169,7 @@ A generic job queue for all helpers.
 - `attempts` INT default 0
 - `locked_by` VARCHAR nullable
 - `locked_at` DATETIME nullable
-- `error_message` TEXT nullable
-- `metrics_json` JSON nullable
+- `error_msg` TEXT nullable
 - timestamps
 
 **Locking pattern:** atomic “claim” update:
@@ -203,7 +206,7 @@ A unified tagging model for “categorize everything.”
 - `taggings`: link tags to targets with optional time ranges
   - `id`
   - `tag_id`
-  - `target_type` ENUM('media_file','jam_session','song','segment')
+  - `target_type` ENUM('asset','event','event_item','segment')
   - `target_id`
   - `start_seconds`, `end_seconds` nullable
   - `confidence` float nullable
@@ -241,7 +244,7 @@ Identity becomes the join key for:
 
 #### `face_detections`
 - `id`
-- `media_file_id`
+- `asset_id` FK → `assets`
 - `timestamp_seconds`
 - bbox fields
 - `confidence`
@@ -251,13 +254,13 @@ Identity becomes the join key for:
 #### `face_clusters`
 - `id`
 - `representative_asset_id`
-- `assigned_musician_id` nullable (human-confirmed)
+- `assigned_participant_id` nullable (human-confirmed, FK → `participants`)
 - `detection_count`
 - `created_at`, `updated_at`
 
 ### Human-in-the-loop workflow
 1. UI shows clusters with thumbnails
-2. User assigns cluster → musician (or creates musician)
+2. User assigns cluster → participant (or creates participant)
 3. System records assignment + provenance
 
 **Key UI actions:**
@@ -298,7 +301,7 @@ Example helper ids:
    - detect cut points, stable segments, “good edit points”
 3. **Energy / Motion Scoring**
    - audio loudness + motion magnitude → “hype score”
-4. **Context Tagging / AI Video Tagger** — [`llm_categorize_v1`](feature_ai_video_tagger.md)
+4. **Context Tagging / AI Video Tagger** — [`video_tagger_v1`](feature_ai_video_tagger.md)
    - LLM-driven tagging of people, objects, places, activities from video frames
    - See [feature_ai_video_tagger.md](feature_ai_video_tagger.md) for full design and implementation plan
 5. **Instrument Presence (later)**
@@ -381,7 +384,7 @@ Store per-job metrics:
 ## Suggested MVP Milestones (Framework-First)
 
 1. **Framework plumbing**
-   - `media_files`, `ai_jobs`, `helper_runs`, `derived_assets`
+   - `assets`, `ai_jobs`, `helper_runs`, `derived_assets`
    - worker can claim jobs reliably
    - preflight `ffprobe` stored
 
