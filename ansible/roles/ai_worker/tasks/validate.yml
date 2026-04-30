@@ -1,0 +1,69 @@
+---
+- name: AI worker | verify container is running
+  community.docker.docker_container_info:
+    name: ai-worker
+  register: __ai_container
+  failed_when: not (__ai_container.container.State.Running | default(false))
+  when: ai_worker_enabled | bool
+
+- name: AI worker | stat ai_assets subdirectories
+  ansible.builtin.stat:
+    path: "{{ gighive_home }}/ai_assets/{{ item }}"
+  register: __ai_dir_stats
+  loop:
+    - frames
+    - diagnostics
+    - thumbnails
+  when: ai_worker_enabled | bool
+
+- name: AI worker | assert ai_assets directories exist, are owned correctly, and are writable
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isdir
+      - item.stat.pw_name == ansible_user
+      - item.stat.writeable
+    fail_msg: >-
+      {{ item.item }} — exists={{ item.stat.exists | default(false) }}
+      isdir={{ item.stat.isdir | default(false) }}
+      owner={{ item.stat.pw_name | default('unknown') }}
+      writable={{ item.stat.writeable | default(false) }}
+  loop: "{{ __ai_dir_stats.results }}"
+  when: ai_worker_enabled | bool
+
+- name: AI worker | verify AI tables exist in database
+  ansible.builtin.shell: |
+    ENV="{{ gighive_home }}/ansible/roles/docker/files/apache/externalConfigs/.env"
+    PW=$(grep ^MYSQL_ROOT_PASSWORD "$ENV" | cut -d= -f2)
+    CID=$(docker ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep mysql | head -1)
+    docker exec "$CID" mysql -u root -p"$PW" "{{ mysql_database }}" -sN -e \
+      "SELECT COUNT(*) FROM information_schema.tables
+       WHERE table_schema='{{ mysql_database }}'
+       AND table_name IN ('ai_jobs','helper_runs','derived_assets','tags','taggings');"
+  register: __ai_tables
+  failed_when: (__ai_tables.stdout | trim | int) != 5
+  changed_when: false
+  when: ai_worker_enabled | bool
+
+- name: AI worker | verify OPENAI_API_KEY is non-empty
+  ansible.builtin.assert:
+    that: openai_api_key is defined and openai_api_key | length > 0
+    fail_msg: "openai_api_key must be set in secrets.yml when ai_worker_enabled=true"
+  when: ai_worker_enabled | bool
+
+- name: AI worker | job queue round-trip (insert → mark done → verify → cleanup)
+  ansible.builtin.shell: |
+    ENV="{{ gighive_home }}/ansible/roles/docker/files/apache/externalConfigs/.env"
+    PW=$(grep ^MYSQL_ROOT_PASSWORD "$ENV" | cut -d= -f2)
+    CID=$(docker ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep mysql | head -1)
+    dexec_sql() { docker exec "$CID" mysql -u root -p"$PW" "{{ mysql_database }}" -sN -e "$1"; }
+    ID=$(dexec_sql "INSERT INTO ai_jobs (job_type,target_type,target_id,status)
+                    VALUES ('smoke_test','asset',0,'queued'); SELECT LAST_INSERT_ID();")
+    dexec_sql "UPDATE ai_jobs SET status='done' WHERE id=$ID;"
+    STATUS=$(dexec_sql "SELECT status FROM ai_jobs WHERE id=$ID;")
+    dexec_sql "DELETE FROM ai_jobs WHERE id=$ID;"
+    if [ "$STATUS" != "done" ]; then echo "FAIL: status=$STATUS"; exit 1; fi
+    echo "OK: round-trip id=$ID status=$STATUS"
+  register: __smoke_roundtrip
+  changed_when: false
+  when: ai_worker_enabled | bool

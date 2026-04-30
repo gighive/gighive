@@ -188,6 +188,24 @@
     #searchableTable th .col-resizer{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;user-select:none;touch-action:none;}
     #searchableTable th .col-resizer::after{content:'';position:absolute;top:0;left:3px;width:1px;height:100%;background:var(--resizer);}
     body.resizing-col{cursor:col-resize;user-select:none;}
+
+    /* AI tag chips */
+    #searchableTable th[data-col="tags"],
+    #searchableTable td[data-col="tags"]{white-space:normal;width:200px;min-width:120px;max-width:240px;overflow-wrap:anywhere;}
+    .tag-chips-wrap{position:relative;}
+    .tag-chips-wrap.collapsed .tag-chips{max-height:180px;overflow:hidden;}
+    .tag-chips{display:flex;flex-wrap:wrap;gap:3px;}
+    .tag-chip{display:inline-block;padding:2px 7px;border-radius:12px;font-size:.72rem;line-height:1.5;
+              border:1px solid #33427a;background:#0e1530;color:#93c5fd;text-decoration:none;white-space:nowrap;}
+    .tag-chip:hover{background:#1e3a5f;}
+    .tag-chip[data-ns="scene"]{border-color:#1e3a5f;}
+    .tag-chip[data-ns="object"]{border-color:#1c3a1c;color:#86efac;}
+    .tag-chip[data-ns="activity"]{border-color:#b46000;color:#fbbf24;}
+    .tag-chip[data-ns="person_role"]{border-color:#7c3aed;color:#c4b5fd;}
+    .tag-chip-loading{font-size:.72rem;color:#a8b3cf;font-style:italic;}
+    .tag-expand-btn{display:none;margin-top:3px;font-size:.68rem;color:#60a5fa;cursor:pointer;
+                    background:none;border:none;padding:0;text-decoration:underline;line-height:1.6;}
+    .tag-expand-btn:hover{color:#93c5fd;}
   </style>
 </head>
  <body class="<?= $isGighive ? 'theme-gighive' : 'theme-defaultcodebase' ?>">
@@ -226,6 +244,7 @@
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
           ['key' => 'checksum_sha256', 'label' => 'SHA256', 'title' => 'SHA256', 'search' => null],
           ['key' => 'media_created_at', 'label' => 'Media Create Date', 'title' => 'Media Create Date', 'search' => null],
+          ['key' => 'tags', 'label' => 'Tags', 'title' => 'AI Tags', 'search' => null],
       ]
       : [
           ['key' => 'idx', 'label' => '#', 'title' => '#', 'search' => null],
@@ -387,6 +406,8 @@
           data-org="<?= htmlspecialchars($r['org_name'] ?? '', ENT_QUOTES) ?>"
           data-event-id="<?= htmlspecialchars((string)($r['event_id'] ?? ''), ENT_QUOTES) ?>"
           data-event-item-id="<?= htmlspecialchars((string)($r['event_item_id'] ?? ''), ENT_QUOTES) ?>"
+          data-asset-id="<?= (int)($r['asset_id'] ?? $r['id'] ?? 0) ?>"
+          data-file-type="<?= htmlspecialchars((string)($r['type'] ?? ''), ENT_QUOTES) ?>"
         >
           <?php foreach ($columns as $col): ?>
             <?php $key = (string)$col['key']; ?>
@@ -481,6 +502,13 @@
                   <?php endif; ?>
                 <?php endif; ?>
               </td>
+            <?php elseif ($key === 'tags'): ?>
+              <td data-col="tags">
+                <?php $tagsAssetId = (int)($r['asset_id'] ?? $r['id'] ?? 0); ?>
+                <?php if ((string)($r['type'] ?? '') === 'video' && $tagsAssetId > 0): ?>
+                  <span class="tag-chip-cell" data-asset-id="<?= $tagsAssetId ?>"></span>
+                <?php endif; ?>
+              </td>
             <?php else: ?>
               <?php
                 $value = '';
@@ -573,6 +601,60 @@
     </div>
   <?php endif; ?>
 
+  <script>
+  (function loadTagChips(){
+    const cells = Array.from(document.querySelectorAll('.tag-chip-cell'));
+    if(!cells.length){ return; }
+    const ids = cells.map(c => parseInt(c.dataset.assetId, 10)).filter(Boolean);
+    const unique = [...new Set(ids)];
+    if(!unique.length){ return; }
+    cells.forEach(c => { c.textContent = ''; c.innerHTML = '<span class="tag-chip-loading">…</span>'; });
+    fetch('/api/tags.php?target_type=asset&asset_ids=' + unique.join(','))
+      .then(r => r.json())
+      .then(map => {
+        cells.forEach(cell => {
+          const aid = parseInt(cell.dataset.assetId, 10);
+          const tags = map[aid] || [];
+          if(!tags.length){ cell.innerHTML = '<a href="/db/media_tags.php?asset_id=' + aid + '" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;line-height:1.6;border:1.5px solid #111;background:#fff;color:#dc2626;text-decoration:none;white-space:nowrap;">Tag this video</a>'; return; }
+          const wrap = document.createElement('div');
+          wrap.className = 'tag-chips';
+          tags.sort((a,b)=>{ const nsOrd=['scene','object','activity','person_role'];
+            const an=nsOrd.indexOf(a.namespace), bn=nsOrd.indexOf(b.namespace);
+            return an===bn ? a.name.localeCompare(b.name) : an-bn; });
+          tags.forEach(t => {
+            const a = document.createElement('a');
+            a.className = 'tag-chip';
+            a.dataset.ns = t.namespace;
+            a.href = '/db/ai_tags.php?namespace=' + encodeURIComponent(t.namespace) + '&name=' + encodeURIComponent(t.name);
+            a.title = t.namespace + ':' + t.name + ' (' + Math.round((t.confidence||0)*100) + '%)';
+            a.textContent = t.name;
+            wrap.appendChild(a);
+          });
+          const container = document.createElement('div');
+          container.className = 'tag-chips-wrap collapsed';
+          container.appendChild(wrap);
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'tag-expand-btn';
+          btn.textContent = '\u25be show all ' + tags.length;
+          btn.addEventListener('click', () => {
+            const isCollapsed = container.classList.toggle('collapsed');
+            btn.textContent = isCollapsed ? '\u25be show all ' + tags.length : '\u25b4 collapse';
+          });
+          container.appendChild(btn);
+          cell.replaceWith(container);
+          requestAnimationFrame(() => {
+            if (wrap.scrollHeight > wrap.clientHeight + 2) {
+              btn.style.display = 'inline-block';
+            } else {
+              container.classList.remove('collapsed');
+            }
+          });
+        });
+      })
+      .catch(() => { cells.forEach(c => { c.innerHTML = ''; }); });
+  })();
+  </script>
   <script>
     const targetDate = <?= isset($targetDate) && $targetDate !== null ? json_encode($targetDate) : 'null' ?>;
     const targetOrg  = <?= isset($targetOrg)  && $targetOrg  !== null ? json_encode($targetOrg)  : 'null' ?>;

@@ -111,6 +111,8 @@
       tags: [ security_owasp_crs ]
     - role: db_migrations
       tags: [ db_migrations ]
+    - role: ai_worker
+      tags: [ ai_worker ]
     - role: post_build_checks
       tags: [ post_build_checks ]
     - role: validate_app

@@ -1,0 +1,17 @@
+services:
+  ai-worker:
+    build: {{ gighive_home }}/ai-worker
+    container_name: ai-worker
+    restart: unless-stopped
+    stop_grace_period: 120s
+    env_file: ./apache/externalConfigs/.env
+    environment:
+      TZ: "{{ gighive_timezone }}"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - {{ video_dir }}:/data/video:ro
+      - {{ audio_dir }}:/data/audio:ro
+      - {{ gighive_home }}/ai_assets:/data/ai_assets:rw
+    depends_on:
+      - mysqlServer

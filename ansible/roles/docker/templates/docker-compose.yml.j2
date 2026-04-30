@@ -57,8 +57,12 @@ services:
     container_name: "{{ apache_container_name }}_tusd"
     restart: unless-stopped
     user: "{{ tusd_user_uid | default(33) }}:{{ tusd_user_gid | default(33) }}"
+    environment:
+      TZ: "{{ gighive_timezone }}"
     command: ["-host=0.0.0.0", "-upload-dir={{ tusd_upload_dir | default('/data') }}", "-base-path={{ tusd_base_path | default('/files') }}", "-behind-proxy", "-hooks-dir={{ tusd_hooks_dir | default('/hooks') }}", "-hooks-enabled-events=post-finish", "-show-startup-logs"]
     volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
       - tusd_data:{{ tusd_upload_dir | default('/data') }}
       - tus_hooks:{{ tusd_hook_out_dir | default('/hook-out') }}
       - "{{ docker_dir }}/tusd/hooks:{{ tusd_hooks_dir | default('/hooks') }}:ro"

@@ -146,6 +146,10 @@ final class UnifiedIngestionCore
             $mediaCreatedAt,
         );
 
+        if ($fileType === 'video' && filter_var(getenv('AI_WORKER_ENABLED'), FILTER_VALIDATE_BOOLEAN)) {
+            $this->enqueueAiJob($assetId, 'categorize_video', 'asset');
+        }
+
         return [
             'status'           => 'updated',
             'asset_id'         => $assetId,
@@ -154,6 +158,28 @@ final class UnifiedIngestionCore
             'media_info_tool'  => $mediaInfoTool,
             'media_created_at' => $mediaCreatedAt,
         ];
+    }
+
+    /**
+     * Enqueue an AI job. Idempotent: skips if a queued/running job already exists.
+     *
+     * @param int    $targetId   Polymorphic ID of the target entity.
+     * @param string $jobType    e.g. 'categorize_video'.
+     * @param string $targetType e.g. 'asset'.
+     */
+    public function enqueueAiJob(int $targetId, string $jobType, string $targetType): void
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT id FROM ai_jobs WHERE job_type=:jt AND target_type=:tt AND target_id=:tid "
+            . "AND status IN ('queued','running') LIMIT 1"
+        );
+        $stmt->execute([':jt' => $jobType, ':tt' => $targetType, ':tid' => $targetId]);
+        if ($stmt->fetch()) {
+            return;
+        }
+        $this->pdo->prepare(
+            "INSERT INTO ai_jobs (job_type, target_type, target_id) VALUES (:jt, :tt, :tid)"
+        )->execute([':jt' => $jobType, ':tt' => $targetType, ':tid' => $targetId]);
     }
 
     /**

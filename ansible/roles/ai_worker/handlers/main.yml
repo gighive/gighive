@@ -1,0 +1,11 @@
+---
+- name: restart ai-worker
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    files:
+      - docker-compose.yml
+      - docker-compose-ai-worker.yml
+    services:
+      - ai-worker
+    state: restarted
+  when: ai_worker_enabled | default(false) | bool

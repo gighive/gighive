@@ -1305,3 +1305,260 @@ If the worker crashes mid-job, `ai_jobs.status` stays `'running'` with a stale `
 ### 3. Phase 6b (REST API) must land before Phase 8 UI
 
 `db/media_tags.php` confirm/reject buttons call `PATCH /api/v1/taggings/{id}`. `TagController.php` must be complete and tested before any Level 2/3 UI work begins. The implementation sequence already reflects this (Step 8 depends on Steps 7 and 9), but it is easy to lose sight of during development.
+
+---
+
+## Testing Steps
+
+Work through these stages in order. Each stage gates the next — do not proceed if a stage fails.
+
+### Stage 1 — Static / Pre-deploy (no server needed)
+
+**1a. Python syntax check**
+
+```bash
+cd ansible/roles/ai_worker/files/ai-worker
+python -m py_compile worker.py db.py frame_extractor.py tag_normalizer.py \
+  adapters/base.py adapters/openai_adapter.py helpers/video_tagger.py
+```
+
+**1b. SQL sanity** — verify the new tables block in `create_music_db.sql` has consistent `IF NOT EXISTS` guards and FK references before deploying.
+
+**1c. Jinja2 `.env.j2` presence check** — confirm the new AI vars are present in the template source:
+
+```bash
+grep -E '^(AI_|OPENAI_|LLM_|GIGHIVE_AI)' \
+  ansible/roles/docker/templates/.env.j2
+```
+
+Expected output (13 lines, one per new var).
+
+---
+
+### Stage 2 — Ansible deploy with AI worker disabled (safe first run)
+
+Confirm `ai_worker_enabled: false` (the default) in `group_vars`, then run:
+
+```bash
+ansible-playbook -i ansible/inventories/inventory_gighive2.yml \
+  ansible/playbooks/site.yml \
+  --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive
+```
+
+Expected: all `when: ai_worker_enabled` tasks skip cleanly. **Existing behaviour must be entirely unaffected.** Run the existing upload tests to confirm:
+
+```bash
+ansible-playbook -i ansible/inventories/inventory_gighive2.yml \
+  ansible/playbooks/site.yml --tags upload_tests
+```
+
+---
+
+### Stage 3 — Database schema verification
+
+After the docker role runs `create_music_db.sql`:
+
+```bash
+ssh ubuntu@gighive2.gighive.internal '
+  ENV=~/gighive/ansible/roles/docker/files/apache/externalConfigs/.env
+  PW=$(grep ^MYSQL_ROOT_PASSWORD "$ENV" | cut -d= -f2)
+  CID=$(docker ps --format "{{.Names}}" | grep mysql)
+  docker exec "$CID" mysql -u root -p"$PW" music_db -e "
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema=\"music_db\"
+      AND table_name IN (\"ai_jobs\",\"helper_runs\",\"derived_assets\",\"tags\",\"taggings\");
+    SHOW INDEX FROM taggings WHERE Key_name=\"uq_taggings_tag_target\";
+  "
+'
+```
+
+Expected: exactly 5 table names returned; `uq_taggings_tag_target` unique index present on `(tag_id, target_type, target_id)`.
+
+---
+
+### Stage 4 — PHP API smoke tests (curl, no worker running yet)
+
+All endpoints require Basic Auth. Substitute your admin credentials.
+
+```bash
+# GET tags — should return empty list
+curl -u admin:YOUR_PASSWORD https://gighive2.gighive.internal/api/tags.php
+
+# POST enqueue a single job (use a real video asset_id from your DB)
+curl -u admin:YOUR_PASSWORD -X POST -H 'Content-Type: application/json' \
+  -d '{"job_type":"categorize_video","target_type":"asset","target_id":1}' \
+  https://gighive2.gighive.internal/api/ai_jobs.php
+# Expect: {"status":"queued","job_id":N}
+
+# POST again — idempotency check
+# Expect: {"status":"already_queued"}
+
+# GET job list
+curl -u admin:YOUR_PASSWORD 'https://gighive2.gighive.internal/api/ai_jobs.php?status=queued'
+
+# POST bulk enqueue (AI_WORKER_ENABLED=false → expect 400 or disabled message)
+curl -u admin:YOUR_PASSWORD -X POST \
+  'https://gighive2.gighive.internal/api/ai_jobs.php?action=enqueue_all_untagged'
+
+# Cleanup
+ssh ubuntu@gighive2.gighive.internal '
+  ENV=~/gighive/ansible/roles/docker/files/apache/externalConfigs/.env
+  PW=$(grep ^MYSQL_ROOT_PASSWORD "$ENV" | cut -d= -f2)
+  CID=$(docker ps --format "{{.Names}}" | grep mysql)
+  docker exec "$CID" mysql -u root -p"$PW" music_db \
+    -e "DELETE FROM ai_jobs WHERE job_type=\"categorize_video\" AND status=\"queued\";"
+'
+```
+
+---
+
+### Stage 5 — Admin UI pages (browser, no worker running yet)
+
+This stage is a pre-worker smoke test for the UI layer. It confirms all three new pages render without PHP errors and display the correct "nothing yet" empty state *before* any AI jobs have run. It catches broken DB connections, missing `require_once` paths, and template rendering errors that only surface in the browser. All three pages should be fully functional even with zero tags in the database.
+
+Browse as admin:
+
+- **`/admin/ai_worker.php`** — stats panel renders; warning banner visible when `AI_WORKER_ENABLED=false`; "Tag N Untagged Assets" button is disabled.
+- **`/db/ai_tags.php`** — loads with "No tags in the database yet".
+- **`/db/media_tags.php?asset_id=1`** — loads for a known video asset (substitute any real video asset_id); shows "No tags yet" and the video thumbnail.
+
+---
+
+### Stage 6 — Enable AI worker and re-deploy
+
+This stage activates the AI worker for the first time. It serves three purposes: (1) the `docker` role re-renders `.env.j2` with `AI_WORKER_ENABLED=true` and `OPENAI_API_KEY` and restarts Apache so the PHP layer can see them; (2) the `ai_worker` role builds and starts the worker container and creates the `ai_assets/` directory tree with correct ownership; (3) `validate.yml` runs a DB round-trip smoke test to confirm the worker container can connect to MySQL, claim a job, and mark it done — before any real video is processed.
+
+In `ansible/inventories/group_vars/gighive2/gighive2.yml`:
+
+```yaml
+ai_worker_enabled: true
+# ... other AI vars ...
+ai_max_tags_per_asset: 81   # cap on tags written per asset; set high initially, tune with experience
+```
+
+`ai_max_tags_per_asset` controls the maximum number of tags written to `taggings` for any single asset. After the LLM returns raw tags from all frame chunks, duplicates are merged, and the surviving tags are ranked by **frame-occurrence frequency** (how many chunks returned that tag) descending, then by **confidence** descending as a tiebreaker. Only the top `ai_max_tags_per_asset` entries are written. This prevents low-signal one-off tags from cluttering the results. The value is exposed as `AI_MAX_TAGS_PER_ASSET` in `.env.j2` (default 25 if not set). Set it high (e.g. 81) while calibrating and lower it once you have a sense of the typical tag distribution for your content.
+
+In `ansible/inventories/group_vars/gighive2/secrets.yml` (gitignored):
+
+```yaml
+openai_api_key: "sk-..."
+```
+
+```bash
+ansible-playbook -i ansible/inventories/inventory_gighive2.yml \
+  ansible/playbooks/site.yml \
+  --tags set_targets,base,docker,security_basic_auth,security_owasp_crs,ai_worker,post_build_checks,validate_app \
+```
+
+Expected sequence from `validate.yml`:
+
+1. Container `ai-worker` is running ✓
+2. `ai_assets/{frames,diagnostics,thumbnails}` directories exist, owned correctly, writable ✓
+3. All 5 AI tables present in `music_db` ✓
+4. `openai_api_key` is non-empty ✓
+5. Job queue round-trip smoke test (insert → mark done → delete) passes ✓
+
+---
+
+### Stage 7 — Worker smoke test (synthetic job)
+
+This stage verifies the complete AI tagging pipeline end-to-end using a manually inserted job, without waiting for an upload to trigger auto-enqueue. It confirms: the worker's polling loop claims the job; `ffprobe`/`ffmpeg` can read the video and extract frames; the OpenAI API call succeeds and returns structured tags; tag normalization and deduplication run correctly; and the resulting tags are written to the `tags` and `taggings` tables. Passing this stage means the full pipeline works before testing the automatic upload trigger in Stage 8.
+
+```bash
+# Tail worker logs (terminal 1)
+ssh ubuntu@gighive2.gighive.internal 'sleep 15 && docker logs ai-worker 2>&1 | tail -20'
+
+# Insert a test job (terminal 2)
+ssh ubuntu@gighive2.gighive.internal '
+  ENV=~/gighive/ansible/roles/docker/files/apache/externalConfigs/.env
+  PW=$(grep ^MYSQL_ROOT_PASSWORD "$ENV" | cut -d= -f2)
+  CID=$(docker ps --format "{{.Names}}" | grep mysql)
+  docker exec "$CID" mysql -u root -p"$PW" music_db \
+    -e "INSERT INTO ai_jobs (job_type,target_type,target_id)
+        VALUES (\"categorize_video\",\"asset\",1);"
+'
+```
+
+Watch logs for:
+```
+Claimed job id=N target=asset/1
+Extracted N frames from asset 1 (duration=Xs, effective_interval=Xs)
+video_tagger_v1 done for asset 1: frames=N raw_tags=N written=N
+```
+
+Verify in DB (substitute the `id` and `run_id` values from the log output):
+
+```bash
+ssh ubuntu@gighive2.gighive.internal '
+  ENV=~/gighive/ansible/roles/docker/files/apache/externalConfigs/.env
+  PW=$(grep ^MYSQL_ROOT_PASSWORD "$ENV" | cut -d= -f2)
+  CID=$(docker ps --format "{{.Names}}" | grep mysql)
+  docker exec "$CID" mysql -u root -p"$PW" music_db -e "
+    SELECT status FROM ai_jobs ORDER BY id DESC LIMIT 1;
+    SELECT status, metrics_json FROM helper_runs ORDER BY id DESC LIMIT 1;
+    SELECT COUNT(*) AS frame_count FROM derived_assets;
+    SELECT t.namespace, t.name, tg.confidence
+    FROM taggings tg JOIN tags t ON t.id = tg.tag_id
+    WHERE tg.target_type=\"asset\" AND tg.target_id=1
+    ORDER BY t.namespace, tg.confidence DESC;
+  "
+'
+```
+
+---
+
+### Stage 8 — Full upload-to-tag pipeline (auto-enqueue)
+
+1. Upload a new video through the normal upload form.
+2. Immediately check that a job was auto-enqueued:
+
+```bash
+ssh ubuntu@gighive2.gighive.internal '
+  ENV=~/gighive/ansible/roles/docker/files/apache/externalConfigs/.env
+  PW=$(grep ^MYSQL_ROOT_PASSWORD "$ENV" | cut -d= -f2)
+  CID=$(docker ps --format "{{.Names}}" | grep mysql)
+  docker exec "$CID" mysql -u root -p"$PW" music_db \
+    -e "SELECT asset_id, status, created_at FROM ai_jobs
+        WHERE target_type=\"asset\" ORDER BY created_at DESC LIMIT 1;"
+'
+# Expect: status=queued within seconds of the TUS finalize call completing
+```
+
+3. Wait for the worker to process it, then open `/db/database.php`. The **Tags column** for that video row should show coloured chips after the lazy JS batch fetch fires.
+
+---
+
+### Stage 9 — Human review layer
+
+On **`/db/media_tags.php?asset_id=<N>`**:
+
+- Click **✕** on a chip → calls `DELETE /api/taggings.php?id=N` → chip disappears without page reload.
+- Add a manual tag via the inline form → calls `POST /api/taggings.php` → reload shows a green-bordered (human-source) chip.
+- Click **Re-run AI Tagger** → new `categorize_video` job is queued; existing confirmed tags persist (upsert is idempotent).
+
+On **`/db/ai_tags.php`**:
+
+- Click a tag name → shows list of assets carrying that tag with thumbnails and confidence percentages.
+- Namespace filter buttons narrow the sidebar and table correctly.
+
+---
+
+### Stage 10 — Regression: existing upload tests
+
+```bash
+ansible-playbook ansible/playbooks/site.yml -t upload_tests
+```
+
+The TUS finalize path now calls `enqueueAiJob()` when `AI_WORKER_ENABLED=true`. All existing test variants (3A/3B destructive, manifest, TUS finalize) must still pass.
+
+---
+
+### Quick risk checklist
+
+| Risk | How to verify |
+|---|---|
+| `enqueueAiJob()` throws if `ai_jobs` table missing | Table is created by `create_music_db.sql` before the `ai_worker` role runs; Stage 3 confirms it |
+| Worker crashes on unsupported MIME type | Check `helper_runs.error_msg` — `MediaDecodeError` marks job `failed` (no retry) |
+| OpenAI rate limit | Adapter retries 4× with exponential backoff; check `error_msg` if still failing after ~2 min |
+| `FOR UPDATE SKIP LOCKED` unsupported | Requires MySQL 8.0+; confirm with `SELECT VERSION()` on your VM |
+| Frames not purged after retention period | Verify cron job or Ansible scheduled task for `ai_assets/frames/` is in place (v1 gap — add in follow-up) |

@@ -1,0 +1,53 @@
+---
+- name: Assert OPENAI_API_KEY is set when AI worker is enabled
+  ansible.builtin.assert:
+    that: openai_api_key is defined and openai_api_key | length > 0
+    fail_msg: "OPENAI_API_KEY must be defined in secrets.yml when ai_worker_enabled=true"
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Create ai_assets directory tree on host
+  ansible.builtin.file:
+    path: "{{ gighive_home }}/ai_assets/{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop:
+    - frames
+    - diagnostics
+    - thumbnails
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Sync ai-worker Python source to host
+  ansible.posix.synchronize:
+    src: "ai-worker/"
+    dest: "{{ gighive_home }}/ai-worker/"
+    delete: yes
+    rsync_opts:
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+  notify: restart ai-worker
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Render ai-worker docker-compose fragment
+  ansible.builtin.template:
+    src: docker-compose-ai-worker.yml.j2
+    dest: "{{ docker_dir }}/docker-compose-ai-worker.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: restart ai-worker
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Deploy ai-worker container
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    files:
+      - docker-compose.yml
+      - docker-compose-ai-worker.yml
+    state: present
+    build: always
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Run ai-worker role validation
+  ansible.builtin.include_tasks: validate.yml
