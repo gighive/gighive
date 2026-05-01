@@ -143,7 +143,7 @@ $untaggedCount = $stats['video_assets'] - $stats['tagged_assets'];
 <body>
 <div class="wrap">
   <h1>AI Video Tagger</h1>
-  <p><a href="/admin/admin_system.php">← System</a> &nbsp;|&nbsp; <a href="/db/ai_tags.php">Browse All Tags</a></p>
+  <p><a href="/admin/admin_system.php">← System</a> &nbsp;|&nbsp; <a href="/db/tag_browser.php">Browse All Tags</a></p>
 
   <?php if ($dbError): ?>
     <div class="alert-err">DB error: <?= htmlspecialchars($dbError, ENT_QUOTES) ?></div>
@@ -160,7 +160,7 @@ $untaggedCount = $stats['video_assets'] - $stats['tagged_assets'];
   <div class="card">
     <div class="row">
       <div class="stat"><div class="num"><a href="/db/database.php"><?= $stats['video_assets'] ?></a></div><div class="lbl">Video assets</div></div>
-      <div class="stat"><div class="num"><a href="/db/ai_tags.php"><?= $stats['tagged_assets'] ?></a></div><div class="lbl">Assets with tags</div></div>
+      <div class="stat"><div class="num"><a href="/db/tag_browser.php"><?= $stats['tagged_assets'] ?></a></div><div class="lbl">Assets with tags</div></div>
       <div class="stat"><div class="num"><a href="/db/database.php"><?= max(0, $untaggedCount) ?></a></div><div class="lbl">Untagged videos</div></div>
       <div class="stat"><div class="num"><a href="#recent-jobs?status=queued"><?= $stats['queued'] ?></a></div><div class="lbl">Queued jobs</div></div>
       <div class="stat"><div class="num"><a href="#recent-jobs?status=running"><?= $stats['running'] ?></a></div><div class="lbl">Running</div></div>

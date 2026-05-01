@@ -1,12 +1,12 @@
 <?php declare(strict_types=1);
 /**
- * db/ai_tags.php — Redirect shim; file renamed to tag_browser.php.
+ * db/tag_browser.php — Cross-asset tag browser.
+ *
+ * GET /db/tag_browser.php                   — list all tags with usage counts
+ * GET /db/tag_browser.php?namespace=scene   — filter by namespace
+ * GET /db/tag_browser.php?name=outdoor_concert — assets carrying a specific tag
  */
-$qs = $_SERVER['QUERY_STRING'] ?? '';
-header('Location: /db/tag_browser.php' . ($qs !== '' ? '?' . $qs : ''), true, 301);
-exit;
 
-// Legacy content below is retained for reference only — never executed.
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
@@ -15,7 +15,8 @@ $user    = $_SERVER['PHP_AUTH_USER']
         ?? $_SERVER['REMOTE_USER']
         ?? $_SERVER['REDIRECT_REMOTE_USER']
         ?? 'Unknown';
-$isAdmin = ($user === 'admin');
+$isAdmin  = ($user === 'admin');
+$aiEnabled = filter_var(getenv('AI_WORKER_ENABLED'), FILTER_VALIDATE_BOOLEAN);
 
 try {
     $pdo = Database::createFromEnv();
@@ -169,15 +170,15 @@ $namespaces = ['scene', 'object', 'activity', 'person_role'];
   <nav class="sidebar">
     <div style="margin-bottom:.75rem;">
       <a href="/db/database.php">← Media Library</a><br>
-      <?php if ($isAdmin): ?>
+      <?php if ($isAdmin && $aiEnabled): ?>
         <a href="/admin/ai_worker.php" style="margin-top:.3rem;display:block;">AI Worker</a>
       <?php endif; ?>
     </div>
 
     <div class="ns-filter">
-      <a href="/db/ai_tags.php" class="ns-btn <?= $filterNs === '' ? 'active' : '' ?>">All</a>
+      <a href="/db/tag_browser.php" class="ns-btn <?= $filterNs === '' ? 'active' : '' ?>">All</a>
       <?php foreach ($namespaces as $ns): ?>
-        <a href="/db/ai_tags.php?namespace=<?= urlencode($ns) ?>"
+        <a href="/db/tag_browser.php?namespace=<?= urlencode($ns) ?>"
            class="ns-btn ns-btn-<?= htmlspecialchars($ns, ENT_QUOTES) ?> <?= $filterNs === $ns ? 'active' : '' ?>"><?= htmlspecialchars($ns, ENT_QUOTES) ?></a>
       <?php endforeach; ?>
     </div>
@@ -193,7 +194,7 @@ $namespaces = ['scene', 'object', 'activity', 'person_role'];
         <?php $idx = 0; foreach ($tagsByNs[$ns] as $t): ?>
           <?php $isActive = ($filterName === $t['name'] && ($filterNs === '' || $filterNs === $t['namespace'])); ?>
           <a class="tag-link <?= $isActive ? 'active' : '' ?>" data-orig="<?= $idx++ ?>"
-             href="/db/ai_tags.php?namespace=<?= urlencode($t['namespace']) ?>&name=<?= urlencode($t['name']) ?>">
+             href="/db/tag_browser.php?namespace=<?= urlencode($t['namespace']) ?>&name=<?= urlencode($t['name']) ?>">
             <?= htmlspecialchars($t['name'], ENT_QUOTES) ?>
             <span class="cnt"><?= (int)$t['usage_count'] ?></span>
           </a>
@@ -207,7 +208,7 @@ $namespaces = ['scene', 'object', 'activity', 'person_role'];
     <h1>Tag Browser</h1>
 
     <!-- Search by tag name -->
-    <form class="search-bar" method="get" action="/db/ai_tags.php">
+    <form class="search-bar" method="get" action="/db/tag_browser.php">
       <?php if ($filterNs !== ''): ?>
         <input type="hidden" name="namespace" value="<?= htmlspecialchars($filterNs, ENT_QUOTES) ?>">
       <?php endif; ?>
@@ -294,7 +295,7 @@ $namespaces = ['scene', 'object', 'activity', 'person_role'];
     <?php else: ?>
       <!-- Summary table of all tags -->
       <?php if (empty($allTags)): ?>
-        <p class="muted">No tags in the database yet. Run the AI worker to generate tags.</p>
+        <p class="muted">No tags yet. <a href="/db/database.php">Open the media library</a> and click "Tag this video" on any asset to add tags manually.</p>
       <?php else: ?>
         <table id="tags-summary-table">
           <thead>
@@ -311,7 +312,7 @@ $namespaces = ['scene', 'object', 'activity', 'person_role'];
               <tr data-orig="<?= $rowIdx++ ?>">
                 <td><span class="ns-pill ns-pill-<?= htmlspecialchars($t['namespace'], ENT_QUOTES) ?>"><?= htmlspecialchars($t['namespace'], ENT_QUOTES) ?></span></td>
                 <td>
-                  <a href="/db/ai_tags.php?namespace=<?= urlencode($t['namespace']) ?>&name=<?= urlencode($t['name']) ?>">
+                  <a href="/db/tag_browser.php?namespace=<?= urlencode($t['namespace']) ?>&name=<?= urlencode($t['name']) ?>">
                     <?= htmlspecialchars($t['name'], ENT_QUOTES) ?>
                   </a>
                 </td>

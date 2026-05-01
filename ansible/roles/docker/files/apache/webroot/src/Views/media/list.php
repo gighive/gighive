@@ -206,6 +206,8 @@
     .tag-expand-btn{display:none;margin-top:3px;font-size:.68rem;color:#60a5fa;cursor:pointer;
                     background:none;border:none;padding:0;text-decoration:underline;line-height:1.6;}
     .tag-expand-btn:hover{color:#93c5fd;}
+    .tag-manage-link{display:block;margin-top:3px;font-size:.68rem;color:#a8b3cf;text-decoration:none;line-height:1.6;}
+    .tag-manage-link:hover{color:#60a5fa;text-decoration:underline;}
   </style>
 </head>
  <body class="<?= $isGighive ? 'theme-gighive' : 'theme-defaultcodebase' ?>">
@@ -221,6 +223,7 @@
      <div class="home-link">
        <a href="/index.php">Return to Home Page</a><br>
        <a href="database.php?view=<?= htmlspecialchars($view ?? '', ENT_QUOTES) ?>" id="resetViewLink">Reset to Default View</a>
+       <?php if ($isGighive): ?><br><a href="/db/tag_browser.php">Tag Browser</a><?php endif; ?>
      </div>
    </div>
   <h1 id="all" class="header-block">Media Library</h1>
@@ -244,7 +247,7 @@
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
           ['key' => 'checksum_sha256', 'label' => 'SHA256', 'title' => 'SHA256', 'search' => null],
           ['key' => 'media_created_at', 'label' => 'Media Create Date', 'title' => 'Media Create Date', 'search' => null],
-          ['key' => 'tags', 'label' => 'Tags', 'title' => 'AI Tags', 'search' => null],
+          ['key' => 'tags', 'label' => 'Tags', 'title' => 'Tags (search by tag name)', 'search' => 'tag'],
       ]
       : [
           ['key' => 'idx', 'label' => '#', 'title' => '#', 'search' => null],
@@ -625,7 +628,7 @@
             const a = document.createElement('a');
             a.className = 'tag-chip';
             a.dataset.ns = t.namespace;
-            a.href = '/db/ai_tags.php?namespace=' + encodeURIComponent(t.namespace) + '&name=' + encodeURIComponent(t.name);
+            a.href = '/db/tag_browser.php?namespace=' + encodeURIComponent(t.namespace) + '&name=' + encodeURIComponent(t.name);
             a.title = t.namespace + ':' + t.name + ' (' + Math.round((t.confidence||0)*100) + '%)';
             a.textContent = t.name;
             wrap.appendChild(a);
@@ -642,6 +645,11 @@
             btn.textContent = isCollapsed ? '\u25be show all ' + tags.length : '\u25b4 collapse';
           });
           container.appendChild(btn);
+          const manageLink = document.createElement('a');
+          manageLink.href = '/db/media_tags.php?asset_id=' + aid;
+          manageLink.className = 'tag-manage-link';
+          manageLink.textContent = '\u270e manage';
+          container.appendChild(manageLink);
           cell.replaceWith(container);
           requestAnimationFrame(() => {
             if (wrap.scrollHeight > wrap.clientHeight + 2) {

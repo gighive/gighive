@@ -236,3 +236,21 @@ Add a "Tag Browser" link to the page header/nav alongside the existing library c
 - **Bulk tagging** (apply one tag to multiple selected assets) — deferred
 - **Viewer-initiated tagging** — `api/taggings.php` is admin-only; expanding to viewer role is a separate access-control decision
 - **Confidence score UI** — the API accepts `confidence`; the form currently defaults to `1.0` for human tags, which is correct and does not need to change
+
+---
+
+## Roadmap
+
+### Tag time-range (location within asset)
+
+The `taggings` table already has `start_seconds` and `end_seconds` columns (nullable `FLOAT`), populated by the AI worker for frame-level tags. Manual tags currently leave these `NULL`, meaning the tag applies to the whole asset.
+
+**Proposed UX** (Add Manual Tag form in `db/media_tags.php`):
+- Add optional **Start** and **End** time inputs (e.g. `<input type="number" step="0.1" min="0" placeholder="hh:mm:ss or seconds">`)
+- Leave both blank → tag applies to whole asset (current behavior, unchanged)
+- Populate one or both → stored as `start_seconds` / `end_seconds` in the `taggings` row
+- Display time range on existing chips in the tag list (e.g. `outdoor_concert · 0:12–0:45`)
+
+**API change required**: `POST /api/taggings.php` already accepts `start_seconds` and `end_seconds` in the JSON body; the DB write path supports them. Only the form UI and chip display need to change.
+
+**Scope**: `db/media_tags.php` form + chip rendering only — no schema or API changes needed.

@@ -148,8 +148,8 @@ $namespaceColors = [
 </head>
 <body>
 <div class="wrap">
-  <p><a href="/db/database.php">← Media Library</a> &nbsp;|&nbsp; <a href="/db/ai_tags.php">All Tags</a>
-     <?php if ($isAdmin): ?> &nbsp;|&nbsp; <a href="/admin/ai_worker.php">AI Worker</a><?php endif; ?></p>
+  <p><a href="/db/database.php">← Media Library</a> &nbsp;|&nbsp; <a href="/db/tag_browser.php">Tag Browser</a>
+     <?php if ($isAdmin && $aiEnabled): ?> &nbsp;|&nbsp; <a href="/admin/ai_worker.php">AI Worker</a><?php endif; ?></p>
 
   <h1><?= htmlspecialchars(basename((string)$asset['source_relpath']), ENT_QUOTES) ?></h1>
   <h2>asset #<?= $assetId ?> · <?= htmlspecialchars((string)$asset['file_type'], ENT_QUOTES) ?>
@@ -184,10 +184,8 @@ $namespaceColors = [
     </p>
   <?php endif; ?>
 
-  <?php if ($isAdmin && $asset['file_type'] === 'video'): ?>
-    <button id="retagBtn" <?= !$aiEnabled ? 'disabled title="AI worker disabled"' : '' ?>>
-      Re-run AI Tagger
-    </button>
+  <?php if ($isAdmin && $aiEnabled && $asset['file_type'] === 'video'): ?>
+    <button id="retagBtn">Re-run AI Tagger</button>
     &nbsp;
   <?php endif; ?>
 
@@ -226,8 +224,11 @@ $namespaceColors = [
             <option value="object">object</option>
             <option value="activity">activity</option>
             <option value="person_role">person_role</option>
+            <option value="__other__">other…</option>
           </select>
-          <input type="text" id="newName" placeholder="tag_name" style="width:160px;">
+          <input type="text" id="newNsCustom" placeholder="custom_namespace" style="width:130px;display:none;">
+          <input type="text" id="newName" placeholder="tag_name" style="width:160px;" list="tagNameSuggestions" autocomplete="off">
+          <datalist id="tagNameSuggestions"></datalist>
           <button class="btn-sm" id="addTagBtn">Add Tag</button>
         </div>
       </div>
@@ -337,12 +338,37 @@ document.querySelectorAll('.del-btn').forEach(btn => {
     });
 });
 
+// Namespace selector: show/hide custom input and refresh autocomplete hints
+document.getElementById('newNs').addEventListener('change', async function() {
+    const customInput = document.getElementById('newNsCustom');
+    const dl = document.getElementById('tagNameSuggestions');
+    const isOther = this.value === '__other__';
+    customInput.style.display = isOther ? '' : 'none';
+    if (isOther) { customInput.focus(); return; }
+    dl.innerHTML = '';
+    try {
+        const r = await fetch('/api/tags.php?namespace=' + encodeURIComponent(this.value));
+        if (r.ok) {
+            const data = await r.json();
+            (data.tags || []).forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.name;
+                document.getElementById('tagNameSuggestions').appendChild(opt);
+            });
+        }
+    } catch(e) { /* ignore — hints are optional */ }
+});
+
 // Add manual tag
 const addTagBtn = document.getElementById('addTagBtn');
 if (addTagBtn) {
     addTagBtn.addEventListener('click', async () => {
-        const ns   = document.getElementById('newNs').value;
+        const nsSel = document.getElementById('newNs');
+        const ns = nsSel.value === '__other__'
+            ? document.getElementById('newNsCustom').value.trim()
+            : nsSel.value;
         const name = document.getElementById('newName').value.trim();
+        if (!ns)   { setMsg('Enter a namespace.', false); return; }
         if (!name) { setMsg('Enter a tag name.', false); return; }
         addTagBtn.disabled = true;
         try {

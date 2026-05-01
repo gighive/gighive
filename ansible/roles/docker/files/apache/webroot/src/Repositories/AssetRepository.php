@@ -112,6 +112,15 @@ final class AssetRepository
             }
         }
 
+        // Tag filter — EXISTS subquery against taggings/tags tables
+        $tagRaw = trim((string)($filters['tag'] ?? ''));
+        if ($tagRaw !== '') {
+            $where[]        = 'EXISTS (SELECT 1 FROM taggings tg2 JOIN tags t2 ON t2.id = tg2.tag_id'
+                            . ' WHERE tg2.target_type = \'asset\' AND tg2.target_id = a.asset_id'
+                            . ' AND LOWER(t2.name) LIKE LOWER(:tag_name))';
+            $params[':tag_name'] = '%' . $tagRaw . '%';
+        }
+
         if (!empty($errors)) {
             return ['WHERE 1=0', [], $errors, $warnings];
         }

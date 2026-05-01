@@ -304,6 +304,7 @@ final class MediaController
             'source_relpath',
             'duration_seconds',
             'media_info',
+            'tag',
         ];
 
         $filters = [];
