@@ -47,7 +47,7 @@ db/media_tags.php?asset_id=123#tag-drum_kit  (Level 2)
        │
        ↓ click a tag name in the table
        │
-db/ai_tags.php?namespace=object&name=drum_kit  (Level 3)
+db/tag_browser.php?namespace=object&name=drum_kit  (Level 3)
   └─ all instances of "drum_kit" across ALL scanned videos
      same table structure as Level 2, with an Asset column added
 ```
@@ -59,7 +59,7 @@ db/ai_tags.php?namespace=object&name=drum_kit  (Level 3)
 | On-demand trigger + job queue | **New** `admin/ai_worker.php` (modeled on `admin/admin_system.php`) | Phase 6c |
 | Tag chips column | **Modified** `src/Views/media/list.php` — extra column on video rows | Phase 8 |
 | Per-video tag detail + confirm/reject | **New** `db/media_tags.php?asset_id={id}` | Phase 8a + 10 |
-| Cross-asset tag browser | **New** `db/ai_tags.php?namespace={ns}&name={tag}` | Phase 8b |
+| Cross-asset tag browser | **New** `db/tag_browser.php?namespace={ns}&name={tag}` | Phase 8b |
 | Search / filter chips | **Modified** existing media/event list views linked from `src/Views/media/list.php` | Phase 9 |
 
 #### Level 1 — `src/Views/media/list.php` (modified)
@@ -74,10 +74,10 @@ The primary tag management page for a single video. Tags are **grouped by namesp
 - **Reject** → `DELETE /api/v1/taggings/{id}` with `confirm()` dialog; row fades out
 - **Edit** → inline form: pre-filled namespace/tag inputs → DELETE original + POST new with `source='human'`
 - **Add manual tag** — inline form at bottom of each namespace section
-- **Tag name is a link** → clicking it navigates to Level 3 (`db/ai_tags.php?namespace=...&name=...`)
+- **Tag name is a link** → clicking it navigates to Level 3 (`db/tag_browser.php?namespace=...&name=...`)
 - **"Re-run AI Tagger"** button at top → `POST /api/v1/ai/jobs` for this asset
 
-#### Level 3 — `db/ai_tags.php` (new page)
+#### Level 3 — `db/tag_browser.php` (new page)
 
 Same table structure as Level 2 but not confined to one video. Adds an **Asset** column (filename + link back to Level 2 for that asset). URL params: `?namespace=object&name=drum_kit`. Shows every tagging row for that tag across all scanned videos, with confidence, time range, and source.
 
@@ -109,7 +109,7 @@ flowchart LR
 
     DB1["src/Views/media/list.php<br>Level 1 — tag chips column"]
     DB2["db/media_tags.php<br>Level 2 — per-video tags"]
-    DB3["db/ai_tags.php<br>Level 3 — cross-asset tag browser"]
+    DB3["db/tag_browser.php<br>Level 3 — cross-asset tag browser"]
     AIWP["admin/ai_worker.php<br>on-demand trigger + job queue"]
 
     BROWSER -->|"TUS chunked upload"| TUSD
@@ -660,7 +660,13 @@ Included from `tasks/main.yml` as the final task block. **Every task is gated `w
     that: openai_api_key is defined and openai_api_key | length > 0
     fail_msg: "openai_api_key must be set in secrets.yml when ai_worker_enabled=true"
   when: ai_worker_enabled | bool
+```
 
+> **Scope of this check — presence only, not validity**: This task confirms the key is set and non-empty. It does **not** make a live call to the OpenAI API. Reasons: (1) Ansible runs on the control node, whose network path differs from the worker container's; (2) if `LLM_BASE_URL` points to a local Ollama instance, key validity is meaningless; (3) an invalid/expired key produces a clear `AuthenticationError` (HTTP 401) on the first real job, stored in `ai_jobs.error_msg` and `helper_runs.error_msg`.
+>
+> **API reachability validation belongs in Phase 7** (`worker.py` startup): add a preflight `GET /v1/models` call before the polling loop begins. If it fails, log clearly and exit — the worker never picks up jobs with a bad key. This runs in the actual container, on the actual network path, using the actual env vars.
+
+```yaml
 - name: AI worker | job queue round-trip — insert synthetic job
   community.mysql.mysql_query:
     login_host: "127.0.0.1"
@@ -1015,7 +1021,7 @@ while True:
 
 ### Phase 8 — Tag Browsing UI (Admin)
 
-> **Auth levels**: `src/Views/media/list.php` (Level 1) is accessible to all authenticated users. `db/media_tags.php` (Level 2) and `db/ai_tags.php` (Level 3) must be **admin-only** — they expose confirm/reject/edit write operations. Guard with the same session role check used by other admin pages.
+> **Auth levels**: `src/Views/media/list.php` (Level 1) is accessible to all authenticated users. `db/media_tags.php` (Level 2) and `db/tag_browser.php` (Level 3) must be **admin-only** — they expose confirm/reject/edit write operations. Guard with the same session role check used by other admin pages.
 
 #### 8a. Per-video tag list — `db/media_tags.php?asset_id={id}`
 - Table: Namespace | Tag name | Confidence bar | Time range | Source (AI / Human) | Actions
@@ -1023,7 +1029,7 @@ while True:
 - "Re-run AI Tagger" button → `POST /api/v1/ai/jobs`
 - "Add manual tag" inline form
 
-#### 8b. Tag browser — `db/ai_tags.php`
+#### 8b. Tag browser — `db/tag_browser.php`
 - Filter by namespace; tag list with video count per tag
 - Click tag → media file list (thumbnails + confidence score)
 
@@ -1031,7 +1037,7 @@ while True:
 - Total AI tags, total human-confirmed tags, top 5 tags by count
 
 **New PHP files:**
-- `db/ai_tags.php` — tag browser (admin-only)
+- `db/tag_browser.php` — tag browser (admin-only)
 - `db/media_tags.php` — per-media tag list (admin-only)
 
 **New API endpoints (new controller: `api/TagController.php`):**
@@ -1080,46 +1086,7 @@ On confirm, `run_id` is preserved so the originating run is still auditable. On 
 
 ### One-Shot Bundle Considerations
 
-#### v1 Decision: AI worker is NOT included in the quickstart bundle
-
-The one-shot bundle is a self-contained quickstart for the core GigHive application. The AI worker is excluded from v1 for three reasons:
-
-1. **API key required** — every installation needs its own `OPENAI_API_KEY`; there is no safe default and no way to pre-configure it in a redistributable bundle.
-2. **Image size and build time** — `python:3.11-slim` + `apt-get install ffmpeg` adds ~400–500 MB and several minutes to first-run Docker build, degrading the quickstart experience.
-3. **Feature scope** — the AI tagger is an opt-in add-on. The bundle is gated by `AI_WORKER_ENABLED=false` so the PHP side is inert even if the env var leaks through; the worker container simply won't exist.
-
-The DB schema changes (`ai_jobs`, `helper_runs`, `derived_assets`, `tags`, `taggings`) **are** included in the bundle's `create_music_db.sql` — they're inert until the worker is wired up. This keeps the schema in sync without introducing a runtime cost.
-
-#### v2: What would be required if bundle support is added
-
-If a future release adds the AI worker to the bundle, the following work is required. Each item is annotated with the specific past bundle problem it addresses.
-
-| Task | Detail | Lesson from past problems |
-|------|---------|--------------------------|
-| Add `ai-worker/` to `one_shot_bundle_input_paths` | Use the **parent** dir `roles/ai_worker/files/ai-worker`, not a child path | `problem_one_shot_bundle_missing_tusd_hook.md` — child paths require re-adding entries when subdirs are added; parent paths are future-proof |
-| Add `ai-worker` service to `one_shot_bundle/docker-compose.yml` | `roles/docker/templates/docker-compose.yml.j2` exists but is **explicitly excluded** from bundle rendering in `output_bundle.yml` (line `item.path != … 'docker-compose.yml.j2'`). The bundle uses the **static** copy at `roles/docker/files/one_shot_bundle/docker-compose.yml` — edit that file directly | `output_bundle.yml` skips the `.j2` template and picks up the static file via the `one_shot_bundle_prefix` copy path |
-| Create `_host_ai_assets/` bind-mount dir with mode `0777` | Do **not** use `www-data` group or mode `2775` in the bundle output | `problem_one_shot_bundle_fullbuild_maclinux_wwwdata_diffs.md` — `www-data` group does not exist on macOS/Windows; controller `rmtree` fails on group-owned files uploaded by the container |
-| Add AI env vars to bundle `.env` | `AI_WORKER_ENABLED=false` default; `OPENAI_API_KEY=` left blank; add a prominent comment instructing the user to fill in the key and set `AI_WORKER_ENABLED=true` to activate | Mirrors the pattern used for `MYSQL_PASSWORD` and `GIGHIVE_BASIC_AUTH_*` |
-| Frame retention purge (if cron-based in the container) | Any cron job inside the `ai-worker` container that needs env vars must write them into the cron.d file at entrypoint time — Linux cron does not inherit the container process environment | `problem_one_shot_bundle_cron_fix.md` — `MYSQL_DATABASE` not visible to cron; fixed by writing vars via `printf` into `/etc/cron.d/` at entrypoint start |
-| Verify execute bits on any shell scripts | Python scripts are fine (`python3 script.py`), but any helper `.sh` files must have `+x` committed; bundle assembly uses `mode: preserve` | `problem_one_shot_bundle_missing_tusd_hook.md` — `post-finish` hook had `664` mode; tusd could not execute it |
-| Add quickstart instructions step | The bundle's `instructions_quickstart.sh` or equivalent must include a step telling users to set `OPENAI_API_KEY` and `AI_WORKER_ENABLED=true` in `.env` | User experience gap — silent misconfiguration is the failure mode |
-
-#### Bundle `docker-compose.yml` addition (v2 reference)
-
-```yaml
-  ai-worker:
-    build: ./ai-worker
-    restart: unless-stopped
-    env_file: ./apache/externalConfigs/.env
-    volumes:
-      - "${GIGHIVE_AI_ASSETS_DIR:-./_host_ai_assets}:/data/ai_assets:rw"
-      - "${GIGHIVE_VIDEO_DIR:-./_host_video}:/data/video:ro"
-      - "${GIGHIVE_AUDIO_DIR:-./_host_audio}:/data/audio:ro"
-    depends_on:
-      - mysql
-```
-
-Note: the bundle uses `GIGHIVE_VIDEO_DIR` / `GIGHIVE_AUDIO_DIR` env vars with `./` fallbacks — the same pattern as the existing media mounts. `GIGHIVE_AI_ASSETS_DIR` follows the same convention with `./_host_ai_assets` as the fallback.
+> See [feature_ai_video_tagger_osb.md](feature_ai_video_tagger_osb.md) for the full OSB integration design, including the `ai_worker_enabled` bundle gate, the `install.sh` API key prompt flow, and the complete implementation checklist.
 
 ---
 
@@ -1136,7 +1103,7 @@ Note: the bundle uses `GIGHIVE_VIDEO_DIR` / `GIGHIVE_AUDIO_DIR` env vars with `.
 | 7 | Phase 6a: PHP auto-trigger on `assets` registration | `docker` (existing) | Step 2 | |
 | 8 | Phase 6b: REST API `POST /api/v1/ai/jobs` (`AiJobController.php`) | `docker` (existing) | Step 2 | |
 | 9 | Phase 6c: `admin/ai_worker.php` on-demand trigger page | `docker` (existing) | Step 8 | |
-| 10 | Phase 8: tag browsing UI — `src/Views/media/list.php` chips, `db/media_tags.php`, `db/ai_tags.php` | `docker` (existing) | Steps 7, 9 | |
+| 10 | Phase 8: tag browsing UI — `src/Views/media/list.php` chips, `db/media_tags.php`, `db/tag_browser.php` | `docker` (existing) | Steps 7, 9 | |
 | 11 | Phase 9: search / filter chip integration | `docker` (existing) | Step 10 | |
 | 12 | Phase 10: human review layer (confirm / reject / edit) | `docker` (existing) | Step 10 | |
 
@@ -1173,7 +1140,7 @@ One-stop list of every file created or modified by this feature, and every new v
 | `ansible/roles/docker/files/apache/webroot/api/TagController.php` | REST API: `GET /api/v1/tags`, `GET/PATCH/POST /api/v1/taggings` (admin-only for writes) |
 | `ansible/roles/docker/files/apache/webroot/admin/ai_worker.php` | On-demand trigger + job queue view (Phase 6c) |
 | `ansible/roles/docker/files/apache/webroot/db/media_tags.php` | Per-video tag detail + confirm/reject/edit — **admin-only** (Phase 8a + 10) |
-| `ansible/roles/docker/files/apache/webroot/db/ai_tags.php` | Cross-asset tag browser — **admin-only** (Phase 8b) |
+| `ansible/roles/docker/files/apache/webroot/db/tag_browser.php` | Cross-asset tag browser — **admin-only** (Phase 8b) |
 
 #### Modified files — `docker` role
 
@@ -1419,7 +1386,7 @@ This stage is a pre-worker smoke test for the UI layer. It confirms all three ne
 Browse as admin:
 
 - **`/admin/ai_worker.php`** — stats panel renders; warning banner visible when `AI_WORKER_ENABLED=false`; "Tag N Untagged Assets" button is disabled.
-- **`/db/ai_tags.php`** — loads with "No tags in the database yet".
+- **`/db/tag_browser.php`** — loads with "No tags in the database yet".
 - **`/db/media_tags.php?asset_id=1`** — loads for a known video asset (substitute any real video asset_id); shows "No tags yet" and the video thumbnail.
 
 ---
@@ -1536,7 +1503,7 @@ On **`/db/media_tags.php?asset_id=<N>`**:
 - Add a manual tag via the inline form → calls `POST /api/taggings.php` → reload shows a green-bordered (human-source) chip.
 - Click **Re-run AI Tagger** → new `categorize_video` job is queued; existing confirmed tags persist (upsert is idempotent).
 
-On **`/db/ai_tags.php`**:
+On **`/db/tag_browser.php`**:
 
 - Click a tag name → shows list of assets carrying that tag with thumbnails and confidence percentages.
 - Namespace filter buttons narrow the sidebar and table correctly.

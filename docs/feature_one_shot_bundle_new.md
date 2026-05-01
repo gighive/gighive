@@ -68,18 +68,14 @@ The correct single source of truth for the quickstart channel is `install.sh.j2`
 
 ### `ansible/roles/one_shot_bundle/tasks/main.yml`
 
-This file now runs the one-shot bundle workflow in this order for controller source mode:
+This file runs the one-shot bundle workflow in this order:
 
-1. `monitor.yml`
-2. `output_bundle.yml`
-3. `rebuild.yml` only when monitor-only mode is disabled
-4. `publish.yml` only when monitor-only mode is disabled
+1. Read the repo root `VERSION` file and write a `_quickstart`-suffixed version into `ansible/roles/docker/files/one_shot_bundle/VERSION`
+2. `monitor.yml` — scan source inputs and build the source manifest
+3. `output_bundle.yml` — render and copy all files into `/tmp/gighive-one-shot-bundle`, validate the output, then call `archive.yml` to produce the `.tgz` and `.sha256`
+4. Show final four-category summary
 
-That means the existing tagged playbook run can now:
-
-- detect drift
-- emit a fresh `/tmp` bundle
-- avoid rebuild/publish when `one_shot_bundle_monitor_only: true`
+There is no `rebuild.yml`, `publish.yml`, or `one_shot_bundle_monitor_only` flag in the current implementation. The archive step (`.tgz` creation) runs as part of every `output_bundle.yml` invocation via `archive.yml`, and is also available as a standalone re-run via `--tags one_shot_bundle_archive`.
 
 ### `ansible/roles/one_shot_bundle/tasks/monitor.yml`
 
@@ -99,17 +95,19 @@ It also performs a post-output validation pass using the same four categories.
 
 ## Source Inputs Included in Monitoring
 
-The monitored source inputs currently include the repo-controlled inputs that feed the bundle structure, including:
+The monitored source inputs are defined by `one_shot_bundle_input_paths` in `group_vars` and currently include:
 
 - `ansible/roles/docker/templates`
 - `ansible/roles/docker/files/one_shot_bundle`
-- `ansible/roles/docker/files/apache`
+- `ansible/roles/docker/files/tusd`
+- `ansible/roles/docker/files/apache/externalConfigs`
+- `ansible/roles/docker/files/apache/overlays`
+- `ansible/roles/docker/files/apache/webroot`
 - `ansible/roles/docker/files/mysql/externalConfigs`
-- `ansible/roles/docker/files/tusd/hooks`
 - `assets/audio`
 - `assets/video`
 
-This includes `mysql/externalConfigs/prepped_csvs`, which is intentionally included in the monitoring scope.
+Note: the `apache` directory is not monitored as a whole — the three subdirectories above are listed individually. `files/tusd` (not `files/tusd/hooks`) is the monitored path. `mysql/externalConfigs/prepped_csvs/full` and `prepped_csvs/full_csvmethod` are intentionally excluded via `one_shot_bundle_exclude_source_paths`.
 
 ## Bundle Path Mapping
 
@@ -256,19 +254,16 @@ If `/tmp/gighive-one-shot-bundle` already exists from an earlier non-check run, 
 
 That means an older `mtime` in `/tmp` can simply reflect the last time that destination file instance was actually rewritten, rather than indicating a current content mismatch.
 
-### Planned Timestamp-Preservation Refinement
+### Timestamp Preservation (Implemented)
 
-The current implementation does not consistently preserve source `mtime` when producing `/tmp/gighive-one-shot-bundle`.
+Timestamp preservation for direct-copy (non-template) files is implemented in `output_bundle.yml`. After copying a non-template file into `/tmp/gighive-one-shot-bundle`, the role sets the destination file's `modification_time` to match the source file's `mtime`.
 
-If timestamp preservation is added, it should be scoped narrowly to direct-copy files only.
+This applies narrowly to direct-copy files only:
 
-That means:
+- direct-copy files sourced from repo-controlled non-template files have their source `mtime` preserved
+- template-rendered outputs are not treated as timestamp-equivalent to their `.j2` sources (rendered files have the mtime of the render run)
 
-- direct-copy files sourced from repo-controlled non-template files should preserve source timestamps where practical
-- template-rendered outputs should not be treated as timestamp-equivalent to their `.j2` sources
-- timestamp equality should be documented as a helpful signal for copied files, not as a universal rule for all bundle outputs
-
-This distinction matters because rendered outputs are newly materialized files whose source-of-truth relationship is not the same as a plain file copy.
+As a result, `mtime` equality is a reliable signal for copied files but not for rendered outputs.
 
 ## Current Special Handling Already Added
 
@@ -345,14 +340,12 @@ The intended operating model for the new method is:
 
 ## Example Test Command
 
-The current test flow uses the existing playbook command with the one-shot-bundle tags.
-
-The exact command may vary by current operator practice, but the tested path has been the existing tagged `ansible-playbook` workflow that includes:
+The current flow uses the existing tagged `ansible-playbook` workflow. The standard tags are:
 
 - `set_targets`
 - `one_shot_bundle`
 
-with `one_shot_bundle_monitor_only: true` so rebuild/publish are skipped.
+This runs the full flow: monitor, output `/tmp/gighive-one-shot-bundle`, archive to `.tgz`. There is no `one_shot_bundle_monitor_only` flag. To re-archive an already-built `/tmp` output without rebuilding it, use `--tags set_targets,one_shot_bundle_archive`.
 
 ## Why the New Method Is Better
 
