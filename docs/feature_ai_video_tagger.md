@@ -1,3 +1,4 @@
+{% raw %}
 # Feature: AI Video Tagger (`video_tagger_v1`)
 
 Date: 2026-04-25  
@@ -1529,3 +1530,4 @@ The TUS finalize path now calls `enqueueAiJob()` when `AI_WORKER_ENABLED=true`. 
 | OpenAI rate limit | Adapter retries 4× with exponential backoff; check `error_msg` if still failing after ~2 min |
 | `FOR UPDATE SKIP LOCKED` unsupported | Requires MySQL 8.0+; confirm with `SELECT VERSION()` on your VM |
 | Frames not purged after retention period | Verify cron job or Ansible scheduled task for `ai_assets/frames/` is in place (v1 gap — add in follow-up) |
+{% endraw %}

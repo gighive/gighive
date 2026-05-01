@@ -1,3 +1,4 @@
+{% raw %}
 # Process: Test Bundle Switch for `gighive2`
 
 ## Assumptions
@@ -367,3 +368,4 @@ facts, and prints the runtime status summary. Failure diagnostics remain in
 ### Deliverable
 
 The switch workflow is safe to run repeatedly, self-diagnosing when something goes wrong, and ready for day-to-day use as the standard VM/bundle flip mechanism.
+{% endraw %}

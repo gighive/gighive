@@ -1,3 +1,4 @@
+{% raw %}
 # AI Video Tagger — One-Shot Bundle Integration
 
 Date: 2026-05-01  
@@ -136,3 +137,4 @@ The bundle assembly role currently knows four source root prefixes:
 | `_one_shot_bundle_assets_prefix` | `assets/` |
 
 The `ai-worker/` source lives under `ansible/roles/ai_worker/files/` — a **fifth prefix** not currently handled. Both `monitor.yml` and `output_bundle.yml` need a new `_one_shot_bundle_ai_worker_prefix` variable and corresponding Jinja2 `elif` branches in the dest-file mapping blocks to route those files to `ai-worker/` in the bundle output.
+{% endraw %}
