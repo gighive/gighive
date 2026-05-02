@@ -54,7 +54,7 @@ Host Linux OS
 ```
 iPhone (USB)
     │
-    ▼ macFUSE + Homebrew libimobiledevice + ifuse
+    ▼ macFUSE + Homebrew libimobiledevice + gromgit/fuse/ifuse-mac
 macOS host — rsync to gighive-one-shot-bundle/_host_iphone/
     │
     ▼ Docker Desktop VirtioFS (bundle dir is within ~, covered automatically)
@@ -85,21 +85,31 @@ Container sees _host_iphone as bind-mounted /var/iphone-import
 
 The staging directory lives **inside the bundle directory** — same pattern as `_host_audio` and `_host_video`. The **container-side path** is always `/var/iphone-import`. The **host-side path** is always `./_host_iphone` relative to the bundle root — identical on Linux, macOS, and Windows.
 
-Add to `docker-compose.yml` (OSB static file):
+Add to `ansible/roles/docker/files/one_shot_bundle/docker-compose.yml` under `apacheWebServer` volumes, after the `_host_video` line:
 
 ```yaml
-volumes:
-  - ${IPHONE_STAGING_DIR:-./_host_iphone}:/var/iphone-import
+      - "${GIGHIVE_IPHONE_DIR:-./_host_iphone}:/var/iphone-import"
 ```
 
-Add to `install.sh` alongside the existing audio/video dir creation (line 129):
+Add to `ansible/roles/docker/templates/install.sh.j2` (Linux + macOS) — declare and export near the top alongside `AUDIO_DIR`/`VIDEO_DIR`:
 
 ```bash
-IPHONE_STAGING_DIR="${IPHONE_STAGING_DIR:-./_host_iphone}"
-mkdir -p "$AUDIO_DIR" "$VIDEO_DIR" "$IPHONE_STAGING_DIR"
+export GIGHIVE_IPHONE_DIR="${GIGHIVE_IPHONE_DIR:-./_host_iphone}"
 ```
 
-`install.sh` creates `_host_iphone` before `docker compose up`, so it is owned by the current user — no permission issues. No OS detection needed. No system-level directories touched.
+Add to the existing `mkdir -p` line:
+
+```bash
+mkdir -p "$AUDIO_DIR" "$VIDEO_DIR" "$GIGHIVE_IPHONE_DIR"
+```
+
+Add to `ansible/roles/docker/templates/install.ps1.j2` (Windows) — alongside existing `_host_audio`/`_host_video` directory creation:
+
+```powershell
+New-Item -ItemType Directory -Force -Path "_host_iphone" | Out-Null
+```
+
+The installer templates (`install.sh.j2` on Linux/macOS, `install.ps1.j2` on Windows) create `_host_iphone` before `docker compose up`, so it is owned by the current user — no permission issues. No OS detection needed. No system-level directories touched.
 
 ### 2. New PHP endpoint — `admin/iphone_import_status.php`
 
@@ -108,8 +118,11 @@ Checks the staging bind mount and host prerequisites. Returns:
 - Whether `/var/iphone-import/.prerequisites_ok` sentinel file is present (host libraries confirmed installed)
 - Count and total size of media files found (video/audio extensions only)
 - List of filenames (for the review step in the UI)
+- **Proxy detection:** samples up to 10 video files via `ffprobe` and checks resolution; flags a warning if any sampled file has height < 480px (indicating an iCloud optimized proxy rather than a full-resolution original)
 
 The sentinel file approach is necessary because PHP runs inside Docker and cannot inspect the host's package manager directly. Writing `.prerequisites_ok` into the staging directory from the host is the contract between host setup and container status check.
+
+`ffprobe` is already available in the GigHive Docker image. The proxy check runs only on video files (`.mp4`, `.mov`, `.m4v`) and is a sample — not exhaustive — to keep response time short.
 
 ### 3. New PHP endpoint — `admin/iphone_import_server_scan.php`
 
@@ -117,16 +130,37 @@ Unlike Sections A/B (which hash files client-side in the browser), files are alr
 - Walks `/var/iphone-import` recursively
 - Hashes each media file server-side (SHA-256)
 - Submits the manifest to the existing `import_manifest_prepare.php` + `import_manifest_finalize.php` pipeline
-- Skips the TUS upload step — instead moves/copies files directly from `/var/iphone-import` to the asset store
+- Skips the TUS upload step — instead copies files directly from `/var/iphone-import` to the asset store (source files remain in place until the user runs Clear Staging Folder)
 - Returns a `job_id` for status polling via the existing `import_manifest_status.php`
 
 ### 4. Stop — reuse existing `admin/import_manifest_cancel.php`
 
 The existing `import_manifest_cancel.php` already handles job cancellation for the manifest pipeline. Since the iPhone import feeds into the same pipeline, the Stop button calls this existing endpoint — no new file needed.
 
-### 5. New Section D in `admin/admin_database_load_import_media_from_folder.php`
+### 5. Changes to `admin/admin_database_load_import_media_from_folder.php`
 
-A guided 4-step wizard panel added below Section C, matching the existing dark card style. See [Section D UI Design](#section-d-ui-design) below.
+Add a **Section D button** below Section C that links to `admin_database_load_import_media_from_iphone.php`. The 4-step wizard lives on that separate page, not inline on the folder import page.
+
+---
+
+### Idempotency Reference
+
+| Operation | Safe to re-run? | Notes |
+|---|---|---|
+| `apt-get install -y` | ✓ | Skips already-installed packages |
+| `brew install` | ✓ | Prints "already installed", exits 0 |
+| `touch _host_iphone/.prerequisites_ok` | ✓ | No-op if file exists |
+| `New-Item -Force` (PowerShell) | ✓ | `-Force` suppresses "already exists" error |
+| `mkdir -p` / `New-Item -ItemType Directory -Force` | ✓ | No-op if dir exists |
+| `export GIGHIVE_IPHONE_DIR=...` in install.sh.j2 | ✓ | Re-running installer recreates dir safely |
+| `idevicepair pair` | ✓ | Returns success if already paired |
+| `fusermount -u ... \|\| true` / `diskutil unmount ... \|\| true` | ✓ | `\|\| true` absorbs "not mounted" error |
+| `rsync` | ✓ | Only copies files that differ; resumes interrupted transfers |
+| `robocopy` | ✓ | Skips files with matching timestamp+size |
+| `iphone_import_status.php` | ✓ | Read-only; safe to call repeatedly |
+| `iphone_import_server_scan.php` | ✓ | Manifest pipeline deduplicates by SHA-256 checksum |
+| Clear Staging Folder (PHP) | ✓ | `RecursiveIteratorIterator` on empty dir finds nothing to delete |
+| **Sentinel after macFUSE breaks** | ⚠️ | `.prerequisites_ok` persists across macOS upgrades — Check Ready shows confirmed even if macFUSE is broken; user must re-run Step 1 manually after a macOS major version upgrade to verify |
 
 ---
 
@@ -136,33 +170,49 @@ A guided 4-step wizard panel added below Section C, matching the existing dark c
 
 Explanation: "These commands must be run on the GigHive host machine (not inside a Docker container). You only need to do this once."
 
-> The `_host_iphone` staging folder is created automatically by `install.sh` inside your `gighive-one-shot-bundle` directory. Run the commands below from that directory.
+> The `_host_iphone` staging folder is created automatically by the GigHive installer inside your `gighive-one-shot-bundle` directory. Run the commands below from that directory.
 
-**Linux:**
+**Linux — Step A: install tools (run from anywhere):**
 ```bash
-# Install tools:
 sudo apt-get install -y libimobiledevice-utils ifuse usbutils
-# Signal GigHive (run from gighive-one-shot-bundle/):
-ideviceinfo --version >/dev/null 2>&1 && ifuse --version >/dev/null 2>&1 \
+```
+
+**Linux — Step B: signal GigHive (run from `gighive-one-shot-bundle/`):**
+```bash
+cd ~/gighive-one-shot-bundle
+[ -d _host_iphone ] || { echo "ERROR: run this from your gighive-one-shot-bundle/ directory"; exit 1; }
+command -v ideviceinfo >/dev/null 2>&1 && command -v ifuse >/dev/null 2>&1 \
   && touch _host_iphone/.prerequisites_ok \
   && echo "Prerequisites confirmed" || echo "ERROR: one or more tools not found"
 ```
 
-**macOS:**
+**macOS — Step A: install tools (run from anywhere):**
 ```bash
-# Install tools:
-brew install libimobiledevice ifuse
+brew install libimobiledevice
 brew install --cask macfuse
-# Signal GigHive (run from gighive-one-shot-bundle/):
-ideviceinfo --version >/dev/null 2>&1 && ifuse --version >/dev/null 2>&1 \
+```
+> ⚠️ After macfuse installs: go to **System Settings → Privacy & Security**, allow the macFUSE kernel extension, then **restart your Mac** before continuing.
+```bash
+brew install gromgit/fuse/ifuse-mac
+```
+
+**macOS — Step B: signal GigHive (run from `gighive-one-shot-bundle/`):**
+```bash
+cd ~/gighive-one-shot-bundle
+[ -d _host_iphone ] || { echo "ERROR: run this from your gighive-one-shot-bundle/ directory"; exit 1; }
+command -v ideviceinfo >/dev/null 2>&1 && command -v ifuse >/dev/null 2>&1 \
   && touch _host_iphone/.prerequisites_ok \
   && echo "Prerequisites confirmed" || echo "ERROR: one or more tools not found"
 ```
+> **Note:** `ifuse` on macOS requires the `gromgit/fuse` tap — the standard `brew install ifuse` is Linux-only and will fail. macFUSE must be approved in System Settings and the Mac restarted before `gromgit/fuse/ifuse-mac` can be installed.
+>
+> **After a macOS major version upgrade**, re-run these commands even if Check Ready shows confirmed — macFUSE may have stopped working and the sentinel will not reflect that.
 
 **Windows** *(PowerShell — run from the gighive-one-shot-bundle directory):*
 ```powershell
 # iTunes must be installed — download from https://www.apple.com/itunes/ or the Microsoft Store.
 # Signal GigHive:
+if (-not (Test-Path "_host_iphone")) { Write-Error "Run this from your gighive-one-shot-bundle directory"; exit 1 }
 New-Item -ItemType File -Force -Path "_host_iphone\.prerequisites_ok" | Out-Null
 Write-Host "Prerequisites confirmed"
 ```
@@ -174,6 +224,8 @@ The UI reports each check independently:
 - **✓ Host prerequisites confirmed** / **✗ Prerequisites not confirmed** — were the install commands run and the sentinel written?
 
 PHP cannot directly inspect host packages (`dpkg`, `brew`) because it runs inside Docker. The sentinel file written into the shared staging directory is the contract between host setup and container status check.
+
+*Before staging files, review [iPhone Import Caveats](https://gighive.app/feature_iphone_upload_catalog_caveats) for known limitations — especially iCloud Storage Optimization, which can cause proxy files to be staged silently.*
 
 ---
 
@@ -189,33 +241,44 @@ Numbered instructions displayed in the UI:
 ```bash
 idevicepair pair
 mkdir -p /mnt/iphone-dcim
+fusermount -u /mnt/iphone-dcim 2>/dev/null || true  # unmount stale mount if present
 ifuse /mnt/iphone-dcim
-rsync -av --include="*.mp4" --include="*.mov" --include="*.mp3" \
+rsync -av --include="*/" --include="*.mp4" --include="*.mov" --include="*.mp3" \
   --include="*.m4v" --include="*.m4a" --exclude="*" \
   /mnt/iphone-dcim/DCIM/ ~/gighive-one-shot-bundle/_host_iphone/
 fusermount -u /mnt/iphone-dcim
 ```
+*(Adjust `~/gighive-one-shot-bundle/` if you installed in a different directory.)*
 
 **macOS:**
 ```bash
 idevicepair pair
 mkdir -p ~/iphone-dcim
+diskutil unmount ~/iphone-dcim 2>/dev/null || true  # unmount stale mount if present
 ifuse ~/iphone-dcim
-rsync -av --include="*.mp4" --include="*.mov" --include="*.mp3" \
+rsync -av --include="*/" --include="*.mp4" --include="*.mov" --include="*.mp3" \
   --include="*.m4v" --include="*.m4a" --exclude="*" \
   ~/iphone-dcim/DCIM/ ~/gighive-one-shot-bundle/_host_iphone/
-umount ~/iphone-dcim
+diskutil unmount ~/iphone-dcim
 ```
+*(Adjust `~/gighive-one-shot-bundle/` if you installed in a different directory.)*
 
 **Windows** *(PowerShell):*
 ```powershell
 # iPhone appears in File Explorer after tapping Trust.
+# Note: if robocopy fails to find the source, open File Explorer under 'This PC'
+# to confirm your iPhone's exact device name (may differ from 'Apple iPhone').
 robocopy "\\Apple iPhone\Internal Storage\DCIM" `
   "$env:USERPROFILE\gighive-one-shot-bundle\_host_iphone" `
   *.mp4 *.mov *.mp3 *.m4v *.m4a /S /NFL /NDL
 ```
+*(Adjust `$env:USERPROFILE\gighive-one-shot-bundle\` if you installed in a different directory.)*
 
-Button: **Detect Staged Files** → polls `iphone_import_status.php` for file count.
+Button: **Detect Staged Files** → calls `iphone_import_status.php`, which counts files AND runs `ffprobe` proxy detection on a sample.
+
+Result states:
+- **✓** `14 videos, 3 audio files (22.4 GB) — resolutions look correct (1080p/4K).` → Step 3 unlocks normally
+- **⚠️** `14 videos detected but 8 of 10 sampled files appear low-resolution (240×135). Your iPhone may have iCloud Storage Optimization enabled. Check iPhone → Settings → Photos → Download and Keep Originals before importing. [Learn more](https://gighive.app/feature_iphone_upload_catalog_caveats#icloud-storage-optimization-most-common-issue) [Dismiss and continue anyway]` → Step 3 button shown but de-emphasised until dismissed
 
 ---
 
@@ -223,6 +286,7 @@ Button: **Detect Staged Files** → polls `iphone_import_status.php` for file co
 
 Displays:
 - `X video files, Y audio files detected (Z GB total)`
+- Proxy warning banner if flagged in Step 2 (dismissible)
 - Non-destructive add mode only (mirrors Section B — duplicate checksums skipped)
 
 Button: **Start iPhone Import**
@@ -241,7 +305,7 @@ Buttons during import:
 
 Buttons on completion:
 - **View Database →** — link to `/db/database.php?view=librarian`
-- **Clear Staging Folder** — prompts confirmation, then deletes all media files from `/var/iphone-import/` to free disk space; the `.prerequisites_ok` sentinel is explicitly preserved so Step 1 does not need to be re-run. Uses `find /var/iphone-import -maxdepth 1 ! -name '.prerequisites_ok' -delete` internally.
+- **Clear Staging Folder** — prompts confirmation, then recursively deletes all staged files and subdirectories from `/var/iphone-import/` to free disk space; the `.prerequisites_ok` sentinel at the root is explicitly preserved so Step 1 does not need to be re-run. Uses a recursive PHP directory iterator (`RecursiveIteratorIterator` / `CHILD_FIRST`) internally — not a simple `find -maxdepth 1`, which would leave DCIM subdirectories (`100APPLE/` etc.) in place.
 
 ---
 
@@ -251,7 +315,7 @@ Buttons on completion:
 
 **Key constraint:** Docker Desktop for Mac does **not** support USB passthrough to containers. The workaround — mounting the iPhone on the Mac host and rsyncing to `_host_iphone` — works naturally with the bundle-relative staging approach:
 
-1. Mount the iPhone on the **Mac host** using `ifuse` (requires macFUSE + Homebrew `libimobiledevice`)
+1. Mount the iPhone on the **Mac host** using `ifuse` (requires macFUSE + `brew install libimobiledevice` + `brew install gromgit/fuse/ifuse-mac`)
 2. rsync to `~/gighive-one-shot-bundle/_host_iphone/` — user-owned, no sudo needed
 3. Docker Desktop's VirtioFS shares the entire `~` directory — `_host_iphone` is covered automatically, no extra file-sharing configuration required
 
@@ -264,27 +328,32 @@ Buttons on completion:
 
 | File | Change |
 |---|---|
-| `gighive-one-shot-bundle/docker-compose.yml` | Add `./_host_iphone:/var/iphone-import` bind mount |
-| `gighive-one-shot-bundle/install.sh` | Add `IPHONE_STAGING_DIR` + `mkdir -p` alongside audio/video dirs |
-| `admin/iphone_import_status.php` | New — checks staging dir + `.prerequisites_ok` sentinel, returns file count |
+| `ansible/roles/docker/files/one_shot_bundle/docker-compose.yml` | Add `${GIGHIVE_IPHONE_DIR:-./_host_iphone}:/var/iphone-import` to `apacheWebServer` volumes |
+| `ansible/roles/docker/templates/install.sh.j2` | Declare `GIGHIVE_IPHONE_DIR` near top alongside `AUDIO_DIR`/`VIDEO_DIR`; add to existing `mkdir -p` line (Linux + macOS) |
+| `ansible/roles/docker/templates/install.ps1.j2` | Add `_host_iphone` directory creation alongside existing `_host_audio`/`_host_video` mkdir steps (Windows) |
+| `admin/iphone_import_status.php` | New — checks staging dir + `.prerequisites_ok` sentinel, file count + ffprobe proxy detection (sample 10 videos, flag height < 480px) |
 | `admin/iphone_import_server_scan.php` | New — async server-side hash, manifest submit, direct file move |
 | `admin/import_manifest_cancel.php` | Existing — reused for Stop button, no changes needed |
 | `admin/admin_database_load_import_media_from_folder.php` | Add Section D button linking to new iPhone import page |
 | `admin/admin_database_load_import_media_from_iphone.php` | New — full 4-step wizard page |
+| `docs/feature_iphone_upload_catalog_caveats.md` | New — detailed caveats reference, linked from admin UI |
 
 ---
 
 ## Known Limitations
 
-- **Azure:** Not supported. No USB ports on cloud VMs.
-- **Remote access:** The host-side mount commands (Steps 1–2) must be run directly on the GigHive server machine, either via SSH or a local terminal. There is no remote-trigger mechanism in scope.
-- **iPhone trust:** The "Trust This Computer" pairing is per-computer. If the iPhone has never been paired with this machine, the user must tap Trust on the iPhone screen — it cannot be done remotely.
-- **Large libraries:** Phones with thousands of videos (200+ GB) will take significant time to copy to staging. The `rsync` command is resumable if interrupted.
-- **HEVC/HEIC:** `.mov` files from newer iPhones are often HEVC (H.265). GigHive will ingest them; browser playback depends on the client's codec support. No transcoding is in scope for this feature.
-- **Live Photos:** `.mov` files accompanying Live Photos (short 3-second clips) will be included in the rsync. These are typically very small. No filtering is in scope.
-- **macFUSE stability:** macFUSE is a third-party kernel extension and has historically had stability issues on macOS major version upgrades. If mounting fails after a macOS update, reinstall macFUSE.
-- **Windows — iTunes required:** Windows uses iTunes (or Apple Devices from the Microsoft Store) as the iPhone USB driver. File staging uses `robocopy` instead of `rsync` (see Step 2). No Docker Desktop file-sharing configuration is needed — the bundle directory is already shared in order to run `docker compose up`.
-- **Cleanup:** To fully remove GigHive including all staged iPhone files, run `docker compose down -v` then `rm -rf gighive-one-shot-bundle`. The `_host_iphone` folder is removed as part of the bundle directory.
+See **[feature_iphone_upload_catalog_caveats.md](feature_iphone_upload_catalog_caveats.md)** for full detail on all caveats.
+
+Summary:
+- **iCloud Storage Optimization** ⚠️ — if enabled, DCIM contains low-res proxies, not originals. User must switch to "Download and Keep Originals" and wait for sync before staging. Proxies copy silently with no errors — file size is the only tell.
+- **iPhone trust pairing** — must be tapped on the device screen; cannot be done remotely.
+- **Large libraries** — rsync/robocopy are resumable if interrupted.
+- **macFUSE stability** (macOS) — reinstall after macOS major version upgrades.
+- **HEVC playback** — ingested fine; browser playback depends on client codec support.
+- **Live Photos** — companion `.mov` clips will be staged; no filtering in scope.
+- **Windows** — iTunes required for USB driver; no extra Docker Desktop file-sharing config needed.
+- **Azure** — not supported; no USB ports on cloud VMs.
+- **Cleanup** — `docker compose down -v && rm -rf gighive-one-shot-bundle` removes everything including `_host_iphone`.
 
 ---
 

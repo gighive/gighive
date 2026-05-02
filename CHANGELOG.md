@@ -1,13 +1,13 @@
 *** 
 releaseNotes20260502.txt
-Changes: Add tagging ability to audio files and plan for iphone upload pieces
+Changes: Created iphone upload pieces, removed getID3, decided to shelve iphone upload due to complexity for now, fix column order in database.php, tag editing for admins only
 Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive2-20260502.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,ai_worker" ansible-playbook-gighive2-20260502.log
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260426.log
 # LAB, rebuild 
@@ -32,6 +32,160 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 	npx playwright test
 # VULN testing
 	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_iphone.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/iphone_import_clear_staging.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/iphone_import_server_scan.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/iphone_import_status.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/iphone_import_worker.php
+	modified:   ansible/roles/docker/files/apache/webroot/composer.json
+	modified:   ansible/roles/docker/files/apache/webroot/composer.lock
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/autoload_classmap.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/autoload_static.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/installed.json
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/installed.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/README.md
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/composer.json
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/LimitStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/MessageTrait.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/MimeType.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/MultipartStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Request.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Uri.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Utils.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/README.md
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/changelog.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/dependencies.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/extension.cache.dbm.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/extension.cache.mysql.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/extension.cache.mysqli.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/extension.cache.sqlite3.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/getid3.lib.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/getid3.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.archive.7zip.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.archive.gzip.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.archive.hpk.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.archive.rar.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.archive.szip.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.archive.tar.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.archive.xz.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.archive.zip.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.asf.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.bink.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.flv.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.ivf.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.matroska.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.mpeg.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.nsv.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.quicktime.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.real.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.riff.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.swf.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.ts.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio-video.wtv.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.aa.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.aac.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.ac3.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.amr.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.au.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.avr.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.bonk.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.dsdiff.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.dsf.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.dss.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.dts.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.flac.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.la.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.lpac.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.midi.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.mod.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.monkey.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.mp3.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.mpc.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.ogg.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.optimfrog.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.rkau.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.shorten.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.tak.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.tta.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.voc.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.vqf.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.audio.wavpack.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.graphic.bmp.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.graphic.efax.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.graphic.gif.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.graphic.jpg.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.graphic.pcd.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.graphic.png.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.graphic.svg.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.graphic.tiff.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.misc.cue.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.misc.exe.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.misc.iso.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.misc.msoffice.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.misc.par2.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.misc.pdf.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.misc.torrent.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.tag.apetag.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.tag.id3v1.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.tag.id3v2.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.tag.lyrics3.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.tag.nikon-nctg.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/module.tag.xmp.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/write.apetag.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/write.id3v1.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/write.id3v2.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/write.lyrics3.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/write.metaflac.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/write.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/write.real.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/getid3/write.vorbiscomment.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/helperapps/cygwin1.dll
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/helperapps/head.exe
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/helperapps/metaflac.exe
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/helperapps/readme.helperapps.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/helperapps/shorten.exe
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/helperapps/vorbiscomment.exe
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/license.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/licenses/license.commercial.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/licenses/license.gpl-10.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/licenses/license.gpl-20.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/licenses/license.gpl-30.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/licenses/license.lgpl-30.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/licenses/license.mpl-20.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/readme.txt
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/james-heinrich/getid3/structure.txt
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/finder/Comparator/Comparator.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/finder/Comparator/DateComparator.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/finder/Comparator/NumberComparator.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/finder/Finder.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/finder/Glob.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/finder/Iterator/SortableIterator.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-ctype/Ctype.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/yaml/Command/LintCommand.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/yaml/Dumper.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/yaml/Escaper.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/yaml/Exception/ParseException.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/yaml/Inline.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/yaml/Parser.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/symfony/yaml/Unescaper.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/files/one_shot_bundle/docker-compose.yml
+	modified:   ansible/roles/docker/templates/install.ps1.j2
+	modified:   ansible/roles/docker/templates/install.sh.j2
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	modified:   docs/feature_iphone_upload_catalog.md
+	new file:   docs/feature_iphone_upload_catalog_caveats.md
+	new file:   docs/feature_iphone_upload_catalog_reservations.md
 
 TODO
 What's next: promote to staging (reupload five tutorials and change out thumbnails)
@@ -82,6 +236,41 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260502.txt
+Changes: Add tagging ability to audio files and plan for iphone upload pieces
+Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive2-20260502.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260426.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH (REMEMBER IT IS FULL PROD DB NOW)
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260426.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260425.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260425.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260501.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd>"  ansible-playbook-gighive-bundle-tests-20260414.log
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
 
 *** 
 releaseNotes20260501.txt

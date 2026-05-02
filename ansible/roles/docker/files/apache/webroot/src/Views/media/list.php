@@ -223,7 +223,7 @@
      <div class="home-link">
        <a href="/index.php">Return to Home Page</a><br>
        <a href="database.php?view=<?= htmlspecialchars($view ?? '', ENT_QUOTES) ?>" id="resetViewLink">Reset to Default View</a>
-       <?php if ($isGighive): ?><br><a href="/db/tag_browser.php">Tag Browser</a><?php endif; ?>
+       <?php if ($isGighive && $isAdmin): ?><br><a href="/db/tag_browser.php">Tag Browser</a><?php endif; ?>
      </div>
    </div>
   <h1 id="all" class="header-block">Media Library</h1>
@@ -244,10 +244,10 @@
           ['key' => 'download', 'label' => 'Download / View', 'title' => 'Download / View', 'search' => null],
           ['key' => 'duration', 'label' => 'Duration', 'title' => 'Duration', 'search' => 'duration_seconds'],
           ['key' => 'media_info', 'label' => 'Media File Info', 'title' => 'Media File Info', 'search' => 'media_info'],
+          ['key' => 'tags', 'label' => 'Tags', 'title' => 'Tags (search by tag name)', 'search' => 'tag'],
           ['key' => 'musicians', 'label' => 'Musicians', 'title' => 'Musicians', 'search' => 'crew'],
           ['key' => 'checksum_sha256', 'label' => 'SHA256', 'title' => 'SHA256', 'search' => null],
           ['key' => 'media_created_at', 'label' => 'Media Create Date', 'title' => 'Media Create Date', 'search' => null],
-          ['key' => 'tags', 'label' => 'Tags', 'title' => 'Tags (search by tag name)', 'search' => 'tag'],
       ]
       : [
           ['key' => 'idx', 'label' => '#', 'title' => '#', 'search' => null],
@@ -606,6 +606,7 @@
 
   <script>
   (function loadTagChips(){
+    const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
     const cells = Array.from(document.querySelectorAll('.tag-chip-cell'));
     if(!cells.length){ return; }
     const ids = cells.map(c => parseInt(c.dataset.assetId, 10)).filter(Boolean);
@@ -618,7 +619,7 @@
         cells.forEach(cell => {
           const aid = parseInt(cell.dataset.assetId, 10);
           const tags = map[aid] || [];
-          if(!tags.length){ cell.innerHTML = '<a href="/db/media_tags.php?asset_id=' + aid + '" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;line-height:1.6;border:1.5px solid #111;background:#fff;color:#dc2626;text-decoration:none;white-space:nowrap;">Tag this media</a>'; return; }
+          if(!tags.length){ if(isAdmin){ cell.innerHTML = '<a href="/db/media_tags.php?asset_id=' + aid + '" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;line-height:1.6;border:1.5px solid #111;background:#fff;color:#dc2626;text-decoration:none;white-space:nowrap;">Tag this media</a>'; } else { cell.innerHTML = ''; } return; }
           const wrap = document.createElement('div');
           wrap.className = 'tag-chips';
           tags.sort((a,b)=>{ const nsOrd=['scene','object','activity','person_role'];
@@ -645,11 +646,13 @@
             btn.textContent = isCollapsed ? '\u25be show all ' + tags.length : '\u25b4 collapse';
           });
           container.appendChild(btn);
-          const manageLink = document.createElement('a');
-          manageLink.href = '/db/media_tags.php?asset_id=' + aid;
-          manageLink.className = 'tag-manage-link';
-          manageLink.textContent = '\u270e manage';
-          container.appendChild(manageLink);
+          if(isAdmin){
+            const manageLink = document.createElement('a');
+            manageLink.href = '/db/media_tags.php?asset_id=' + aid;
+            manageLink.className = 'tag-manage-link';
+            manageLink.textContent = '\u270e manage';
+            container.appendChild(manageLink);
+          }
           cell.replaceWith(container);
           requestAnimationFrame(() => {
             if (wrap.scrollHeight > wrap.clientHeight + 2) {

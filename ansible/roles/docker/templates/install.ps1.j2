@@ -194,6 +194,7 @@ $mysqlRootPassword = Prompt-Secret "MYSQL_ROOT_PASSWORD"                    $min
 
 New-Item -ItemType Directory -Force -Path $audioDir | Out-Null
 New-Item -ItemType Directory -Force -Path $videoDir | Out-Null
+New-Item -ItemType Directory -Force -Path "./_host_iphone" | Out-Null
 New-Item -ItemType Directory -Force -Path "apache/externalConfigs" | Out-Null
 New-Item -ItemType Directory -Force -Path "mysql/externalConfigs"  | Out-Null
 
@@ -275,6 +276,7 @@ _SendTelemetry "install_attempt"
 
 $env:GIGHIVE_AUDIO_DIR = $audioDir
 $env:GIGHIVE_VIDEO_DIR = $videoDir
+$env:GIGHIVE_IPHONE_DIR = "./_host_iphone"
 
 Write-Host "Bringing stack up..."
 Invoke-Compose up -d --build

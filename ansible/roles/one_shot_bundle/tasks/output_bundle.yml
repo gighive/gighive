@@ -30,6 +30,7 @@
     - { path: "_host_audio" }
     - { path: "_host_video" }
     - { path: "_host_video/thumbnails" }
+    - { path: "_host_iphone" }
 
 - name: Ensure destination directories exist for fresh one-shot bundle output (controller)
   delegate_to: localhost

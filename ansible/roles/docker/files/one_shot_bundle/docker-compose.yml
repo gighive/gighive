@@ -25,6 +25,7 @@ services:
 
       - "${GIGHIVE_AUDIO_DIR:-./_host_audio}:/var/www/html/audio"
       - "${GIGHIVE_VIDEO_DIR:-./_host_video}:/var/www/html/video"
+      - "${GIGHIVE_IPHONE_DIR:-./_host_iphone}:/var/iphone-import"
 
       - tusd_data:/var/www/private/tus-data
       - tus_hooks:/var/www/private/tus-hooks

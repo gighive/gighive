@@ -156,6 +156,16 @@ if (!$__video_exts) $__video_exts = ['mp4','mov','mkv','avi','webm','m4v'];
     <h2>Section C: Single File Upload</h2>
     <button type="button" class="danger" onclick="window.open('/db/upload_form.php', '_blank', 'noopener,noreferrer')">Upload Utility</button>
   </div>
+
+  <!-- Section D — hidden pending cross-platform testing; see docs/feature_iphone_upload_catalog_reservations.md
+  <div class="section-divider">
+    <h2>Section D: Bulk Upload from iPhone</h2>
+    <p class="muted">Import video and audio files directly from an iPhone connected via USB. Files are already on the server &mdash; no browser upload needed.</p>
+    <a href="/admin/admin_database_load_import_media_from_iphone.php">
+      <button type="button" style="border-color:#a855f7">Open iPhone Import Wizard</button>
+    </a>
+  </div>
+  -->
 </div></div>
 
 <!-- Duplicate resolution modal -->

@@ -31,6 +31,7 @@ MIN_PASSWORD_LEN=12
 SITE_URL="${SITE_URL:-}"
 AUDIO_DIR="${AUDIO_DIR:-./_host_audio}"
 VIDEO_DIR="${VIDEO_DIR:-./_host_video}"
+IPHONE_DIR="${IPHONE_DIR:-./_host_iphone}"
 
 MYSQL_DATABASE="${MYSQL_DATABASE:-music_db}"
 MYSQL_USER="${MYSQL_USER:-appuser}"
@@ -174,7 +175,7 @@ if [[ "$MYSQL_DATASET" != "sample" ]]; then
   exit 1
 fi
 
-mkdir -p "$AUDIO_DIR" "$VIDEO_DIR"
+mkdir -p "$AUDIO_DIR" "$VIDEO_DIR" "$IPHONE_DIR"
 
 # Ensure config dirs exist (bundle should include them; this is defensive)
 mkdir -p apache/externalConfigs mysql/externalConfigs
@@ -269,6 +270,7 @@ _send_telemetry install_attempt
 # Export host media paths for compose (compose should reference these)
 export GIGHIVE_AUDIO_DIR="$AUDIO_DIR"
 export GIGHIVE_VIDEO_DIR="$VIDEO_DIR"
+export GIGHIVE_IPHONE_DIR="$IPHONE_DIR"
 
 echo "Bringing stack up..."
 "${DOCKER_COMPOSE[@]}" up -d --build
