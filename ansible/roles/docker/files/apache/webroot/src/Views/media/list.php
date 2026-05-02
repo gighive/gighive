@@ -508,7 +508,7 @@
             <?php elseif ($key === 'tags'): ?>
               <td data-col="tags">
                 <?php $tagsAssetId = (int)($r['asset_id'] ?? $r['id'] ?? 0); ?>
-                <?php if ((string)($r['type'] ?? '') === 'video' && $tagsAssetId > 0): ?>
+                <?php if ($tagsAssetId > 0): ?>
                   <span class="tag-chip-cell" data-asset-id="<?= $tagsAssetId ?>"></span>
                 <?php endif; ?>
               </td>
@@ -618,7 +618,7 @@
         cells.forEach(cell => {
           const aid = parseInt(cell.dataset.assetId, 10);
           const tags = map[aid] || [];
-          if(!tags.length){ cell.innerHTML = '<a href="/db/media_tags.php?asset_id=' + aid + '" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;line-height:1.6;border:1.5px solid #111;background:#fff;color:#dc2626;text-decoration:none;white-space:nowrap;">Tag this video</a>'; return; }
+          if(!tags.length){ cell.innerHTML = '<a href="/db/media_tags.php?asset_id=' + aid + '" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;line-height:1.6;border:1.5px solid #111;background:#fff;color:#dc2626;text-decoration:none;white-space:nowrap;">Tag this media</a>'; return; }
           const wrap = document.createElement('div');
           wrap.className = 'tag-chips';
           tags.sort((a,b)=>{ const nsOrd=['scene','object','activity','person_role'];

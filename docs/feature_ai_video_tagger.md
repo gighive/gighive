@@ -1531,3 +1531,18 @@ The TUS finalize path now calls `enqueueAiJob()` when `AI_WORKER_ENABLED=true`. 
 | `FOR UPDATE SKIP LOCKED` unsupported | Requires MySQL 8.0+; confirm with `SELECT VERSION()` on your VM |
 | Frames not purged after retention period | Verify cron job or Ansible scheduled task for `ai_assets/frames/` is in place (v1 gap — add in follow-up) |
 {% endraw %}
+
+---
+
+## Future Roadmap
+
+### AI Audio Tagger (deferred)
+
+The `tags` / `taggings` schema is media-type-agnostic — `target_type='asset'` covers both video and audio rows equally. A future AI audio tagging pass would follow the same pattern as the video tagger:
+
+- A new `job_type` (e.g. `categorize_audio`) queued on ingest when `AI_WORKER_ENABLED=true` and `file_type='audio'`
+- A new helper (e.g. `helpers/audio_tagger.py`) using a speech/audio AI API to generate tags (genre, mood, instrumentation, etc.)
+- Results written to the same `tags` / `taggings` tables with `source='ai'`
+- The existing `media_tags.php` tag review page and `tag_browser.php` would surface audio-sourced tags with zero schema changes
+
+Manual tagging of audio assets is already supported (Phase 1). AI audio tagging is intentionally deferred until the video tagger is proven stable and an appropriate audio AI model/API is selected.

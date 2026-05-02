@@ -11,7 +11,13 @@ These are instructions to get up and running with Gighive for users with Docker 
 
 ## Download and verify integrity of tarball
 
-1. Download the file.
+> **Where to install:** GigHive can be installed in any directory where you have write access. Your home directory (`~`) is the simplest choice and requires no elevated permissions — but `/opt`, `/srv`, or any other location works equally well. The installer uses paths relative to wherever you extract the bundle.
+>
+> ```bash
+> cd ~   # recommended, but optional
+> ```
+
+1. Navigate to your chosen directory and download the file.
     ```bash
     curl -fL -O https://staging.gighive.app/downloads/gighive-one-shot-bundle.tgz
     ```
@@ -29,9 +35,9 @@ These are instructions to get up and running with Gighive for users with Docker 
     The outputs should match, but they do not need to match the example SHA below because the bundles are subject to change.
 
     ```bash
-    sodo@pop-os:~/gighive$ cat gighive-one-shot-bundle.tgz.sha256
+    sodo@pop-os:~$ cat gighive-one-shot-bundle.tgz.sha256
     d7d4d03adf70f5c023000a8a884355e9442d01a20b57fc2a45a69f50b6537500  gighive-one-shot-bundle.tgz
-    sodo@pop-os:~/gighive$ sha256sum gighive-one-shot-bundle.tgz
+    sodo@pop-os:~$ sha256sum gighive-one-shot-bundle.tgz
     d7d4d03adf70f5c023000a8a884355e9442d01a20b57fc2a45a69f50b6537500  gighive-one-shot-bundle.tgz
     ```
 5. If verification matches, continue. If verification fails, do **not** continue. Re-download the bundle.

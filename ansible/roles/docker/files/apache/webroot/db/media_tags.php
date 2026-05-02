@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /**
- * db/media_tags.php — Per-video tag review page.
+ * db/media_tags.php — Per-asset tag review page.
  *
  * GET /db/media_tags.php?asset_id=N
  *
