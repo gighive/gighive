@@ -416,8 +416,8 @@ def apply_sql(target: str, sql: str, dry_run: bool) -> str:
 
         result = subprocess.run(
             ['ssh', target,
-             'docker exec -i mysqlServer mysql -u appuser -pmusiclibrary music_db'
-             ' < /tmp/add_session.sql'],
+             "docker exec -i mysqlServer sh -c "
+             "'MYSQL_PWD=\"$MYSQL_PASSWORD\" mysql -u appuser music_db < /tmp/add_session.sql'"],
             capture_output=True, text=True
         )
         output = result.stdout + result.stderr
