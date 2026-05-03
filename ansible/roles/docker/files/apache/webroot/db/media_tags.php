@@ -361,6 +361,12 @@ document.getElementById('newNs').addEventListener('change', async function() {
 
 // Add manual tag
 const addTagBtn = document.getElementById('addTagBtn');
+const newNameInput = document.getElementById('newName');
+if (newNameInput) {
+    newNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); if (addTagBtn) addTagBtn.click(); }
+    });
+}
 if (addTagBtn) {
     addTagBtn.addEventListener('click', async () => {
         const nsSel = document.getElementById('newNs');

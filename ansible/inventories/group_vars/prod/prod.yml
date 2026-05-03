@@ -417,7 +417,7 @@ gighive_viewer_password: "CHANGE_ME_VIEWER"
 # AI worker (video_tagger_v1)
 # OPENAI_API_KEY belongs in secrets.yml (gitignored), not here
 # --------------------------------------------------------------------
-ai_worker_enabled: true
+ai_worker_enabled: false
 llm_provider: "openai"
 openai_model: "gpt-4.1"
 llm_base_url: "https://api.openai.com/v1"
