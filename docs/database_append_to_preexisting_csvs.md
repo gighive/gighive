@@ -21,6 +21,24 @@ that already exist as part of the session finalization workflow.
 
 ---
 
+## End-to-End Overview
+
+Given local video files, a songlist, and a metadata file, the script performs these steps in a single command:
+
+1. **Parse inputs** — read `songlist.txt` and `metadata.txt` to build session metadata
+2. **Determine next IDs** — derive next `session_id`, `song_id`, `file_id` from the prepped CSVs
+3. **Resolve participants** — map crew names to `participant_id`s via `participants.csv`; abort on any unknown name
+4. **Compute SHA256** — hash all local video files before transfer
+5. **rsync to prod** — transfer video files to `<ssh-target>:/home/ubuntu/video/<YYYYMMDD>/`
+6. **ffprobe on prod** — extract duration and media info from each remote file via SSH
+7. **Build CSV + SQL rows** — construct rows for all 6 CSVs and the live-SQL payload
+8. **Write CSVs** — append new rows to `files`, `sessions`, `songs`, `session_songs`, `song_files`, `event_participants`
+9. **Apply SQL to prod** — insert event, assets, event_items, and event_participants into the live DB via `docker exec` over SSH
+10. **Verify** — query production and print a row-count summary
+11. **Git commit + push** — commit the 6 updated CSVs and push
+
+---
+
 ## Proposed Invocation
 
 ```bash
@@ -349,9 +367,10 @@ VALUES (...), ...;
 INSERT IGNORE INTO event_participants (event_id, participant_id) VALUES (...), ...;
 ```
 
-SQL is written to a temp file first and piped via:
+SQL is written to a temp file, scp'd to the remote host, then executed via:
 ```bash
-ssh <target> "docker exec -i mysqlServer mysql -u appuser -pmusiclibrary music_db" < /tmp/add_session.sql
+# Password is sourced from $MYSQL_PASSWORD inside the container — never passed over SSH
+ssh <target> 'docker exec -i mysqlServer sh -c '"'"'MYSQL_PWD="$MYSQL_PASSWORD" mysql -u appuser music_db < /tmp/add_session.sql'"'"''
 ```
 
 ### Step 9 — Verify

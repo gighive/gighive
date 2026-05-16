@@ -23,16 +23,6 @@ updates:
       - "php"
     open-pull-requests-limit: 5
 
-  # Monitor Docker base images
-  - package-ecosystem: "docker"
-    directory: "/ansible/roles/docker/files/apache"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "dependencies"
-      - "docker"
-    open-pull-requests-limit: 5
-
   # Monitor GitHub Actions (if you add any workflows)
   - package-ecosystem: "github-actions"
     directory: "/"
