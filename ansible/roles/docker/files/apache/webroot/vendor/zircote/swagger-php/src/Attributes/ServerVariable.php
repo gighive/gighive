@@ -6,8 +6,8 @@
 
 namespace OpenApi\Attributes;
 
-use OpenApi\Generator;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
 class ServerVariable extends OA\ServerVariable
@@ -19,7 +19,7 @@ class ServerVariable extends OA\ServerVariable
      */
     public function __construct(
         ?string $serverVariable = null,
-        ?string $description = null,
+        ?string $description = Generator::UNDEFINED,
         ?string $default = null,
         array|string|null $enum = null,
         ?array $variables = null,
@@ -29,12 +29,12 @@ class ServerVariable extends OA\ServerVariable
     ) {
         parent::__construct([
                 'serverVariable' => $serverVariable ?? Generator::UNDEFINED,
-                'description' => $description ?? Generator::UNDEFINED,
+                'description' => $description,
                 'default' => $default ?? Generator::UNDEFINED,
                 'enum' => $enum ?? Generator::UNDEFINED,
                 'variables' => $variables ?? Generator::UNDEFINED,
                 'x' => $x ?? Generator::UNDEFINED,
-                'value' => $this->combine($attachables),
+                'attachables' => $attachables ?? Generator::UNDEFINED,
             ]);
     }
 }

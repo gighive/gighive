@@ -1,32 +1,13 @@
 *** 
 releaseNotes20260516.txt
-Changes: Removed docker from dependabot config, updated git checkout from v4 to v6 in dependabot, SP procedure in docs/database_append_to_preexisting_csvs.md
-Scope: Git only
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   .github/dependabot.yml
-	modified:   .github/workflows/sonarcloud.yml
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	modified:   docs/database_append_to_preexisting_csvs.md
-	new file:   docs/prCheckoutUpgradeToV6.md
-	new file:   docs/prSwaggerUpdateTo5.7.md
-
-*** 
-releaseNotes20260503.txt
-Changes: Migrate ai_worker changes to lab, staging and prod, turn off ai_worker on all, added tagging tables manually, fix media_tags.php for enter button
-Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY|PROD|OSB' CHANGELOG.md | head -20
+Changes: Upgrade swagger from v4.0 to v5.7
+Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,ai_worker" ansible-playbook-gighive2-20260503.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,ai_worker" ansible-playbook-gighive2-20260516.log
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-prod-20260503.log
 # LAB, rebuild 
@@ -51,6 +32,30 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 	npx playwright test
 # VULN testing
 	~/scripts/vulnerabilityScanUsingZap.sh
+
+*** 
+releaseNotes20260516.txt
+Changes: Removed docker from dependabot config, updated git checkout from v4 to v6 in dependabot, SP procedure in docs/database_append_to_preexisting_csvs.md
+Scope: Git only
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .github/dependabot.yml
+	modified:   .github/workflows/sonarcloud.yml
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   docs/database_append_to_preexisting_csvs.md
+	new file:   docs/prCheckoutUpgradeToV6.md
+	new file:   docs/prSwaggerUpdateTo5.7.md
+
+*** 
+releaseNotes20260503.txt
+Changes: Migrate ai_worker changes to lab, staging and prod, turn off ai_worker on all, added tagging tables manually, fix media_tags.php for enter button
+Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY|PROD|OSB' CHANGELOG.md | head -20
 
 sodo@pop-os:~/gighive$ git status
 On branch master

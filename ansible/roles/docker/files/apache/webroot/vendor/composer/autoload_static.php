@@ -28,6 +28,8 @@ class ComposerStaticInit1f4d912bb2bcfcfafca3980c05bebdb1
             'Psr\\Log\\' => 8,
             'Psr\\Http\\Message\\' => 17,
             'Production\\Api\\' => 15,
+            'PhpParser\\' => 10,
+            'PHPStan\\PhpDocParser\\' => 21,
         ),
         'O' => 
         array (
@@ -68,6 +70,14 @@ class ComposerStaticInit1f4d912bb2bcfcfafca3980c05bebdb1
         'Production\\Api\\' => 
         array (
             0 => __DIR__ . '/../..' . '/src',
+        ),
+        'PhpParser\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/nikic/php-parser/lib/PhpParser',
+        ),
+        'PHPStan\\PhpDocParser\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/phpstan/phpdoc-parser/src',
         ),
         'OpenApi\\' => 
         array (

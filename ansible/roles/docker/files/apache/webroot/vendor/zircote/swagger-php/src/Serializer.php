@@ -11,18 +11,17 @@ use Symfony\Component\Yaml\Yaml;
 
 /**
  * Allows to serialize/de-serialize annotations from/to JSON.
- *
- * @see https://github.com/zircote/swagger-php
  */
 class Serializer
 {
-    private static $VALID_ANNOTATIONS = [
+    private static array $VALID_ANNOTATIONS = [
         OA\AdditionalProperties::class,
         OA\Attachable::class,
         OA\Components::class,
         OA\Contact::class,
         OA\Delete::class,
         OA\Discriminator::class,
+        OA\Encoding::class,
         OA\Examples::class,
         OA\ExternalDocumentation::class,
         OA\Flow::class,
@@ -48,6 +47,7 @@ class Serializer
         OA\Post::class,
         OA\Property::class,
         OA\Put::class,
+        OA\Query::class,
         OA\RequestBody::class,
         OA\Response::class,
         OA\Schema::class,
@@ -69,32 +69,32 @@ class Serializer
     /**
      * Deserialize a string.
      */
-    public function deserialize(string $jsonString, string $className): OA\AbstractAnnotation
+    public function deserialize(string $jsonString, string $className, ?Context $context = null): OA\AbstractAnnotation
     {
-        if (!$this->isValidAnnotationClass($className)) {
+        if (!static::isValidAnnotationClass($className)) {
             throw new OpenApiException($className . ' is not defined in OpenApi PHP Annotations');
         }
 
-        return $this->doDeserialize(json_decode($jsonString), $className, new Context(['generated' => true]));
+        return $this->doDeserialize(json_decode($jsonString), $className, $context ?? new Context(['generated' => true]));
     }
 
     /**
      * Deserialize a file.
      */
-    public function deserializeFile(string $filename, string $format = 'json', string $className = OA\OpenApi::class): OA\AbstractAnnotation
+    public function deserializeFile(string $filename, string $format = 'json', string $className = OA\OpenApi::class, ?Context $context = null): OA\AbstractAnnotation
     {
-        if (!$this->isValidAnnotationClass($className)) {
+        if (!static::isValidAnnotationClass($className)) {
             throw new OpenApiException($className . ' is not a valid OpenApi PHP Annotations');
         }
 
         $contents = file_get_contents($filename);
 
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
-        if ('yaml' == $format || in_array($ext, ['yml', 'yaml'])) {
+        if ('yaml' === $format || in_array($ext, ['yml', 'yaml'])) {
             $contents = json_encode(Yaml::parse($contents));
         }
 
-        return $this->doDeserialize(json_decode($contents), $className, new Context(['generated' => true]));
+        return $this->doDeserialize(json_decode($contents), $className, $context ?? new Context(['generated' => true]));
     }
 
     /**

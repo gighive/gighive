@@ -16,7 +16,7 @@ use OpenApi\Generator;
  * This object is based on the [JSON Schema Specification](http://json-schema.org) and uses a predefined subset of it.
  * On top of this subset, there are extensions provided by this specification to allow for more complete documentation.
  *
- * @see [OAI Schema Object](https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#schemaObject)
+ * @see [Schema Object](https://spec.openapis.org/oas/v3.1.1.html#schema-object)
  * @see [JSON Schema](http://json-schema.org/)
  *
  * @Annotation
@@ -26,7 +26,7 @@ class Schema extends AbstractAnnotation
     /**
      * The relative or absolute path to the endpoint.
      *
-     * @see [Using refs](https://swagger.io/docs/specification/using-ref/)
+     * @see [Reference Object](https://spec.openapis.org/oas/v3.1.1.html#reference-object)
      *
      * @var string|class-string|object
      */
@@ -102,7 +102,9 @@ class Schema extends AbstractAnnotation
     public $type = Generator::UNDEFINED;
 
     /**
-     * The extending format for the previously mentioned type. See Data Type Formats for further details.
+     * The extending format for the previously mentioned type.
+     *
+     * @see [Data Types](https://spec.openapis.org/oas/v3.1.1.html#data-types)
      *
      * @var string
      */
@@ -333,8 +335,7 @@ class Schema extends AbstractAnnotation
      * The examples object is mutually exclusive of the example object.
      * Furthermore, if referencing a schema which contains an example, the examples value shall override the example provided by the schema.
      *
-     * @since 3.1.0
-     *
+     * @since OpenAPI 3.1.0
      * @var array<Examples>
      */
     public $examples = Generator::UNDEFINED;
@@ -408,8 +409,15 @@ class Schema extends AbstractAnnotation
 
     /**
      * http://json-schema.org/latest/json-schema-validation.html#rfc.section.6.19.
+     *
+     * @var array
      */
     public $patternProperties = Generator::UNDEFINED;
+
+    /**
+     * @var array
+     */
+    public $unevaluatedProperties = Generator::UNDEFINED;
 
     /**
      * http://json-schema.org/latest/json-schema-validation.html#rfc.section.6.21.
@@ -423,8 +431,26 @@ class Schema extends AbstractAnnotation
 
     /**
      * http://json-schema.org/draft/2020-12/json-schema-validation.html#rfc.section.6.1.3.
+     *
+     * @since OpenAPI 3.1.0
      */
     public $const = Generator::UNDEFINED;
+
+    /**
+     * https://spec.openapis.org/oas/v3.1.0.html#considerations-for-file-uploads
+     * https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-validation-00#rfc.section.8.3.
+     *
+     * @var string
+     */
+    public $contentEncoding = Generator::UNDEFINED;
+
+    /**
+     * https://spec.openapis.org/oas/v3.1.0.html#considerations-for-file-uploads
+     * https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-validation-00#rfc.section.8.4.
+     *
+     * @var string
+     */
+    public $contentMediaType = Generator::UNDEFINED;
 
     /**
      * @inheritdoc
@@ -449,6 +475,8 @@ class Schema extends AbstractAnnotation
         'allOf' => '[' . Schema::class . ']',
         'oneOf' => '[' . Schema::class . ']',
         'anyOf' => '[' . Schema::class . ']',
+        'contentEncoding' => 'string',
+        'contentMediaType' => 'string',
     ];
 
     /**
@@ -477,6 +505,24 @@ class Schema extends AbstractAnnotation
     ];
 
     /**
+     * Type safe nullable check.
+     *
+     * Defaults to `false` when nullable is not set.
+     */
+    public function isNullable(): bool
+    {
+        return !Generator::isDefault($this->nullable) && $this->nullable;
+    }
+
+    /**
+     * Check if the given type is valid for this schema.
+     */
+    public function hasType(string $type): bool
+    {
+        return in_array($type, (array) $this->type, true);
+    }
+
+    /**
      * @inheritdoc
      */
     #[\ReturnTypeWillChange]
@@ -484,7 +530,7 @@ class Schema extends AbstractAnnotation
     {
         $data = parent::jsonSerialize();
 
-        if ($this->_context->isVersion(OpenApi::VERSION_3_0_0)) {
+        if ($this->_context->isVersion('3.0.x')) {
             unset($data->examples);
             if (isset($data->const)) {
                 $data->enum = [$data->const];
@@ -498,17 +544,17 @@ class Schema extends AbstractAnnotation
     /**
      * @inheritdoc
      */
-    public function validate(array $stack = [], array $skip = [], string $ref = '', $context = null): bool
+    public function validate(array $stack = [], array $skip = [], string $ref = '', ?object $context = null): bool
     {
-        if ($this->type === 'array' && Generator::isDefault($this->items)) {
+        if ($this->hasType('array') && Generator::isDefault($this->items)) {
             $this->_context->logger->warning('@OA\\Items() is required when ' . $this->identity() . ' has type "array" in ' . $this->_context);
 
             return false;
         }
 
-        if ($this->_context->isVersion(OpenApi::VERSION_3_0_0)) {
+        if ($this->_context->isVersion('3.0.x')) {
             if (!Generator::isDefault($this->examples)) {
-                $this->_context->logger->warning($this->identity() . ' is only allowed for ' . OpenApi::VERSION_3_1_0);
+                $this->_context->logger->warning($this->identity() . ' is only allowed as of 3.1.0');
 
                 return false;
             }

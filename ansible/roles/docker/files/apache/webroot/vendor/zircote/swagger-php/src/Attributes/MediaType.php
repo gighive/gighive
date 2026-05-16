@@ -6,15 +6,15 @@
 
 namespace OpenApi\Attributes;
 
-use OpenApi\Generator;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
 class MediaType extends OA\MediaType
 {
     /**
      * @param array<Examples>          $examples
-     * @param array<string,mixed>      $encoding
+     * @param Encoding[]               $encoding
      * @param array<string,mixed>|null $x
      * @param Attachable[]|null        $attachables
      */
@@ -31,9 +31,12 @@ class MediaType extends OA\MediaType
         parent::__construct([
                 'mediaType' => $mediaType ?? Generator::UNDEFINED,
                 'example' => $example,
-                'encoding' => $encoding ?? Generator::UNDEFINED,
                 'x' => $x ?? Generator::UNDEFINED,
-                'value' => $this->combine($schema, $examples, $attachables),
+                'attachables' => $attachables ?? Generator::UNDEFINED,
+                'value' => $this->combine($schema, $examples, $this->encodingCompat(
+                    $encoding,
+                    fn (array $args): Encoding => new Encoding(...$args),
+                )),
             ]);
     }
 }

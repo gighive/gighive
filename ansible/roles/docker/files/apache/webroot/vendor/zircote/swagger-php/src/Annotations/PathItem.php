@@ -14,14 +14,14 @@ use OpenApi\Generator;
  * A Path Item may be empty, due to ACL constraints.
  * The path itself is still exposed to the documentation viewer, but they will not know which operations and parameters are available.
  *
- * @see [OAI Path Item Object](https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#path-item-object)
+ * @see [Path Item Object](https://spec.openapis.org/oas/v3.1.1.html#path-item-object)
  *
  * @Annotation
  */
 class PathItem extends AbstractAnnotation
 {
     /**
-     * @see [Using refs](https://swagger.io/docs/specification/using-ref/)
+     * @see [Reference Object](https://spec.openapis.org/oas/v3.1.1.html#reference-object)
      *
      * @var string|class-string|object
      */
@@ -105,6 +105,14 @@ class PathItem extends AbstractAnnotation
     public $trace = Generator::UNDEFINED;
 
     /**
+     * A definition of a QUERY operation on this path.
+     *
+     * @since OpenAPI 3.2.0
+     * @var Query
+     */
+    public $query = Generator::UNDEFINED;
+
+    /**
      * An alternative server array to service all operations in this path.
      *
      * @var Server[]
@@ -143,6 +151,7 @@ class PathItem extends AbstractAnnotation
         Trace::class => 'trace',
         Head::class => 'head',
         Options::class => 'options',
+        Query::class => 'query',
         Parameter::class => ['parameters'],
         PathParameter::class => ['parameters'],
         Server::class => ['servers'],
@@ -171,5 +180,16 @@ class PathItem extends AbstractAnnotation
         }
 
         return $operations;
+    }
+
+    public function jsonSerialize(): \stdClass
+    {
+        $data = parent::jsonSerialize();
+
+        if ($this->_context->isVersion(['3.0.x', '3.1.x'])) {
+            unset($data->query);
+        }
+
+        return $data;
     }
 }

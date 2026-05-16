@@ -194,6 +194,10 @@ A clean manual change is safer and easier to understand.
 
 `actions/checkout@v6` is the newer major version and supports GitHub's move toward Node.js 24-based actions.
 
+## Node.js Version Used by the Action
+
+`actions/checkout@v6` runs on Node.js 24 (up from Node.js 20 in v4). This refers to the Node.js version the action itself executes under on the runner — it has no effect on what Node version your own workflow steps use. If your workflows do not install or invoke Node directly, there is no visible difference.
+
 ## If a Workflow Fails
 
 Do not merge the PR yet.

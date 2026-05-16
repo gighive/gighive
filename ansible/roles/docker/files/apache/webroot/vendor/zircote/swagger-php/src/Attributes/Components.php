@@ -6,8 +6,8 @@
 
 namespace OpenApi\Attributes;
 
-use OpenApi\Generator;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
 class Components extends OA\Components
@@ -42,7 +42,7 @@ class Components extends OA\Components
             'callbacks' => $callbacks ?? Generator::UNDEFINED,
             'x' => $x ?? Generator::UNDEFINED,
             'attachables' => $attachables ?? Generator::UNDEFINED,
-            'value' => $this->combine($schemas, $responses, $parameters, $examples, $requestBodies, $headers, $securitySchemes, $links, $attachables),
+            'value' => $this->combine($schemas, $responses, $parameters, $examples, $requestBodies, $headers, $securitySchemes, $links),
         ]);
     }
 }

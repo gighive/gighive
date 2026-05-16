@@ -6,8 +6,8 @@
 
 namespace OpenApi\Attributes;
 
-use OpenApi\Generator;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
 class Link extends OA\Link
@@ -25,7 +25,7 @@ class Link extends OA\Link
         ?string $operationId = null,
         ?array $parameters = null,
         mixed $requestBody = null,
-        ?string $description = null,
+        ?string $description = Generator::UNDEFINED,
         ?Server $server = null,
         // annotation
         ?array $x = null,
@@ -38,9 +38,10 @@ class Link extends OA\Link
                 'operationId' => $operationId ?? Generator::UNDEFINED,
                 'parameters' => $parameters ?? Generator::UNDEFINED,
                 'requestBody' => $requestBody ?? Generator::UNDEFINED,
-                'description' => $description ?? Generator::UNDEFINED,
+                'description' => $description,
                 'x' => $x ?? Generator::UNDEFINED,
-                'value' => $this->combine($server, $attachables),
+                'attachables' => $attachables ?? Generator::UNDEFINED,
+                'value' => $this->combine($server),
             ]);
     }
 }

@@ -6,8 +6,8 @@
 
 namespace OpenApi\Attributes;
 
-use OpenApi\Generator;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::TARGET_PROPERTY | \Attribute::TARGET_PARAMETER | \Attribute::IS_REPEATABLE)]
 class RequestBody extends OA\RequestBody
@@ -21,7 +21,7 @@ class RequestBody extends OA\RequestBody
     public function __construct(
         string|object|null $ref = null,
         ?string $request = null,
-        ?string $description = null,
+        ?string $description = Generator::UNDEFINED,
         ?bool $required = null,
         array|MediaType|JsonContent|XmlContent|Attachable|null $content = null,
         // annotation
@@ -31,10 +31,11 @@ class RequestBody extends OA\RequestBody
         parent::__construct([
             'ref' => $ref ?? Generator::UNDEFINED,
             'request' => $request ?? Generator::UNDEFINED,
-            'description' => $description ?? Generator::UNDEFINED,
+            'description' => $description,
             'required' => $required ?? Generator::UNDEFINED,
             'x' => $x ?? Generator::UNDEFINED,
-            'value' => $this->combine($content, $attachables),
+            'attachables' => $attachables ?? Generator::UNDEFINED,
+            'value' => $this->combine($content),
         ]);
     }
 }
