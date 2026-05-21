@@ -33,40 +33,513 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # VULN testing
 	~/scripts/vulnerabilityScanUsingZap.sh
 
-*** 
-releaseNotes20260516.txt
-Changes: Removed docker from dependabot config, updated git checkout from v4 to v6 in dependabot, SP procedure in docs/database_append_to_preexisting_csvs.md
-Scope: Git only
-
 sodo@pop-os:~/gighive$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   .github/dependabot.yml
-	modified:   .github/workflows/sonarcloud.yml
 	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/composer.json
+	modified:   ansible/roles/docker/files/apache/webroot/composer.lock
+	modified:   ansible/roles/docker/files/apache/webroot/docs/openapi.yaml
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/bin/php-parse
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/autoload_psr4.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/autoload_static.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/installed.json
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/installed.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/LICENSE
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/README.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/bin/php-parse
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/composer.json
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/ClassConst.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Class_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Declaration.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/EnumCase.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Enum_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/FunctionLike.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Function_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Interface_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Method.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Namespace_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Param.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Property.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/TraitUse.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/TraitUseAdaptation.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Trait_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Builder/Use_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/BuilderFactory.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/BuilderHelpers.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Comment.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Comment/Doc.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/ConstExprEvaluationException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/ConstExprEvaluator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Error.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/ErrorHandler.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/ErrorHandler/Collecting.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/ErrorHandler/Throwing.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Internal/DiffElem.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Internal/Differ.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Internal/PrintableNewAnonClassNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Internal/TokenPolyfill.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Internal/TokenStream.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/JsonDecoder.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/Emulative.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/AsymmetricVisibilityTokenEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/AttributeEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/EnumTokenEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/ExplicitOctalEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/KeywordEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/MatchTokenEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/NullsafeTokenEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/PipeOperatorEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/PropertyTokenEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/ReadonlyFunctionTokenEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/ReadonlyTokenEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/ReverseEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/TokenEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Lexer/TokenEmulator/VoidCastEmulator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Modifiers.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NameContext.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Arg.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/ArrayItem.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Attribute.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/AttributeGroup.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/ClosureUse.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/ComplexType.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Const_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/DeclareItem.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/ArrayDimFetch.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/ArrayItem.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Array_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/ArrowFunction.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Assign.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/BitwiseAnd.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/BitwiseOr.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/BitwiseXor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/Coalesce.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/Concat.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/Div.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/Minus.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/Mod.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/Mul.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/Plus.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/Pow.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/ShiftLeft.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignOp/ShiftRight.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/AssignRef.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/BitwiseAnd.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/BitwiseOr.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/BitwiseXor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/BooleanAnd.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/BooleanOr.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Coalesce.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Concat.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Div.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Equal.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Greater.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/GreaterOrEqual.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Identical.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/LogicalAnd.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/LogicalOr.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/LogicalXor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Minus.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Mod.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Mul.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/NotEqual.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/NotIdentical.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Pipe.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Plus.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Pow.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/ShiftLeft.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/ShiftRight.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Smaller.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/SmallerOrEqual.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BinaryOp/Spaceship.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BitwiseNot.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/BooleanNot.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/CallLike.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast/Array_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast/Bool_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast/Double.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast/Int_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast/Object_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast/String_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast/Unset_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Cast/Void_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/ClassConstFetch.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Clone_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Closure.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/ClosureUse.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/ConstFetch.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Empty_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Error.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/ErrorSuppress.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Eval_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Exit_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/FuncCall.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Include_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Instanceof_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Isset_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/List_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Match_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/MethodCall.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/New_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/NullsafeMethodCall.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/NullsafePropertyFetch.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/PostDec.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/PostInc.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/PreDec.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/PreInc.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Print_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/PropertyFetch.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/ShellExec.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/StaticCall.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/StaticPropertyFetch.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Ternary.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Throw_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/UnaryMinus.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/UnaryPlus.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Variable.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/YieldFrom.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Expr/Yield_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/FunctionLike.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Identifier.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/InterpolatedStringPart.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/IntersectionType.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/MatchArm.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Name.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Name/FullyQualified.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Name/Relative.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/NullableType.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Param.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/PropertyHook.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/PropertyItem.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/DNumber.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/Encapsed.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/EncapsedStringPart.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/Float_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/Int_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/InterpolatedString.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/LNumber.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/Class_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/Dir.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/File.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/Function_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/Line.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/Method.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/Namespace_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/Property.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/MagicConst/Trait_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Scalar/String_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/StaticVar.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Block.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Break_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Case_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Catch_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/ClassConst.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/ClassLike.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/ClassMethod.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Class_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Const_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Continue_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/DeclareDeclare.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Declare_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Do_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Echo_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/ElseIf_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Else_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/EnumCase.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Enum_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Expression.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Finally_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/For_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Foreach_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Function_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Global_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Goto_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/GroupUse.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/HaltCompiler.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/If_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/InlineHTML.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Interface_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Label.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Namespace_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Nop.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Property.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/PropertyProperty.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Return_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/StaticVar.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Static_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Switch_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/TraitUse.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/TraitUseAdaptation.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/TraitUseAdaptation/Alias.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/TraitUseAdaptation/Precedence.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Trait_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/TryCatch.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Unset_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/UseUse.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/Use_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/Stmt/While_.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/UnionType.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/UseItem.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/VarLikeIdentifier.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Node/VariadicPlaceholder.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeAbstract.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeDumper.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeFinder.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeTraverser.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeTraverserInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitor/CloningVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitor/CommentAnnotatingVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitor/FindingVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitor/FirstFindingVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitor/NameResolver.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitor/NodeConnectingVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitor/ParentConnectingVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/NodeVisitorAbstract.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Parser.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Parser/Php7.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Parser/Php8.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/ParserAbstract.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/ParserFactory.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/PhpVersion.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/PrettyPrinter.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/PrettyPrinter/Standard.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/PrettyPrinterAbstract.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/Token.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/nikic/php-parser/lib/PhpParser/compatibility_tokens.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/LICENSE
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/README.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/UPGRADING.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/composer.json
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/AbstractNodeVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Attribute.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Comment.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprArrayItemNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprArrayNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprFalseNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprFloatNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprIntegerNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprNullNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprStringNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstExprTrueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/ConstFetchNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/ConstExpr/DoctrineConstExprStringNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Node.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/NodeAttributes.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/NodeTraverser.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/NodeVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/NodeVisitor/CloningVisitor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/AssertTagMethodValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/AssertTagPropertyValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/AssertTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/DeprecatedTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/Doctrine/DoctrineAnnotation.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/Doctrine/DoctrineArgument.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/Doctrine/DoctrineArray.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/Doctrine/DoctrineArrayItem.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/Doctrine/DoctrineTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ExtendsTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/GenericTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ImplementsTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/InvalidTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/MethodTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/MethodTagValueParameterNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/MixinTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ParamClosureThisTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ParamImmediatelyInvokedCallableTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ParamLaterInvokedCallableTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ParamOutTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ParamTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/PhpDocChildNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/PhpDocNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/PhpDocTagNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/PhpDocTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/PhpDocTextNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/PropertyTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/PureUnlessCallableIsImpureTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/RequireExtendsTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/RequireImplementsTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ReturnTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/SealedTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/SelfOutTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/TemplateTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/ThrowsTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/TypeAliasImportTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/TypeAliasTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/TypelessParamTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/UsesTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/PhpDoc/VarTagValueNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ArrayShapeItemNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ArrayShapeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ArrayShapeUnsealedTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ArrayTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/CallableTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/CallableTypeParameterNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ConditionalTypeForParameterNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ConditionalTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ConstTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/GenericTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/IdentifierTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/IntersectionTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/InvalidTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/NullableTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ObjectShapeItemNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ObjectShapeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/OffsetAccessTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/ThisTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/TypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Ast/Type/UnionTypeNode.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Lexer/Lexer.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Parser/ConstExprParser.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Parser/ParserException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Parser/PhpDocParser.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Parser/StringUnescaper.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Parser/TokenIterator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Parser/TypeParser.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/ParserConfig.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Printer/DiffElem.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Printer/Differ.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/phpstan/phpdoc-parser/src/Printer/Printer.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/README.md
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/bin/openapi
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/composer.json
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/package.json
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/rector.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/AnalyserInterface.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/AnnotationFactoryInterface.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/AttributeAnnotationFactory.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/ComposerAutoloaderScanner.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/DocBlockAnnotationFactory.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/DocBlockParser.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/ReflectionAnalyser.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/TokenAnalyser.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysers/TokenScanner.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Analysis.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/AbstractAnnotation.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Attachable.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Components.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Contact.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/CookieParameter.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Discriminator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Encoding.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Examples.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/ExternalDocumentation.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Flow.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Header.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/HeaderParameter.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Info.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Items.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/JsonContent.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/License.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Link.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/MediaType.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/OpenApi.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Operation.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Parameter.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/PathItem.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/PathParameter.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Property.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Query.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/QueryParameter.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/RequestBody.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Response.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Schema.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/SecurityScheme.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Server.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/ServerVariable.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Tag.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Webhook.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/Xml.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Annotations/XmlContent.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/AdditionalProperties.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Components.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Contact.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Discriminator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Encoding.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Examples.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/ExternalDocumentation.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Flow.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Header.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Info.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Items.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/JsonContent.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/License.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Link.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/MediaType.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/OpenApi.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/OperationTrait.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/ParameterTrait.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/PathItem.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Property.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Query.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/RequestBody.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Response.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Schema.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/SecurityScheme.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Server.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/ServerVariable.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Tag.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Webhook.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/Xml.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Attributes/XmlContent.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Context.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Generator.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/GeneratorAwareInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/GeneratorAwareTrait.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Loggers/ConsoleLogger.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Loggers/DefaultLogger.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/OpenApiException.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Pipeline.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentDiscriminators.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentItems.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentMediaType.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentParameters.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentProperties.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentRefs.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentRequestBody.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentSchemas.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/AugmentTags.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/BuildPaths.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/CleanUnmerged.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/CleanUnusedComponents.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/Concerns/AnnotationTrait.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/Concerns/DocblockTrait.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/DocBlockDescriptions.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/ExpandClasses.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/ExpandEnums.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/ExpandInterfaces.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/ExpandTraits.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/MergeIntoComponents.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/MergeIntoOpenApi.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/MergeJsonContent.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/MergeXmlContent.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/OperationId.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/PathFilter.php
+	deleted:    ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/ProcessorInterface.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Serializer.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Type/AbstractTypeResolver.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Type/LegacyTypeResolver.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Type/TypeInfoTypeResolver.php
+	renamed:    ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Processors/Concerns/TypesTrait.php -> ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/TypeResolverInterface.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/zircote/swagger-php/src/Util.php
 	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	modified:   docs/database_append_to_preexisting_csvs.md
-	new file:   docs/prCheckoutUpgradeToV6.md
-	new file:   docs/prSwaggerUpdateTo5.7.md
-
-*** 
-releaseNotes20260503.txt
-Changes: Migrate ai_worker changes to lab, staging and prod, turn off ai_worker on all, added tagging tables manually, fix media_tags.php for enter button
-Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY|PROD|OSB' CHANGELOG.md | head -20
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes not staged for commit:
-  (use "git add <file>..." to update what will be committed)
-  (use "git restore <file>..." to discard changes in working directory)
-	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/inventory_osb.yml
+	modified:   docs/prCheckoutUpgradeToV6.md
+	modified:   docs/prSwaggerUpdateTo5.7.md
 
 TODO
 What's next: promote to staging (reupload five tutorials and change out thumbnails)
@@ -117,6 +590,40 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+*** 
+releaseNotes20260516.txt
+Changes: Removed docker from dependabot config, updated git checkout from v4 to v6 in dependabot, SP procedure in docs/database_append_to_preexisting_csvs.md
+Scope: Git only
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .github/dependabot.yml
+	modified:   .github/workflows/sonarcloud.yml
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   docs/database_append_to_preexisting_csvs.md
+	new file:   docs/prCheckoutUpgradeToV6.md
+	new file:   docs/prSwaggerUpdateTo5.7.md
+
+*** 
+releaseNotes20260503.txt
+Changes: Migrate ai_worker changes to lab, staging and prod, turn off ai_worker on all, added tagging tables manually, fix media_tags.php for enter button
+Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY|PROD|OSB' CHANGELOG.md | head -20
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/inventory_osb.yml
 
 *** 
 releaseNotes20260502.txt
