@@ -201,7 +201,7 @@ $namespaceColors = [
             <?php foreach ($tags as $tg): ?>
               <span class="chip" data-source="<?= htmlspecialchars($tg['source'], ENT_QUOTES) ?>"
                     title="confidence: <?= round((float)($tg['confidence'] ?? 0), 2) ?> · source: <?= htmlspecialchars($tg['source'], ENT_QUOTES) ?>">
-                <?= htmlspecialchars($tg['name'], ENT_QUOTES) ?>
+                <a href="/db/tag_browser.php?namespace=<?= rawurlencode((string)$tg['namespace']) ?>&amp;name=<?= rawurlencode((string)$tg['name']) ?>" style="color:inherit;text-decoration:none;"><?= htmlspecialchars($tg['name'], ENT_QUOTES) ?></a>
                 <span class="conf"><?= round((float)($tg['confidence'] ?? 0) * 100) ?>%</span>
                 <?php if ($isAdmin): ?>
                   <button class="del-btn" data-tagging-id="<?= (int)$tg['tagging_id'] ?>"

@@ -31,8 +31,16 @@ docker exec mysqlServer mysql -u root \
 
 If `queued` rows exist → worker will pick them up on its own.
 
+#### Sub-case: Jobs enqueued hours/days before the crash loop was fixed
+Jobs can sit in `queued` state indefinitely — they are durable in the DB. If a "Force Re-tag All" or "Tag N Untagged Assets" was triggered at any point while `AI_WORKER_ENABLED=true` (even before the crash loop was diagnosed), those jobs remain queued and will be processed automatically once the worker recovers. No re-enqueueing is needed. You may see a large backlog on `/admin/ai_worker.php` with a "previous Force Re-tag job still running" warning — this is expected and normal.
+
 ### ❌ No jobs in queue (worker was disabled during upload)
 `ingestComplete()` never enqueued jobs. Use the **"Tag N Untagged Assets"** button on `/admin/ai_worker.php`. Idempotent — skips assets that already have an active job.
+
+### ⏳ New upload while a large batch is already in queue
+Each file's AI tagging job is enqueued immediately when its TUS upload finalizes (`ingestComplete()` fires per file). However, new jobs go to the **back of the queue** behind any existing backlog (e.g. a Force Re-tag batch). The newly uploaded files will not receive tags until the backlog ahead of them drains.
+
+This is expected behavior — nothing is wrong. Monitor queue position on `/admin/ai_worker.php`. The "Queued jobs" count will tick up slightly as each new file finalizes, confirming jobs are being enqueued correctly.
 
 ### 🔄 Force re-tag after model or config change
 Use the **"Force Re-tag All"** button on `/admin/ai_worker.php`. Re-enqueues all video assets including previously tagged ones.
