@@ -638,6 +638,7 @@
           children: [
             { id: "upload-reference", label: "Reference", kind: "type", type: "reference", children: [
               { id: "upload-options", label: "upload_options.md", kind: "document", concern: "upload", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "mixed", href: "./upload_options.html" },
+              { id: "process-upload-statuses-definition", label: "process_upload_statuses_definition.md", kind: "document", concern: "upload", type: "reference", lifecycle: "active", audience: ["developer", "operator", "admin"], aspect: "mixed", href: "./process_upload_statuses_definition.html" },
               { id: "what-is-tus", label: "WHAT_IS_TUS.md", kind: "document", concern: "upload", type: "reference", lifecycle: "active", audience: ["developer", "architect"], aspect: "mixed", href: "./WHAT_IS_TUS.html" },
               { id: "chunked-file-config", label: "chunkedfileconfiguration.md", kind: "document", concern: "upload", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./chunkedfileconfiguration.html" },
               { id: "upload-tests-vars", label: "admin_role_upload_tests_vars.md", kind: "document", concern: "upload", type: "reference", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./admin_role_upload_tests_vars.html" }
@@ -661,7 +662,8 @@
               { id: "unified-ingestion-core", label: "refactored_preasset_librarian_unified_ingestion_core.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactored_preasset_librarian_unified_ingestion_core.html" },
               { id: "azure-blob-storage", label: "pr_azure_blob_storage_integration.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "operator"], aspect: "mixed", href: "./pr_azure_blob_storage_integration.html" },
               { id: "pr-upload-testing", label: "pr_upload_testing.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "qa"], aspect: "mixed", href: "./pr_upload_testing.html" },
-              { id: "refactored-upload-max-bytes-one-var", label: "refactored_upload_max_bytes_one_var.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_upload_max_bytes_one_var.html" }
+              { id: "refactored-upload-max-bytes-one-var", label: "refactored_upload_max_bytes_one_var.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_upload_max_bytes_one_var.html" },
+              { id: "refactor-upload-folder-messaging-server-monotonic-fix", label: "refactor_upload_folder_messaging_server_monotonic_fix.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactor_upload_folder_messaging_server_monotonic_fix.html" }
             ] },
             { id: "upload-change", label: "Change", kind: "type", type: "change", children: [
               { id: "upload-php-path-change", label: "change20250314_upload_media_jibe_php_path.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./change20250314_upload_media_jibe_php_path.html" },
@@ -921,8 +923,14 @@
               { id: "ai-platform", label: "feature_ai_intelligence_platform.md", kind: "document", concern: "ai", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./feature_ai_intelligence_platform.html" },
               { id: "refactor-ai-scan-methodology", label: "refactor_ai_video_tagger_scan_methodology_improvements.md", kind: "document", concern: "ai", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_ai_video_tagger_scan_methodology_improvements.html" }
             ] },
+            { id: "ai-howto", label: "Howto", kind: "type", type: "howto", children: [
+              { id: "guide-ai-worker-tagging", label: "guide_ai_worker_tagging.md", kind: "document", concern: "ai", type: "howto", lifecycle: "active", audience: ["operator", "developer", "admin"], aspect: "mixed", href: "./guide_ai_worker_tagging.html" }
+            ] },
             { id: "ai-debug", label: "Debug", kind: "type", type: "debug", children: [
               { id: "problem-ai-worker-retag", label: "problem_ai_worker_force_retag_debugging.md", kind: "document", concern: "ai", type: "debug", lifecycle: "active", audience: ["developer", "qa"], aspect: "non_functional", href: "./problem_ai_worker_force_retag_debugging.html" }
+            ] },
+            { id: "ai-rca", label: "RCA", kind: "type", type: "rca", children: [
+              { id: "problem-missing-api-key-ai-worker", label: "problem_missing_api_key_for_ai_worker.md", kind: "document", concern: "ai", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_missing_api_key_for_ai_worker.html" }
             ] }
           ]
         }

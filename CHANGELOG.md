@@ -1,7 +1,7 @@
 *** 
-releaseNotes20260516.txt
-Changes: Upgrade swagger from v4.0 to v5.7
-Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
+releaseNotes20260522.txt
+Changes: Add % complete to import, hat mockups, docs for problem / ai tagging / upload folder fixes
+Scope: egrep -A1 'LAB' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
@@ -12,7 +12,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-prod-20260503.log
 # LAB, rebuild 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
-# LAB PUSH (REMEMBER IT IS FULL PROD DB NOW)
+# LAB PUSH (REMEMBER IT IS FULL PROD DB NOW), don't forget api key if needed
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260503.log
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
@@ -32,6 +32,83 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 	npx playwright test
 # VULN testing
 	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/secrets.example.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	new file:   docs/_DancingScript-Bold.ttf
+	new file:   docs/_hat_candidate_2.png
+	new file:   docs/_hat_candidate_3.png
+	new file:   docs/_hat_candidate_4.png
+	new file:   docs/_hat_candidate_5.png
+	new file:   docs/gen-hat-mockup.py
+	new file:   docs/gighive-hat-mockup.png
+	new file:   docs/guide_ai_worker_tagging.md
+	new file:   docs/hat-mockup.html
+	modified:   docs/knowledge_map.html
+	new file:   docs/problem_missing_api_key_for_ai_worker.md
+	new file:   docs/process_upload_statuses_definition.md
+	new file:   docs/refactor_upload_folder_messaging_server_monotonic_fix.md
+
+TODO
+What's next: promote to staging (reupload five tutorials and change out thumbnails)
+What's next: iphone app updates
+Marketing: Share same text I sent Annika with Pat. 
+Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
+App: Does the media player have to open a separate window? 
+App: Add How to Use button with link to video at bottom of home page
+App: Add tutorial at bottom of upload page 
+App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
+App: From the upload page, add a link to the supported media file types
+App: Make database scroll one-handed, like modern apps
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Integrate changes for db events
+
+App: App breaks on upload when changing to Messages app
+App: Is it worthwhile to have an embed feature?
+App: Can i provide a link to the Media Details page in the app?
+App: Share link feature in media page
+App/Web: skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+
+Upload: should add "Still processing.." after heartbeat
+Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
+Security: Interesting that security_basic_auth is always needed after docker run
+API: refactor based on docs/refactor_api_cleanup_if_desired.md
+Next: we will need an upload videos/thumbnails only after restore of database function
+Next: admin upload still allowing duplicate shas based upon different column info
+Product: Lock down / remove full build option (full build is saas)
+Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: database table name change to genericize songs 
+Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
+Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: protect the debug directory w/admin password	
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails 
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+*** 
+releaseNotes20260516.txt
+Changes: Upgrade swagger from v4.0 to v5.7
+Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -541,55 +618,6 @@ Changes to be committed:
 	modified:   docs/prCheckoutUpgradeToV6.md
 	modified:   docs/prSwaggerUpdateTo5.7.md
 
-TODO
-What's next: promote to staging (reupload five tutorials and change out thumbnails)
-What's next: iphone app updates
-Marketing: Share same text I sent Annika with Pat. 
-Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
-App: Does the media player have to open a separate window? 
-App: Add How to Use button with link to video at bottom of home page
-App: Add tutorial at bottom of upload page 
-App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
-App: From the upload page, add a link to the supported media file types
-App: Make database scroll one-handed, like modern apps
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Integrate changes for db events
-
-App: App breaks on upload when changing to Messages app
-App: Is it worthwhile to have an embed feature?
-App: Can i provide a link to the Media Details page in the app?
-App: Share link feature in media page
-App/Web: skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-
-Upload: should add "Still processing.." after heartbeat
-Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
-Security: Interesting that security_basic_auth is always needed after docker run
-API: refactor based on docs/refactor_api_cleanup_if_desired.md
-Next: we will need an upload videos/thumbnails only after restore of database function
-Next: admin upload still allowing duplicate shas based upon different column info
-Product: Lock down / remove full build option (full build is saas)
-Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: database table name change to genericize songs 
-Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
-Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: protect the debug directory w/admin password	
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails 
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
 *** 
 releaseNotes20260516.txt
 Changes: Removed docker from dependabot config, updated git checkout from v4 to v6 in dependabot, SP procedure in docs/database_append_to_preexisting_csvs.md

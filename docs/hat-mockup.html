@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GigHive — Ball Cap Design Sheet</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cap-cream: #EDE8DF;
+      --cap-blue: #72BDD1;
+      --cap-blue-dark: #5AAABB;
+      --cap-seam: #C8C0B0;
+      --brand-dark: #1A2332;
+      --text-secondary: #6B7A8D;
+      --bg: #EEF1F5;
+      --card-bg: #ffffff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--brand-dark);
+      padding: 36px;
+      min-height: 100vh;
+    }
+    .sheet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--brand-dark);
+      color: #fff;
+      padding: 22px 36px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+    }
+    .brand-name { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    .brand-sub { font-size: 12px; opacity: 0.6; margin-top: 2px; letter-spacing: 0.5px; }
+    .sheet-meta { text-align: right; font-size: 12px; opacity: 0.65; line-height: 1.7; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .hero-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+    }
+    .card-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+    }
+    .side-panel { display: flex; flex-direction: column; gap: 16px; }
+    .info-card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.05);
+    }
+    .info-card h3 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+    }
+    .color-swatches { display: flex; flex-direction: column; gap: 10px; }
+    .swatch-row { display: flex; align-items: center; gap: 10px; }
+    .swatch {
+      width: 36px; height: 36px; border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.07); flex-shrink: 0;
+    }
+    .swatch-name { font-size: 12px; font-weight: 600; }
+    .swatch-hex { font-size: 10px; color: var(--text-secondary); font-family: monospace; }
+    .spec-list { list-style: none; }
+    .spec-list li {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 0; border-bottom: 1px solid #F0F2F5; font-size: 12px;
+    }
+    .spec-list li:last-child { border-bottom: none; }
+    .spec-label { color: var(--text-secondary); }
+    .spec-value { font-weight: 600; }
+
+    .views-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .view-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px 12px;
+      display: flex; flex-direction: column; align-items: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
+    .view-card h4 {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 2px;
+      color: var(--text-secondary); margin-top: 12px;
+    }
+    .sheet-footer {
+      text-align: center; color: var(--text-secondary);
+      font-size: 11px; margin-top: 20px; padding: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="sheet-header">
+    <div class="brand-row">
+      <img src="https://gighive.app/images/beelogo.png" alt="GigHive" class="brand-logo">
+      <div>
+        <div class="brand-name">GigHive</div>
+        <div class="brand-sub">Ball Cap — Design Sheet</div>
+      </div>
+    </div>
+    <div class="sheet-meta">
+      <div>Two-Tone Pigment Dyed Washed</div>
+      <div>Unstructured Baseball Cap</div>
+      <div style="margin-top:3px; opacity:0.45;">Version 1.0 &nbsp;·&nbsp; May 2026</div>
+    </div>
+  </header>
+
+  <div class="main-grid">
+
+    <!-- Hero 3/4 front view -->
+    <div class="hero-card">
+      <div class="card-label">3 / 4 Front View</div>
+      <svg viewBox="0 0 520 385" width="470" xmlns="http://www.w3.org/2000/svg">
+        <!-- drop shadow -->
+        <ellipse cx="248" cy="374" rx="188" ry="11" fill="rgba(0,0,0,0.08)"/>
+
+        <!-- right blue side panel (behind front) -->
+        <path d="M 292,56 C 330,47 378,63 404,96 C 426,124 428,167 415,202 C 403,234 378,252 348,260 L 280,260 C 306,245 322,218 326,185 C 331,148 318,106 292,80 Z" fill="#72BDD1"/>
+
+        <!-- left blue edge visible -->
+        <path d="M 128,80 C 104,94 86,120 80,150 C 74,178 82,208 100,228 L 128,258 L 116,258 C 90,242 72,215 68,185 C 62,150 74,112 98,90 C 108,82 118,78 128,80 Z" fill="#72BDD1"/>
+
+        <!-- cream front panel -->
+        <path d="M 136,72 C 168,52 216,44 260,50 C 300,56 334,78 346,110 C 356,138 350,178 332,206 C 318,228 293,248 265,257 L 158,257 C 132,246 110,224 100,198 C 88,164 94,122 114,96 C 124,84 130,76 136,72 Z" fill="#EDE8DF"/>
+
+        <!-- seam lines -->
+        <path d="M 136,72 C 132,115 130,178 134,257" stroke="#C8C0B0" stroke-width="1.5" fill="none" opacity="0.75"/>
+        <path d="M 316,60 C 322,104 324,168 318,257" stroke="#C8C0B0" stroke-width="1.5" fill="none" opacity="0.4"/>
+        <!-- center crown stitch -->
+        <path d="M 228,52 L 226,257" stroke="#D4CFBF" stroke-width="1" fill="none" opacity="0.3" stroke-dasharray="4,9"/>
+
+        <!-- top button -->
+        <circle cx="240" cy="52" r="7" fill="#72BDD1" stroke="#5AAABB" stroke-width="1.5"/>
+        <circle cx="240" cy="52" r="3" fill="#5AAABB"/>
+
+        <!-- brim top surface -->
+        <path d="M 100,256 C 65,260 38,272 32,287 C 26,302 48,319 96,324 C 144,329 234,327 282,322 C 330,317 357,306 358,291 C 360,276 336,260 302,256 Z" fill="#72BDD1"/>
+
+        <!-- brim highlight strip -->
+        <path d="M 100,256 L 300,256 C 325,258 344,265 346,274 C 348,280 336,287 316,291 C 278,298 215,300 162,298 C 100,296 62,288 50,280 C 42,274 46,264 64,259 C 78,256 90,256 100,256 Z" fill="#8ECFDF" opacity="0.35"/>
+
+        <!-- brim underside shadow -->
+        <path d="M 100,266 C 65,270 40,279 36,289 C 34,297 48,308 90,314 C 132,320 225,320 272,316 C 316,312 346,303 350,291 L 358,291 C 357,306 330,317 282,322 C 234,327 144,329 96,324 C 48,319 26,302 32,287 L 32,288 Z" fill="#5AAABB" opacity="0.55"/>
+
+        <!-- brim stitch line -->
+        <path d="M 48,281 C 78,302 166,316 242,314 C 304,312 344,300 352,287" stroke="white" stroke-width="1" fill="none" opacity="0.22" stroke-dasharray="3,6"/>
+
+        <!-- sweatband hint -->
+        <path d="M 104,256 C 104,260 124,265 150,267 L 292,267 C 316,265 334,260 334,256" stroke="#D4CFBF" stroke-width="2" fill="none" opacity="0.5"/>
+
+        <!-- GigHive bee logo -->
+        <image href="https://gighive.app/images/beelogo.png" x="178" y="105" width="88" height="88"/>
+
+        <!-- GIGHIVE text -->
+        <text x="222" y="216" font-family="'Inter','Segoe UI',Arial,sans-serif" font-size="15" font-weight="700" fill="#1A2332" text-anchor="middle" letter-spacing="4">GIGHIVE</text>
+      </svg>
+    </div>
+
+    <!-- Side info panel -->
+    <div class="side-panel">
+
+      <div class="info-card">
+        <h3>Colorway</h3>
+        <div class="color-swatches">
+          <div class="swatch-row">
+            <div class="swatch" style="background:#EDE8DF;"></div>
+            <div>
+              <div class="swatch-name">Front Panel</div>
+              <div class="swatch-hex">Natural Cream · #EDE8DF</div>
+            </div>
+          </div>
+          <div class="swatch-row">
+            <div class="swatch" style="background:#72BDD1;"></div>
+            <div>
+              <div class="swatch-name">Sides / Brim / Back</div>
+              <div class="swatch-hex">Sky Blue Pigment · #72BDD1</div>
+            </div>
+          </div>
+          <div class="swatch-row">
+            <div class="swatch" style="background:#1A2332;"></div>
+            <div>
+              <div class="swatch-name">Embroidery</div>
+              <div class="swatch-hex">Midnight Navy · #1A2332</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <h3>Specifications</h3>
+        <ul class="spec-list">
+          <li><span class="spec-label">Style</span><span class="spec-value">Unstructured</span></li>
+          <li><span class="spec-label">Profile</span><span class="spec-value">Low Profile</span></li>
+          <li><span class="spec-label">Closure</span><span class="spec-value">Adjustable Buckle</span></li>
+          <li><span class="spec-label">Material</span><span class="spec-value">Pigment-Dyed Cotton</span></li>
+          <li><span class="spec-label">Front</span><span class="spec-value">Bee Logo + GIGHIVE</span></li>
+          <li><span class="spec-label">Left Side</span><span class="spec-value">gighive.app</span></li>
+          <li><span class="spec-label">Right Side</span><span class="spec-value">gighive.app</span></li>
+          <li><span class="spec-label">Back</span><span class="spec-value">gighive.app</span></li>
+        </ul>
+      </div>
+
+      <div class="info-card" style="text-align:center;">
+        <h3>Logo Placement</h3>
+        <img src="https://gighive.app/images/beelogo.png" style="width:58px;height:58px;object-fit:contain;margin:6px auto 10px;display:block;">
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">Centered on front panel<br>~2.5" diameter embroidery</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Four technical views -->
+  <div class="views-row">
+
+    <!-- Front flat -->
+    <div class="view-card">
+      <div class="card-label" style="margin-bottom:12px;">Front</div>
+      <svg viewBox="0 0 200 205" width="150" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="100" cy="197" rx="82" ry="8" fill="rgba(0,0,0,0.06)"/>
+        <!-- Side edges (blue) -->
+        <path d="M 32,90 C 32,54 62,28 100,28 C 138,28 168,54 168,90 L 168,148 L 32,148 Z" fill="#72BDD1"/>
+        <!-- Front panel (cream center) -->
+        <path d="M 52,75 C 62,42 82,28 100,28 C 118,28 138,42 148,75 L 152,148 L 48,148 Z" fill="#EDE8DF"/>
+        <!-- Seam lines -->
+        <path d="M 52,75 L 48,148" stroke="#C8C0B0" stroke-width="1.2" fill="none" opacity="0.7"/>
+        <path d="M 148,75 L 152,148" stroke="#C8C0B0" stroke-width="1.2" fill="none" opacity="0.7"/>
+        <!-- Center stitch -->
+        <path d="M 100,28 L 100,148" stroke="#D4CFBF" stroke-width="1" fill="none" opacity="0.3" stroke-dasharray="3,7"/>
+        <!-- Top button -->
+        <circle cx="100" cy="28" r="5" fill="#72BDD1" stroke="#5AAABB" stroke-width="1"/>
+        <!-- Brim -->
+        <path d="M 32,148 C 16,152 6,160 6,168 C 6,177 28,182 100,182 C 172,182 194,177 194,168 C 194,160 184,152 168,148 Z" fill="#72BDD1"/>
+        <!-- Logo -->
+        <image href="https://gighive.app/images/beelogo.png" x="64" y="58" width="72" height="72"/>
+        <!-- Text -->
+        <text x="100" y="141" font-family="'Inter',Arial,sans-serif" font-size="7.5" font-weight="700" fill="#1A2332" text-anchor="middle" letter-spacing="2">GIGHIVE</text>
+      </svg>
+    </div>
+
+    <!-- Left side -->
+    <div class="view-card">
+      <div class="card-label" style="margin-bottom:12px;">Left Side</div>
+      <svg viewBox="0 0 200 205" width="150" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="100" cy="197" rx="70" ry="7" fill="rgba(0,0,0,0.06)"/>
+        <!-- Full blue dome (side panel) -->
+        <path d="M 48,52 C 52,28 75,16 112,16 C 150,16 170,30 172,58 L 172,148 L 48,148 Z" fill="#72BDD1"/>
+        <!-- Cream front edge (right) -->
+        <path d="M 152,30 C 162,42 166,60 166,82 L 166,148 L 150,148 L 150,82 C 150,60 148,44 148,30 Z" fill="#EDE8DF" opacity="0.85"/>
+        <!-- Seam -->
+        <path d="M 150,30 L 150,148" stroke="#C8C0B0" stroke-width="1.5" fill="none"/>
+        <!-- Top button -->
+        <circle cx="112" cy="16" r="5" fill="#EDE8DF" stroke="#C8C0B0" stroke-width="1"/>
+        <!-- Brim (extends front-right) -->
+        <path d="M 48,148 C 24,152 10,160 10,168 C 10,178 32,183 112,183 C 175,183 188,178 182,168 C 178,160 170,152 158,148 Z" fill="#72BDD1"/>
+        <!-- gighive.app text -->
+        <text x="105" y="98" font-family="'Inter',Arial,sans-serif" font-size="10" font-weight="500" fill="#EDE8DF" text-anchor="middle" letter-spacing="1.5">gighive.app</text>
+      </svg>
+    </div>
+
+    <!-- Back -->
+    <div class="view-card">
+      <div class="card-label" style="margin-bottom:12px;">Back</div>
+      <svg viewBox="0 0 200 205" width="150" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="100" cy="197" rx="82" ry="8" fill="rgba(0,0,0,0.06)"/>
+        <!-- All-blue crown -->
+        <path d="M 32,90 C 32,54 62,28 100,28 C 138,28 168,54 168,90 L 168,148 L 32,148 Z" fill="#72BDD1"/>
+        <!-- Panel seams (subtle) -->
+        <path d="M 60,36 L 58,148" stroke="#5AAABB" stroke-width="1" fill="none" opacity="0.4" stroke-dasharray="3,7"/>
+        <path d="M 140,36 L 142,148" stroke="#5AAABB" stroke-width="1" fill="none" opacity="0.4" stroke-dasharray="3,7"/>
+        <!-- Center stitch -->
+        <path d="M 100,28 L 100,148" stroke="#5AAABB" stroke-width="1" fill="none" opacity="0.35" stroke-dasharray="3,7"/>
+        <!-- Top button (cream) -->
+        <circle cx="100" cy="28" r="5" fill="#EDE8DF" stroke="#C8C0B0" stroke-width="1"/>
+        <!-- URL text -->
+        <text x="100" y="98" font-family="'Inter',Arial,sans-serif" font-size="10" font-weight="500" fill="#EDE8DF" text-anchor="middle" letter-spacing="1.5">gighive.app</text>
+        <!-- Adjustment strap -->
+        <rect x="68" y="140" width="64" height="10" rx="3" fill="#5AAABB"/>
+        <rect x="84" y="137" width="32" height="16" rx="3" fill="#4A90A4"/>
+        <rect x="94" y="135" width="12" height="20" rx="2" fill="#EDE8DF"/>
+        <!-- Back brim (smaller, not extending forward) -->
+        <path d="M 32,148 C 18,152 10,158 10,164 C 10,171 26,175 100,175 C 174,175 190,171 190,164 C 190,158 182,152 168,148 Z" fill="#72BDD1" opacity="0.6"/>
+      </svg>
+    </div>
+
+    <!-- Right side -->
+    <div class="view-card">
+      <div class="card-label" style="margin-bottom:12px;">Right Side</div>
+      <svg viewBox="0 0 200 205" width="150" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="100" cy="197" rx="70" ry="7" fill="rgba(0,0,0,0.06)"/>
+        <!-- Full blue dome (side panel, mirrored) -->
+        <path d="M 152,52 C 148,28 125,16 88,16 C 50,16 30,30 28,58 L 28,148 L 152,148 Z" fill="#72BDD1"/>
+        <!-- Cream front edge (left) -->
+        <path d="M 50,30 C 38,42 34,60 34,82 L 34,148 L 50,148 L 50,82 C 50,60 52,44 52,30 Z" fill="#EDE8DF" opacity="0.85"/>
+        <!-- Seam -->
+        <path d="M 50,30 L 50,148" stroke="#C8C0B0" stroke-width="1.5" fill="none"/>
+        <!-- Top button -->
+        <circle cx="88" cy="16" r="5" fill="#EDE8DF" stroke="#C8C0B0" stroke-width="1"/>
+        <!-- Brim (extends front-left) -->
+        <path d="M 152,148 C 176,152 190,160 190,168 C 190,178 168,183 88,183 C 25,183 12,178 18,168 C 22,160 30,152 42,148 Z" fill="#72BDD1"/>
+        <!-- gighive.app text -->
+        <text x="95" y="98" font-family="'Inter',Arial,sans-serif" font-size="10" font-weight="500" fill="#EDE8DF" text-anchor="middle" letter-spacing="1.5">gighive.app</text>
+      </svg>
+    </div>
+
+  </div>
+
+  <div class="sheet-footer">
+    GigHive &copy; 2026 &nbsp;&middot;&nbsp; Ball Cap Mockup Design Sheet &nbsp;&middot;&nbsp; Two-Tone Pigment Dyed Washed Unstructured Baseball Cap
+  </div>
+
+</body>
+</html>

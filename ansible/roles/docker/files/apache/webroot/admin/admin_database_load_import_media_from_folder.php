@@ -855,7 +855,9 @@ function renderUploadRows(id,files){
       else if(st==='uploading'||st==='resuming')counts.uploading++;
       else counts.done++;
     }
-    const parts=['Pending: '+counts.pending,'Uploading: '+counts.uploading,'Done: '+counts.done,'Already Present: '+counts.already_present];
+    const uploadTotal=counts.done+counts.pending;
+    const pct=uploadTotal>0?Math.round((counts.done/uploadTotal)*100):0;
+    const parts=['Pending: '+counts.pending,'Uploading: '+counts.uploading,'Done: '+counts.done,'% Completed: '+pct+'%','Already Present: '+counts.already_present];
     if(counts.failed_retryable>0)parts.push('Failed (retryable): '+counts.failed_retryable);
     if(counts.failed_terminal>0)parts.push('Failed (permanent): '+counts.failed_terminal);
     summaryEl.textContent=parts.join(' | ');
