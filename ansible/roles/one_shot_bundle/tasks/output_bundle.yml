@@ -26,11 +26,7 @@
     path: "{{ _one_shot_bundle_output_dir }}/{{ item.path }}"
     state: directory
     mode: "0777"
-  loop:
-    - { path: "_host_audio" }
-    - { path: "_host_video" }
-    - { path: "_host_video/thumbnails" }
-    - { path: "_host_iphone" }
+  loop: "{{ [{'path': '_host_audio'}, {'path': '_host_video'}, {'path': '_host_video/thumbnails'}, {'path': '_host_iphone'}] + ([{'path': '_host_ai_assets'}] if ai_worker_osb_enabled | default(false) | bool else []) }}"
 
 - name: Ensure destination directories exist for fresh one-shot bundle output (controller)
   delegate_to: localhost
@@ -81,6 +77,8 @@
       mysql/dbScripts/dbDump.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
+      {% elif _p.startswith(_one_shot_bundle_ai_worker_prefix ~ '/') %}
+      ai-worker/{{ _p[(_one_shot_bundle_ai_worker_prefix ~ '/') | length:] }}
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ _p[_one_shot_bundle_files_prefix | length:] }}
       {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}
@@ -188,6 +186,8 @@
     _one_shot_bundle_dest_file: >-
       {% if _p.startswith(_one_shot_bundle_one_shot_bundle_prefix ~ '/') %}
       {{ _p[(_one_shot_bundle_one_shot_bundle_prefix ~ '/') | length:] }}
+      {% elif _p.startswith(_one_shot_bundle_ai_worker_prefix ~ '/') %}
+      ai-worker/{{ _p[(_one_shot_bundle_ai_worker_prefix ~ '/') | length:] }}
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ _p[_one_shot_bundle_files_prefix | length:] }}
       {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}
@@ -204,6 +204,14 @@
      | select('in', item.path ~ '/')
      | list | length) == 0
   register: _one_shot_bundle_non_template_copy_results
+
+- name: Select docker-compose.yml variant for fresh one-shot bundle output (controller)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/docker-compose{{ '-ai' if ai_worker_osb_enabled | default(false) | bool else '' }}.yml"
+    dest: "{{ _one_shot_bundle_output_dir }}/docker-compose.yml"
+    mode: preserve
 
 - name: Preserve source modification timestamps for copied non-template files in fresh one-shot bundle output (controller)
   delegate_to: localhost
@@ -226,10 +234,7 @@
   ansible.builtin.command: >-
     find "{{ _one_shot_bundle_output_dir }}/{{ item.path }}" -type d -exec chmod 0777 {} \;
   changed_when: true
-  loop:
-    - { path: "_host_audio" }
-    - { path: "_host_video" }
-    - { path: "_host_video/thumbnails" }
+  loop: "{{ [{'path': '_host_audio'}, {'path': '_host_video'}, {'path': '_host_video/thumbnails'}] + ([{'path': '_host_ai_assets'}] if ai_worker_osb_enabled | default(false) | bool else []) }}"
 
 - name: Normalize runtime media file mode for fresh one-shot bundle output (controller)
   delegate_to: localhost
@@ -237,10 +242,7 @@
   ansible.builtin.command: >-
     find "{{ _one_shot_bundle_output_dir }}/{{ item.path }}" -type f -exec chmod 0644 {} \;
   changed_when: true
-  loop:
-    - { path: "_host_audio" }
-    - { path: "_host_video" }
-    - { path: "_host_video/thumbnails" }
+  loop: "{{ [{'path': '_host_audio'}, {'path': '_host_video'}, {'path': '_host_video/thumbnails'}] + ([{'path': '_host_ai_assets'}] if ai_worker_osb_enabled | default(false) | bool else []) }}"
 
 - name: Report fresh one-shot bundle output directory (controller source)
   ansible.builtin.debug:

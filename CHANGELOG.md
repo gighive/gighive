@@ -1,7 +1,7 @@
 *** 
-releaseNotes20260522.txt
-Changes: Fix tag search and tag navigation
-Scope: egrep -A1 'GIG2|LAB' CHANGELOG.md | head -20
+releaseNotes20260523.txt
+Changes: Enable ai_worker in OSB, address docs/refactor_ai_jobs_messaging.md, refreshJobsUi eary return, sectionResumeUpload, updateUploadButtonState, nowIso() timezone fix to admin_database_load_import_media_from_folder.php. Plan for tags boolean search and refactor_tus_retry_delays_and_frame_extractor.md fixes. Identified sp home page timeline breakage.
+Scope: egrep -A1 'OSB' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
@@ -22,7 +22,7 @@ Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260503.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260503.log 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260523.log 
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260502.log
 
@@ -40,18 +40,29 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/db/media_tags.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/EventRepository.php
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/roles/ai_worker/files/ai-worker/frame_extractor.py
+	modified:   ansible/roles/ai_worker/files/ai-worker/worker.py
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/ai_worker.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/ai_jobs.php
 	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	modified:   docs/guide_ai_worker_tagging.md
-	modified:   docs/knowledge_map.html
-	new file:   docs/refactor_ai_jobs_messaging.md
-	new file:   docs/refactor_upload_folder_nav_away_cancels_fix.md
+	new file:   ansible/roles/docker/files/one_shot_bundle/docker-compose-ai.yml
+	modified:   ansible/roles/docker/templates/install.sh.j2
+	modified:   ansible/roles/one_shot_bundle/tasks/monitor.yml
+	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
+	modified:   docs/PREREQS.md
+	modified:   docs/feature_ai_video_tagger_osb.md
+	new file:   docs/refactor_db_database_tags_column_searchability.md
+	new file:   docs/refactor_import_saved_jobs_browser_restart.md
+	new file:   docs/refactor_move_stagingvm_to_emmc.md
+	new file:   docs/refactor_tus_retry_delays_and_frame_extractor.md
+	renamed:    docs/refactor_ai_jobs_messaging.md -> docs/refactored_ai_jobs_messaging.md
 
 TODO
 What's next: promote to staging (reupload five tutorials and change out thumbnails)
 What's next: iphone app updates
-AI: build ai_worker into OSB
+AI: maybe include ai tests for OSB
 Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
 App: Does the media player have to open a separate window? 
 App: Add How to Use button with link to video at bottom of home page
@@ -97,6 +108,26 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260522.txt
+Changes: Fix tag search and tag navigation
+Scope: egrep -A1 'GIG2|LAB' CHANGELOG.md | head -20
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/db/media_tags.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/EventRepository.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   docs/guide_ai_worker_tagging.md
+	modified:   docs/knowledge_map.html
+	new file:   docs/refactor_ai_jobs_messaging.md
+	new file:   docs/refactor_upload_folder_nav_away_cancels_fix.md
 
 *** 
 releaseNotes20260522.txt

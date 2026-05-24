@@ -57,7 +57,7 @@ if ($method === 'GET' && isset($_GET['id'])) {
 }
 
 // ── GET list ─────────────────────────────────────────────────────────────────
-if ($method === 'GET') {
+if ($method === 'GET' && $action === '') {
     $status = $_GET['status'] ?? '';
     $limit  = min((int)($_GET['limit'] ?? 100), 500);
     $params = [];
@@ -206,6 +206,42 @@ if ($method === 'POST') {
     );
     $ins->execute([':jt' => $jobType, ':tt' => $targetType, ':tid' => $targetId]);
     json_ok(['status' => 'queued', 'job_id' => (int)$pdo->lastInsertId()], 201);
+}
+
+// ── GET status_counts ───────────────────────────────────────────────────────
+if ($method === 'GET' && $action === 'status_counts') {
+    if (!$isAdmin) {
+        json_err('Admin required', 403);
+    }
+    $rawIds = $_GET['job_ids'] ?? '';
+    if ($rawIds !== '') {
+        $ids = array_filter(array_map('intval', explode(',', $rawIds)));
+        if (empty($ids)) {
+            json_ok(['queued' => 0, 'running' => 0, 'done' => 0, 'failed' => 0, 'total' => 0]);
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $pdo->prepare(
+            "SELECT status, COUNT(*) AS n FROM ai_jobs
+             WHERE id IN ($placeholders)
+             GROUP BY status"
+        );
+        $stmt->execute(array_values($ids));
+    } else {
+        $stmt = $pdo->query(
+            "SELECT status, COUNT(*) AS n FROM ai_jobs
+             WHERE job_type='categorize_video'
+             GROUP BY status"
+        );
+    }
+    $counts = ['queued' => 0, 'running' => 0, 'done' => 0, 'failed' => 0];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $st = $row['status'];
+        if (array_key_exists($st, $counts)) {
+            $counts[$st] = (int)$row['n'];
+        }
+    }
+    $counts['total'] = array_sum($counts);
+    json_ok($counts);
 }
 
 json_err('Method not allowed', 405);

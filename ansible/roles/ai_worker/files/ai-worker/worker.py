@@ -41,6 +41,10 @@ WORKER_ID = f"{socket.gethostname()}:{uuid.uuid4().hex[:8]}"
 
 
 def main():
+    if os.getenv('AI_WORKER_ENABLED', 'false').lower() not in ('1', 'true', 'yes'):
+        logger.info('AI_WORKER_ENABLED is not true — exiting cleanly')
+        return
+
     logger.info('AI worker starting (id=%s, poll_interval=%ds)', WORKER_ID, POLL_INTERVAL)
 
     startup_conn = db.get_connection()

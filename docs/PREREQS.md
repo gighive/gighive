@@ -36,6 +36,8 @@ Use this path if you want the simplest install experience and already have Docke
 sudo apt update
 sudo apt install -y docker.io
 sudo systemctl enable --now docker
+# If the service fails on first install, run this to clear transient socket state:
+sudo systemctl start docker
 sudo systemctl status docker
 docker --version
 sudo docker run hello-world
@@ -46,8 +48,11 @@ docker compose version
 
 # Add your user to the docker group
 sudo usermod -aG docker $USER
-# Logout, then log back in
 ```
+
+**Logout, then log back in.**
+
+The group membership change does not take effect in your current session. Without logging out, Docker commands will return a permission denied error.
 
 ---
 

@@ -188,6 +188,7 @@ if (!$__video_exts) $__video_exts = ['mp4','mov','mkv','avi','webm','m4v'];
 const AUDIO_EXTS = new Set(<?= json_encode($__audio_exts) ?>);
 const VIDEO_EXTS = new Set(<?= json_encode($__video_exts) ?>);
 const MEDIA_EXTS = new Set([...AUDIO_EXTS, ...VIDEO_EXTS]);
+const APP_TIMEZONE = <?= json_encode(getenv('TZ') ?: 'UTC') ?>;
 
 // ── Per-section state ────────────────────────────────────────────────────────
 const _S = {
@@ -214,7 +215,7 @@ function formatElapsed(ms) {
 }
 function el(id)  { return document.getElementById(id); }
 function html(id,h){ const e=el(id); if(e) e.innerHTML=h; }
-function nowIso(){ return new Date().toISOString(); }
+function nowIso(){return new Intl.DateTimeFormat('sv-SE',{timeZone:APP_TIMEZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',fractionalSecondDigits:3}).format(new Date()).replace(' ','T');}
 function safeJson(v){ try { return JSON.stringify(v, null, 2); } catch(e) { return String(v); } }
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
@@ -837,6 +838,7 @@ async function sectionResumeUpload(id){
     job_id: jobId,
   });
   await refreshUploadDebug(id);
+  const _inp=el(id+'-folder');s._fileList=_inp&&_inp.files?Array.from(_inp.files):[];
   updateUploadButtonState(id);
   startUploadDebugPolling(id);
 }
@@ -910,9 +912,10 @@ function updateUploadButtonState(id){
     const diskFullCount=allFiles.filter(f=>isRetryableFail(f)&&f.failure_code==='disk_full').length;
     let msg=retryableCount+' retryable failure(s)'+(pendingCount>0?', '+pendingCount+' pending':'')+'. ';
     if(diskFullCount>0){msg+='SERVER DISK FULL: free space on /srv/tusd-data/data/ then retry ('+diskFullCount+' file(s) affected). ';}
-    else{msg+='Resolve the issue then retry. ';}
+    else{msg+='Failures may be transient (e.g. network blip) — TUS will resume each from its last byte. Remaining pending files will continue uploading unaffected. ';}
     if(needsLocalFiles&&!hasFolderFiles)msg+='Reselect source folder to enable retry.';
-    html(id+'-upload-status','<div class="alert-err">'+escapeHtml(msg.trim())+'</div>');
+    const alertClass=pendingCount>0?'alert-warn':'alert-err';
+    html(id+'-upload-status','<div class="'+alertClass+'">'+escapeHtml(msg.trim())+'</div>');
   }else if(pendingCount>0){
     btn.textContent='Resume Upload';
     btn.disabled=!hasFolderFiles;
@@ -1095,17 +1098,20 @@ async function refreshJobsUi(id){
     const sel=el(id+'-jobs-select');const btn=el(id+'-replay-btn');const rBtn=el(id+'-resume-upload-btn');
     if(!sel)return;
     sel.innerHTML='';
-    if(!d.jobs.length){const o=document.createElement('option');o.disabled=o.selected=true;o.textContent='No saved jobs yet';sel.appendChild(o);if(btn)btn.disabled=true;return;}
-    const ph=document.createElement('option');ph.disabled=ph.selected=true;ph.textContent='Select a job…';sel.appendChild(ph);
-    for(const j of d.jobs){const o=document.createElement('option');o.value=j.job_id||'';o.textContent=(j.job_id||'')+'  '+(j.state||'').toUpperCase()+(j.item_count?' '+j.item_count+' items':'');sel.appendChild(o);}
-    sel.onchange=()=>{if(btn)btn.disabled=!sel.value;if(rBtn)rBtn.disabled=!sel.value;};
-    if(btn)btn.disabled=true;if(rBtn)rBtn.disabled=true;
+    const failedJobs=(d.jobs||[]);const okJobs=(d.recent_jobs||[]);
+    const allDisplay=[...failedJobs,...okJobs];
+    if(!allDisplay.length){const o=document.createElement('option');o.disabled=o.selected=true;o.textContent='No saved jobs yet';sel.appendChild(o);if(btn)btn.disabled=true;if(rBtn)rBtn.disabled=true;}
+    else{const ph=document.createElement('option');ph.disabled=ph.selected=true;ph.textContent='Select a job…';sel.appendChild(ph);
+      for(const j of failedJobs){const o=document.createElement('option');o.value=j.job_id||'';o.textContent=(j.job_id||'')+'  '+(j.state||'').toUpperCase()+(j.item_count?' '+j.item_count+' items':'');sel.appendChild(o);}
+      for(const j of okJobs){const o=document.createElement('option');o.value=j.job_id||'';o.textContent=(j.job_id||'')+' OK'+(j.item_count?' — '+j.item_count+' items':'');sel.appendChild(o);}
+      sel.onchange=()=>{if(btn)btn.disabled=!sel.value;if(rBtn)rBtn.disabled=!sel.value;};
+      if(btn)btn.disabled=true;if(rBtn)rBtn.disabled=true;}
     if(d.last_job)html(id+'-lastjob','Last job: '+escapeHtml(d.last_job.job_id||'')+' — '+escapeHtml((d.last_job.state||'').toUpperCase()));
 
-    // Auto-show upload panel for recent ok jobs
-    if(d.recent_jobs&&d.recent_jobs.length&&!_S[id].jobId){
-      const latest=d.recent_jobs[0];
-      if(latest&&latest.job_id){_S[id].jobId=String(latest.job_id);if(rBtn)rBtn.disabled=false;}
+    // Auto-select and enable Resume Upload for the most recent ok job
+    if(okJobs.length&&!_S[id].jobId){
+      const latest=okJobs[0];
+      if(latest&&latest.job_id){_S[id].jobId=String(latest.job_id);sel.value=latest.job_id;if(rBtn)rBtn.disabled=false;}
     }
   }catch(e){}
 }

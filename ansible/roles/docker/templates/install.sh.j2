@@ -241,6 +241,31 @@ echo "Wrote:"
 echo "  - $APACHE_ENV_FILE"
 echo "  - $MYSQL_ENV_FILE"
 
+{% if ai_worker_osb_enabled | default(false) | bool %}
+echo ""
+echo "==> AI Video Tagger"
+echo "    GigHive includes an optional AI feature that automatically tags your videos."
+echo "    If you wish to take advantage of this, you will need an OpenAI API key."
+echo "    Note: enabling this will add 500-700 MB of additional downloads on first start."
+echo "    If you do not want to use the AI features, just select No when prompted."
+echo ""
+AI_ENABLE=""
+read -r -p "Do you want to enable the AI features of GigHive? [y/N]: " AI_ENABLE
+case "${AI_ENABLE}" in
+  y|Y|yes)
+    OPENAI_API_KEY=""
+    read -r -s -p "Enter your OpenAI API key (sk-...): " OPENAI_API_KEY
+    echo
+    _patch_env_key AI_WORKER_ENABLED true           "$APACHE_ENV_FILE"
+    _patch_env_key OPENAI_API_KEY    "$OPENAI_API_KEY" "$APACHE_ENV_FILE"
+    export GIGHIVE_AI_ASSETS_DIR="${GIGHIVE_AI_ASSETS_DIR:-./_host_ai_assets}"
+    ;;
+  *)
+    _patch_env_key AI_WORKER_ENABLED false "$APACHE_ENV_FILE"
+    ;;
+esac
+{% endif %}
+
 _tracking_enabled="{{ (gighive_enable_installation_tracking | default(true)) | ternary('true', 'false') }}"
 _tracking_endpoint="{{ gighive_installation_tracking_endpoint | default('https://telemetry.gighive.app') }}"
 _tracking_timeout="{{ gighive_installation_tracking_timeout_seconds | default(3) }}"

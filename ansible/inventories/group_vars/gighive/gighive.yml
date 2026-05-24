@@ -383,7 +383,7 @@ database_pagination_threshold: 750
 serve_one_shot_installer_downloads: true
 
 # One-shot bundle input monitoring
-one_shot_bundle_input_paths:
+one_shot_bundle_base_input_paths:
   - "{{ repo_root }}/ansible/roles/docker/templates"
   - "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle"
   - "{{ repo_root }}/ansible/roles/docker/files/tusd"
@@ -394,6 +394,8 @@ one_shot_bundle_input_paths:
   - "{{ repo_root }}/assets/audio"
   - "{{ repo_root }}/assets/video"
 
+one_shot_bundle_input_paths: "{{ one_shot_bundle_base_input_paths + ([repo_root ~ '/ansible/roles/ai_worker/files/ai-worker'] if ai_worker_osb_enabled | default(false) | bool else []) }}"
+
 one_shot_bundle_exclude_source_paths:
   - "{{ repo_root }}/ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full"
   - "{{ repo_root }}/ansible/roles/docker/files/mysql/externalConfigs/prepped_csvs/full_csvmethod"
@@ -401,6 +403,8 @@ one_shot_bundle_exclude_source_paths:
   - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/images/stormpigsItunesVideo.jpg"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/images/stormpigsPodcastSplash.png"
   - "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/vodcast.xml"
+  - "{{ repo_root }}/ansible/roles/ai_worker/files/ai-worker/__pycache__"
+  - "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/docker-compose-ai.yml"
 
 # --- security_basic_auth vars ---
 apache_group: "{{ www_group | default('www-data') }}"
@@ -416,6 +420,7 @@ gighive_viewer_password: "CHANGE_ME_VIEWER"
 # OPENAI_API_KEY belongs in secrets.yml (gitignored), not here
 # --------------------------------------------------------------------
 ai_worker_enabled: false
+ai_worker_osb_enabled: true
 llm_provider: "openai"
 openai_model: "gpt-4.1"
 llm_base_url: "https://api.openai.com/v1"

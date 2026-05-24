@@ -259,6 +259,18 @@ After implementing:
 
 ---
 
+## Known limitation — auto-recover progress bar appears in wrong section (low priority)
+
+**Symptom:** After a page reload mid-run (e.g. the "ALL DONE" auto-reload, or a manual refresh), the resuming progress bar always appears in the **Force Re-tag All** section, even if the active jobs were originally enqueued by the **Tag Untagged Assets** button. The orange warning message formerly said "A previous Force Re-tag job is still running" — this was corrected to neutral wording ("Active tagging job(s) detected from a previous session") but the bar still appears under the wrong section.
+
+**Root cause:** The auto-recover block in `admin/ai_worker.php` queries all active `categorize_video` jobs at page-load time and unconditionally attaches to `retagCtrl`. There is no `source` field on `ai_jobs` rows to distinguish which UI action created them.
+
+**Impact:** Cosmetic only. Jobs complete correctly regardless of which section shows the progress bar. The stat cards are always accurate.
+
+**Fix (deferred):** Add a `source` VARCHAR column to `ai_jobs` (e.g. `bulk_enqueue` / `retag_all` / `auto`). Populate it from the relevant POST handler. Auto-recover block reads `source` from the active jobs and routes to `bulkCtrl` or `retagCtrl` accordingly. Requires a DB migration.
+
+---
+
 ## Related Docs
 
 - `docs/guide_ai_worker_tagging.md` — operator guide including crash-loop recovery scenarios

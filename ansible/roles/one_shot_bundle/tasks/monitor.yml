@@ -6,6 +6,7 @@
     _one_shot_bundle_files_prefix: "{{ repo_root }}/ansible/roles/docker/files/"
     _one_shot_bundle_templates_prefix: "{{ repo_root }}/ansible/roles/docker/templates/"
     _one_shot_bundle_assets_prefix: "{{ repo_root }}/assets/"
+    _one_shot_bundle_ai_worker_prefix: "{{ repo_root }}/ansible/roles/ai_worker/files/ai-worker"
 
 - name: Stat one-shot bundle input paths on controller
   delegate_to: localhost
@@ -96,6 +97,8 @@
       mysql/dbScripts/dbDump.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
+      {% elif _p.startswith(_one_shot_bundle_ai_worker_prefix ~ '/') %}
+      ai-worker/{{ _p[(_one_shot_bundle_ai_worker_prefix ~ '/') | length:] }}
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ _p[_one_shot_bundle_files_prefix | length:] }}
       {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}
@@ -154,6 +157,8 @@
       apache/externalConfigs/crs/crs-setup.conf
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
+      {% elif _p.startswith(_one_shot_bundle_ai_worker_prefix ~ '/') %}
+      ai-worker/{{ _p[(_one_shot_bundle_ai_worker_prefix ~ '/') | length:] }}
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
       {{ _p[_one_shot_bundle_files_prefix | length:] }}
       {% elif _p.startswith(_one_shot_bundle_assets_prefix ~ 'audio/') %}

@@ -324,27 +324,21 @@ function makeProgressController(prefix) {
 
     async function poll() {
         try {
-            const r = await fetch('/api/ai_jobs.php?limit=500');
+            const url = jobIdSet && jobIdSet.size > 0
+                ? '/api/ai_jobs.php?action=status_counts&job_ids=' + Array.from(jobIdSet).join(',')
+                : '/api/ai_jobs.php?action=status_counts';
+            const r = await fetch(url);
             if (!r.ok) return;
             const d = await r.json();
-            const allJobs = d.jobs || [];
-            const jobs = jobIdSet
-                ? allJobs.filter(j => jobIdSet.has(Number(j.id)))
-                : allJobs.filter(j => j.job_type === 'categorize_video');
-            let queued = 0, running = 0, done = 0, failed = 0;
-            jobs.forEach(j => {
-                if (j.status === 'queued')       queued++;
-                else if (j.status === 'running') running++;
-                else if (j.status === 'done')    done++;
-                else if (j.status === 'failed')  failed++;
-            });
-            const failedJobs = jobs.filter(j => j.status === 'failed');
+            const queued  = d.queued  || 0;
+            const running = d.running || 0;
+            const done    = d.done    || 0;
+            const failed  = d.failed  || 0;
             const active   = queued + running;
             const finished = done + failed;
-            const t        = Math.max(total, active + finished);
+            const t        = d.total || Math.max(total, active + finished);
             const pct      = t > 0 ? (finished / t * 100) : 0;
             const failNote = failed > 0 ? ` · <span style="color:#f87171">${failed} failed</span>` : '';
-            showFailed(failedJobs);
             if (active === 0) {
                 clearInterval(timer);
                 showStopBtn(false);
@@ -456,7 +450,7 @@ if (retagAllBtn) {
     const activeIds = <?= json_encode(array_values($activeJobIds)) ?>;
     if (activeIds.length === 0) return;
     setMsg(retagMsgEl,
-        `⚠ A previous Force Re-tag job is still running (${activeIds.length} job(s) active). ` +
+        `⚠ Active tagging job(s) detected from a previous session (${activeIds.length} active). ` +
         `This was started before the last page load or container restart.`,
         null);
     retagMsgEl.style.color = '#f59e0b';

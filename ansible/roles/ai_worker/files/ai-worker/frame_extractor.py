@@ -71,10 +71,10 @@ def extract_frames(conn, asset: dict, run_id: int, params: dict) -> list[FrameDa
 
     probe_result = subprocess.run(
         ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', abs_path],
-        capture_output=True, text=True,
+        capture_output=True, text=True, errors='replace',
     )
     if probe_result.returncode != 0:
-        raise MediaDecodeError(f"ffprobe failed (exit {probe_result.returncode}): {probe_result.stderr[:512]}")
+        raise MediaDecodeError(f"ffprobe failed (exit {probe_result.returncode}): {'\n'.join(probe_result.stderr.splitlines()[-20:])}")
 
     probe_data = json.loads(probe_result.stdout)
     ffprobe_out_path.write_text(json.dumps(probe_data, indent=2))
@@ -116,10 +116,10 @@ def extract_frames(conn, asset: dict, run_id: int, params: dict) -> list[FrameDa
             '-q:v', '3',
             frame_pattern,
         ],
-        capture_output=True, text=True,
+        capture_output=True, text=True, errors='replace',
     )
     if ffmpeg_result.returncode != 0:
-        raise MediaDecodeError(f"ffmpeg failed (exit {ffmpeg_result.returncode}): {ffmpeg_result.stderr[:512]}")
+        raise MediaDecodeError(f"ffmpeg failed (exit {ffmpeg_result.returncode}): {'\n'.join(ffmpeg_result.stderr.splitlines()[-20:])}")
 
     frame_files = sorted(frames_dir.glob('frame_*.jpg'))
     if not frame_files:
