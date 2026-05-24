@@ -46,8 +46,10 @@ tus_client_remove_fingerprint_on_success: true
 
 Add after the `TUS_CLIENT_CHUNK_SIZE_BYTES` line:
 
+{% raw %}
 TUS_CLIENT_RETRY_DELAYS_JSON={{ tus_client_retry_delays | default([0, 1000, 3000]) | to_json }}
 TUS_CLIENT_REMOVE_FINGERPRINT_ON_SUCCESS={{ (tus_client_remove_fingerprint_on_success | default(true)) | ternary('true', 'false') }}
+{% endraw %}
 
 ### 3. `ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php`
 
