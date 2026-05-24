@@ -242,7 +242,7 @@ In the `_one_shot_bundle_dest_file` variable, add a branch for `dbDump.sh.j2` be
 the final `{% else %}` catch-all. This ensures `mysql/dbScripts/` is created in the
 bundle output:
 
-```jinja
+```bash
 {% elif _p == (_one_shot_bundle_templates_prefix ~ 'dbDump.sh.j2') %}
 mysql/dbScripts/dbDump.sh
 ```
@@ -251,7 +251,7 @@ mysql/dbScripts/dbDump.sh
 
 In `_one_shot_bundle_dest_file`, add the same branch before the `{% else %}` catch-all:
 
-```jinja
+```bash
 {% elif _p == (_one_shot_bundle_templates_prefix ~ 'dbDump.sh.j2') %}
 mysql/dbScripts/dbDump.sh
 ```
@@ -259,7 +259,7 @@ mysql/dbScripts/dbDump.sh
 Also extend `_one_shot_bundle_output_mode` to set `0755` for the script (same pattern
 as `install.sh.j2` and `entrypoint.sh.j2`). The full block replacement is:
 
-```jinja
+```bash
     _one_shot_bundle_output_mode: >-
       {% if _p == (_one_shot_bundle_templates_prefix ~ 'entrypoint.sh.j2')
          or _p == (_one_shot_bundle_templates_prefix ~ 'install.sh.j2')
@@ -282,7 +282,7 @@ with `Permission denied`.
 In the **"Add directory file entries to source manifest"** task (~line 57), add the
 same branch before the `{% else %}` catch-all in `_one_shot_bundle_dest_file`:
 
-```jinja
+```bash
 {% elif _p == (_one_shot_bundle_templates_prefix ~ 'dbDump.sh.j2') %}
 mysql/dbScripts/dbDump.sh
 ```

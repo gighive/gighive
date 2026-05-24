@@ -46,7 +46,7 @@ or the app validator have a chance to enforce the limit.
 
 The formula (4% headroom) reproduces the current production values exactly:
 
-```jinja2
+```bash
 {{ (upload_max_bytes | int / 1048576 * 1.04) | round | int }}M
 ```
 
@@ -127,7 +127,7 @@ Add (same position, just before "Render Docker Compose file"). Use the same shor
 **Block 1** (find-results loop, ~line 57): insert after the `dbDump.sh.j2` entry,
 before the `_one_shot_bundle_files_prefix` catch-all:
 
-```jinja2
+```bash
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
@@ -136,7 +136,7 @@ before the `_one_shot_bundle_files_prefix` catch-all:
 **Block 2** (individual stat loop, ~line 117): insert after the `crs-setup.conf.j2`
 entry, before the `_one_shot_bundle_files_prefix` catch-all:
 
-```jinja2
+```bash
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
@@ -152,7 +152,7 @@ separate `_one_shot_bundle_dest_file` blocks**.
 dest_file block starting at line 46): insert after the `dbDump.sh.j2` entry,
 before the `_one_shot_bundle_files_prefix` catch-all:
 
-```jinja2
+```bash
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
@@ -168,7 +168,7 @@ before the `_one_shot_bundle_files_prefix` catch-all:
 **Block 2** ("Render template files" task, ~line 102): insert after the
 `dbDump.sh.j2` entry, before `{% else %}`:
 
-```jinja2
+```bash
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
       {% else %}
