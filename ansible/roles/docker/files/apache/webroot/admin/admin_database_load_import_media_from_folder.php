@@ -15,6 +15,14 @@ $__audio_exts = $__json_env_array('UPLOAD_AUDIO_EXTS_JSON');
 $__video_exts = $__json_env_array('UPLOAD_VIDEO_EXTS_JSON');
 if (!$__audio_exts) $__audio_exts = ['mp3','wav','flac','aac','ogg','m4a'];
 if (!$__video_exts) $__video_exts = ['mp4','mov','mkv','avi','webm','m4v'];
+
+$tusRetryDelaysJson = getenv('TUS_CLIENT_RETRY_DELAYS_JSON');
+if (!is_string($tusRetryDelaysJson) || trim($tusRetryDelaysJson) === '') $tusRetryDelaysJson = '[0,1000,3000]';
+$__tus_retry_delays = json_decode($tusRetryDelaysJson, true);
+if (!is_array($__tus_retry_delays)) $__tus_retry_delays = [0, 1000, 3000];
+$__tus_retry_delays_js = json_encode(array_values(array_map('intval', $__tus_retry_delays)));
+
+$__tus_remove_fingerprint = filter_var(getenv('TUS_CLIENT_REMOVE_FINGERPRINT_ON_SUCCESS') ?: 'true', FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
 ?>
 <!doctype html>
 <html lang="en">
@@ -980,7 +988,8 @@ async function uploadOneFile(id, fileInfo, localFile, jobId){
   await new Promise((resolve)=>{
     const upload=new tus.Upload(localFile,{
       endpoint:'/files/',
-      retryDelays:[0,1000,3000],
+      retryDelays:<?= $__tus_retry_delays_js ?>,
+      removeFingerprintOnSuccess:<?= $__tus_remove_fingerprint ?>,
       metadata,
       chunkSize:8*1024*1024,
       onProgress:(bytesUploaded, bytesTotal)=>{

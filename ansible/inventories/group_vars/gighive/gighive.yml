@@ -291,6 +291,12 @@ tus_checks_no_log_default: true
 # tus-js-client chunk size (bytes). Keep below Cloudflare request limits.
 tus_client_chunk_size_bytes: 8388608
 
+# tus-js-client retry delay sequence (ms). Extends auto-retry window for network blips.
+tus_client_retry_delays: [0, 1000, 3000, 10000, 30000]
+
+# Remove localStorage fingerprint on successful upload to prevent quota exhaustion on large batches.
+tus_client_remove_fingerprint_on_success: true
+
 #gighive_host — what tests hit (can be IP or hostname)
 #gighive_server_name — what goes into the cert (CN + DNS.1)
 #gighive_server_alias — what goes into the cert (CN + DNS.1)
@@ -340,7 +346,7 @@ apache_graceful_cmd: "/usr/local/apache2/bin/httpd -k graceful"
 gighive_htpasswd_seed_once: true
 gighive_htpasswd_marker_path: "{{ gighive_htpasswd_host_path }}.seeded"
  
-# --- Apache ---
+# --- Apache container ---
 apache_container_name: apacheWebServer
 apache_docker_image: "ubuntu-apache-img:1.00"
  

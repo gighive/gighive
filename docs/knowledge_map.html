@@ -534,6 +534,9 @@
             ] },
             { id: "infrastructure-rca", label: "RCA", kind: "type", type: "rca", children: [
               { id: "problem-openssh-strictmode", label: "problem_openssh_strictmode_yes_fix_755_home_ubuntu.md", kind: "document", concern: "infrastructure", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_openssh_strictmode_yes_fix_755_home_ubuntu.html" }
+            ] },
+            { id: "infrastructure-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
+              { id: "refactor-move-stagingvm-emmc", label: "refactor_move_stagingvm_to_emmc.md", kind: "document", concern: "infrastructure", type: "proposal", lifecycle: "proposed", audience: ["operator", "developer"], aspect: "non_functional", href: "./refactor_move_stagingvm_to_emmc.html" }
             ] }
           ]
         },
@@ -615,7 +618,8 @@
               { id: "questions-librarian-musician", label: "questions_for_librarianAsset_musicianSession_decision.md", kind: "document", concern: "database", type: "proposal", lifecycle: "historical", audience: ["developer", "architect"], aspect: "mixed", href: "./questions_for_librarianAsset_musicianSession_decision.html" },
               { id: "refactor-add-db-migrations", label: "refactored_db_migrations_backup_before.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_db_migrations_backup_before.html" },
               { id: "refactor-convert-legacy-csv-python", label: "refactor_convert_legacy_database_csv_python.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactor_convert_legacy_database_csv_python.html" },
-              { id: "refactor-db-soft-deletes", label: "refactor_db_database_admin_soft_deletes.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "admin"], aspect: "functional", href: "./refactor_db_database_admin_soft_deletes.html" }
+              { id: "refactor-db-soft-deletes", label: "refactor_db_database_admin_soft_deletes.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "admin"], aspect: "functional", href: "./refactor_db_database_admin_soft_deletes.html" },
+              { id: "refactor-db-tags-searchability", label: "refactor_db_database_tags_column_searchability.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "admin"], aspect: "functional", href: "./refactor_db_database_tags_column_searchability.html" }
             ] },
             { id: "database-change", label: "Change", kind: "type", type: "change", children: [
               { id: "add-media-info-columns", label: "database_add_media_info_columns.md", kind: "document", concern: "database", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./database_add_media_info_columns.html" },
@@ -663,12 +667,14 @@
               { id: "azure-blob-storage", label: "pr_azure_blob_storage_integration.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "operator"], aspect: "mixed", href: "./pr_azure_blob_storage_integration.html" },
               { id: "pr-upload-testing", label: "pr_upload_testing.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "qa"], aspect: "mixed", href: "./pr_upload_testing.html" },
               { id: "refactored-upload-max-bytes-one-var", label: "refactored_upload_max_bytes_one_var.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_upload_max_bytes_one_var.html" },
-              { id: "refactor-upload-folder-messaging-server-monotonic-fix", label: "refactor_upload_folder_messaging_server_monotonic_fix.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactor_upload_folder_messaging_server_monotonic_fix.html" }
+              { id: "refactor-upload-folder-messaging-server-monotonic-fix", label: "refactor_upload_folder_messaging_server_monotonic_fix.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactor_upload_folder_messaging_server_monotonic_fix.html" },
+              { id: "refactor-tus-retry-delays", label: "refactor_tus_retry_delays_and_frame_extractor.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_tus_retry_delays_and_frame_extractor.html" }
             ] },
             { id: "upload-change", label: "Change", kind: "type", type: "change", children: [
               { id: "upload-php-path-change", label: "change20250314_upload_media_jibe_php_path.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./change20250314_upload_media_jibe_php_path.html" },
               { id: "uploader-changes-20250926", label: "codingChanges/20250926uploaderchanges.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./codingChanges/20250926uploaderchanges.html" },
-              { id: "refactor-upload-folder-nav-away-cancels-fix", label: "refactor_upload_folder_nav_away_cancels_fix.md", kind: "document", concern: "upload", type: "change", lifecycle: "proposed", audience: ["developer"], aspect: "non_functional", href: "./refactor_upload_folder_nav_away_cancels_fix.html" }
+              { id: "refactor-upload-folder-nav-away-cancels-fix", label: "refactor_upload_folder_nav_away_cancels_fix.md", kind: "document", concern: "upload", type: "change", lifecycle: "proposed", audience: ["developer"], aspect: "non_functional", href: "./refactor_upload_folder_nav_away_cancels_fix.html" },
+              { id: "refactor-import-saved-jobs-restart", label: "refactor_import_saved_jobs_browser_restart.md", kind: "document", concern: "upload", type: "change", lifecycle: "active", audience: ["developer", "operator"], aspect: "functional", href: "./refactor_import_saved_jobs_browser_restart.html" }
             ] },
             { id: "upload-rca", label: "RCA", kind: "type", type: "rca", children: [
               { id: "apache-race-condition-hook-write-finalize", label: "problem_apache_race_condition_hook_write_finalize.md", kind: "document", concern: "upload", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_apache_race_condition_hook_write_finalize.html" }
@@ -929,7 +935,8 @@
               { id: "guide-ai-worker-tagging", label: "guide_ai_worker_tagging.md", kind: "document", concern: "ai", type: "howto", lifecycle: "active", audience: ["operator", "developer", "admin"], aspect: "mixed", href: "./guide_ai_worker_tagging.html" }
             ] },
             { id: "ai-debug", label: "Debug", kind: "type", type: "debug", children: [
-              { id: "problem-ai-worker-retag", label: "problem_ai_worker_force_retag_debugging.md", kind: "document", concern: "ai", type: "debug", lifecycle: "active", audience: ["developer", "qa"], aspect: "non_functional", href: "./problem_ai_worker_force_retag_debugging.html" }
+              { id: "problem-ai-worker-retag", label: "problem_ai_worker_force_retag_debugging.md", kind: "document", concern: "ai", type: "debug", lifecycle: "active", audience: ["developer", "qa"], aspect: "non_functional", href: "./problem_ai_worker_force_retag_debugging.html" },
+              { id: "refactor-tus-frame-extractor", label: "refactor_tus_retry_delays_and_frame_extractor.md", kind: "document", concern: "ai", type: "debug", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_tus_retry_delays_and_frame_extractor.html" }
             ] },
             { id: "ai-rca", label: "RCA", kind: "type", type: "rca", children: [
               { id: "problem-missing-api-key-ai-worker", label: "problem_missing_api_key_for_ai_worker.md", kind: "document", concern: "ai", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_missing_api_key_for_ai_worker.html" }

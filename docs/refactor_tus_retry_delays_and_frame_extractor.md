@@ -28,7 +28,7 @@ Both values are hardcoded in JS with no path to configure them per environment. 
 
 ---
 
-## Plan (4 files)
+## Plan (3 files)
 
 ### 1. `ansible/inventories/group_vars/gighive/gighive.yml`
 
@@ -48,7 +48,7 @@ Add after the `TUS_CLIENT_CHUNK_SIZE_BYTES` line:
 
 ```jinja
 TUS_CLIENT_RETRY_DELAYS_JSON={{ tus_client_retry_delays | default([0, 1000, 3000]) | to_json }}
-TUS_CLIENT_REMOVE_FINGERPRINT_ON_SUCCESS={{ tus_client_remove_fingerprint_on_success | default(true) | lower }}
+TUS_CLIENT_REMOVE_FINGERPRINT_ON_SUCCESS={{ (tus_client_remove_fingerprint_on_success | default(true)) | ternary('true', 'false') }}
 ```
 
 ### 3. `ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php`

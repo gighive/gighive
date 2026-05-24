@@ -12,72 +12,69 @@ try {
     // Create PDO from environment variables (DB_HOST, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD, DB_CHARSET)
     $pdo = Database::createFromEnv();
     
-    // Query to get ALL sessions, even those without songs or musicians
+    // Query to get ALL events, even those without items or participants
     $sql = <<<SQL
-SELECT 
-    sesh.session_id,
-    sesh.title,
-    sesh.date,
-    sesh.cover_image_url,
-    sesh.duration_seconds,
-    COALESCE(crew_data.crew, '') AS crew,
-    COALESCE(song_data.song_list, '') AS song_list,
-    COALESCE(media_data.media_link, '') AS media_link
-FROM sessions sesh
+SELECT
+    e.event_id,
+    e.title,
+    e.event_date                          AS date,
+    e.cover_image_url,
+    e.duration_seconds,
+    e.org_name,
+    e.event_type,
+    COALESCE(crew_data.crew, '')          AS crew,
+    COALESCE(item_data.song_list, '')     AS song_list,
+    COALESCE(media_data.media_link, '')   AS media_link
+FROM events e
 LEFT JOIN (
-    SELECT 
-        sm.session_id,
-        GROUP_CONCAT(DISTINCT m.name ORDER BY m.name SEPARATOR ', ') AS crew
-    FROM session_musicians sm
-    JOIN musicians m ON sm.musician_id = m.musician_id
-    GROUP BY sm.session_id
-) crew_data ON sesh.session_id = crew_data.session_id
+    SELECT
+        ep.event_id,
+        GROUP_CONCAT(DISTINCT p.name ORDER BY p.name SEPARATOR ', ') AS crew
+    FROM event_participants ep
+    JOIN participants p ON ep.participant_id = p.participant_id
+    GROUP BY ep.event_id
+) crew_data ON e.event_id = crew_data.event_id
 LEFT JOIN (
-    SELECT 
-        ss.session_id,
-        GROUP_CONCAT(DISTINCT s.title ORDER BY ss.position, s.title SEPARATOR ', ') AS song_list
-    FROM session_songs ss
-    JOIN songs s ON ss.song_id = s.song_id
-    GROUP BY ss.session_id
-) song_data ON sesh.session_id = song_data.session_id
+    SELECT
+        ei.event_id,
+        GROUP_CONCAT(DISTINCT ei.label ORDER BY ei.position, ei.label SEPARATOR ', ') AS song_list
+    FROM event_items ei
+    GROUP BY ei.event_id
+) item_data ON e.event_id = item_data.event_id
 LEFT JOIN (
     SELECT DISTINCT
-        ss3.session_id,
+        ei2.event_id,
         FIRST_VALUE(CONCAT(
-            CASE 
-                WHEN f.file_type = 'video' THEN '/video/'
-                WHEN f.file_type = 'audio' THEN '/audio/'
-                ELSE '/'
-            END,
-            f.file_name
+            CASE WHEN a.file_type = 'video' THEN '/video/' ELSE '/audio/' END,
+            a.checksum_sha256, '.', a.file_ext
         )) OVER (
-            PARTITION BY ss3.session_id 
-            ORDER BY 
-                CASE WHEN f.file_type = 'video' THEN 1 ELSE 2 END,
-                ss3.position ASC
+            PARTITION BY ei2.event_id
+            ORDER BY
+                CASE WHEN a.file_type = 'video' THEN 1 ELSE 2 END,
+                ei2.position ASC
         ) AS media_link
-    FROM session_songs ss3
-    JOIN song_files sf ON ss3.song_id = sf.song_id
-    JOIN files f ON sf.file_id = f.file_id
-) media_data ON sesh.session_id = media_data.session_id
-ORDER BY sesh.date ASC
+    FROM event_items ei2
+    JOIN assets a ON ei2.asset_id = a.asset_id
+    WHERE a.checksum_sha256 IS NOT NULL
+      AND a.file_ext IS NOT NULL AND a.file_ext != ''
+) media_data ON e.event_id = media_data.event_id
+ORDER BY e.event_date ASC
 SQL;
 
     $stmt = $pdo->query($sql);
-    $sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Debug: Log the count of sessions returned
-    error_log("Timeline API: Found " . count($sessions) . " sessions in database");
+    // Debug: Log the count of events returned
+    error_log("Timeline API: Found " . count($events) . " events in database");
     
     // Transform to timeline format
     $timeline_events = [];
-    foreach ($sessions as $session) {
-        // Use session_id as unique event ID (supports multiple sessions on same date)
-        $date = new DateTime($session['date']);
-        $event_id = (int)$session['session_id'];
+    foreach ($events as $event) {
+        $date = new DateTime($event['date']);
+        $event_id = (int)$event['event_id'];
         
-        // Format title (use session title or fallback to date format)
-        $title = $session['title'] ?: $date->format('M j');
+        // Format title (use event title or fallback to date format)
+        $title = $event['title'] ?: $date->format('M j');
         
         // Create ISO datetime string for start/end
         $start_datetime = $date->format('Y-m-d') . 'T18:00:00';
@@ -88,13 +85,12 @@ SQL;
             'title' => $title,
             'start' => $start_datetime,
             'end' => $end_datetime,
-            'crew' => $session['crew'] ?: '',
-            'songList' => $session['song_list'] ?: '',
-            'image' => $session['cover_image_url'] ?: '',
-            'link' => $session['media_link'] ?: '',
-            // Future-proof fields (may be null until migration is applied)
-            'orgName' => $session['org_name'] ?? null,
-            'eventType' => $session['event_type'] ?? null,
+            'crew' => $event['crew'] ?: '',
+            'songList' => $event['song_list'] ?: '',
+            'image' => $event['cover_image_url'] ?: '',
+            'link' => $event['media_link'] ?: '',
+            'orgName' => $event['org_name'] ?? null,
+            'eventType' => $event['event_type'] ?? null,
         ];
     }
     
@@ -105,8 +101,8 @@ SQL;
     $response = [
         'events' => $timeline_events,
         'debug' => [
-            'total_sessions' => count($sessions),
-            'total_events' => count($timeline_events),
+            'total_events' => count($events),
+            'total_timeline_events' => count($timeline_events),
             'query_executed' => true
         ]
     ];
