@@ -97,6 +97,30 @@ try {
                 $existing['updated_at'] = date('c');
                 gighive_manifest_write_json($uploadStatusPath, $existing, 0640);
             }
+            // DB reconciliation: promote stale pending entries already in the DB to already_present.
+            $reconciled = 0;
+            $pendingChecksums = array_values(array_column(
+                array_filter($existing['files'], fn($f) => is_array($f) && ($f['state'] ?? '') === 'pending'),
+                'checksum_sha256'
+            ));
+            if (!empty($pendingChecksums)) {
+                $pdoResume = Database::createFromEnv();
+                $placeholders = implode(',', array_fill(0, count($pendingChecksums), '?'));
+                $stmtResume = $pdoResume->prepare(
+                    "SELECT checksum_sha256 FROM assets WHERE checksum_sha256 IN ($placeholders)"
+                );
+                $stmtResume->execute($pendingChecksums);
+                $inDbSet = array_flip(array_column($stmtResume->fetchAll(PDO::FETCH_ASSOC), 'checksum_sha256'));
+                foreach ($existing['files'] as &$f) {
+                    if (is_array($f) && ($f['state'] ?? '') === 'pending'
+                            && !empty($f['checksum_sha256'])
+                            && isset($inDbSet[$f['checksum_sha256']])) {
+                        $f['state'] = 'already_present';
+                        $reconciled++;
+                    }
+                }
+                unset($f);
+            }
             gighive_manifest_append_upload_trace($jobDir, [
                 'source' => 'server',
                 'endpoint' => 'import_manifest_upload_start.php',
@@ -106,6 +130,7 @@ try {
                 'resumed' => true,
                 'file_count' => count((array)$existing['files']),
                 'stale_uploading_normalized' => $normalized,
+                'db_reconciled' => $reconciled,
             ]);
             http_response_code(200);
             echo json_encode([

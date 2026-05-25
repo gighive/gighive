@@ -68,52 +68,60 @@ Single EXISTS, no boolean parsing. `jazz&guitar` is treated as a literal string.
 ## After (new — both repositories)
 
 ```php
+// Tag filter — EXISTS/NOT EXISTS per-term with boolean operator parsing
 $tagRaw = trim((string)($filters['tag'] ?? ''));
 if ($tagRaw !== '') {
     if ($hasInvalidEmptyTerm($tagRaw)) {
         $errors[] = 'Search for column "tag" contains empty terms around "|" or "&". Please remove extra operators.';
     } else {
-        $orParts    = array_values(array_filter(array_map('trim', explode('|', $tagRaw))));
-        $orExprs    = [];
-        $totalTerms = 0;
-        $valid      = true;
-        foreach ($orParts as $orIdx => $orRaw) {
-            $andParts = array_values(array_filter(array_map('trim', explode('&', $orRaw))));
-            $andExprs = [];
-            foreach ($andParts as $andIdx => $term) {
-                $negated = false;
-                $term    = trim($term);
-                if ($term === '!' || str_starts_with($term, '!!')) {
-                    $errors[] = 'Search for column "tag" contains an invalid NOT term. Use !term (e.g. !electric).';
-                    $valid    = false;
-                    break 2;
+        $orParts = array_values(array_filter(array_map('trim', explode('|', $tagRaw)), static fn($x) => $x !== ''));
+        if (empty($orParts)) {
+            $errors[] = 'Search for column "tag" is invalid.';
+        } else {
+            $totalTerms = 0;
+            $orExprs    = [];
+            foreach ($orParts as $orIdx => $orRaw) {
+                $andParts = array_values(array_filter(array_map('trim', explode('&', $orRaw)), static fn($x) => $x !== ''));
+                if (empty($andParts)) {
+                    $errors[] = 'Search for column "tag" is invalid.';
+                    $orExprs  = [];
+                    break;
                 }
-                if (str_starts_with($term, '!')) {
-                    $negated = true;
-                    $term    = trim(substr($term, 1));
-                    if ($term === '') {
+                $andExprs = [];
+                foreach ($andParts as $andIdx => $term) {
+                    $negated = false;
+                    $term    = trim($term);
+                    if ($term === '!' || str_starts_with($term, '!!')) {
                         $errors[] = 'Search for column "tag" contains an invalid NOT term. Use !term (e.g. !electric).';
-                        $valid    = false;
+                        $orExprs  = [];
                         break 2;
                     }
+                    if (str_starts_with($term, '!')) {
+                        $negated = true;
+                        $term    = trim(substr($term, 1));
+                        if ($term === '') {
+                            $errors[] = 'Search for column "tag" contains an invalid NOT term. Use !term (e.g. !electric).';
+                            $orExprs  = [];
+                            break 2;
+                        }
+                    }
+                    $totalTerms++;
+                    $param = ':tag_' . $orIdx . '_' . $andIdx;
+                    $andExprs[] = ($negated ? 'NOT ' : '')
+                                . 'EXISTS (SELECT 1 FROM taggings tg2 JOIN tags t2 ON t2.id = tg2.tag_id'
+                                . ' WHERE tg2.target_type = \'asset\' AND tg2.target_id = a.asset_id'
+                                . ' AND LOWER(t2.name) LIKE LOWER(' . $param . '))';
+                    $params[$param] = '%' . $term . '%';
                 }
-                $param      = ':tag_' . $orIdx . '_' . $andIdx;
-                $existsSql  = ($negated ? 'NOT ' : '')
-                            . 'EXISTS (SELECT 1 FROM taggings tg2 JOIN tags t2 ON t2.id = tg2.tag_id'
-                            . ' WHERE tg2.target_type = \'asset\' AND tg2.target_id = a.asset_id'
-                            . ' AND LOWER(t2.name) LIKE LOWER(' . $param . '))';
-                $andExprs[]     = $existsSql;
-                $params[$param] = '%' . $term . '%';
-                $totalTerms++;
+                if (!empty($andExprs)) {
+                    $orExprs[] = '(' . implode(' AND ', $andExprs) . ')';
+                }
             }
-            if (!empty($andExprs)) {
-                $orExprs[] = '(' . implode(' AND ', $andExprs) . ')';
+            if (!empty($orExprs) && $totalTerms > $maxTermsPerField) {
+                $errors[] = 'Search for column "tag" has too many terms (max ' . (string)$maxTermsPerField . ').';
+            } elseif (!empty($orExprs)) {
+                $where[] = '(' . implode(' OR ', $orExprs) . ')';
             }
-        }
-        if ($valid && $totalTerms > $maxTermsPerField) {
-            $errors[] = 'Search for column "tag" has too many terms (max ' . $maxTermsPerField . ').';
-        } elseif ($valid && !empty($orExprs)) {
-            $where[] = '(' . implode(' OR ', $orExprs) . ')';
         }
     }
 }

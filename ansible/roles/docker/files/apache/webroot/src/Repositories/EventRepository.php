@@ -125,12 +125,62 @@ final class EventRepository
             }
         }
 
+        // Tag filter — EXISTS/NOT EXISTS per-term with boolean operator parsing
         $tagRaw = trim((string)($filters['tag'] ?? ''));
         if ($tagRaw !== '') {
-            $where[] = 'EXISTS (SELECT 1 FROM taggings tg2 JOIN tags t2 ON t2.id = tg2.tag_id'
-                     . ' WHERE tg2.target_type = \'asset\' AND tg2.target_id = a.asset_id'
-                     . ' AND LOWER(t2.name) LIKE LOWER(:tag_name))';
-            $params[':tag_name'] = '%' . $tagRaw . '%';
+            if ($hasInvalidEmptyTerm($tagRaw)) {
+                $errors[] = 'Search for column "tag" contains empty terms around "|" or "&". Please remove extra operators.';
+            } else {
+                $orParts = array_values(array_filter(array_map('trim', explode('|', $tagRaw)), static fn($x) => $x !== ''));
+                if (empty($orParts)) {
+                    $errors[] = 'Search for column "tag" is invalid.';
+                } else {
+                    $totalTerms = 0;
+                    $orExprs    = [];
+                    foreach ($orParts as $orIdx => $orRaw) {
+                        $andParts = array_values(array_filter(array_map('trim', explode('&', $orRaw)), static fn($x) => $x !== ''));
+                        if (empty($andParts)) {
+                            $errors[] = 'Search for column "tag" is invalid.';
+                            $orExprs  = [];
+                            break;
+                        }
+                        $andExprs = [];
+                        foreach ($andParts as $andIdx => $term) {
+                            $negated = false;
+                            $term    = trim($term);
+                            if ($term === '!' || str_starts_with($term, '!!')) {
+                                $errors[] = 'Search for column "tag" contains an invalid NOT term. Use !term (e.g. !electric).';
+                                $orExprs  = [];
+                                break 2;
+                            }
+                            if (str_starts_with($term, '!')) {
+                                $negated = true;
+                                $term    = trim(substr($term, 1));
+                                if ($term === '') {
+                                    $errors[] = 'Search for column "tag" contains an invalid NOT term. Use !term (e.g. !electric).';
+                                    $orExprs  = [];
+                                    break 2;
+                                }
+                            }
+                            $totalTerms++;
+                            $param = ':tag_' . $orIdx . '_' . $andIdx;
+                            $andExprs[] = ($negated ? 'NOT ' : '')
+                                        . 'EXISTS (SELECT 1 FROM taggings tg2 JOIN tags t2 ON t2.id = tg2.tag_id'
+                                        . ' WHERE tg2.target_type = \'asset\' AND tg2.target_id = a.asset_id'
+                                        . ' AND LOWER(t2.name) LIKE LOWER(' . $param . '))';
+                            $params[$param] = '%' . $term . '%';
+                        }
+                        if (!empty($andExprs)) {
+                            $orExprs[] = '(' . implode(' AND ', $andExprs) . ')';
+                        }
+                    }
+                    if (!empty($orExprs) && $totalTerms > $maxTermsPerField) {
+                        $errors[] = 'Search for column "tag" has too many terms (max ' . (string)$maxTermsPerField . ').';
+                    } elseif (!empty($orExprs)) {
+                        $where[] = '(' . implode(' OR ', $orExprs) . ')';
+                    }
+                }
+            }
         }
 
         if (!empty($errors)) {

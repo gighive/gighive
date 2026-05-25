@@ -297,6 +297,12 @@ tus_client_retry_delays: [0, 1000, 3000, 10000, 30000]
 # Remove localStorage fingerprint on successful upload to prevent quota exhaustion on large batches.
 tus_client_remove_fingerprint_on_success: true
 
+# Parallel chunk streams per file (tus-js-client parallelUploads).
+# Splits one file into N concurrent TUS sub-uploads then concatenates server-side.
+# Requires HTTP/2 (already enabled) and tusd concatenation extension (supported).
+# 1 = sequential (default). 3 = recommended for LAN. 2 = recommended for WAN.
+tus_client_parallel_uploads: 3
+
 #gighive_host — what tests hit (can be IP or hostname)
 #gighive_server_name — what goes into the cert (CN + DNS.1)
 #gighive_server_alias — what goes into the cert (CN + DNS.1)

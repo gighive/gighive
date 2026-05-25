@@ -23,6 +23,7 @@ if (!is_array($__tus_retry_delays)) $__tus_retry_delays = [0, 1000, 3000];
 $__tus_retry_delays_js = json_encode(array_values(array_map('intval', $__tus_retry_delays)));
 
 $__tus_remove_fingerprint = filter_var(getenv('TUS_CLIENT_REMOVE_FINGERPRINT_ON_SUCCESS') ?: 'true', FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
+$__tus_parallel_uploads = max(1, (int)(getenv('TUS_CLIENT_PARALLEL_UPLOADS') ?: '1'));
 ?>
 <!doctype html>
 <html lang="en">
@@ -76,7 +77,8 @@ $__tus_remove_fingerprint = filter_var(getenv('TUS_CLIENT_REMOVE_FINGERPRINT_ON_
   </div>
   <h1 style="padding-right:210px">Admin: Database Load, Import Media</h1>
   <p class="muted">Signed in as <code><?= htmlspecialchars($user) ?></code>.</p>
-  <p class="muted">Two-step browser-based import: <strong>Step 1</strong> hashes files and loads metadata into the DB. <strong>Step 2</strong> uploads the actual media files.</p>
+  <p class="muted">Three-step browser-based import:<br><strong>Step 1:</strong> Choose a folder to upload.<br><strong>Step 2:</strong> Hash files and load metadata into the DB.<br><strong>Step 3:</strong> Upload the actual media files.</p>
+  <p class="muted"><a href="https://gighive.app/guide_upload_estimated_times.html" target="_blank">Estimated Upload Times</a></p>
 
   <!-- Section A -->
   <div class="section-divider" id="secA">
@@ -87,7 +89,11 @@ $__tus_remove_fingerprint = filter_var(getenv('TUS_CLIENT_REMOVE_FINGERPRINT_ON_
     </div>
     <div id="a-lastjob" class="muted" style="margin-bottom:.5rem"></div>
     <label for="a-folder" class="muted" id="a-folder-label">Select a folder:</label>
-    <input type="file" id="a-folder" webkitdirectory directory multiple style="display:block;margin:.5rem 0"/>
+    <div style="margin:.5rem 0;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <button type="button" onclick="document.getElementById('a-folder').click()">Choose Folder</button>
+      <input type="file" id="a-folder" webkitdirectory directory multiple style="display:none"/>
+      <span id="a-folder-chosen" class="muted" style="font-size:.9em"></span>
+    </div>
     <div id="a-preview"></div>
     <div id="a-status" style="margin:.5rem 0"></div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
@@ -95,9 +101,9 @@ $__tus_remove_fingerprint = filter_var(getenv('TUS_CLIENT_REMOVE_FINGERPRINT_ON_
       <button id="a-stop-btn"  class="danger" disabled onclick="sectionStop('a')">Stop hashing &amp; submit hashed</button>
       <button id="a-cache-btn" class="danger" disabled onclick="sectionClearCache('a')">Clear cached hashes</button>
     </div>
-    <!-- Step 2 panel -->
+    <!-- Step 3 panel -->
     <div id="a-upload-panel" style="display:none;margin-top:1.25rem">
-      <h3 style="margin-bottom:.5rem">Step 2: Upload Media Files</h3>
+      <h3 style="margin-bottom:.5rem">Step 3: Upload Media Files</h3>
       <div id="a-upload-status" style="margin:.5rem 0"></div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button id="a-upload-btn" onclick="sectionStartUpload('a')" style="border-color:#22c55e">Upload Media</button>
@@ -127,7 +133,11 @@ $__tus_remove_fingerprint = filter_var(getenv('TUS_CLIENT_REMOVE_FINGERPRINT_ON_
     <p class="muted">Adds new files to the DB without deleting existing data. Duplicate checksums are skipped.</p>
     <div id="b-lastjob" class="muted" style="margin-bottom:.5rem"></div>
     <label for="b-folder" class="muted" id="b-folder-label">Select a folder:</label>
-    <input type="file" id="b-folder" webkitdirectory directory multiple style="display:block;margin:.5rem 0"/>
+    <div style="margin:.5rem 0;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <button type="button" onclick="document.getElementById('b-folder').click()">Choose Folder</button>
+      <input type="file" id="b-folder" webkitdirectory directory multiple style="display:none"/>
+      <span id="b-folder-chosen" class="muted" style="font-size:.9em"></span>
+    </div>
     <div id="b-preview"></div>
     <div id="b-status" style="margin:.5rem 0"></div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
@@ -136,7 +146,7 @@ $__tus_remove_fingerprint = filter_var(getenv('TUS_CLIENT_REMOVE_FINGERPRINT_ON_
       <button id="b-cache-btn" class="danger" disabled onclick="sectionClearCache('b')">Clear cached hashes</button>
     </div>
     <div id="b-upload-panel" style="display:none;margin-top:1.25rem">
-      <h3 style="margin-bottom:.5rem">Step 2: Upload Media Files</h3>
+      <h3 style="margin-bottom:.5rem">Step 3: Upload Media Files</h3>
       <div id="b-upload-status" style="margin:.5rem 0"></div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button id="b-upload-btn" onclick="sectionStartUpload('b')" style="border-color:#22c55e">Upload Media</button>
@@ -369,7 +379,7 @@ function renderOkBannerWithDbLink(message,linkLabel){
   if(!box) return;
   const trace=Array.isArray(s.uploadTrace) ? s.uploadTrace.slice().reverse() : [];
   if(!trace.length){
-    box.innerHTML='<div class="muted">No Step 2 log entries yet.</div>';
+    box.innerHTML='<div class="muted">No Step 3 log entries yet.</div>';
     return;
   }
   let h='';
@@ -663,7 +673,7 @@ async function sectionScan(id) {
   pollManifestJob(jobId,statusEl,(state,data)=>{
     el(id+'-scan-btn').disabled=false;
     if(state==='ok'&&data&&data.success!==false){
-      html(id+'-status','<div class="alert-ok">Step 1 complete. Job: '+escapeHtml(jobId)+'</div>'+(data.steps?renderImportStepsShared(data.steps, {showProgressBar: false, label: 'Steps:', statusIndentPx: 70}):''));
+      html(id+'-status','<div class="alert-ok">Step 2 complete. Job: '+escapeHtml(jobId)+'</div>'+(data.steps?renderImportStepsShared(data.steps, {showProgressBar: false, label: 'Steps:', statusIndentPx: 70}):''));
       showUploadPanel(id,jobId,Array.from(folderInput.files));
     } else {
       const msg=(data&&(data.message||data.error))||'Import failed';
@@ -707,7 +717,7 @@ function showUploadPanel(id, jobId, fileList) {
 
 async function sectionStartUpload(id){
   const s=_S[id];
-  if(!s.jobId){html(id+'-upload-status','<div class="alert-err">No job_id. Run Step 1 first.</div>');return;}
+  if(!s.jobId){html(id+'-upload-status','<div class="alert-err">No job_id. Run Step 2 first.</div>');return;}
 
   if(!s.uploadFiles||!s.uploadFiles.some(f=>f.state==='failed'))s.uploadTrace=[];
   pushClientTrace(id, {
@@ -745,6 +755,15 @@ async function sectionStartUpload(id){
   }catch(e){html(id+'-upload-status','<div class="alert-err">'+escapeHtml(String(e&&e.message?e.message:e))+'</div>');el(id+'-upload-btn').disabled=false;el(id+'-upload-btn').textContent='Upload Media';return;}
 
   s.uploadFiles=files;
+  const resumedPending=files.filter(f=>f.state==='pending').length;
+  const alreadyDone=files.filter(f=>['db_done','thumbnail_done','already_present'].includes(f.state)).length;
+  if(alreadyDone>0&&resumedPending>0){
+    pushClientTrace(id,{
+      endpoint:'admin_database_load_import_media_from_folder.php',
+      phase:'resume_pending_note',
+      message:resumedPending+' file(s) marked pending — TUS will resume partial uploads from their last byte offset. No full re-upload needed.',
+    });
+  }
 
   const MAX_RETRIES=3;
   const pending=files.filter(f=>f.state==='pending'||(f.state==='failed'&&f.retryable===true&&(f.retry_count||0)<MAX_RETRIES));
@@ -990,6 +1009,7 @@ async function uploadOneFile(id, fileInfo, localFile, jobId){
       endpoint:'/files/',
       retryDelays:<?= $__tus_retry_delays_js ?>,
       removeFingerprintOnSuccess:<?= $__tus_remove_fingerprint ?>,
+      parallelUploads:<?= $__tus_parallel_uploads ?>,
       metadata,
       chunkSize:8*1024*1024,
       onProgress:(bytesUploaded, bytesTotal)=>{
@@ -1160,6 +1180,8 @@ async function sectionReplay(id){
     s.scanState=buildScanState(list);
     html(id+'-preview',renderScanPreview(s.scanState));
     html(id+'-status','');
+    const chosenSpan=el(id+'-folder-chosen');
+    if(chosenSpan) chosenSpan.textContent=list.length?(list[0].webkitRelativePath.split('/')[0]+' ('+list.length+' files)'):'No folder selected';
     const canRun=s.scanState&&s.scanState.supportedCount>0;
     el(id+'-scan-btn').disabled=!canRun;
     el(id+'-stop-btn').disabled=true;
