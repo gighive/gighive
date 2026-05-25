@@ -1,6 +1,6 @@
 *** 
 releaseNotes20260525.txt
-Changes: ai_worker parallelism addition (1>3)
+Changes: ai_worker faileds categorization/cleanup 
 Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
@@ -39,17 +39,11 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/roles/ai_worker/files/ai-worker/adapters/openai_adapter.py
-	modified:   ansible/roles/ai_worker/files/ai-worker/db.py
-	modified:   ansible/roles/ai_worker/files/ai-worker/worker.py
-	modified:   ansible/roles/docker/templates/.env.j2
-	new file:   docs/refactor_ai_worker_parallelism_enable.md
-	renamed:    docs/refactor_db_database_tags_column_searchability.md -> docs/refactored_db_database_tags_column_searchability.md
-	renamed:    docs/refactor_upload_folder_messaging_server_monotonic_fix.md -> docs/refactored_upload_folder_messaging_server_monotonic_fix.md
-	renamed:    docs/refactor_uploads_tus_parallel.md -> docs/refactored_uploads_tus_parallel.md
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/ai_worker/files/ai-worker/frame_extractor.py
+	modified:   ansible/roles/docker/files/apache/webroot/admin/ai_worker.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	renamed:    docs/refactor_ai_worker_parallelism_enable.md -> docs/refactored_ai_worker_parallelism_enable.md
 
 TODO
 What's next: promote to staging (reupload five tutorials and change out thumbnails)
@@ -100,6 +94,59 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260525.txt
+Changes: ai_worker parallelism addition (1>3)
+Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,ai_worker,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260525.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-prod-20260524.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH (REMEMBER IT IS FULL PROD DB NOW), don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260522.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260503.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260503.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260525.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260525.log
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/ai_worker/files/ai-worker/adapters/openai_adapter.py
+	modified:   ansible/roles/ai_worker/files/ai-worker/db.py
+	modified:   ansible/roles/ai_worker/files/ai-worker/worker.py
+	modified:   ansible/roles/docker/templates/.env.j2
+	new file:   docs/refactor_ai_worker_parallelism_enable.md
+	renamed:    docs/refactor_db_database_tags_column_searchability.md -> docs/refactored_db_database_tags_column_searchability.md
+	renamed:    docs/refactor_upload_folder_messaging_server_monotonic_fix.md -> docs/refactored_upload_folder_messaging_server_monotonic_fix.md
+	renamed:    docs/refactor_uploads_tus_parallel.md -> docs/refactored_uploads_tus_parallel.md
 
 *** 
 releaseNotes20260525.txt

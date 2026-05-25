@@ -74,10 +74,19 @@ def extract_frames(conn, asset: dict, run_id: int, params: dict) -> list[FrameDa
         capture_output=True, text=True, errors='replace',
     )
     if probe_result.returncode != 0:
-        raise MediaDecodeError(f"ffprobe failed (exit {probe_result.returncode}): {'\n'.join(probe_result.stderr.splitlines()[-20:])}")
+        stderr_tail = '\n'.join(probe_result.stderr.splitlines()[-20:])
+        raise MediaDecodeError(f"ffprobe failed (exit {probe_result.returncode}): {stderr_tail}")
 
     probe_data = json.loads(probe_result.stdout)
     ffprobe_out_path.write_text(json.dumps(probe_data, indent=2))
+
+    # Guard: no video stream (audio-only files with video extension)
+    video_streams = [s for s in probe_data.get('streams', []) if s.get('codec_type') == 'video' and s.get('codec_name', 'none') != 'none']
+    if not video_streams:
+        msg = "No video stream found in file (audio-only)"
+        logger.warning("Skipping asset %s: %s", asset_id, msg)
+        mark_run_failed(conn, run_id, msg)
+        return []
 
     # Parse duration from ffprobe output
     duration = 0.0
@@ -97,11 +106,15 @@ def extract_frames(conn, asset: dict, run_id: int, params: dict) -> list[FrameDa
             except (ValueError, TypeError):
                 pass
     if duration <= 0:
-        raise MediaDecodeError("Could not determine video duration from ffprobe output")
+        msg = "Could not determine video duration"
+        logger.warning("Skipping asset %s: %s", asset_id, msg)
+        mark_run_failed(conn, run_id, msg)
+        return []
 
     # Calculate effective interval — distribute frames evenly across full duration
     natural_count = int(duration / interval)
     effective_interval = interval if natural_count <= max_frames else duration / max_frames
+    effective_interval = min(effective_interval, duration)
     effective_interval = max(effective_interval, 0.5)
 
     # Extract frames with ffmpeg
@@ -109,17 +122,27 @@ def extract_frames(conn, asset: dict, run_id: int, params: dict) -> list[FrameDa
     frames_dir.mkdir(parents=True, exist_ok=True)
     frame_pattern = str(frames_dir / 'frame_%04d.jpg')
 
-    ffmpeg_result = subprocess.run(
-        [
+    if natural_count == 0:
+        ffmpeg_cmd = [
             'ffmpeg', '-y', '-i', abs_path,
-            '-vf', f'fps=1/{effective_interval:.4f},scale=768:-1',
+            '-vf', 'scale=768:-1,format=yuvj420p',
+            '-vframes', '1',
+            frame_pattern,
+        ]
+    else:
+        ffmpeg_cmd = [
+            'ffmpeg', '-y', '-i', abs_path,
+            '-vf', f'fps=1/{effective_interval:.4f},scale=768:-1,format=yuvj420p',
             '-q:v', '3',
             frame_pattern,
-        ],
+        ]
+    ffmpeg_result = subprocess.run(
+        ffmpeg_cmd,
         capture_output=True, text=True, errors='replace',
     )
     if ffmpeg_result.returncode != 0:
-        raise MediaDecodeError(f"ffmpeg failed (exit {ffmpeg_result.returncode}): {'\n'.join(ffmpeg_result.stderr.splitlines()[-20:])}")
+        stderr_tail = '\n'.join(ffmpeg_result.stderr.splitlines()[-20:])
+        raise MediaDecodeError(f"ffmpeg failed (exit {ffmpeg_result.returncode}): {stderr_tail}")
 
     frame_files = sorted(frames_dir.glob('frame_*.jpg'))
     if not frame_files:

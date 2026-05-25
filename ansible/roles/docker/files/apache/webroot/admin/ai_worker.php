@@ -161,11 +161,11 @@ $untaggedCount = $stats['video_assets'] - $stats['tagged_assets'];
     <div class="row">
       <div class="stat"><div class="num"><a href="/db/database.php"><?= $stats['video_assets'] ?></a></div><div class="lbl">Video assets</div></div>
       <div class="stat"><div class="num"><a href="/db/tag_browser.php"><?= $stats['tagged_assets'] ?></a></div><div class="lbl">Assets with tags</div></div>
-      <div class="stat"><div class="num"><a href="/db/database.php"><?= max(0, $untaggedCount) ?></a></div><div class="lbl">Untagged videos</div></div>
-      <div class="stat"><div class="num"><a href="#recent-jobs?status=queued"><?= $stats['queued'] ?></a></div><div class="lbl">Queued jobs</div></div>
-      <div class="stat"><div class="num"><a href="#recent-jobs?status=running"><?= $stats['running'] ?></a></div><div class="lbl">Running</div></div>
-      <div class="stat"><div class="num"><a href="#recent-jobs?status=done"><?= $stats['done'] ?></a></div><div class="lbl">Done</div></div>
-      <div class="stat"><div class="num"><a href="#recent-jobs?status=failed"><?= $stats['failed'] ?></a></div><div class="lbl">Failed</div></div>
+      <div class="stat"><div class="num"><?= max(0, $untaggedCount) ?></div><div class="lbl">Untagged videos</div></div>
+      <div class="stat"><div class="num"><?= $stats['queued'] ?></div><div class="lbl">Queued jobs</div></div>
+      <div class="stat"><div class="num"><?= $stats['running'] ?></div><div class="lbl">Running</div></div>
+      <div class="stat"><div class="num"><?= $stats['done'] ?></div><div class="lbl">Done</div></div>
+      <div class="stat"><div class="num"><?= $stats['failed'] ?></div><div class="lbl">Failed</div></div>
     </div>
     <div class="muted">Provider: <strong><?= htmlspecialchars($llmProvider, ENT_QUOTES) ?></strong> · Model: <strong><?= htmlspecialchars($openaiModel, ENT_QUOTES) ?></strong></div>
   </div>
