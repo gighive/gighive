@@ -444,3 +444,13 @@ ai_worker_poll_interval: 5
 ai_worker_max_attempts: 3
 gighive_ai_assets_root: "/data/ai_assets"
 ai_max_tags_per_asset: 81
+
+# Parallel job-processing threads in the AI worker container.
+# claim_next_job uses FOR UPDATE SKIP LOCKED so this is race-condition-safe.
+# 1 = single-threaded (default). 3 = recommended for 4-core host.
+ai_worker_concurrency: 3
+
+# Concurrent OpenAI chunk calls per video within a single job.
+# 96 frames / 6 per chunk = 16 chunks; 4 keeps rate-limit pressure moderate.
+# 1 = sequential (default).
+ai_chunk_concurrency: 4

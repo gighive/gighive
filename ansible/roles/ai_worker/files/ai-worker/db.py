@@ -26,13 +26,14 @@ def get_connection():
 
 def reset_stale_running_jobs(conn, worker_id: str) -> int:
     """On startup, reset any 'running' jobs NOT owned by this worker back to 'queued'.
-    Handles jobs orphaned by a previous crashed/killed container."""
+    Handles jobs orphaned by a previous crashed/killed container.
+    Uses LIKE prefix match so all thread labels ({worker_id}:0, :1, …) are excluded."""
     cur = conn.cursor()
     try:
         cur.execute(
             "UPDATE ai_jobs SET status='queued', locked_by=NULL, locked_at=NULL, "
-            "updated_at=NOW() WHERE status='running' AND locked_by != %s",
-            (worker_id,),
+            "updated_at=NOW() WHERE status='running' AND locked_by NOT LIKE %s",
+            (worker_id + '%',),
         )
         conn.commit()
         count = cur.rowcount

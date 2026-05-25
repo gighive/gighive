@@ -24,6 +24,7 @@ logger = logging.getLogger('worker')
 
 POLL_INTERVAL = int(os.getenv('AI_WORKER_POLL_INTERVAL', '5'))
 MAX_ATTEMPTS = int(os.getenv('AI_WORKER_MAX_ATTEMPTS', '3'))
+WORKER_CONCURRENCY = max(1, int(os.getenv('AI_WORKER_CONCURRENCY', '1')))
 JOB_TYPE = 'categorize_video'
 
 _shutdown = False
@@ -40,33 +41,24 @@ signal.signal(signal.SIGTERM, _sigterm_handler)
 WORKER_ID = f"{socket.gethostname()}:{uuid.uuid4().hex[:8]}"
 
 
-def main():
-    if os.getenv('AI_WORKER_ENABLED', 'false').lower() not in ('1', 'true', 'yes'):
-        logger.info('AI_WORKER_ENABLED is not true — exiting cleanly')
-        return
-
-    logger.info('AI worker starting (id=%s, poll_interval=%ds)', WORKER_ID, POLL_INTERVAL)
-
-    startup_conn = db.get_connection()
-    db.reset_stale_running_jobs(startup_conn, WORKER_ID)
-    startup_conn.close()
-
-    adapter = OpenAIAdapter()
-
+def _worker_thread(thread_id: int, adapter) -> None:
+    worker_label = f"{WORKER_ID}:{thread_id}"
+    logger.info('Worker thread %s started', worker_label)
     while not _shutdown:
         conn = None
         job = None
         run_id = None
         try:
             conn = db.get_connection()
-            job = db.claim_next_job(conn, JOB_TYPE, WORKER_ID)
+            job = db.claim_next_job(conn, JOB_TYPE, worker_label)
 
             if not job:
                 conn.close()
                 time.sleep(POLL_INTERVAL)
                 continue
 
-            logger.info('Claimed job id=%s target=%s/%s', job['id'], job['target_type'], job['target_id'])
+            logger.info('Thread %d claimed job id=%s target=%s/%s',
+                        thread_id, job['id'], job['target_type'], job['target_id'])
 
             # Dead-letter check
             if int(job.get('attempts', 1)) > MAX_ATTEMPTS:
@@ -106,6 +98,35 @@ def main():
                 except Exception:
                     pass
             time.sleep(POLL_INTERVAL)
+
+    logger.info('Worker thread %s shut down', worker_label)
+
+
+def main():
+    if os.getenv('AI_WORKER_ENABLED', 'false').lower() not in ('1', 'true', 'yes'):
+        logger.info('AI_WORKER_ENABLED is not true — exiting cleanly')
+        return
+
+    logger.info('AI worker starting (id=%s, threads=%d, poll_interval=%ds)',
+                WORKER_ID, WORKER_CONCURRENCY, POLL_INTERVAL)
+
+    startup_conn = db.get_connection()
+    db.reset_stale_running_jobs(startup_conn, WORKER_ID)
+    startup_conn.close()
+
+    if WORKER_CONCURRENCY <= 1:
+        adapter = OpenAIAdapter()
+        _worker_thread(0, adapter)
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        adapters = [OpenAIAdapter() for _ in range(WORKER_CONCURRENCY)]
+        with ThreadPoolExecutor(max_workers=WORKER_CONCURRENCY) as ex:
+            futures = [ex.submit(_worker_thread, i, adapters[i]) for i in range(WORKER_CONCURRENCY)]
+            for f in futures:
+                try:
+                    f.result()
+                except Exception as exc:
+                    logger.error('Worker thread raised fatal exception: %s', exc)
 
     logger.info('AI worker shut down cleanly')
 

@@ -39,6 +39,7 @@ class OpenAIAdapter(LLMVisionAdapter):
         base_url = os.getenv('LLM_BASE_URL', 'https://api.openai.com/v1')
         self.model = os.getenv('OPENAI_MODEL', 'gpt-4.1')
         self.max_per_chunk = int(os.getenv('AI_MAX_FRAMES_PER_CHUNK', '6'))
+        self.chunk_concurrency = max(1, int(os.getenv('AI_CHUNK_CONCURRENCY', '1')))
         self.client = OpenAI(api_key=api_key, base_url=base_url)
 
     def _encode_frame(self, path: str) -> str:
@@ -140,10 +141,25 @@ class OpenAIAdapter(LLMVisionAdapter):
 
     def analyze_frames(self, frames: list[FrameData], prompt: str = '') -> list[TagResult]:
         """Chunk frames and call the LLM; aggregate and return all TagResults."""
-        all_tags: list[TagResult] = []
-        for start in range(0, len(frames), self.max_per_chunk):
-            chunk = frames[start: start + self.max_per_chunk]
-            tags = self._analyze_chunk(chunk)
-            logger.debug("Chunk [%d:%d] produced %d tags", start, start + len(chunk), len(tags))
-            all_tags.extend(tags)
+        chunks = [
+            frames[s: s + self.max_per_chunk]
+            for s in range(0, len(frames), self.max_per_chunk)
+        ]
+        if self.chunk_concurrency <= 1 or len(chunks) <= 1:
+            all_tags: list[TagResult] = []
+            for i, chunk in enumerate(chunks):
+                tags = self._analyze_chunk(chunk)
+                logger.debug("Chunk [%d] produced %d tags", i, len(tags))
+                all_tags.extend(tags)
+            return all_tags
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        all_tags = []
+        with ThreadPoolExecutor(max_workers=min(self.chunk_concurrency, len(chunks))) as ex:
+            futures = {ex.submit(self._analyze_chunk, chunk): i for i, chunk in enumerate(chunks)}
+            for fut in as_completed(futures):
+                i = futures[fut]
+                tags = fut.result()
+                logger.debug("Chunk [%d] produced %d tags", i, len(tags))
+                all_tags.extend(tags)
         return all_tags
