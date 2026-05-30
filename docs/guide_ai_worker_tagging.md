@@ -2,9 +2,27 @@
 
 ## How It Works
 
-1. A video file finishes uploading → `ingestComplete()` fires → if `AI_WORKER_ENABLED=true`, a `categorize_video` job is inserted into `ai_jobs` (status=`queued`).
+1. A video file finishes uploading → `UploadService::handleUpload()` or `ingestComplete()` fires → if `AI_WORKER_ENABLED=true`, a `categorize_video` job is inserted into `ai_jobs` (status=`queued`).
 2. The `ai-worker` container polls `ai_jobs` every 5 s, claims the next `queued` job, extracts frames, sends them to the LLM, and writes tags back to the DB.
 3. Tags appear in the Media Library "Tags" column.
+
+---
+
+## Ingestion Methods — AI Job Auto-Enqueue Reference
+
+Whether an AI job is automatically enqueued depends on **which ingestion path** was used:
+
+| # | Method | Entry Point | PHP Path | Auto-enqueues AI job? | Manual trigger needed? |
+|---|--------|-------------|----------|-----------------------|------------------------|
+| 1 | **iPhone / web upload** | `db/upload_form.php` → `POST /uploads` | `UploadService::handleUpload()` | ✅ Yes | No |
+| 2 | **Folder import — Add** | `admin_database_load_import_media_from_folder.php` (add mode) | `ingestStub()` → TUS → `finalizeManifestTusUpload()` → `ingestComplete()` | ✅ Yes | No |
+| 3 | **Folder import — Reload** | `admin_database_load_import_media_from_folder.php` (reload mode) | Same as above | ✅ Yes | No |
+| 4 | **CSV Section A** (legacy single CSV) | `admin_database_load_import_csv.php` → `import_database.php` | Raw SQL via `mysql` shell; assets table not populated | ❌ No | Yes — use **"Tag N Untagged Assets"** on `/admin/ai_worker.php` |
+| 5 | **CSV Section B** (normalized 2 CSVs) | `admin_database_load_import_csv.php` → `import_normalized.php` | Raw SQL via `mysql` shell; bypasses PHP service layer | ❌ No | Yes — use **"Tag N Untagged Assets"** on `/admin/ai_worker.php` |
+
+> CSV imports (Sections A and B) write directly to MySQL via the shell client and never pass through the PHP service layer, so no AI jobs are enqueued. After a CSV import, use the bulk enqueue button on `/admin/ai_worker.php` to tag all video assets at once.
+
+---
 
 ## Preconditions
 

@@ -102,6 +102,19 @@ def _worker_thread(thread_id: int, adapter) -> None:
     logger.info('Worker thread %s shut down', worker_label)
 
 
+def _wait_for_db(max_attempts: int = 12, backoff: int = 5):
+    """Retry MySQL connection at startup; gives the DB container time to become ready."""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return db.get_connection()
+        except Exception as exc:
+            if attempt >= max_attempts:
+                raise
+            logger.warning('DB not ready (attempt %d/%d): %s — retrying in %ds',
+                           attempt, max_attempts, exc, backoff)
+            time.sleep(backoff)
+
+
 def main():
     if os.getenv('AI_WORKER_ENABLED', 'false').lower() not in ('1', 'true', 'yes'):
         logger.info('AI_WORKER_ENABLED is not true — exiting cleanly')
@@ -110,7 +123,7 @@ def main():
     logger.info('AI worker starting (id=%s, threads=%d, poll_interval=%ds)',
                 WORKER_ID, WORKER_CONCURRENCY, POLL_INTERVAL)
 
-    startup_conn = db.get_connection()
+    startup_conn = _wait_for_db()
     db.reset_stale_running_jobs(startup_conn, WORKER_ID)
     startup_conn.close()
 

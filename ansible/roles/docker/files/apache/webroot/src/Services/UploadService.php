@@ -216,6 +216,10 @@ final class UploadService
         // Attach participants
         $this->attachParticipants($eventId, $participants);
 
+        if ($fileType === 'video' && filter_var(getenv('AI_WORKER_ENABLED'), FILTER_VALIDATE_BOOLEAN)) {
+            $this->uic->enqueueAiJob($assetId, 'categorize_video', 'asset');
+        }
+
         $storedFileName = $ext !== '' ? ($checksum . '.' . $ext) : ($checksum ?? $storedName);
         $resp = [
             'id'              => $assetId,
