@@ -4,6 +4,8 @@
 
 This guide provides empirically-derived upload time estimates based on a real production data load
 of 6,745 supported media files totalling 2,071 GB. Use these figures to plan batch upload sessions.
+The server hardware used for this baseline and options for upgrading it are covered in
+[Hardware Options](hardware_options.html).
 
 ---
 
