@@ -1,12 +1,12 @@
 <?php declare(strict_types=1);
-// Admin upload form with advanced fields visible. Protect this path with Basic Auth for admins only.
+// Merged upload form: serves both admin and uploader roles. See docs/refactor_upload_form_into_single.md
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Upload File (Admin)</title>
+  <title>Upload File</title>
   <style>
     body { font-family: system-ui, Arial, sans-serif; margin: 2rem; padding-bottom: 84px; }
     form { max-width: 720px; }
@@ -18,7 +18,7 @@
     .legend { color: #666; font-size: 12px; margin-top: 8px; }
     .row { display: flex; align-items: center; gap: 8px; }
     .row label.inline { display: inline; font-weight: 400; margin-top: 0; }
-    /* simple in-flight indicator (no XHR, no percent) */
+    .user-indicator { font-size: 12px; color: #666; margin-bottom: 8px; }
     #status {
       position: fixed;
       left: 16px;
@@ -43,6 +43,11 @@
 </head>
 <body>
   <?php
+  $user = $_SERVER['PHP_AUTH_USER']
+      ?? $_SERVER['REMOTE_USER']
+      ?? $_SERVER['REDIRECT_REMOTE_USER']
+      ?? 'Unknown';
+
   $audioExtsJson = getenv('UPLOAD_AUDIO_EXTS_JSON') ?: '[]';
   $videoExtsJson = getenv('UPLOAD_VIDEO_EXTS_JSON') ?: '[]';
   $audioExts = json_decode($audioExtsJson, true);
@@ -61,7 +66,8 @@
   $chunkSizeBytes = (int)(getenv('TUS_CLIENT_CHUNK_SIZE_BYTES') ?: '8388608');
   if ($chunkSizeBytes <= 0) $chunkSizeBytes = 8388608;
   ?>
-  <h1>Upload Media (Admin)</h1>
+  <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?></div>
+  <h1>Upload Media</h1>
   <form id="uploadForm" action="/api/uploads.php" method="POST" enctype="multipart/form-data">
     <label for="file">Media file (audio/video) *</label>
     <input id="file" name="file" type="file" accept="<?= htmlspecialchars($accept, ENT_QUOTES) ?>" required />
@@ -69,7 +75,7 @@
     <label for="event_date">Event date *</label>
     <input id="event_date" name="event_date" type="date" required value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES) ?>" />
 
-    <label for="org_name">Organization name *</label>
+    <label for="org_name">Band or wedding party name *</label>
     <input id="org_name" name="org_name" type="text" value="Band or Wedding Event Name" />
     <div class="hint">Band name or wedding short name</div>
 
@@ -79,7 +85,7 @@
       <option value="wedding">wedding</option>
     </select>
 
-    <label for="label">Label *</label>
+    <label for="label">Song title or wedding table / identifier *</label>
     <input id="label" name="label" type="text" placeholder="Song title or wedding table label" required />
     <div class="row">
       <input id="auto_label" type="checkbox" />
@@ -87,29 +93,31 @@
     </div>
     <div class="hint">If checked, the label will be set to "Auto YYYY-MM-DD" based on the Event date.</div>
 
-    <hr />
-    <h3>Advanced (Admin)</h3>
-    <label for="participants">Participants</label>
-    <input id="participants" name="participants" type="text" placeholder="Comma-separated names" />
+    <div id="adminFields" style="<?= $user === 'admin' ? 'display:block' : 'display:none' ?>">
+      <hr />
+      <h3>Advanced (Admin)</h3>
+      <label for="participants">Participants</label>
+      <input id="participants" name="participants" type="text" placeholder="Comma-separated names" />
 
-    <label for="keywords">Keywords</label>
-    <input id="keywords" name="keywords" type="text" placeholder="Comma-separated keywords" />
+      <label for="keywords">Keywords</label>
+      <input id="keywords" name="keywords" type="text" placeholder="Comma-separated keywords" />
 
-    <label for="location">Location</label>
-    <input id="location" name="location" type="text" />
+      <label for="location">Location</label>
+      <input id="location" name="location" type="text" />
 
-    <label for="rating">Rating</label>
-    <input id="rating" name="rating" type="text" placeholder="1-5 or text" />
+      <label for="rating">Rating</label>
+      <input id="rating" name="rating" type="text" placeholder="1-5 or text" />
 
-    <label for="notes">Notes</label>
-    <textarea id="notes" name="notes" rows="3"></textarea>
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" rows="3"></textarea>
+    </div>
 
     <button id="btnUpload" type="submit">Upload</button>
     <div class="legend">* = mandatory</div>
     <div id="status">Ready.</div>
   </form>
   <div id="myUploads" style="margin-top:16px; display:none;"></div>
-  <pre id="result" style="margin-top:16px; white-space:pre-wrap;"></pre>
+  <pre id="result" style="margin-top:24px; white-space:pre-wrap;"></pre>
 
   <script>
     (function() {
@@ -118,9 +126,12 @@
       const dateInput = document.getElementById('event_date');
       const form = document.getElementById('uploadForm');
       const myUploadsEl = document.getElementById('myUploads');
-      // rolled back: no localStorage persistence or XHR
+      const btn = document.getElementById('btnUpload');
+      const statusEl = document.getElementById('status');
+      const resultEl = document.getElementById('result');
 
       const STORAGE_KEY = 'uploader_delete_tokens_v1';
+      const IS_ADMIN = <?= json_encode($user === 'admin') ?>;
 
       function loadTokens() {
         try {
@@ -143,7 +154,6 @@
         const tokens = loadTokens();
         const ids = Object.keys(tokens || {}).filter(function(k) { return /^[0-9]+$/.test(String(k)); });
         ids.sort(function(a, b) { return Number(b) - Number(a); });
-
         myUploadsEl.style.display = 'block';
         const rows = ids.map(function(id) {
           const safeId = String(id).replace(/"/g, '');
@@ -165,20 +175,19 @@
             const fileId = String(this.getAttribute('data-file-id') || '');
             const cur = loadTokens();
             const token = cur && cur[fileId] ? String(cur[fileId]) : '';
-            if (!fileId) return;
+            if (!fileId || (!IS_ADMIN && !token)) return;
 
             this.disabled = true;
             const prevText = this.textContent;
             this.textContent = 'Deleting…';
 
-            const statusEl = document.getElementById('status');
-            const resultEl = document.getElementById('result');
-
             try {
               const resp = await fetch('/db/delete_media_files.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ asset_ids: [Number(fileId)] }),
+                body: IS_ADMIN
+                  ? JSON.stringify({ asset_ids: [Number(fileId)] })
+                  : JSON.stringify({ asset_id: Number(fileId), delete_token: token }),
                 credentials: 'same-origin'
               });
               const text = await resp.text();
@@ -206,11 +215,29 @@
         });
       }
 
-      try {
-        if (window.localStorage) {
-          renderMyUploads();
+      function checkLocalStoragePersistence() {
+        try {
+          if (!window.localStorage) return false;
+          const k = '__gighive_ls_test__' + String(Date.now());
+          window.localStorage.setItem(k, '1');
+          const v = window.localStorage.getItem(k);
+          window.localStorage.removeItem(k);
+          return v === '1';
+        } catch(_) {
+          return false;
         }
-      } catch(_) {}
+      }
+
+      // rolled back: no localStorage persistence
+
+      const hasPersistentStorage = checkLocalStoragePersistence();
+      if (!hasPersistentStorage && !IS_ADMIN) {
+        if (btn) btn.disabled = true;
+        if (statusEl) statusEl.textContent = 'Uploads disabled: this browser does not support persistent local storage (private browsing?).';
+        try { form && form.addEventListener('submit', function(e) { e.preventDefault(); }); } catch(_) {}
+      } else {
+        renderMyUploads();
+      }
 
       function ymd(d) {
         const dt = new Date(d);
@@ -251,10 +278,6 @@
           alert('Media file is required.');
           return;
         }
-
-        const statusEl = document.getElementById('status');
-        const resultEl = document.getElementById('result');
-        const btn = document.getElementById('btnUpload');
 
         function setBusy(text) {
           if (statusEl) {

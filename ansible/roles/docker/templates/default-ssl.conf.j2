@@ -88,9 +88,9 @@
     
     # Request-time staging-only public exception for /db/database.php
     <Location "/db/database.php">
+        AuthMerging Off
         <If "%{HTTP_HOST} == 'staging.gighive.app'">
             Require all granted
-            Satisfy any
         </If>
         <Else>
             AuthType Basic
@@ -103,9 +103,9 @@
 
     # Request-time staging-only public access for /audio
     <LocationMatch "^/audio(?:/|$)">
+        AuthMerging Off
         <If "%{HTTP_HOST} == 'staging.gighive.app'">
             Require all granted
-            Satisfy any
         </If>
         <Else>
             AuthType Basic
@@ -118,9 +118,9 @@
 
     # Request-time staging-only public access for /video
     <LocationMatch "^/video(?:/|$)">
+        AuthMerging Off
         <If "%{HTTP_HOST} == 'staging.gighive.app'">
             Require all granted
-            Satisfy any
         </If>
         <Else>
             AuthType Basic

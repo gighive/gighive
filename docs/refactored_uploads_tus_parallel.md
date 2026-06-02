@@ -163,6 +163,33 @@ this is a client-side upload option only.
 
 ---
 
+## Future MCP Tool — `get_upload_throughput_stats`
+
+The manual measurement steps in the Testing section above (noting start/end times,
+calculating files/min and MB/s by hand, watching the browser Network tab) are exactly
+the kind of operational work that belongs in an MCP tool:
+
+```
+get_upload_throughput_stats(job_id) → {files_total, files_done, elapsed_seconds,
+                                        files_per_min, mb_per_sec, avg_file_size_mb}
+```
+
+**Why it isn't in the initial MCP server implementation:** The current schema has no
+upload session timing record. `assets` has `file_size_bytes` but no upload job identifier
+per row and no transfer-time vs. ingestion-time distinction. Building this tool requires
+one of:
+- An `upload_sessions` table: `(job_id, start_time, end_time, file_count, total_bytes)` —
+  one row per upload job, written by the PHP TUS finalization hook when the last file
+  completes
+- Or per-asset upload timing columns: `upload_started_at`, `upload_completed_at` on `assets`
+
+The `upload_sessions` option is simpler and aligns with the existing `get_upload_job_state`
+tool (which already reconciles the job via the PHP endpoint).
+
+This is tracked as **Deferred 2** in `docs/feature_mcp_server_beneficial.md`.
+
+---
+
 ## Related Docs
 
 - `docs/guide_upload_estimated_times.md` — empirical upload time data and optimization table

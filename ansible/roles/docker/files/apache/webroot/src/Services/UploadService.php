@@ -131,7 +131,7 @@ final class UploadService
                     throw new DuplicateChecksumException($existingAssetId, $checksum);
                 }
                 // Cross-event reuse: create event_items link; no disk write needed
-                $itemType    = ($eventType === 'wedding') ? 'event_label' : 'song';
+                $itemType    = ($eventType === 'wedding') ? 'clip' : 'song';
                 $position    = $this->eventItemRepo->nextPosition($eventId);
                 $eventItemId = $this->eventItemRepo->ensureEventItem($eventId, $existingAssetId, $itemType, $label, $position);
                 $this->attachParticipants($eventId, $participants);
@@ -209,7 +209,7 @@ final class UploadService
         }
 
         // Create event_items link
-        $itemType    = ($eventType === 'wedding') ? 'event_label' : 'song';
+        $itemType    = ($eventType === 'wedding') ? 'clip' : 'song';
         $position    = $this->eventItemRepo->nextPosition($eventId);
         $eventItemId = $this->eventItemRepo->ensureEventItem($eventId, $assetId, $itemType, $label, $position);
 

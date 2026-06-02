@@ -116,6 +116,7 @@
       const resultEl = document.getElementById('result');
 
       const STORAGE_KEY = 'uploader_delete_tokens_v1';
+      const IS_ADMIN = <?= json_encode($user === 'admin') ?>;
 
       function loadTokens() {
         try {
@@ -159,7 +160,7 @@
             const fileId = String(this.getAttribute('data-file-id') || '');
             const cur = loadTokens();
             const token = cur && cur[fileId] ? String(cur[fileId]) : '';
-            if (!fileId || !token) return;
+            if (!fileId || (!IS_ADMIN && !token)) return;
 
             this.disabled = true;
             const prevText = this.textContent;
@@ -169,7 +170,9 @@
               const resp = await fetch('/db/delete_media_files.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ asset_id: Number(fileId), delete_token: token }),
+                body: IS_ADMIN
+                  ? JSON.stringify({ asset_ids: [Number(fileId)] })
+                  : JSON.stringify({ asset_id: Number(fileId), delete_token: token }),
                 credentials: 'same-origin'
               });
               const text = await resp.text();
