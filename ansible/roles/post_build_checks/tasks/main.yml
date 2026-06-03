@@ -576,8 +576,8 @@
   ansible.builtin.set_fact:
     stack_gighive_version: >-
       {{
-        lookup('file', repo_root ~ '/VERSION', errors='warn') | trim
-        or (lookup('pipe', 'git -C ' ~ repo_root ~ ' rev-parse --short HEAD 2>/dev/null') | trim)
+        (lookup('file', repo_root ~ '/VERSION', errors='warn') | default('') | trim)
+        or (lookup('pipe', 'git -C ' ~ repo_root ~ ' rev-parse --short HEAD 2>/dev/null') | default('') | trim)
         or 'unknown'
       }}
   changed_when: false

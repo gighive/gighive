@@ -17,7 +17,7 @@ Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventor
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
 # GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260602.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260603.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260602.log
 

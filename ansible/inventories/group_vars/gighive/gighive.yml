@@ -63,9 +63,9 @@ rebuild_mysql: false       # Rebuild MySQL container (preserve data)
 rebuild_mysql_data: false # Rebuild MySQL container + wipe database (nuclear)
 
 # these vars control full/reduced set of media
-sync_video: true
+sync_video: false
 reduced_video: true
-sync_audio: true
+sync_audio: false
 reduced_audio: true
 
 # --------------------------------------------------------------------
