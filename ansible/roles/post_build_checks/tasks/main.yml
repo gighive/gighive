@@ -572,9 +572,14 @@
 
 # --- Stack Versions Summary ---
 
-- name: Read GigHive app version from VERSION file
+- name: Read GigHive app version from VERSION file (or git HEAD fallback)
   ansible.builtin.set_fact:
-    stack_gighive_version: "{{ lookup('file', repo_root ~ '/VERSION') | trim }}"
+    stack_gighive_version: >-
+      {{
+        lookup('file', repo_root ~ '/VERSION', errors='warn') | trim
+        or (lookup('pipe', 'git -C ' ~ repo_root ~ ' rev-parse --short HEAD 2>/dev/null') | trim)
+        or 'unknown'
+      }}
   changed_when: false
   tags: [stack_versions]
 
