@@ -572,14 +572,7 @@
 
 # --- Stack Versions Summary ---
 
-- name: "[DIAG] Show repo_root as seen by controller"
-  ansible.builtin.debug:
-    msg: "repo_root = {{ repo_root }}"
-  delegate_to: localhost
-  become: false
-  tags: [stack_versions]
-
-- name: "[DIAG] Stat VERSION file on controller"
+- name: Stat VERSION file on controller
   ansible.builtin.stat:
     path: "{{ repo_root }}/VERSION"
   register: stack_version_file_stat
@@ -587,28 +580,33 @@
   become: false
   tags: [stack_versions]
 
-- name: "[DIAG] Show VERSION stat result"
-  ansible.builtin.debug:
-    var: stack_version_file_stat.stat
+- name: Read VERSION file on controller
+  ansible.builtin.slurp:
+    src: "{{ repo_root }}/VERSION"
+  register: stack_version_file_slurp
+  delegate_to: localhost
+  become: false
+  when: stack_version_file_stat.stat.exists
   tags: [stack_versions]
 
-- name: "[DIAG] Run git rev-parse on controller"
+- name: Get git SHA on controller (VERSION file absent)
   ansible.builtin.command: git -C {{ repo_root }} rev-parse --short HEAD
-  register: stack_git_sha_diag
+  register: stack_git_sha_raw
   changed_when: false
   failed_when: false
   delegate_to: localhost
   become: false
+  when: not stack_version_file_stat.stat.exists
   tags: [stack_versions]
 
-- name: "[DIAG] Show git rev-parse result"
-  ansible.builtin.debug:
-    var: stack_git_sha_diag
-  tags: [stack_versions]
-
-- name: Set GigHive app version fact (temporary stub pending diag results)
+- name: Set GigHive app version fact
   ansible.builtin.set_fact:
-    stack_gighive_version: "diag-pending"
+    stack_gighive_version: >-
+      {{
+        (stack_version_file_slurp.content | default('') | b64decode | trim)
+        if stack_version_file_stat.stat.exists
+        else ((stack_git_sha_raw.stdout | default('') | trim) or 'unknown')
+      }}
   changed_when: false
   tags: [stack_versions]
 
