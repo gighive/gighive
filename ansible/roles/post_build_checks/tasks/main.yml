@@ -572,14 +572,43 @@
 
 # --- Stack Versions Summary ---
 
-- name: Read GigHive app version from VERSION file (or git HEAD fallback)
+- name: "[DIAG] Show repo_root as seen by controller"
+  ansible.builtin.debug:
+    msg: "repo_root = {{ repo_root }}"
+  delegate_to: localhost
+  become: false
+  tags: [stack_versions]
+
+- name: "[DIAG] Stat VERSION file on controller"
+  ansible.builtin.stat:
+    path: "{{ repo_root }}/VERSION"
+  register: stack_version_file_stat
+  delegate_to: localhost
+  become: false
+  tags: [stack_versions]
+
+- name: "[DIAG] Show VERSION stat result"
+  ansible.builtin.debug:
+    var: stack_version_file_stat.stat
+  tags: [stack_versions]
+
+- name: "[DIAG] Run git rev-parse on controller"
+  ansible.builtin.command: git -C {{ repo_root }} rev-parse --short HEAD
+  register: stack_git_sha_diag
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+  become: false
+  tags: [stack_versions]
+
+- name: "[DIAG] Show git rev-parse result"
+  ansible.builtin.debug:
+    var: stack_git_sha_diag
+  tags: [stack_versions]
+
+- name: Set GigHive app version fact (temporary stub pending diag results)
   ansible.builtin.set_fact:
-    stack_gighive_version: >-
-      {{
-        (lookup('file', repo_root ~ '/VERSION', errors='warn') | default('') | trim)
-        or (lookup('pipe', 'git -C ' ~ repo_root ~ ' rev-parse --short HEAD 2>/dev/null') | default('') | trim)
-        or 'unknown'
-      }}
+    stack_gighive_version: "diag-pending"
   changed_when: false
   tags: [stack_versions]
 
