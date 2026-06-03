@@ -45,6 +45,8 @@ ansible_remote_tmp: "/tmp/.ansible/tmp"
 app_flavor: defaultcodebase
 database_full: true
 
+gighive_ios_app_version: "1.0.3 (7)"
+
 gighive_enable_installation_tracking: true
 gighive_installation_tracking_endpoint: "https://telemetry.gighive.app"
 gighive_enable_installation_tracking_debug: false

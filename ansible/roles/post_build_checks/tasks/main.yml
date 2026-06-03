@@ -569,3 +569,67 @@
 
   tags: [tus]
 
+
+# --- Stack Versions Summary ---
+
+- name: Read GigHive app version from VERSION file
+  ansible.builtin.set_fact:
+    stack_gighive_version: "{{ lookup('file', repo_root ~ '/VERSION') | trim }}"
+  changed_when: false
+  tags: [stack_versions]
+
+- name: Get Docker host version
+  ansible.builtin.command: docker --version
+  register: stack_docker_raw
+  changed_when: false
+  failed_when: false
+  tags: [stack_versions]
+
+- name: Get PHP version from apache container
+  ansible.builtin.command: docker exec {{ apache_container_name }} php --version
+  register: stack_php_raw
+  changed_when: false
+  failed_when: false
+  tags: [stack_versions]
+
+- name: Get Apache version from apache container
+  ansible.builtin.command: docker exec {{ apache_container_name }} apache2 -v
+  register: stack_apache_raw
+  changed_when: false
+  failed_when: false
+  tags: [stack_versions]
+
+- name: Get MySQL version from mysql container
+  ansible.builtin.command: docker exec {{ mysql_container_name }} mysql --version
+  register: stack_mysql_raw
+  changed_when: false
+  failed_when: false
+  tags: [stack_versions]
+
+- name: Get tusd version from tusd container
+  ansible.builtin.command: docker exec {{ apache_container_name }}_tusd tusd --version
+  register: stack_tusd_raw
+  changed_when: false
+  failed_when: false
+  tags: [stack_versions]
+
+- name: Build Stack Versions Summary
+  ansible.builtin.set_fact:
+    stack_versions_summary:
+      GigHive_App: "{{ stack_gighive_version }}"
+      GigHive_iOS: "{{ gighive_ios_app_version }}"
+      Ubuntu: "{{ ubuntu_version }}"
+      PHP: "{{ (stack_php_raw.stdout_lines | default(['N/A'])) | first }}"
+      Apache: "{{ (stack_apache_raw.stdout_lines | default(['N/A'])) | first }}"
+      MySQL: "{{ stack_mysql_raw.stdout | default('N/A') | trim }}"
+      tusd: "{{ (stack_tusd_raw.stdout_lines | default(['N/A'])) | first }}"
+      Docker: "{{ stack_docker_raw.stdout | default('N/A') | trim }}"
+      OpenAI_Model: "{{ openai_model }}"
+      App_Flavor: "{{ app_flavor }}"
+  changed_when: false
+  tags: [stack_versions]
+
+- name: Display Stack Versions Summary
+  ansible.builtin.debug:
+    var: stack_versions_summary
+  tags: [stack_versions]

@@ -1,13 +1,13 @@
 *** 
-releaseNotes20260531.txt
-Changes: Fix upload_form, create single version of the form, allow any user going to staging.gighive.app to look at staging media database, uploadService fix for insert 'event_label' into item_type which is disallowed (related to event_asset changes)
-Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
+releaseNotes20260603.txt
+Changes: Add stack versions at end of post_build_checks (plus single new static var for iphone app)
+Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,ai_worker,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260530.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,ai_worker,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260603.log
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-prod-20260530.log
 # LAB, rebuild 
@@ -17,9 +17,9 @@ Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventor
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
 # GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260530.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260602.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
-Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260530.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260602.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260531.log 
@@ -40,18 +40,11 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
-	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
-	new file:   ansible/roles/docker/files/apache/webroot/db/upload_form_single.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
-	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
-	modified:   docs/feature_mcp_server_beneficial.md
-	modified:   docs/knowledge_map.html
-	new file:   docs/media_duplicates_allow_cross_linked_dupes.md
-	new file:   docs/refactor_upload_form_into_single.md
-	modified:   docs/refactored_uploads_tus_parallel.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   docs/process_stack_versions.md
 
 BROKEN
 What's next: delete doesn't work in iphone upload page now after assets / event change
@@ -59,6 +52,7 @@ What's next: dupe video fix shown by Jenny upload (Jenny as band or event vs boa
 
 TODO
 What's next: fix telemetry to not rebuild db every time
+What's next: add dialog popup with stack
 What's next: iphone app updates
 AI: maybe include ai tests for OSB
 Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
@@ -106,6 +100,61 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260531.txt
+Changes: Fix upload_form, create single version of the form, allow any user going to staging.gighive.app to look at staging media database, uploadService fix for insert 'event_label' into item_type which is disallowed (related to event_asset changes)
+Scope: egrep -A1 'GIG2|OSB|STAGING|TELEMETRY' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,ai_worker,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive2-20260530.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-prod-20260530.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260530.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260602.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260602.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260531.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260525.log
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
+	new file:   ansible/roles/docker/files/apache/webroot/db/upload_form_single.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   docs/feature_mcp_server_beneficial.md
+	modified:   docs/knowledge_map.html
+	new file:   docs/media_duplicates_allow_cross_linked_dupes.md
+	new file:   docs/refactor_upload_form_into_single.md
+	modified:   docs/refactored_uploads_tus_parallel.md
 
 *** 
 releaseNotes20260530.txt

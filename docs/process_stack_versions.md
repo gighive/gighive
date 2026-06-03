@@ -1,0 +1,69 @@
+# Process: Stack Versions Report (`stack_versions`)
+
+**Date:** 2026-06-03
+**Status:** Approved, not yet implemented
+
+---
+
+## Purpose
+
+Add an Ansible task block that aggregates and displays the versions of every component in the GigHive deployment stack, analogous to a software "About" dialog (e.g. Windsurf's version info screen). The output appears in the Ansible log at the end of each full playbook run and can also be run standalone.
+
+---
+
+## Rationale
+
+### Why `post_build_checks`, not `validate_app`
+
+`validate_app` is assertion/test-focused (DB connectivity, file permissions, API correctness). A version summary is purely informational — no pass/fail assertions — so it fits the `post_build_checks` role, which already owns the system health dashboard (`summary` dict: NIC state, container status, memory, disk). Appending a "Stack Versions" block to that role keeps all deployment-state reporting in one place.
+
+### Tag: `stack_versions`
+
+The block is tagged `stack_versions` so it can be:
+- Skipped during partial runs: `--skip-tags stack_versions`
+- Run standalone after a deploy: `--tags stack_versions`
+
+### App version source: `VERSION` file
+
+The repo root `VERSION` file (currently a git commit hash, e.g. `de99f24`) is the canonical source for the backend app version. This is read on the controller at plan time via `lookup('file', repo_root ~ '/VERSION') | trim`, avoiding any dependency on git being installed on the target VM.
+
+### Static vs. runtime values
+
+Some values are fixed at deploy time and are authoritative from group_vars. Others must be queried from running containers to capture the exact installed version (e.g. the precise PHP 8.3.x patch level, not just "8.3").
+
+---
+
+## Component Source Table
+
+| Component | Source type | Source |
+|---|---|---|
+| GigHive App | File (controller) | `VERSION` file — `lookup('file', repo_root ~ '/VERSION') \| trim` |
+| GigHive iOS App | group_var (static) | `{{ gighive_ios_app_version }}` |
+| Ubuntu | group_var (static) | `{{ ubuntu_version }}` |
+| PHP | Runtime (container) | `docker exec {{ apache_container_name }} php --version` → first line |
+| Apache | Runtime (container) | `docker exec {{ apache_container_name }} apache2 -v` → first line |
+| MySQL | Runtime (container) | `docker exec {{ mysql_container_name }} mysql --version` |
+| tusd | Runtime (container) | `docker exec {{ apache_container_name }}_tusd tusd --version` |
+| Docker (host) | Runtime (host) | `docker --version` |
+| OpenAI Model | group_var (static) | `{{ openai_model }}` |
+| App Flavor | group_var (static) | `{{ app_flavor }}` |
+
+---
+
+## Files to Change
+
+| File | Change |
+|---|---|
+| `ansible/roles/post_build_checks/tasks/main.yml` | Append new `stack_versions`-tagged block at end of file |
+| `ansible/inventories/group_vars/gighive2/gighive2.yml` | Add `gighive_ios_app_version: "1.0.3 (7)"` |
+
+> **Note:** `gighive_ios_app_version` follows project convention — new vars go in group_vars, not role defaults.
+
+---
+
+## Implementation Notes
+
+- All version-query tasks use `changed_when: false` (read-only commands)
+- All version-query tasks use `failed_when: false` so a missing optional container (e.g. tusd when AI worker is disabled) does not abort the run — it will display as `N/A`
+- Output is a single `debug` block displaying all values together, mirroring the existing `summary` dict pattern already in `post_build_checks`
+- tusd query targets `{{ apache_container_name }}_tusd` consistent with how that container is named throughout the codebase
