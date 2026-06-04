@@ -111,24 +111,25 @@ Windsurf / Cascade
     ▼
 MCP Python process  ← spawned on-demand on Docker host; exits when session ends
     │
-    ├── TCP port 3306 (localhost) ──────────────► mysqlServer
-    │   mysql-connector-python, credentials from host .env
+    ├── TCP port 3306 (127.0.0.1) ─────────────► MySQL (Docker-exposed on host localhost)
+    │   mysql-connector-python, credentials from host .env via load_dotenv
+    │   host override: config.MYSQL_HOST = "127.0.0.1" (not DB_HOST=mysqlServer from .env)
     │   used by: tools 1–4, 6–9
-    │                                              (AI worker is also a client of
-    │                                               mysqlServer but is independent —
-    │                                               MCP reads the state it writes)
+    │                                              (AI worker connects to the same MySQL
+    │                                               instance from inside Docker; MCP reads
+    │                                               the state it writes)
     │
-    ├── HTTPS port 443 (localhost) ─────────────► apacheWebServer
-    │   calls PHP reconciliation endpoint
+    ├── Docker socket (unix:///var/run/docker.sock) ─► apacheWebServer container
+    │   subprocess: docker exec apacheWebServer cat /var/www/private/import_jobs/{job_id}/upload_status.json
     │   used by: tool 5 (get_upload_job_state) only
     │
     └── filesystem read (no network) ──────────► host .env file
-        used by: tool 10 (get_container_env_subset) only
+        used by: db.py (credential load at startup) + tool 10 (get_container_env_subset)
 ```
 
 Container names are consistent across the one-shot bundle and the full Ansible build.
 `apacheWebServer_tusd` and `gighive-...-ai-worker-1` are running peers on the same
-Docker network but the MCP server does not connect to them directly.
+Docker network but the MCP server does not connect to them via HTTP.
 
 ---
 
@@ -140,7 +141,7 @@ Docker network but the MCP server does not connect to them directly.
 | 2 | `get_failed_jobs` | ~20 lines | `refactored_tus_retry_delays_and_frame_extractor.md` — 5,800-file run | exact |
 | 3 | `get_stale_jobs` | ~10 lines | `refactored_ai_worker_parallelism_enable.md` — orphaned lock detection | needs validation |
 | 4 | `reset_retryable_jobs` | ~20 lines | `refactored_tus_retry_delays_and_frame_extractor.md` — post-fix re-queue | exact |
-| 5 | `get_upload_job_state` | ~25 lines | `refactored_upload_folder_messaging_server_monotonic_fix.md` — inflated pending count | needs validation |
+| 5 | `get_upload_job_state` | ~25 lines | `refactored_upload_folder_messaging_server_monotonic_fix.md` — inflated pending count | exact |
 | 6 | `search_assets_by_tag` | ~40 lines | Media librarian corpus search | needs validation |
 | 7 | `get_events` with coverage stats | ~25 lines | Media librarian planning | needs validation |
 | 8 | `get_untagged_assets` | ~15 lines | `api/ai_jobs.php` — pre-enqueue audit | exact |
@@ -241,14 +242,43 @@ checksums against `assets` to show how many are _actually_ already in the DB vs.
 pending. Surfaces the inflated-count issue conversationally.
 
 **Implementation note:** This tool needs access to `upload_status.json`, which lives
-inside the Apache container filesystem. The MCP server runs on the server host (not inside
-a container), so it calls the existing `import_manifest_upload_start.php` reconciliation
-endpoint via the Docker bridge network and reads the response — reusing the existing
-server-side reconciliation logic. Coding effort: ~25 lines.
+inside the Apache container filesystem. The MCP server runs on the host as the deploy
+user (who is in the `docker` group), so it reads the file directly via `docker exec`
+rather than calling the PHP HTTP endpoint:
 
-**SSL:** `apacheWebServer` serves on HTTPS port 443 with a self-signed certificate.
-Use `requests.get(..., verify=False)` — this is a localhost developer tool and strict
-cert validation is unnecessary overhead here.
+```python
+import subprocess, json
+
+raw = subprocess.check_output(
+    ["docker", "exec", "apacheWebServer", "cat", f"/var/www/private/import_jobs/{job_id}/upload_status.json"]
+)
+status = json.loads(raw)
+```
+
+**`upload_status.json` per-file `state` values** (confirmed from PHP source):
+
+| `state` value | Meaning | Tool 5 bucket |
+|---|---|---|
+| `pending` | Awaiting upload | `pending` |
+| `uploading` | TUS upload in progress (transient; reset to `pending` on resume) | `pending` |
+| `already_present` | Media + thumbnail + DB all confirmed at start time — no upload needed | `already_present` |
+| `db_done` | Audio: fully ingested to DB | `done` |
+| `thumbnail_done` | Video: ingested + thumbnail generated + in DB | `done` |
+| `uploaded` | Video: ingested + in DB, thumbnail not yet generated | `done` |
+| `failed` | Finalization failed (has `retryable` + `failure_code` sub-fields) | `failed` |
+
+Terminal success states in the PHP source: `['db_done', 'thumbnail_done', 'uploaded', 'already_present']`.
+
+The reconciliation is then a SQL query — the same pattern as every other tool.
+`already_present` is the "inflated pending" count: files the UI counted as pending
+but already fully ingested. This avoids HTTP auth entirely, removes the `requests` dependency, and keeps the access
+model consistent: host process + direct resource access. Coding effort: ~25 lines.
+
+**Implementation note (updated):** `docs/refactor_upload_jobs_from_json_to_db.md` is
+being implemented **before** the MCP server. When the MCP server is built, Tool 5 will
+be a pure `GROUP BY state` SQL query against `upload_job_files` — the `docker exec`
+approach above is not needed. See the Python snippet in that doc's "Outcome: MCP Tool 5"
+section for the exact implementation.
 
 ---
 
@@ -408,8 +438,9 @@ by the PHP TUS finalization hook when the last file completes. `get_upload_job_s
 already reconciles the job via the PHP endpoint; adding timing to that same record is
 a natural extension.
 
-Track as a future schema addition. Pointer: `docs/refactored_uploads_tus_parallel.md`
-(Testing section — the manual measurement steps this tool would replace).
+Track as a future schema addition. The schema and full implementation are designed in
+`docs/refactor_upload_jobs_from_json_to_db.md` — `upload_jobs.started_at` /
+`completed_at` plus `upload_job_files.size_bytes` are the exact columns needed.
 
 ---
 
@@ -428,8 +459,8 @@ The developer's physical machine (`baremetal` / `localhost` in the inventory) is
 Ansible controller only — it is not a deploy target and the MCP server does not run there.
 
 Because the MCP server process runs on the Docker host, it has direct access to:
-- MySQL via `localhost` (Docker-exposed port) or the Docker bridge network
-- The Apache/PHP container's HTTP port via `localhost`
+- MySQL via `127.0.0.1:3306` (Docker-exposed port — `"3306:3306"` in `docker-compose.yml.j2`)
+- The Apache container's filesystem via `docker exec` (deploy user is in the `docker` group)
 - The `.env` file on the local filesystem
 
 ### Connection flow — protocol and port at each hop
@@ -442,16 +473,17 @@ Windsurf / Cascade
     │  stdio over SSH — port 22 → gighive-server (~/.ssh/config alias)
     ▼
 MCP Python process  ← spawned on-demand on Docker host; exits when session ends
-    ├── TCP port 3306 (localhost) ──────────────► mysqlServer
-    │   mysql-connector-python, credentials from host .env
+    ├── TCP port 3306 (127.0.0.1) ─────────────► MySQL (Docker-exposed on host localhost)
+    │   mysql-connector-python, credentials from host .env via load_dotenv
+    │   host override: config.MYSQL_HOST = "127.0.0.1" (not DB_HOST=mysqlServer from .env)
     │   used by: tools 1–4, 6–9
     │
-    ├── HTTPS port 443 (localhost) ─────────────► apacheWebServer
-    │   calls import_manifest_upload_start.php reconciliation endpoint
+    ├── Docker socket (unix:///var/run/docker.sock) ─► apacheWebServer container
+    │   subprocess: docker exec apacheWebServer cat /var/www/private/import_jobs/{job_id}/upload_status.json
     │   used by: tool 5 (get_upload_job_state) only
     │
     └── filesystem read (no network) ──────────► host .env file
-        used by: tool 10 (get_container_env_subset) only
+        used by: db.py (credential load at startup) + tool 10 (get_container_env_subset)
 ```
 
 The developer's AI assistant (Windsurf/Cascade, Claude Desktop) connects to the MCP
@@ -483,18 +515,21 @@ container needed for this use case.
 Scope: All 10 tools, structured as an Ansible role. The MCP server runs as an on-demand
 process on the **server host** (not inside a Docker container) — spawned by the AI
 assistant via `stdio` over SSH. Ansible deploys the Python source files and a virtualenv
-to the server host. Because it runs on the host, it can reach MySQL and the PHP container
-via the Docker bridge network, and can read `.env` directly from the filesystem without
-crossing any container boundary. Deployed via `ansible/playbooks/site.yml` after `docker`
+to the server host. Because it runs on the host, it can reach MySQL via `127.0.0.1:3306`
+(Docker-exposed port), the Apache container filesystem via `docker exec`, and the `.env`
+file directly without crossing any container boundary. Deployed via `ansible/playbooks/site.yml` after `docker`
 and `ai_worker` (if enabled), gated by `mcp_server_enabled: false` in group_vars.
 
 **Ansible implementation pattern:** `ansible.builtin.file` creates the target directory;
 `ansible.posix.synchronize` syncs Python source (same `--exclude=__pycache__` pattern as
-`ai_worker`); `ansible.builtin.pip` with the `virtualenv` parameter creates the venv if
-absent and installs deps — fully idempotent, no reinstall if packages are already
-satisfied. No handler is needed: there is no daemon to restart, and `pip` is idempotent.
-The Docker-specific parts of the `ai_worker` role (`docker_compose_v2`, Compose template,
-restart handler) do not apply here.
+`ai_worker`, with `delete: yes`); `ansible.builtin.template` renders `config.py.j2` →
+`config.py` in `mcp_server_dir`; `ansible.builtin.pip` with the `virtualenv` parameter
+creates the venv if absent and installs deps — fully idempotent. No handler is needed:
+there is no daemon to restart. **Task ordering is critical:** `synchronize` must run
+before `template`, because `synchronize` with `delete: yes` would otherwise remove the
+just-rendered `config.py` (it is not in `files/mcp-server/`). The Docker-specific parts
+of the `ai_worker` role (`docker_compose_v2`, Compose template, restart handler) do not
+apply here.
 
 All 10 tools register unconditionally when `mcp_server_enabled: true`. The AI pipeline
 tools (`get_ai_queue_stats`, `get_failed_jobs`, `get_stale_jobs`, `reset_retryable_jobs`)
@@ -503,6 +538,49 @@ return empty results if no jobs have been enqueued, which is itself informative.
 `ai_worker_enabled` gating is applied to MCP tool registration.
 
 Implementation size estimate: ~360–460 lines of Python total.
+
+### Credentials and Authentication
+
+The MCP server is a developer process, not a service endpoint. **SSH authentication is
+the authentication layer** — the AI assistant SSH-spawns the process as the deploy user,
+who already has full access to the host. No new secrets, no new credentials.
+
+| Access needed | Mechanism | New secret? |
+|---------------|-----------|-------------|
+| MySQL (`DB_HOST`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`) | `load_dotenv(ENV_FILE)` at startup in `db.py` | No — reuses existing `.env` |
+| `upload_status.json` inside Apache container (tool 5) | `subprocess` → `docker exec apacheWebServer cat <path>` | No — deploy user is in `docker` group |
+| Host `.env` read (tool 10) | Direct filesystem read | No — same `.env` again |
+| The whole server | SSH key auth (existing) | No |
+
+**Credential loading pattern — `db.py` and `config.py`:**
+
+The MCP process is spawned via SSH and has no Docker-injected env vars. Ansible templates
+a `config.py.j2` that resolves `mcp_env_file` at deploy time and writes it as a constant
+into `config.py` on the host:
+
+```python
+# config.py — generated by Ansible from templates/config.py.j2
+ENV_FILE  = "/home/ubuntu/scripts/gighive/ansible/roles/docker/files/apache/externalConfigs/.env"
+MYSQL_HOST = "127.0.0.1"  # always localhost — MCP runs on the Docker host, not in a container
+MYSQL_PORT = 3306
+```
+
+`db.py` imports these constants: calls `load_dotenv(ENV_FILE)` at module level to pick
+up `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD` etc., but uses `config.MYSQL_HOST`
+and `config.MYSQL_PORT` for the connection host/port instead of `os.getenv('DB_HOST')`.
+
+**Why the host override is needed:** `DB_HOST=mysqlServer` in the `.env` is the Docker
+container name — valid only inside the Docker network. The MCP server runs on the host
+where `mysqlServer` does not resolve. MySQL is exposed on `localhost:3306` via the
+`"3306:3306"` port mapping in `docker-compose.yml.j2`, so `127.0.0.1:3306` is always
+correct for a host-side process. This requires `python-dotenv` in `requirements.txt`
+(replaces `requests`, which is no longer needed after the tool 5 `docker exec` change).
+
+**`get_container_env_subset` allowlist (tool 10):** The allowlist contains both key
+prefixes (`AI_`, `TUS_`) and one exact key name (`DB_HOST`). The implementation must
+handle both: strip any key whose name does not start with an allowed prefix or exactly
+match an allowed exact-key entry. `MYSQL_PASSWORD`, `OPENAI_API_KEY`, and similar
+secrets are never exposed regardless of what `keys[]` the caller passes.
 
 ---
 
@@ -515,15 +593,17 @@ Python source lives under `ansible/roles/mcp_server/files/mcp-server/`, mirrorin
 
 | File | Purpose |
 |------|---------|
-| `ansible/roles/mcp_server/tasks/main.yml` | Create `mcp_server_dir`, sync source via `synchronize`, install deps via `ansible.builtin.pip` + `virtualenv` |
-| `ansible/roles/mcp_server/tasks/validate.yml` | Assert venv exists, `server.py` present, `python -c "import mcp"` passes |
+| `ansible/roles/mcp_server/tasks/main.yml` | Create `mcp_server_dir`; sync source via `synchronize`; render `config.py.j2` via `ansible.builtin.template`; install deps via `ansible.builtin.pip` + `virtualenv` |
+| `ansible/roles/mcp_server/tasks/validate.yml` | Assert venv exists; `server.py` and `config.py` present; `python -c "import mcp"` passes |
 | `ansible/roles/mcp_server/files/mcp-server/server.py` | Entry point; registers all 10 tools; `stdio` transport loop |
 | `ansible/roles/mcp_server/files/mcp-server/db.py` | DB connection helper (pattern from `ai_worker/files/ai-worker/db.py`) |
 | `ansible/roles/mcp_server/files/mcp-server/tools/ai_pipeline.py` | `get_ai_queue_stats`, `get_failed_jobs`, `get_stale_jobs`, `reset_retryable_jobs` |
 | `ansible/roles/mcp_server/files/mcp-server/tools/media_library.py` | `search_assets_by_tag`, `get_events`, `get_untagged_assets`, `get_tag_namespace_summary` |
 | `ansible/roles/mcp_server/files/mcp-server/tools/upload_jobs.py` | `get_upload_job_state` |
+| `ansible/roles/mcp_server/files/mcp-server/tools/__init__.py` | Empty package marker; makes `tools/` importable as `from tools.ai_pipeline import ...` — mirrors `ai_worker` pattern (`adapters/__init__.py`, `helpers/__init__.py`) |
 | `ansible/roles/mcp_server/files/mcp-server/tools/system.py` | `get_container_env_subset` |
-| `ansible/roles/mcp_server/files/mcp-server/requirements.txt` | `mcp`, `mysql-connector-python`, `requests` |
+| `ansible/roles/mcp_server/files/mcp-server/requirements.txt` | `mcp`, `mysql-connector-python`, `python-dotenv` (replaces `requests` — no longer needed after tool 5 `docker exec` change) |
+| `ansible/roles/mcp_server/templates/config.py.j2` | Renders `config.py` on the host with `ENV_FILE`, `MYSQL_HOST = "127.0.0.1"`, and `MYSQL_PORT = 3306`; supplies credential path and host override that `db.py` needs when running outside Docker |
 | `ansible/roles/mcp_server/templates/README.md.j2` | Templated setup instructions — resolves `{{ mcp_server_dir }}` and `{{ ansible_host }}` at deploy time; how to register with Claude Desktop / Windsurf |
 
 ### Existing files that would need changes
@@ -533,7 +613,7 @@ Python source lives under `ansible/roles/mcp_server/files/mcp-server/`, mirrorin
 | `ansible/inventories/group_vars/gighive2/gighive2.yml`, `gighive/gighive.yml`, `prod/prod.yml` | Add `mcp_server_enabled: false`, `mcp_server_dir: "{{ gighive_home }}/mcp-server"`, and `mcp_env_file: "{{ gighive_home }}/ansible/roles/docker/files/apache/externalConfigs/.env"` to all three |
 | `ansible/playbooks/site.yml` | Add `mcp_server` role after `ai_worker`, conditional on `mcp_server_enabled` |
 | `ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql` | Add `source VARCHAR(64)` to `ai_jobs` table (deferred — see above) |
-| `docs/feature_mcp_server_beneficial.md` | This document |
+| `docs/feature_mcp_server.md` | This document |
 
 ### Existing files whose APIs the MCP server will call (no changes needed)
 
@@ -547,9 +627,10 @@ The PHP endpoints listed here are noted as reference for query parity:
 | `api/ai_jobs.php?action=enqueue_all_untagged` (read side) | `get_untagged_assets` |
 | `api/tags.php` | `get_tag_namespace_summary`, `search_assets_by_tag` |
 
-The MCP server connects directly to MySQL for performance and to avoid HTTP auth
-overhead in a local developer context. It uses the same `DB_HOST`, `MYSQL_DATABASE`,
-`MYSQL_USER`, `MYSQL_PASSWORD` env vars as the existing containers.
+The MCP server connects directly to MySQL for performance and consistency. It loads
+`MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD` from the same `.env` via `python-dotenv`,
+but overrides the host to `127.0.0.1` (see Credentials and Authentication — `DB_HOST=mysqlServer`
+in the `.env` is the Docker container name, not resolvable from the host).
 
 ---
 
@@ -573,7 +654,8 @@ ALTER TABLE events ADD COLUMN event_key CHAR(36) NOT NULL DEFAULT (UUID()) AFTER
                    ADD CONSTRAINT uq_events_key UNIQUE (event_key);
 ```
 
-Track as a future DB migration alongside the existing `ai_jobs.source` column proposal.
+Both are tracked as standalone refactor docs: `docs/refactor_ensure_event_add_event_key.md`
+(event_key) and `docs/refactor_ai_jobs_new_column_source.md` (ai_jobs.source).
 
 ---
 
@@ -607,12 +689,14 @@ build only, gated by `mcp_server_enabled: false`.
 
 ## Implementation Checklist
 
-- [ ] Create `ansible/roles/mcp_server/tasks/main.yml` — `file` for dir, `synchronize` for source, `pip` + `virtualenv` for deps (no handler needed)
-- [ ] Create `ansible/roles/mcp_server/tasks/validate.yml` — stat venv + `server.py`, verify `import mcp` passes; assert Python ≥ 3.10 (confirmed 3.12.3 on gighive2)
-- [ ] Write `files/mcp-server/db.py` — DB connection helper (copy pattern from `ai_worker/files/ai-worker/db.py`)
+- [ ] Create `ansible/roles/mcp_server/tasks/main.yml` — `file` for dir, `synchronize` for source, `template` for `config.py.j2` → `config.py`, `pip` + `virtualenv` for deps (no handler needed)
+- [ ] Create `ansible/roles/mcp_server/tasks/validate.yml` — stat venv + `server.py` + `config.py`, verify `import mcp` passes; assert Python ≥ 3.10 (confirmed 3.12.3 on gighive2)
+- [ ] Write `templates/config.py.j2` — renders `config.py` with `ENV_FILE = "{{ mcp_env_file }}"`, `MYSQL_HOST = "127.0.0.1"`, `MYSQL_PORT = 3306` (host-side override — `DB_HOST` in `.env` is the Docker container name `mysqlServer`, not resolvable from the host)
+- [ ] Write `files/mcp-server/db.py` — DB connection helper (copy pattern from `ai_worker/files/ai-worker/db.py`); call `load_dotenv(ENV_FILE)` at module level; use `config.MYSQL_HOST` / `config.MYSQL_PORT` for the connection (not `os.getenv('DB_HOST')`)
 - [ ] Write `files/mcp-server/tools/ai_pipeline.py` — `get_ai_queue_stats`, `get_failed_jobs`, `get_stale_jobs`, `reset_retryable_jobs`
 - [ ] Write `files/mcp-server/tools/media_library.py` — `search_assets_by_tag`, `get_events`, `get_untagged_assets`, `get_tag_namespace_summary`
-- [ ] Write `files/mcp-server/tools/upload_jobs.py` — `get_upload_job_state` (calls PHP reconciliation endpoint via Docker bridge)
+- [ ] Write `files/mcp-server/tools/upload_jobs.py` — `get_upload_job_state` (`docker exec apacheWebServer cat <path>` to read `upload_status.json`; reconciliation via SQL query against `assets`)
+- [ ] Create `files/mcp-server/tools/__init__.py` — empty file; makes `tools/` a Python package (mirrors `ai_worker` `adapters/__init__.py` pattern)
 - [ ] Write `files/mcp-server/tools/system.py` — `get_container_env_subset` (reads host `.env` directly)
 - [ ] Write `files/mcp-server/server.py` — entry point, registers all 10 tools, `stdio` transport
 - [ ] Add `mcp_server_enabled: false`, `mcp_server_dir`, and `mcp_env_file` to `group_vars/gighive2/gighive2.yml`, `gighive/gighive.yml`, `prod/prod.yml`; wire role into `site.yml` after `ai_worker`
@@ -633,6 +717,9 @@ build only, gated by `mcp_server_enabled: false`.
 - `docs/pr_librarianAsset_musicianEvent_completed.md` — Event/Asset hard cutover PRD (completed)
 - `docs/pr_librarianAsset_musicianEvent_completed_implementation.md` — Event/Asset cutover implementation plan (completed)
 - `docs/refactor_db_fix_event_metadata_duplication_completed.md` — event_key stop-gap (superseded by full cutover)
+- `docs/refactor_ensure_event_add_event_key.md` — `event_key` UUID migration plan for `events` table
+- `docs/refactor_ai_jobs_new_column_source.md` — `ai_jobs.source` column migration plan (MCP observability + admin UI routing fix)
+- `docs/refactor_upload_jobs_from_json_to_db.md` — migrate upload job state from `upload_status.json` to MySQL; unblocks Tool 5 as pure SQL and enables Deferred 2
 
 ---
 
@@ -648,7 +735,7 @@ All tool names in the Priority Summary and section headings above now use the ca
 | 2 | `get_failed_jobs` | Failed jobs with asset paths and grouped error patterns | `job_type?: str = "categorize_video"`, `limit?: int = 100` | `[{id, updated_at, error_msg, attempts, source_relpath, file_type}]` + error group summary |
 | 3 | `get_stale_jobs` | Jobs stuck in `running` longer than N minutes (orphan detection) | `minutes?: int = 30` | `[{id, locked_by, locked_at, attempts, source_relpath}]` |
 | 4 | `reset_retryable_jobs` | Re-queue failed jobs, excluding permanent-failure patterns | `exclude_patterns?: [str]` (default: `["VOB", ".m2v"]`), `dry_run?: bool = true` | `{rows_reset, excluded, dry_run}` |
-| 5 | `get_upload_job_state` | Reconcile `upload_status.json` against DB for a given job | `job_id: str` | `{pending, done, already_present, failed, discrepancy_count}` |
+| 5 | `get_upload_job_state` | Reconcile upload job state from DB for a given job | `job_id: str` | `{pending, done, already_present, failed}` |
 | 6 | `search_assets_by_tag` | Tag-filtered asset search across the corpus | `namespace?: str`, `tag_name?: str`, `event_date_from?: str`, `event_date_to?: str`, `limit?: int = 50` | `[{asset_id, source_relpath, duration_seconds, event_name, event_date, tags}]` |
 | 7 | `get_events` | Events list with per-event asset count and tag coverage | `org_name?: str`, `date_from?: str`, `date_to?: str` | `[{event_id, name, event_date, org_name, asset_count, tagged_count, untagged_count}]` |
 | 8 | `get_untagged_assets` | Assets with zero confirmed taggings | `limit?: int = 100` | `[{asset_id, source_relpath, file_type, event_name}]` + `{total_untagged}` |
@@ -683,14 +770,16 @@ synced to the Docker host (not into any container) by `ansible.builtin.synchroni
 
 ```
 ansible/roles/mcp_server/
-    tasks/main.yml              ← creates mcp_server_dir, syncs source, pip installs deps
-    tasks/validate.yml          ← verifies venv + server.py present
+    tasks/main.yml              ← creates mcp_server_dir, syncs source, renders config.py, pip installs deps
+    tasks/validate.yml          ← verifies venv + server.py + config.py present
+    templates/config.py.j2      ← renders config.py with ENV_FILE = "{{ mcp_env_file }}"
     templates/README.md.j2      ← rendered with resolved paths at deploy time
     files/mcp-server/           ← synced verbatim to {{ mcp_server_dir }} on the host
         server.py
         db.py
         requirements.txt
         tools/
+            __init__.py         ← makes tools/ a package; mirrors ai_worker adapters/__init__.py pattern
             ai_pipeline.py
             media_library.py
             upload_jobs.py
@@ -706,11 +795,13 @@ ansible/roles/mcp_server/
 ~/gighive/mcp-server/           ← {{ mcp_server_dir }}
     server.py
     db.py
+    config.py                   ← rendered from templates/config.py.j2; contains ENV_FILE path
     requirements.txt
     README.md                   ← rendered from templates/README.md.j2
     venv/                       ← created by ansible.builtin.pip + virtualenv parameter
         bin/python              ← the binary Windsurf SSH-spawns on-demand
     tools/
+        __init__.py
         ai_pipeline.py
         media_library.py
         upload_jobs.py
