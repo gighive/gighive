@@ -2,6 +2,7 @@
 
 **Date:** 2026-06-03  
 **Status:** Not started  
+**Schema prerequisite:** `docs/refactor_ai_jobs_upload_jobs_event_key_db_schema.md` — apply all DDL changes to each environment before implementing the code changes below.  
 **Related deferred items:**
 - `docs/refactored_ai_jobs_messaging.md` — "Known limitation" section (UI progress bar routing)
 - `docs/feature_mcp_server.md` — Deferred 1 (MCP observability)

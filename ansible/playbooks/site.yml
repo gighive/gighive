@@ -113,6 +113,9 @@
       tags: [ db_migrations ]
     - role: ai_worker
       tags: [ ai_worker ]
+    - role: mcp_server
+      tags: [ mcp_server ]
+      when: mcp_server_enabled | default(false) | bool
     - role: post_build_checks
       tags: [ post_build_checks ]
     - role: validate_app

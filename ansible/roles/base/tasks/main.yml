@@ -152,6 +152,7 @@
       - inotify-tools
       - python3-docker
       - python3-pip
+      - python3-venv
       - mysql-client
 
 - name: Install Docker Engine & Compose V2 plugin (distro packages)

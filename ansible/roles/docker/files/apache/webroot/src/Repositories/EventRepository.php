@@ -341,10 +341,12 @@ SQL;
             return $eid;
         }
         $ratingVal = ($rating !== '' && ctype_digit($rating)) ? (int)$rating : null;
-        $sql = 'INSERT INTO events (event_date, org_name, event_type, location, summary, rating, keywords)'
-             . ' VALUES (:date, :org, :etype, :location, :summary, :rating, :kw)';
+        $newKey = $this->generateUuid();
+        $sql = 'INSERT INTO events (event_key, event_date, org_name, event_type, location, summary, rating, keywords)'
+             . ' VALUES (:key, :date, :org, :etype, :location, :summary, :rating, :kw)';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
+            ':key'      => $newKey,
             ':date'     => $date,
             ':org'      => $orgName,
             ':etype'    => $eventType  !== '' ? $eventType  : null,
@@ -354,5 +356,13 @@ SQL;
             ':kw'       => $keywords   !== '' ? $keywords   : null,
         ]);
         return (int)$this->pdo->lastInsertId();
+    }
+
+    private function generateUuid(): string
+    {
+        $data    = random_bytes(16);
+        $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+        $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 }

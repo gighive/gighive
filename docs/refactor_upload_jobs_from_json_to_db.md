@@ -1,7 +1,8 @@
 # Refactor: Move Upload Job State from JSON Files to MySQL
 
 **Date:** 2026-06-03  
-**Status:** Not started  
+**Status:** Phase 1 complete, Phase 2 implemented (pending test)  
+**Schema prerequisite:** `docs/refactor_ai_jobs_upload_jobs_event_key_db_schema.md` — apply all DDL changes to each environment before implementing the code changes below.  
 **Related items:**
 - `docs/feature_mcp_server.md` — Tool 5 `get_upload_job_state`, Deferred 2 `get_upload_throughput_stats`
 - `docs/refactored_upload_folder_messaging_server_monotonic_fix.md` — inflated pending count debugging

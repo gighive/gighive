@@ -276,6 +276,7 @@
     tus_headers_common: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {} }}"
     tus_checks_no_log: "{{ tus_checks_no_log | default((ansible_verbosity | int) < 2) }}"
   changed_when: false
+  tags: [tus]
 
 - name: Verify tusd container is running
   community.docker.docker_container_info:
@@ -286,11 +287,13 @@
     - not tusd_container.container.State.Running
     - tusd_container.container.State.Restarting
   changed_when: false
+  tags: [tus]
 
 - name: Build internal tusd probe URL
   ansible.builtin.set_fact:
     tusd_internal_probe_url: "http://{{ apache_container_name }}_tusd:{{ tusd_port | default(8080) }}{{ tusd_base_path | default('/files') }}/"
   changed_when: false
+  tags: [tus]
 
 - name: Probe tusd directly via Docker DNS from inside apache container
   ansible.builtin.command: >

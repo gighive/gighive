@@ -1,0 +1,61 @@
+# GigHive MCP Server
+
+Deployed to: `{{ mcp_server_dir }}`  
+Target host: `{{ ansible_host }}`
+
+## Connecting an AI Assistant
+
+### 1. Ensure SSH alias is configured locally
+
+Add to `~/.ssh/config` on your local machine:
+
+```
+Host gighive-server
+    HostName {{ ansible_host }}
+    User {{ ansible_user }}
+    IdentityFile ~/.ssh/your_key
+```
+
+Verify: `ssh gighive-server echo ok`
+
+### 2. Register in Windsurf/Cascade
+
+Add to Windsurf MCP config (Settings → MCP Servers):
+
+```json
+{
+  "mcpServers": {
+    "gighive": {
+      "command": "ssh",
+      "args": ["gighive-server", "{{ mcp_server_dir }}/venv/bin/python", "{{ mcp_server_dir }}/server.py"]
+    }
+  }
+}
+```
+
+### 3. Register in Claude Desktop (Linux)
+
+Add the same `"mcpServers"` block to `~/.config/Claude/claude_desktop_config.json`.
+
+## Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_ai_queue_stats` | Aggregate queue state by status |
+| `get_jobs_failed` | Failed jobs with asset paths and error patterns |
+| `get_jobs_stale` | Jobs stuck in `running` (orphan detection) |
+| `reset_jobs_retryable` | Re-queue failed jobs (dry_run=true by default) |
+| `get_jobs_upload_ids` | List upload job IDs with status and file counts |
+| `get_jobs_upload_state` | Reconcile upload job state from DB |
+| `search_assets_by_tag` | Tag-filtered asset search across the corpus |
+| `get_events` | Events list with asset count and tag coverage |
+| `get_assets_untagged` | Assets with zero confirmed taggings |
+| `get_tag_namespace_summary` | Tag distribution across corpus |
+| `get_env_container_subset` | Read safe env vars from host .env |
+
+## Notes
+
+- The MCP server process is spawned on-demand and exits when the session ends.
+- No persistent daemon runs between sessions.
+- Credentials are loaded from `{{ mcp_env_file }}` at startup.
+- MySQL is reached via `127.0.0.1:3306` (Docker-exposed port on host).

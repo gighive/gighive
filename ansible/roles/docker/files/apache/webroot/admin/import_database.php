@@ -326,8 +326,8 @@ CREATE TEMPORARY TABLE IF NOT EXISTS song_files (
 "(song_id, file_id);\n" .
 
 "-- Canonicalize events from sessions (no checksums in 3A files CSV, assets/event_items skipped)\n" .
-"INSERT INTO events (event_date, org_name, event_type)\n" .
-"SELECT date, COALESCE(NULLIF(org_name,''), 'default'), COALESCE(NULLIF(event_type,''), 'band')\n" .
+"INSERT INTO events (event_key, event_date, org_name, event_type)\n" .
+"SELECT UUID(), date, COALESCE(NULLIF(org_name,''), 'default'), COALESCE(NULLIF(event_type,''), 'band')\n" .
 "FROM sessions;\n";
 
     if (@file_put_contents($sqlFile, $sql) === false) {

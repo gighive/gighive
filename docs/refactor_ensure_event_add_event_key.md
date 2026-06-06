@@ -5,7 +5,12 @@ description: Add stable event_key UUID to the canonical events table so event id
 # Refactor: Add `event_key` to `events` for Stable Event Identity
 
 **Date:** 2026-05-29  
-**Status:** Not started  
+**Status:** Partially unblocked — see note below  
+**Schema prerequisite:** `docs/refactor_ai_jobs_upload_jobs_event_key_db_schema.md` — apply all DDL changes to each environment before implementing the code changes below.  
+
+> **Unblock fix applied 2026-06-05:** The schema was deployed (via `create_music_db.sql` fresh install on gighive2) before the PHP code was ready, causing `SQLSTATE[HY000]: General error: 1364 Field 'event_key' doesn't have a default value` on every TUS finalize call. A minimal fix was applied to `EventRepository::ensureEvent()`: added a private `generateUuid()` method (RFC 4122 v4, `random_bytes`-based) and included `event_key` in the INSERT column list. Return type remains `int`; no callers changed. This fix is a subset of the full refactor below and will be **superseded entirely** when this doc is implemented.
+
+
 **Supersedes:** `docs/refactor_db_fix_event_metadata_duplication_completed.md` (that doc targeted the legacy `sessions` table, which no longer exists; this doc targets the canonical `events` table)
 
 ---

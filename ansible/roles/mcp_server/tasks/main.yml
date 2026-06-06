@@ -1,0 +1,49 @@
+---
+- name: Create mcp-server directory on host
+  ansible.builtin.file:
+    path: "{{ mcp_server_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  when: mcp_server_enabled | default(false) | bool
+
+- name: Sync mcp-server Python source to host
+  ansible.posix.synchronize:
+    src: "mcp-server/"
+    dest: "{{ mcp_server_dir }}/"
+    delete: yes
+    rsync_opts:
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--exclude=config.py"
+  when: mcp_server_enabled | default(false) | bool
+
+- name: Render config.py from template
+  ansible.builtin.template:
+    src: config.py.j2
+    dest: "{{ mcp_server_dir }}/config.py"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when: mcp_server_enabled | default(false) | bool
+
+- name: Install mcp-server Python dependencies into virtualenv
+  ansible.builtin.pip:
+    requirements: "{{ mcp_server_dir }}/requirements.txt"
+    virtualenv: "{{ mcp_server_dir }}/venv"
+    virtualenv_command: python3 -m venv
+  when: mcp_server_enabled | default(false) | bool
+
+- name: Render mcp-server README
+  ansible.builtin.template:
+    src: README.md.j2
+    dest: "{{ mcp_server_dir }}/README.md"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when: mcp_server_enabled | default(false) | bool
+
+- name: Run mcp_server role validation
+  ansible.builtin.include_tasks: validate.yml
+  when: mcp_server_enabled | default(false) | bool

@@ -74,9 +74,9 @@ would have looked like as an MCP tool call.
 
 | Doc | Manual work done | MCP equivalent |
 |-----|-----------------|----------------|
-| `refactored_tus_retry_delays_and_frame_extractor.md` | Inspected `ai_jobs` after 5,800-file run with `docker exec mysql` JOIN query to find failed jobs and ffmpeg error messages; discovered bugs in `frame_extractor.py` from error text | `get_failed_jobs` → returns `{id, error_msg, source_relpath}` rows with error clustering |
-| `refactored_ai_worker_parallelism_enable.md` | Iterated `AI_WORKER_CONCURRENCY` by running `docker stats`, `sar -u 1 3`, `vmstat`, live `docker logs -f` to find the 3-thread CPU ceiling on a 4-core host; 818-job queue | `get_ai_queue_stats` + `get_container_env_subset` → queue depth plus current concurrency env var values in one exchange |
-| `refactored_upload_folder_messaging_server_monotonic_fix.md` | Debugged inflated pending count (77 → 175 files after Restart Upload) by cross-referencing `upload_status.json` on disk with the `assets` table; required manual `docker exec` into both containers | `get_upload_job_state(job_id)` → `{pending, done, already_present, failed}` counts reconciled against DB |
+| `refactored_tus_retry_delays_and_frame_extractor.md` | Inspected `ai_jobs` after 5,800-file run with `docker exec mysql` JOIN query to find failed jobs and ffmpeg error messages; discovered bugs in `frame_extractor.py` from error text | `get_jobs_failed` → returns `{id, error_msg, source_relpath}` rows with error clustering |
+| `refactored_ai_worker_parallelism_enable.md` | Iterated `AI_WORKER_CONCURRENCY` by running `docker stats`, `sar -u 1 3`, `vmstat`, live `docker logs -f` to find the 3-thread CPU ceiling on a 4-core host; 818-job queue | `get_ai_queue_stats` + `get_env_container_subset` → queue depth plus current concurrency env var values in one exchange |
+| `refactored_upload_folder_messaging_server_monotonic_fix.md` | Debugged inflated pending count (77 → 175 files after Restart Upload) by cross-referencing `upload_status.json` on disk with the `assets` table; required manual `docker exec` into both containers | `get_jobs_upload_state(job_id)` → `{pending, done, already_present, failed}` counts reconciled against DB |
 | `refactored_uploads_tus_parallel.md` | Measured baseline vs. parallel upload performance manually; tuned `tus_client_parallel_uploads`; verified via browser Network tab per-file timing | *(no MCP tool in current scope — a `get_upload_throughput_stats` tool would require per-file upload timing columns not yet in the schema; deferred)* |
 | `refactored_ai_jobs_messaging.md` | Discovered the 500-row cap bug (UI polling fetched rows, silently capped at 500, so 818-job queue showed wrong counts); "complete" counter stuck at 0 on resume | `get_ai_queue_stats` (aggregate `GROUP BY status`) is correct _by construction_ — cannot hit a row cap |
 
@@ -114,17 +114,13 @@ MCP Python process  ← spawned on-demand on Docker host; exits when session end
     ├── TCP port 3306 (127.0.0.1) ─────────────► MySQL (Docker-exposed on host localhost)
     │   mysql-connector-python, credentials from host .env via load_dotenv
     │   host override: config.MYSQL_HOST = "127.0.0.1" (not DB_HOST=mysqlServer from .env)
-    │   used by: tools 1–4, 6–9
+    │   used by: tools 1–11
     │                                              (AI worker connects to the same MySQL
     │                                               instance from inside Docker; MCP reads
     │                                               the state it writes)
     │
-    ├── Docker socket (unix:///var/run/docker.sock) ─► apacheWebServer container
-    │   subprocess: docker exec apacheWebServer cat /var/www/private/import_jobs/{job_id}/upload_status.json
-    │   used by: tool 5 (get_upload_job_state) only
-    │
     └── filesystem read (no network) ──────────► host .env file
-        used by: db.py (credential load at startup) + tool 10 (get_container_env_subset)
+        used by: db.py (credential load at startup) + tool 11 (get_env_container_subset)
 ```
 
 Container names are consistent across the one-shot bundle and the full Ansible build.
@@ -138,15 +134,15 @@ Docker network but the MCP server does not connect to them via HTTP.
 | # | Tool | Effort | Primary driver | Query |
 |---|------|--------|----------------|-------|
 | 1 | `get_ai_queue_stats` | ~15 lines | `refactored_ai_jobs_messaging.md` — 500-cap bug | exact |
-| 2 | `get_failed_jobs` | ~20 lines | `refactored_tus_retry_delays_and_frame_extractor.md` — 5,800-file run | exact |
-| 3 | `get_stale_jobs` | ~10 lines | `refactored_ai_worker_parallelism_enable.md` — orphaned lock detection | needs validation |
-| 4 | `reset_retryable_jobs` | ~20 lines | `refactored_tus_retry_delays_and_frame_extractor.md` — post-fix re-queue | exact |
-| 5 | `get_upload_job_state` | ~25 lines | `refactored_upload_folder_messaging_server_monotonic_fix.md` — inflated pending count | exact |
+| 2 | `get_jobs_failed` | ~20 lines | `refactored_tus_retry_delays_and_frame_extractor.md` — 5,800-file run | exact |
+| 3 | `get_jobs_stale` | ~10 lines | `refactored_ai_worker_parallelism_enable.md` — orphaned lock detection | needs validation |
+| 4 | `reset_jobs_retryable` | ~20 lines | `refactored_tus_retry_delays_and_frame_extractor.md` — post-fix re-queue | exact |
+| 5 | `get_jobs_upload_state` | ~25 lines | `refactored_upload_folder_messaging_server_monotonic_fix.md` — inflated pending count | exact |
 | 6 | `search_assets_by_tag` | ~40 lines | Media librarian corpus search | needs validation |
 | 7 | `get_events` with coverage stats | ~25 lines | Media librarian planning | needs validation |
-| 8 | `get_untagged_assets` | ~15 lines | `api/ai_jobs.php` — pre-enqueue audit | exact |
+| 8 | `get_assets_untagged` | ~15 lines | `api/ai_jobs.php` — pre-enqueue audit | exact |
 | 9 | `get_tag_namespace_summary` | ~10 lines | `api/tags.php` — corpus quality review | exact |
-| 10 | `get_container_env_subset` | ~20 lines | `refactored_ai_worker_parallelism_enable.md` — env var inspection | needs validation |
+| 10 | `get_env_container_subset` | ~20 lines | `refactored_ai_worker_parallelism_enable.md` — env var inspection | needs validation |
 
 **Query legend:**
 - **exact** — query sourced directly from a source `.md` refactor doc or existing PHP API file read during this analysis
@@ -171,7 +167,7 @@ WHERE job_type='categorize_video' GROUP BY status
 
 ---
 
-### Priority 2 — `get_failed_jobs` (with asset paths and error clustering)
+### Priority 2 — `get_jobs_failed` (with asset paths and error clustering)
 
 **Rationale:** The exact query written manually during the 5,800-file debugging session
 (from `refactored_tus_retry_delays_and_frame_extractor.md`). Identifies both retryable
@@ -196,7 +192,7 @@ reading every row.
 
 ---
 
-### Priority 3 — `get_stale_jobs` (running > N minutes — orphaned lock detection)
+### Priority 3 — `get_jobs_stale` (running > N minutes — orphaned lock detection)
 
 **Rationale:** Stale `running` jobs after a container crash or SIGKILL are a recurring
 operational issue (the `reset_stale_running_jobs` function in `db.py` handles this at
@@ -214,7 +210,7 @@ WHERE j.status = 'running'
 
 ---
 
-### Priority 4 — `reset_retryable_jobs` (the one write tool)
+### Priority 4 — `reset_jobs_retryable` (the one write tool)
 
 **Rationale:** The exact `UPDATE` command from `refactored_tus_retry_delays_and_frame_extractor.md`
 run manually after deploying the `frame_extractor.py` fix. Resets failed jobs to `queued`
@@ -234,28 +230,17 @@ the response.
 
 ---
 
-### Priority 5 — `get_upload_job_state(job_id)` (upload progress reconciliation)
+### Priority 5 — `get_jobs_upload_state(job_id)` (upload progress reconciliation)
 
 **Rationale:** The core diagnostic from `refactored_upload_folder_messaging_server_monotonic_fix.md`.
-Reads `upload_status.json` from the container filesystem and cross-references `pending`
-checksums against `assets` to show how many are _actually_ already in the DB vs. genuinely
-pending. Surfaces the inflated-count issue conversationally.
+Queries `upload_job_files` and cross-references `state` values to show how many files are
+_actually_ done vs. genuinely pending. Surfaces the inflated-count issue conversationally.
 
-**Implementation note:** This tool needs access to `upload_status.json`, which lives
-inside the Apache container filesystem. The MCP server runs on the host as the deploy
-user (who is in the `docker` group), so it reads the file directly via `docker exec`
-rather than calling the PHP HTTP endpoint:
+**Original design (superseded):** The initial design read `upload_status.json` from the Apache
+container via `docker exec`. This was never implemented — `docs/refactor_upload_jobs_from_json_to_db.md`
+migrated upload state to the `upload_job_files` table before the MCP server was built.
 
-```python
-import subprocess, json
-
-raw = subprocess.check_output(
-    ["docker", "exec", "apacheWebServer", "cat", f"/var/www/private/import_jobs/{job_id}/upload_status.json"]
-)
-status = json.loads(raw)
-```
-
-**`upload_status.json` per-file `state` values** (confirmed from PHP source):
+**`upload_job_files.state` values** (confirmed from PHP source):
 
 | `state` value | Meaning | Tool 5 bucket |
 |---|---|---|
@@ -274,10 +259,9 @@ The reconciliation is then a SQL query — the same pattern as every other tool.
 but already fully ingested. This avoids HTTP auth entirely, removes the `requests` dependency, and keeps the access
 model consistent: host process + direct resource access. Coding effort: ~25 lines.
 
-**Implementation note (updated):** `docs/refactor_upload_jobs_from_json_to_db.md` is
-being implemented **before** the MCP server. When the MCP server is built, Tool 5 will
-be a pure `GROUP BY state` SQL query against `upload_job_files` — the `docker exec`
-approach above is not needed. See the Python snippet in that doc's "Outcome: MCP Tool 5"
+**Implementation (as built):** `docs/refactor_upload_jobs_from_json_to_db.md` was implemented
+before the MCP server. `get_jobs_upload_state` (canonical tool #6) is a pure `GROUP BY state`
+SQL query against `upload_job_files`. See the Python snippet in that doc's "Outcome: MCP Tool 5"
 section for the exact implementation.
 
 ---
@@ -335,7 +319,7 @@ ORDER BY e.event_date DESC
 
 ---
 
-### Priority 8 — `get_untagged_assets` (assets with zero taggings)
+### Priority 8 — `get_assets_untagged` (assets with zero taggings)
 
 **Rationale:** Pre-existing logic lives in `api/ai_jobs.php` `enqueue_all_untagged` action.
 A read-only version is useful before deciding to enqueue. Coding effort: ~15 lines.
@@ -434,7 +418,7 @@ What is needed is one of:
 - Or per-asset upload timing: `upload_started_at`, `upload_completed_at` on `assets`
 
 **Design note:** The simpler option is `upload_sessions` — one row per upload job, written
-by the PHP TUS finalization hook when the last file completes. `get_upload_job_state`
+by the PHP TUS finalization hook when the last file completes. `get_jobs_upload_state`
 already reconciles the job via the PHP endpoint; adding timing to that same record is
 a natural extension.
 
@@ -460,7 +444,6 @@ Ansible controller only — it is not a deploy target and the MCP server does no
 
 Because the MCP server process runs on the Docker host, it has direct access to:
 - MySQL via `127.0.0.1:3306` (Docker-exposed port — `"3306:3306"` in `docker-compose.yml.j2`)
-- The Apache container's filesystem via `docker exec` (deploy user is in the `docker` group)
 - The `.env` file on the local filesystem
 
 ### Connection flow — protocol and port at each hop
@@ -476,14 +459,10 @@ MCP Python process  ← spawned on-demand on Docker host; exits when session end
     ├── TCP port 3306 (127.0.0.1) ─────────────► MySQL (Docker-exposed on host localhost)
     │   mysql-connector-python, credentials from host .env via load_dotenv
     │   host override: config.MYSQL_HOST = "127.0.0.1" (not DB_HOST=mysqlServer from .env)
-    │   used by: tools 1–4, 6–9
-    │
-    ├── Docker socket (unix:///var/run/docker.sock) ─► apacheWebServer container
-    │   subprocess: docker exec apacheWebServer cat /var/www/private/import_jobs/{job_id}/upload_status.json
-    │   used by: tool 5 (get_upload_job_state) only
+    │   used by: tools 1–11
     │
     └── filesystem read (no network) ──────────► host .env file
-        used by: db.py (credential load at startup) + tool 10 (get_container_env_subset)
+        used by: db.py (credential load at startup) + tool 11 (get_env_container_subset)
 ```
 
 The developer's AI assistant (Windsurf/Cascade, Claude Desktop) connects to the MCP
@@ -532,7 +511,7 @@ of the `ai_worker` role (`docker_compose_v2`, Compose template, restart handler)
 apply here.
 
 All 10 tools register unconditionally when `mcp_server_enabled: true`. The AI pipeline
-tools (`get_ai_queue_stats`, `get_failed_jobs`, `get_stale_jobs`, `reset_retryable_jobs`)
+tools (`get_ai_queue_stats`, `get_jobs_failed`, `get_jobs_stale`, `reset_jobs_retryable`)
 query tables that always exist in the schema regardless of `ai_worker_enabled` — they
 return empty results if no jobs have been enqueued, which is itself informative. No
 `ai_worker_enabled` gating is applied to MCP tool registration.
@@ -548,8 +527,7 @@ who already has full access to the host. No new secrets, no new credentials.
 | Access needed | Mechanism | New secret? |
 |---------------|-----------|-------------|
 | MySQL (`DB_HOST`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`) | `load_dotenv(ENV_FILE)` at startup in `db.py` | No — reuses existing `.env` |
-| `upload_status.json` inside Apache container (tool 5) | `subprocess` → `docker exec apacheWebServer cat <path>` | No — deploy user is in `docker` group |
-| Host `.env` read (tool 10) | Direct filesystem read | No — same `.env` again |
+| Host `.env` read (tool 11) | Direct filesystem read | No — same `.env` again |
 | The whole server | SSH key auth (existing) | No |
 
 **Credential loading pattern — `db.py` and `config.py`:**
@@ -574,9 +552,9 @@ container name — valid only inside the Docker network. The MCP server runs on 
 where `mysqlServer` does not resolve. MySQL is exposed on `localhost:3306` via the
 `"3306:3306"` port mapping in `docker-compose.yml.j2`, so `127.0.0.1:3306` is always
 correct for a host-side process. This requires `python-dotenv` in `requirements.txt`
-(replaces `requests`, which is no longer needed after the tool 5 `docker exec` change).
+(replaces `requests`, which is no longer needed).
 
-**`get_container_env_subset` allowlist (tool 10):** The allowlist contains both key
+**`get_env_container_subset` allowlist (tool 11):** The allowlist contains both key
 prefixes (`AI_`, `TUS_`) and one exact key name (`DB_HOST`). The implementation must
 handle both: strip any key whose name does not start with an allowed prefix or exactly
 match an allowed exact-key entry. `MYSQL_PASSWORD`, `OPENAI_API_KEY`, and similar
@@ -593,16 +571,16 @@ Python source lives under `ansible/roles/mcp_server/files/mcp-server/`, mirrorin
 
 | File | Purpose |
 |------|---------|
-| `ansible/roles/mcp_server/tasks/main.yml` | Create `mcp_server_dir`; sync source via `synchronize`; render `config.py.j2` via `ansible.builtin.template`; install deps via `ansible.builtin.pip` + `virtualenv` |
+| `ansible/roles/mcp_server/tasks/main.yml` | Create `mcp_server_dir`; sync source via `synchronize`; render `config.py.j2` via `ansible.builtin.template`; install deps via `ansible.builtin.pip` + `virtualenv`; requires `python3-venv` system package (installed by `base` role) |
 | `ansible/roles/mcp_server/tasks/validate.yml` | Assert venv exists; `server.py` and `config.py` present; `python -c "import mcp"` passes |
-| `ansible/roles/mcp_server/files/mcp-server/server.py` | Entry point; registers all 10 tools; `stdio` transport loop |
+| `ansible/roles/mcp_server/files/mcp-server/server.py` | Entry point; registers all 11 tools; `stdio` transport loop |
 | `ansible/roles/mcp_server/files/mcp-server/db.py` | DB connection helper (pattern from `ai_worker/files/ai-worker/db.py`) |
-| `ansible/roles/mcp_server/files/mcp-server/tools/ai_pipeline.py` | `get_ai_queue_stats`, `get_failed_jobs`, `get_stale_jobs`, `reset_retryable_jobs` |
-| `ansible/roles/mcp_server/files/mcp-server/tools/media_library.py` | `search_assets_by_tag`, `get_events`, `get_untagged_assets`, `get_tag_namespace_summary` |
-| `ansible/roles/mcp_server/files/mcp-server/tools/upload_jobs.py` | `get_upload_job_state` |
+| `ansible/roles/mcp_server/files/mcp-server/tools/ai_pipeline.py` | `get_ai_queue_stats`, `get_jobs_failed`, `get_jobs_stale`, `reset_jobs_retryable` |
+| `ansible/roles/mcp_server/files/mcp-server/tools/media_library.py` | `search_assets_by_tag`, `get_events`, `get_assets_untagged`, `get_tag_namespace_summary` |
+| `ansible/roles/mcp_server/files/mcp-server/tools/upload_jobs.py` | `get_jobs_upload_ids`, `get_jobs_upload_state` |
 | `ansible/roles/mcp_server/files/mcp-server/tools/__init__.py` | Empty package marker; makes `tools/` importable as `from tools.ai_pipeline import ...` — mirrors `ai_worker` pattern (`adapters/__init__.py`, `helpers/__init__.py`) |
-| `ansible/roles/mcp_server/files/mcp-server/tools/system.py` | `get_container_env_subset` |
-| `ansible/roles/mcp_server/files/mcp-server/requirements.txt` | `mcp`, `mysql-connector-python`, `python-dotenv` (replaces `requests` — no longer needed after tool 5 `docker exec` change) |
+| `ansible/roles/mcp_server/files/mcp-server/tools/system.py` | `get_env_container_subset` |
+| `ansible/roles/mcp_server/files/mcp-server/requirements.txt` | `mcp`, `mysql-connector-python`, `python-dotenv` (replaces `requests` — no longer needed) |
 | `ansible/roles/mcp_server/templates/config.py.j2` | Renders `config.py` on the host with `ENV_FILE`, `MYSQL_HOST = "127.0.0.1"`, and `MYSQL_PORT = 3306`; supplies credential path and host override that `db.py` needs when running outside Docker |
 | `ansible/roles/mcp_server/templates/README.md.j2` | Templated setup instructions — resolves `{{ mcp_server_dir }}` and `{{ ansible_host }}` at deploy time; how to register with Claude Desktop / Windsurf |
 
@@ -623,8 +601,8 @@ The PHP endpoints listed here are noted as reference for query parity:
 | File | MCP tool that mirrors it |
 |------|------------------------|
 | `api/ai_jobs.php?action=status_counts` | `get_ai_queue_stats` |
-| `api/ai_jobs.php?status=failed` | `get_failed_jobs` |
-| `api/ai_jobs.php?action=enqueue_all_untagged` (read side) | `get_untagged_assets` |
+| `api/ai_jobs.php?status=failed` | `get_jobs_failed` |
+| `api/ai_jobs.php?action=enqueue_all_untagged` (read side) | `get_assets_untagged` |
 | `api/tags.php` | `get_tag_namespace_summary`, `search_assets_by_tag` |
 
 The MCP server connects directly to MySQL for performance and consistency. It loads
@@ -693,11 +671,11 @@ build only, gated by `mcp_server_enabled: false`.
 - [ ] Create `ansible/roles/mcp_server/tasks/validate.yml` — stat venv + `server.py` + `config.py`, verify `import mcp` passes; assert Python ≥ 3.10 (confirmed 3.12.3 on gighive2)
 - [ ] Write `templates/config.py.j2` — renders `config.py` with `ENV_FILE = "{{ mcp_env_file }}"`, `MYSQL_HOST = "127.0.0.1"`, `MYSQL_PORT = 3306` (host-side override — `DB_HOST` in `.env` is the Docker container name `mysqlServer`, not resolvable from the host)
 - [ ] Write `files/mcp-server/db.py` — DB connection helper (copy pattern from `ai_worker/files/ai-worker/db.py`); call `load_dotenv(ENV_FILE)` at module level; use `config.MYSQL_HOST` / `config.MYSQL_PORT` for the connection (not `os.getenv('DB_HOST')`)
-- [ ] Write `files/mcp-server/tools/ai_pipeline.py` — `get_ai_queue_stats`, `get_failed_jobs`, `get_stale_jobs`, `reset_retryable_jobs`
-- [ ] Write `files/mcp-server/tools/media_library.py` — `search_assets_by_tag`, `get_events`, `get_untagged_assets`, `get_tag_namespace_summary`
-- [ ] Write `files/mcp-server/tools/upload_jobs.py` — `get_upload_job_state` (`docker exec apacheWebServer cat <path>` to read `upload_status.json`; reconciliation via SQL query against `assets`)
+- [ ] Write `files/mcp-server/tools/ai_pipeline.py` — `get_ai_queue_stats`, `get_jobs_failed`, `get_jobs_stale`, `reset_jobs_retryable`
+- [ ] Write `files/mcp-server/tools/media_library.py` — `search_assets_by_tag`, `get_events`, `get_assets_untagged`, `get_tag_namespace_summary`
+- [ ] Write `files/mcp-server/tools/upload_jobs.py` — `get_jobs_upload_ids` (list job IDs for discovery), `get_jobs_upload_state` (`docker exec apacheWebServer cat <path>` to read `upload_status.json`; reconciliation via SQL query against `assets`)
 - [ ] Create `files/mcp-server/tools/__init__.py` — empty file; makes `tools/` a Python package (mirrors `ai_worker` `adapters/__init__.py` pattern)
-- [ ] Write `files/mcp-server/tools/system.py` — `get_container_env_subset` (reads host `.env` directly)
+- [ ] Write `files/mcp-server/tools/system.py` — `get_env_container_subset` (reads host `.env` directly)
 - [ ] Write `files/mcp-server/server.py` — entry point, registers all 10 tools, `stdio` transport
 - [ ] Add `mcp_server_enabled: false`, `mcp_server_dir`, and `mcp_env_file` to `group_vars/gighive2/gighive2.yml`, `gighive/gighive.yml`, `prod/prod.yml`; wire role into `site.yml` after `ai_worker`
 - [ ] Write `templates/README.md.j2` — templated SSH config entry; resolves `{{ mcp_server_dir }}` and `{{ ansible_host }}` at deploy time
@@ -725,39 +703,40 @@ build only, gated by `mcp_server_enabled: false`.
 
 ## GigHive MCP Tools Reference
 
-**"Function" is the correct term.** In MCP, each tool is registered with a `name` and called by the AI assistant exactly like a function — the assistant passes typed arguments and receives a structured response. The table below formalizes the ten priority tools with consistent naming, their inputs, and what they return.
+**"Function" is the correct term.** In MCP, each tool is registered with a `name` and called by the AI assistant exactly like a function — the assistant passes typed arguments and receives a structured response. The table below formalizes the eleven tools with consistent naming, their inputs, and what they return.
 
 All tool names in the Priority Summary and section headings above now use the canonical names defined here.
 
 | # | Tool (function name) | Description | Inputs | Returns |
 |---|---------------------|-------------|--------|---------|
 | 1 | `get_ai_queue_stats` | Aggregate queue state by status | `job_type?: str = "categorize_video"` | `{queued, running, done, failed, total}` |
-| 2 | `get_failed_jobs` | Failed jobs with asset paths and grouped error patterns | `job_type?: str = "categorize_video"`, `limit?: int = 100` | `[{id, updated_at, error_msg, attempts, source_relpath, file_type}]` + error group summary |
-| 3 | `get_stale_jobs` | Jobs stuck in `running` longer than N minutes (orphan detection) | `minutes?: int = 30` | `[{id, locked_by, locked_at, attempts, source_relpath}]` |
-| 4 | `reset_retryable_jobs` | Re-queue failed jobs, excluding permanent-failure patterns | `exclude_patterns?: [str]` (default: `["VOB", ".m2v"]`), `dry_run?: bool = true` | `{rows_reset, excluded, dry_run}` |
-| 5 | `get_upload_job_state` | Reconcile upload job state from DB for a given job | `job_id: str` | `{pending, done, already_present, failed}` |
-| 6 | `search_assets_by_tag` | Tag-filtered asset search across the corpus | `namespace?: str`, `tag_name?: str`, `event_date_from?: str`, `event_date_to?: str`, `limit?: int = 50` | `[{asset_id, source_relpath, duration_seconds, event_name, event_date, tags}]` |
-| 7 | `get_events` | Events list with per-event asset count and tag coverage | `org_name?: str`, `date_from?: str`, `date_to?: str` | `[{event_id, name, event_date, org_name, asset_count, tagged_count, untagged_count}]` |
-| 8 | `get_untagged_assets` | Assets with zero confirmed taggings | `limit?: int = 100` | `[{asset_id, source_relpath, file_type, event_name}]` + `{total_untagged}` |
-| 9 | `get_tag_namespace_summary` | Tag distribution across corpus grouped by namespace | `namespace?: str` | `[{namespace, name, usage_count}]` |
-| 10 | `get_container_env_subset` | Read safe env vars from the host `.env` file (secrets never exposed) | `keys: [str]` (must match allowed prefixes: `AI_`, `TUS_`, `DB_HOST`) | `{key: value, ...}` |
+| 2 | `get_jobs_failed` | Failed jobs with asset paths and grouped error patterns | `job_type?: str = "categorize_video"`, `limit?: int = 100` | `[{id, updated_at, error_msg, attempts, source_relpath, file_type}]` + error group summary |
+| 3 | `get_jobs_stale` | Jobs stuck in `running` longer than N minutes (orphan detection) | `minutes?: int = 30` | `[{id, locked_by, locked_at, attempts, source_relpath}]` |
+| 4 | `reset_jobs_retryable` | Re-queue failed jobs, excluding permanent-failure patterns | `exclude_patterns?: [str]` (default: `["VOB", ".m2v"]`), `dry_run?: bool = true` | `{rows_reset, excluded, dry_run}` |
+| 5 | `get_jobs_upload_ids` | List upload job IDs with status and file counts | `limit?: int = 50` | `[{job_id, status, total_files, started_at, completed_at}]` |
+| 6 | `get_jobs_upload_state` | Reconcile upload job state from DB for a given job | `job_id: str` | `{pending, done, already_present, failed}` |
+| 7 | `search_assets_by_tag` | Tag-filtered asset search across the corpus | `namespace?: str`, `tag_name?: str`, `event_date_from?: str`, `event_date_to?: str`, `limit?: int = 50` | `[{asset_id, source_relpath, duration_seconds, event_name, event_date, tags}]` |
+| 8 | `get_events` | Events list with per-event asset count and tag coverage | `org_name?: str`, `date_from?: str`, `date_to?: str` | `[{event_id, name, event_date, org_name, asset_count, tagged_count, untagged_count}]` |
+| 9 | `get_assets_untagged` | Assets with zero confirmed taggings | `limit?: int = 100` | `[{asset_id, source_relpath, file_type, event_name}]` + `{total_untagged}` |
+| 10 | `get_tag_namespace_summary` | Tag distribution across corpus grouped by namespace | `namespace?: str` | `[{namespace, name, usage_count}]` |
+| 11 | `get_env_container_subset` | Read safe env vars from the host `.env` file (secrets never exposed) | `keys: [str]` (must match allowed prefixes: `AI_`, `TUS_`, `DB_HOST`) | `{key: value, ...}` |
 
 ### Naming convention
 
-- **`get_`** — read-only query; no side effects (tools 1–3, 5–10)
-- **`search_`** — read-only filtered query with multiple optional parameters (tool 6)
+- **`get_`** — read-only query; no side effects (tools 1–3, 5–11)
+- **`search_`** — read-only filtered query with multiple optional parameters (tool 7)
 - **`reset_`** — the one write tool; defaults to `dry_run=true` to require explicit confirmation (tool 4)
 
 ### Module grouping (mirrors the `tools/` file structure)
 
 | Module | Tools |
 |--------|-------|
-| `tools/ai_pipeline.py` | `get_ai_queue_stats`, `get_failed_jobs`, `get_stale_jobs`, `reset_retryable_jobs` |
-| `tools/media_library.py` | `search_assets_by_tag`, `get_events`, `get_untagged_assets`, `get_tag_namespace_summary` |
-| `tools/upload_jobs.py` | `get_upload_job_state` |
-| `tools/system.py` | `get_container_env_subset` |
+| `tools/ai_pipeline.py` | `get_ai_queue_stats`, `get_jobs_failed`, `get_jobs_stale`, `reset_jobs_retryable` |
+| `tools/media_library.py` | `search_assets_by_tag`, `get_events`, `get_assets_untagged`, `get_tag_namespace_summary` |
+| `tools/upload_jobs.py` | `get_jobs_upload_ids`, `get_jobs_upload_state` |
+| `tools/system.py` | `get_env_container_subset` |
 
-`get_container_env_subset` lives in a new `tools/system.py` rather than `ai_pipeline.py` because it reads the host `.env` file rather than the database.
+`get_env_container_subset` lives in a new `tools/system.py` rather than `ai_pipeline.py` because it reads the host `.env` file rather than the database.
 
 ---
 

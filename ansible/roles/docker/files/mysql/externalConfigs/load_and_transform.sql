@@ -44,6 +44,7 @@ IGNORE 1 LINES
   keywords
 )
 SET
+  event_key = UUID(),
   org_name = COALESCE(NULLIF(@org_name, ''), 'default'),
   event_type = NULLIF(@event_type, ''),
   cover_image_url = NULLIF(@image_path, ''),

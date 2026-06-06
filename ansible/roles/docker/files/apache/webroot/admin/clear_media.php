@@ -61,35 +61,35 @@ try {
     error_log("clear_media.php: Database connection established");
     
     // Note: TRUNCATE is a DDL statement that auto-commits, so we can't use transactions
-    // Disable foreign key checks temporarily
+    // Disable foreign key checks temporarily to allow truncation in any order
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
     error_log("clear_media.php: Foreign key checks disabled");
 
-    // Truncate canonical junction tables first (FK dependents)
-    $pdo->exec('TRUNCATE TABLE event_participants');
-    $pdo->exec('TRUNCATE TABLE event_items');
-    error_log("clear_media.php: Junction tables truncated");
+    // Dynamically truncate all tables except 'users'.
+    // TODO: see docs/placeholder_delete_tables_minimal.md — switch to an explicit
+    // allowlist once the users table (or other non-media tables) holds real data.
+    $tables = $pdo->query(
+        "SELECT TABLE_NAME FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME != 'users'
+         ORDER BY TABLE_NAME"
+    )->fetchAll(\PDO::FETCH_COLUMN);
 
-    // Truncate canonical core media tables
-    $pdo->exec('TRUNCATE TABLE assets');
-    $pdo->exec('TRUNCATE TABLE events');
-    $pdo->exec('TRUNCATE TABLE participants');
-    error_log("clear_media.php: Core media tables truncated");
+    foreach ($tables as $t) {
+        $pdo->exec('TRUNCATE TABLE `' . $t . '`');
+        error_log("clear_media.php: Truncated table: " . $t);
+    }
 
     // Re-enable foreign key checks
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
-    error_log("clear_media.php: Foreign key checks re-enabled - all tables cleared successfully");
+    error_log("clear_media.php: Foreign key checks re-enabled - " . count($tables) . " table(s) cleared");
 
     $response = [
         'status' => 200,
         'headers' => ['Content-Type' => 'application/json'],
         'body' => [
             'success' => true,
-            'message' => 'All media tables cleared successfully. Users table preserved.',
-            'tables_cleared' => [
-                'junction'   => ['event_participants', 'event_items'],
-                'media'      => ['assets', 'events', 'participants'],
-            ]
+            'message' => 'All tables cleared successfully (users table preserved). ' . count($tables) . ' table(s) truncated.',
+            'tables_cleared' => $tables,
         ]
     ];
     

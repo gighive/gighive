@@ -111,8 +111,9 @@ function __format_backup_size(int $bytes): string {
       <div class="section-divider">
         <h2>Section A: Clear Database</h2>
         <p class="muted">
-          Remove all content (events, assets, event items, participants) from the database.
+          Remove all content (events, assets, event items, participants, etc.) from the database.
           This action is <strong>irreversible</strong> and will clear all media tables.
+          This will not, however, clear the media files from the disk. That is done via Section C: Delete All Media Files from Disk.
         </p>
         <div class="warning-box">
           <strong>⚠️ Warning:</strong> This will permanently delete all media data from the database.

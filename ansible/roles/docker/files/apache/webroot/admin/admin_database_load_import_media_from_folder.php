@@ -85,7 +85,7 @@ $__tus_parallel_uploads = max(1, (int)(getenv('TUS_CLIENT_PARALLEL_UPLOADS') ?: 
     <h2>Section A: Reload Database from Folder <span class="muted" style="font-size:.8em">(destructive)</span></h2>
     <p class="muted">Truncates and rebuilds media tables from the selected folder. Requires confirmation.</p>
     <div style="background:#3b1f0d;border:1px solid #b45309;padding:.75rem;border-radius:10px;margin-bottom:.75rem">
-      <strong>Warning:</strong> All existing sessions/songs/files/musicians will be deleted.
+      <strong>Warning:</strong> All existing events, assets, event items, and participants will be deleted.
     </div>
     <div id="a-lastjob" class="muted" style="margin-bottom:.5rem"></div>
     <label for="a-folder" class="muted" id="a-folder-label">Select a folder:</label>
@@ -243,7 +243,9 @@ function formatDateYmd(d) {
 function parseDateFromFilename(name) {
   const s=String(name||'');
   const m=s.match(/\b((?:19|20)\d{2})[_\-](0[1-9]|1[0-2])[_\-](0[1-9]|[12]\d|3[01])\b/);
-  return m ? (m[1]+'-'+m[2]+'-'+m[3]) : null;
+  if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  const m2=s.match(/(?<![0-9])((?:19|20)\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?![0-9])/);
+  return m2 ? (m2[1]+'-'+m2[2]+'-'+m2[3]) : null;
 }
 function parseYearFromText(name) {
   const m=String(name||'').match(/\b(19\d{2}|20\d{2})\b/);

@@ -191,23 +191,40 @@ try {
     $statusData['updated_at'] = date('c');
     gighive_manifest_write_json($uploadStatusPath, $statusData, 0640);
 
-    // Check if all files have reached a terminal success state.
-    $terminalStates = ['db_done', 'thumbnail_done', 'uploaded', 'already_present'];
-    $allDone        = true;
-    $failCount      = 0;
-    $retryableCount = 0;
-    foreach ($statusData['files'] as $f) {
-        $st = (string)($f['state'] ?? '');
-        if ($st === 'failed') {
-            $failCount++;
-            if ((bool)($f['retryable'] ?? false)) {
-                $retryableCount++;
-                $allDone = false;
-            }
-        } elseif (!in_array($st, $terminalStates, true)) {
-            $allDone = false;
-        }
-    }
+    // DB dual-write success: UPDATE upload_job_files with terminal state.
+    $pdo->prepare(
+        "UPDATE upload_job_files"
+        . " SET state=:state, media_state='done',"
+        . "     thumbnail_state=:ts, db_state='done',"
+        . "     size_bytes=COALESCE(:sb, size_bytes),"
+        . "     error=NULL, last_error=NULL"
+        . " WHERE job_id=:jid AND checksum_sha256=:cs"
+    )->execute([
+        ':state' => $summaryState,
+        ':ts'    => ($result['file_type'] ?? '') === 'video'
+            ? (($result['thumbnail_done'] ?? false) ? 'done' : 'pending')
+            : 'n_a',
+        ':sb'    => $result['size_bytes'] ?? null,
+        ':jid'   => $jobId,
+        ':cs'    => $checksum,
+    ]);
+
+    // Check if all files have reached a terminal state.
+    // Query the DB (not the JSON) so concurrent parallel finalizations don't race.
+    $pendingStmt = $pdo->prepare(
+        "SELECT COUNT(*) AS n FROM upload_job_files"
+        . " WHERE job_id = ? AND state NOT IN ('db_done','thumbnail_done','uploaded','already_present','failed')"
+    );
+    $pendingStmt->execute([$jobId]);
+    $pendingRow = $pendingStmt->fetch(PDO::FETCH_ASSOC);
+    $allDone    = ((int)($pendingRow['n'] ?? 1)) === 0;
+
+    $failStmt = $pdo->prepare(
+        "SELECT COUNT(*) AS n FROM upload_job_files WHERE job_id = ? AND state = 'failed'"
+    );
+    $failStmt->execute([$jobId]);
+    $failRow   = $failStmt->fetch(PDO::FETCH_ASSOC);
+    $failCount = (int)($failRow['n'] ?? 0);
 
     if ($allDone) {
         $uploadResultPath = $jobDir . '/upload_result.json';
@@ -220,6 +237,14 @@ try {
             'files'        => $statusData['files'],
         ];
         gighive_manifest_write_json($uploadResultPath, $uploadResult, 0640);
+        // DB dual-write: mark upload_jobs complete.
+        $pdo->prepare(
+            "UPDATE upload_jobs SET status=:status, completed_at=:completed WHERE job_id=:jid"
+        )->execute([
+            ':status'    => $failCount === 0 ? 'complete' : 'complete_with_failures',
+            ':completed' => date('Y-m-d H:i:s'),
+            ':jid'       => $jobId,
+        ]);
     }
 
     gighive_manifest_append_upload_trace($jobDir, array_merge($traceContext, [
@@ -289,6 +314,26 @@ try {
             json_encode($statusData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
             LOCK_EX
         );
+        // DB dual-write error: UPDATE upload_job_files with failed state.
+        if (isset($pdo)) {
+            $pdo->prepare(
+                "UPDATE upload_job_files"
+                . " SET state='failed', error=:err, last_error=:err,"
+                . "     retryable=:retryable, failure_code=:fc,"
+                . "     last_failed_at=:lfa, retry_count=:rc,"
+                . "     diagnostics=:diag"
+                . " WHERE job_id=:jid AND checksum_sha256=:cs"
+            )->execute([
+                ':err'      => $e->getMessage(),
+                ':retryable'=> $retryable ? 1 : 0,
+                ':fc'       => $classification['failure_code'],
+                ':lfa'      => date('Y-m-d H:i:s'),
+                ':rc'       => $retryCount,
+                ':diag'     => $diags !== null ? json_encode($diags) : null,
+                ':jid'      => $jobId,
+                ':cs'       => $checksum,
+            ]);
+        }
     }
 
     if (isset($jobDir) && is_string($jobDir) && is_dir($jobDir)) {

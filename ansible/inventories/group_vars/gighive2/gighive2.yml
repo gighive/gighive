@@ -71,7 +71,7 @@ reduced_audio: true
 # --------------------------------------------------------------------
 # upload_tests role
 # --------------------------------------------------------------------
-run_upload_tests: true
+run_upload_tests: false
 
 upload_test_restore_only: false
 upload_test_restore_db_after: true
@@ -456,3 +456,10 @@ ai_worker_concurrency: 3
 # 96 frames / 6 per chunk = 16 chunks; 4 keeps rate-limit pressure moderate.
 # 1 = sequential (default).
 ai_chunk_concurrency: 4
+
+# --------------------------------------------------------------------
+# MCP server (developer/operator operational tool)
+# --------------------------------------------------------------------
+mcp_server_enabled: true
+mcp_server_dir: "{{ gighive_home }}/mcp-server"
+mcp_env_file: "{{ docker_dir }}/apache/externalConfigs/.env"

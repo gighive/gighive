@@ -1,0 +1,29 @@
+---
+- name: MCP server | assert Python >= 3.10 in virtualenv
+  ansible.builtin.command: "{{ mcp_server_dir }}/venv/bin/python -c \"import sys; assert sys.version_info >= (3,10), f'Python {sys.version} < 3.10'\""
+  register: __mcp_python_ver
+  changed_when: false
+  failed_when: __mcp_python_ver.rc != 0
+
+- name: MCP server | assert required files present
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: __mcp_file_stat
+  loop:
+    - "{{ mcp_server_dir }}/venv/bin/python"
+    - "{{ mcp_server_dir }}/server.py"
+    - "{{ mcp_server_dir }}/config.py"
+    - "{{ mcp_server_dir }}/db.py"
+  failed_when: not __mcp_file_stat.stat.exists
+
+- name: MCP server | verify mcp package importable
+  ansible.builtin.command: "{{ mcp_server_dir }}/venv/bin/python -c \"import mcp; print('mcp ok')\""
+  register: __mcp_import
+  changed_when: false
+  failed_when: __mcp_import.rc != 0
+
+- name: MCP server | verify server.py syntax
+  ansible.builtin.command: "{{ mcp_server_dir }}/venv/bin/python -m py_compile {{ mcp_server_dir }}/server.py"
+  register: __mcp_syntax
+  changed_when: false
+  failed_when: __mcp_syntax.rc != 0

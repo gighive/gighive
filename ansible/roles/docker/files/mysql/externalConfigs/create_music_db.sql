@@ -24,7 +24,8 @@ CREATE TABLE assets (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE events (
-    event_id INT PRIMARY KEY AUTO_INCREMENT,
+    event_id  INT PRIMARY KEY AUTO_INCREMENT,
+    event_key CHAR(36) NOT NULL,
     event_date DATE NOT NULL,
     org_name VARCHAR(128) NOT NULL DEFAULT 'default',
     event_type ENUM('band','wedding','other') DEFAULT NULL,
@@ -40,7 +41,8 @@ CREATE TABLE events (
     explicit TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT uq_events_date_org UNIQUE (event_date, org_name)
+    CONSTRAINT uq_events_key      UNIQUE (event_key),
+    CONSTRAINT uq_events_date_org   UNIQUE (event_date, org_name)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE event_items (
@@ -98,6 +100,7 @@ CREATE TABLE users (
 CREATE TABLE IF NOT EXISTS ai_jobs (
   id          BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT PRIMARY KEY,
   job_type    VARCHAR(64)      NOT NULL,
+  source      VARCHAR(64)      NULL,
   target_type ENUM('asset','event','event_item','participant') NOT NULL,
   target_id   BIGINT UNSIGNED  NOT NULL,
   params_json JSON             NULL,
@@ -169,4 +172,47 @@ CREATE TABLE IF NOT EXISTS taggings (
   KEY idx_taggings_source     (source),
   CONSTRAINT fk_taggings_tag FOREIGN KEY (tag_id) REFERENCES tags (id),
   CONSTRAINT fk_taggings_run FOREIGN KEY (run_id) REFERENCES helper_runs (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/****************************
+ * Upload Jobs              *
+ ****************************/
+CREATE TABLE IF NOT EXISTS upload_jobs (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    job_id       VARCHAR(64)  NOT NULL,
+    job_type     VARCHAR(32)  NOT NULL DEFAULT 'manifest_import',
+    status       VARCHAR(32)  NOT NULL DEFAULT 'in_progress',
+    total_files  INT UNSIGNED NOT NULL DEFAULT 0,
+    started_at   DATETIME     NOT NULL,
+    completed_at DATETIME     NULL,
+    UNIQUE KEY uq_upload_jobs_job_id (job_id),
+    INDEX        idx_upload_jobs_started (started_at),
+    INDEX        idx_upload_jobs_status  (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS upload_job_files (
+    id              INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    job_id          VARCHAR(64)  NOT NULL,
+    checksum_sha256 CHAR(64)     NOT NULL,
+    source_relpath  VARCHAR(512) NOT NULL,
+    file_type       VARCHAR(16)  NULL,
+    size_bytes      BIGINT UNSIGNED NULL,
+    state           VARCHAR(32)  NOT NULL DEFAULT 'pending',
+    media_state     VARCHAR(16)  NULL,
+    thumbnail_state VARCHAR(16)  NULL,
+    db_state        VARCHAR(16)  NULL,
+    file_name       VARCHAR(512) NOT NULL DEFAULT '',
+    error           TEXT         NULL,
+    last_error      TEXT         NULL,
+    retryable       TINYINT(1)   NULL,
+    failure_code    VARCHAR(64)  NULL,
+    last_failed_at  DATETIME     NULL,
+    retry_count     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    diagnostics     JSON         NULL,
+    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_upload_job_file (job_id, checksum_sha256),
+    INDEX idx_upload_job_files_job_id (job_id),
+    INDEX idx_upload_job_files_state  (job_id, state),
+    CONSTRAINT fk_upload_job_files_job FOREIGN KEY (job_id) REFERENCES upload_jobs(job_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

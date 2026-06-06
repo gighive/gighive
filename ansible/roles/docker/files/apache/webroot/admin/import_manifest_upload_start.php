@@ -121,6 +121,20 @@ try {
                 }
                 unset($f);
             }
+            // DB dual-write resume: sync stale-uploading normalization and reconciliation.
+            if (!isset($pdoResume)) {
+                $pdoResume = Database::createFromEnv();
+            }
+            $pdoResume->prepare(
+                "UPDATE upload_job_files SET state='pending', error=NULL, last_error=NULL"
+                . " WHERE job_id=:jid AND state='uploading'"
+            )->execute([':jid' => $jobId]);
+            $pdoResume->prepare(
+                "UPDATE upload_job_files ujf"
+                . " INNER JOIN assets a ON a.checksum_sha256 = ujf.checksum_sha256"
+                . " SET ujf.state = 'already_present'"
+                . " WHERE ujf.job_id = :jid AND ujf.state = 'pending'"
+            )->execute([':jid' => $jobId]);
             gighive_manifest_append_upload_trace($jobDir, [
                 'source' => 'server',
                 'endpoint' => 'import_manifest_upload_start.php',
@@ -235,6 +249,33 @@ try {
         'started_at' => date('c'),
         'files'      => $uploadFiles,
     ], 0640);
+
+    // DB dual-write: record job and per-file state in upload_jobs / upload_job_files.
+    $pdo->prepare(
+        "INSERT INTO upload_jobs (job_id, job_type, status, total_files, started_at)"
+        . " VALUES (:jid, 'manifest_import', 'in_progress', :total, :started)"
+        . " ON DUPLICATE KEY UPDATE id = id"
+    )->execute([':jid' => $jobId, ':total' => count($uploadFiles), ':started' => date('Y-m-d H:i:s')]);
+    $insFile = $pdo->prepare(
+        "INSERT IGNORE INTO upload_job_files"
+        . "  (job_id, checksum_sha256, source_relpath, file_type, size_bytes,"
+        . "   state, media_state, thumbnail_state, db_state, file_name)"
+        . " VALUES (:jid, :cs, :srp, :ft, :sb, :state, :ms, :ts, :ds, :fn)"
+    );
+    foreach ($uploadFiles as $uf) {
+        $insFile->execute([
+            ':jid'   => $jobId,
+            ':cs'    => $uf['checksum_sha256'],
+            ':srp'   => $uf['source_relpath'],
+            ':ft'    => $uf['file_type'],
+            ':sb'    => $uf['size_bytes'],
+            ':state' => $uf['state'],
+            ':ms'    => $uf['media_state'],
+            ':ts'    => $uf['thumbnail_state'],
+            ':ds'    => $uf['db_state'],
+            ':fn'    => $uf['file_name'],
+        ]);
+    }
 
     $stateCounts = [];
     foreach ($uploadFiles as $uploadFile) {
