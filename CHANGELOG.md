@@ -40,12 +40,47 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/ai_worker/tasks/validate.yml
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/clear_media.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_database.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_manifest_upload_finalize.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_manifest_upload_start.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_normalized.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/EventRepository.php
 	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/load_and_transform.sql
+	new file:   ansible/roles/docker/tasks/read_mysql_password.yml
+	new file:   ansible/roles/mcp_server/files/mcp-server/db.py
+	new file:   ansible/roles/mcp_server/files/mcp-server/requirements.txt
+	new file:   ansible/roles/mcp_server/files/mcp-server/server.py
+	new file:   ansible/roles/mcp_server/files/mcp-server/tools/__init__.py
+	new file:   ansible/roles/mcp_server/files/mcp-server/tools/ai_pipeline.py
+	new file:   ansible/roles/mcp_server/files/mcp-server/tools/media_library.py
+	new file:   ansible/roles/mcp_server/files/mcp-server/tools/system.py
+	new file:   ansible/roles/mcp_server/files/mcp-server/tools/upload_jobs.py
+	new file:   ansible/roles/mcp_server/tasks/main.yml
+	new file:   ansible/roles/mcp_server/tasks/validate.yml
+	new file:   ansible/roles/mcp_server/templates/README.md.j2
+	new file:   ansible/roles/mcp_server/templates/config.py.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/validate_app/tasks/main.yml
 	renamed:    docs/feature_ai_video_tagger.md -> docs/feature_ai_video_tagger_completed.md
+	modified:   docs/feature_mcp_server.md
 	modified:   docs/knowledge_map.html
+	new file:   docs/placeholder_delete_tables_minimal.md
+	new file:   docs/problem_mysql_init_race_condition.md
+	new file:   docs/problem_mysql_not_null_silent_failure.md
 	modified:   docs/refactor_ai_jobs_new_column_source.md
 	new file:   docs/refactor_ai_jobs_upload_jobs_event_key_db_schema.md
 	modified:   docs/refactor_ensure_event_add_event_key.md
+	new file:   docs/refactor_security_upgrade_ssh_key.md
 	modified:   docs/refactor_upload_jobs_from_json_to_db.md
 	renamed:    docs/refactor_upload_form_into_single.md -> docs/refactored_upload_form_into_single.md
 

@@ -460,6 +460,6 @@ ai_chunk_concurrency: 4
 # --------------------------------------------------------------------
 # MCP server (developer/operator operational tool)
 # --------------------------------------------------------------------
-mcp_server_enabled: false
+mcp_server_enabled: true
 mcp_server_dir: "{{ gighive_home }}/mcp-server"
 mcp_env_file: "{{ docker_dir }}/apache/externalConfigs/.env"
