@@ -435,7 +435,7 @@ gighive_viewer_password: "CHANGE_ME_VIEWER"
 # AI worker (video_tagger_v1)
 # OPENAI_API_KEY belongs in secrets.yml (gitignored), not here
 # --------------------------------------------------------------------
-ai_worker_enabled: false
+ai_worker_enabled: true
 ai_worker_osb_enabled: false
 llm_provider: "openai"
 openai_model: "gpt-4.1"
@@ -462,6 +462,6 @@ ai_chunk_concurrency: 4
 # --------------------------------------------------------------------
 # MCP server (developer/operator operational tool)
 # --------------------------------------------------------------------
-mcp_server_enabled: false
+mcp_server_enabled: true
 mcp_server_dir: "{{ gighive_home }}/mcp-server"
 mcp_env_file: "{{ docker_dir }}/apache/externalConfigs/.env"

@@ -1,6 +1,123 @@
 *** 
 releaseNotes20260606.txt
-Changes: Prep work for ai_jobs, upload_jobs, event_key work: Apply sql changes to all environments, test on GIG2 and OSB UPLOAD TESTS, update docs
+Changes: Docs and group_vars key add
+Scope: egrep -A1 'none' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests" ansible-playbook-gighive2-20260605.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260605.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260606.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260606.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260605.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260525.log
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	renamed:    docs/feature_mcp_server.md -> docs/feature_mcp_server_completed.md
+	modified:   docs/knowledge_map.html
+	renamed:    docs/problem_cert_does_not_trust_gighive_internal.md -> docs/problem_security_cert_does_not_trust_gighive_internal.md
+	renamed:    docs/problem_checksum_sha256_mysql_initialization_drop_unique_constraint.md -> docs/problem_security_checksum_sha256_mysql_initialization_drop_unique_constraint.md
+	renamed:    docs/problem_hsts_collision.md -> docs/problem_security_hsts_collision.md
+	renamed:    docs/problem_htpasswd_changes.md -> docs/problem_security_htpasswd_changes.md
+	renamed:    docs/problem_openssh_strictmode_yes_fix_755_home_ubuntu.md -> docs/problem_security_openssh_strictmode_yes_fix_755_home_ubuntu.md
+	renamed:    docs/problem_sonarqube_phpsecurityS2083.md -> docs/problem_security_sonarqube_phpsecurityS2083.md
+	new file:   docs/problem_security_ssh_split_rsa_key.md
+	renamed:    docs/refactor_ai_jobs_new_column_source.md -> docs/refactored_ai_jobs_new_column_source.md
+	renamed:    docs/refactor_ensure_event_add_event_key.md -> docs/refactored_ensure_event_add_event_key.md
+	renamed:    docs/refactor_upload_jobs_from_json_to_db.md -> docs/refactored_upload_jobs_from_json_to_db.md
+
+BROKEN
+What's next: delete doesn't work in iphone upload page now after assets / event change
+What's next: dupe video fix shown by Jenny upload (Jenny as band or event vs boat as band or event name)
+
+TODO
+-rw-rw-r-- 1 sodo sodo    8662 Jun  3 19:33 refactor_ai_jobs_new_column_source.md
+-rw-rw-r-- 1 sodo sodo   17634 Jun  3 20:27 refactor_upload_jobs_from_json_to_db.md
+-rw-rw-r-- 1 sodo sodo   23973 May 29 15:20 refactor_ensure_event_add_event_key.md
+-rw-rw-r-- 1 sodo sodo   50398 Jun  3 20:22 feature_mcp_server.md
+What's next: fix telemetry to not rebuild db every time
+What's next: add dialog popup with stack
+What's next: iphone app updates
+Security: upgrade from id_rsa to id_ed25519 in /home/sodo/gighive/docs/refactor_security_upgrade_ssh_key.md 
+DB: rename create_music_db.sql to create_db.sql
+AI: maybe include ai tests for OSB
+Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
+App: Media database page should show the thumbnail
+App: Does the media player have to open a separate window? 
+App: Add How to Use button with link to video at bottom of home page
+App: Add tutorial at bottom of upload page 
+App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
+App: From the upload page, add a link to the supported media file types
+App: Make database scroll one-handed, like modern apps
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Integrate changes for db events
+
+App: App breaks on upload when changing to Messages app
+App: Is it worthwhile to have an embed feature?
+App: Can i provide a link to the Media Details page in the app?
+App: Share link feature in media page
+App/Web: skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+
+Upload: should add "Still processing.." after heartbeat
+Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
+Security: Interesting that security_basic_auth is always needed after docker run
+API: refactor based on docs/refactor_api_cleanup_if_desired.md
+Next: we will need an upload videos/thumbnails only after restore of database function
+Next: admin upload still allowing duplicate shas based upon different column info
+Product: Lock down / remove full build option (full build is saas)
+Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
+Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: protect the debug directory w/admin password	
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails 
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260606.txt
+Changes: Prep work for ai_jobs, upload_jobs, event_key work: Apply sql changes to all environments, test on GIG2 and OSB UPLOAD TESTS, update docs, get ai_worker and mcp_server running on all envs
 Scope: egrep -A1 'GIG2|OSB|UPLOAD TESTS|LAB|STAGING|TELEMETRY|PROD' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
@@ -9,7 +126,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # BASE GIG2 TEST PUSH
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests" ansible-playbook-gighive2-20260605.log
 # PROD ROLLOUT
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-prod-20260605.log
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
 # LAB, rebuild 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
 # LAB PUSH: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
@@ -17,9 +134,9 @@ Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventor
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
 # GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive,ai_worker" ansible-playbook-gighive-20260605.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260606.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
-Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260605.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260606.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260605.log 
@@ -83,67 +200,6 @@ Changes to be committed:
 	new file:   docs/refactor_security_upgrade_ssh_key.md
 	modified:   docs/refactor_upload_jobs_from_json_to_db.md
 	renamed:    docs/refactor_upload_form_into_single.md -> docs/refactored_upload_form_into_single.md
-
-BROKEN
-What's next: delete doesn't work in iphone upload page now after assets / event change
-What's next: dupe video fix shown by Jenny upload (Jenny as band or event vs boat as band or event name)
-
-TODO
--rw-rw-r-- 1 sodo sodo    8662 Jun  3 19:33 refactor_ai_jobs_new_column_source.md
--rw-rw-r-- 1 sodo sodo   17634 Jun  3 20:27 refactor_upload_jobs_from_json_to_db.md
--rw-rw-r-- 1 sodo sodo   23973 May 29 15:20 refactor_ensure_event_add_event_key.md
--rw-rw-r-- 1 sodo sodo   50398 Jun  3 20:22 feature_mcp_server.md
-What's next: fix telemetry to not rebuild db every time
-What's next: add dialog popup with stack
-What's next: iphone app updates
-Security: upgrade from id_rsa to id_ed25519 in /home/sodo/gighive/docs/refactor_security_upgrade_ssh_key.md 
-DB: rename create_music_db.sql to create_db.sql
-AI: maybe include ai tests for OSB
-Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
-App: Media database page should show the thumbnail
-App: Does the media player have to open a separate window? 
-App: Add How to Use button with link to video at bottom of home page
-App: Add tutorial at bottom of upload page 
-App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
-App: From the upload page, add a link to the supported media file types
-App: Make database scroll one-handed, like modern apps
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Integrate changes for db events
-
-App: App breaks on upload when changing to Messages app
-App: Is it worthwhile to have an embed feature?
-App: Can i provide a link to the Media Details page in the app?
-App: Share link feature in media page
-App/Web: skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-
-Upload: should add "Still processing.." after heartbeat
-Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
-Security: Interesting that security_basic_auth is always needed after docker run
-API: refactor based on docs/refactor_api_cleanup_if_desired.md
-Next: we will need an upload videos/thumbnails only after restore of database function
-Next: admin upload still allowing duplicate shas based upon different column info
-Product: Lock down / remove full build option (full build is saas)
-Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
-Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: protect the debug directory w/admin password	
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails 
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
 
 *** 
 releaseNotes20260603.txt

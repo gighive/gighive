@@ -534,7 +534,7 @@
               { id: "feature-set-infrastructure", label: "feature_set.md", kind: "document", concern: "infrastructure", type: "architecture", lifecycle: "active", audience: ["architect", "developer", "operator"], aspect: "non_functional", href: "./feature_set.html" }
             ] },
             { id: "infrastructure-rca", label: "RCA", kind: "type", type: "rca", children: [
-              { id: "problem-openssh-strictmode", label: "problem_openssh_strictmode_yes_fix_755_home_ubuntu.md", kind: "document", concern: "infrastructure", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_openssh_strictmode_yes_fix_755_home_ubuntu.html" },
+              { id: "problem-openssh-strictmode", label: "problem_security_openssh_strictmode_yes_fix_755_home_ubuntu.md", kind: "document", concern: "infrastructure", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_security_openssh_strictmode_yes_fix_755_home_ubuntu.html" },
               { id: "problem-os-ubuntu-new-openssh-broke-install", label: "problem_os_ubuntu_shipped_new_openssh_broke_install.md", kind: "document", concern: "infrastructure", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_os_ubuntu_shipped_new_openssh_broke_install.html" }
             ] },
             { id: "infrastructure-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
@@ -631,8 +631,9 @@
               { id: "refactor-convert-legacy-csv-python", label: "refactor_convert_legacy_database_csv_python.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactor_convert_legacy_database_csv_python.html" },
               { id: "refactor-db-soft-deletes", label: "refactor_db_database_admin_soft_deletes.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "admin"], aspect: "functional", href: "./refactor_db_database_admin_soft_deletes.html" },
               { id: "refactor-db-tags-searchability", label: "refactored_db_database_tags_column_searchability.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "admin"], aspect: "functional", href: "./refactored_db_database_tags_column_searchability.html" },
-              { id: "refactor-ensure-event-add-event-key", label: "refactor_ensure_event_add_event_key.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_ensure_event_add_event_key.html" },
-              { id: "refactor-database-utf8-legacy-cleanup", label: "refactor_database_utf8_enforcement_if_legacy_cleanup_needed.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_database_utf8_enforcement_if_legacy_cleanup_needed.html" }
+              { id: "refactor-ensure-event-add-event-key", label: "refactored_ensure_event_add_event_key.md", kind: "document", concern: "database", type: "proposal", lifecycle: "historical", audience: ["developer", "architect"], aspect: "mixed", href: "./refactored_ensure_event_add_event_key.html" },
+              { id: "refactor-database-utf8-legacy-cleanup", label: "refactor_database_utf8_enforcement_if_legacy_cleanup_needed.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_database_utf8_enforcement_if_legacy_cleanup_needed.html" },
+              { id: "refactor-ai-jobs-upload-jobs-event-key-db-schema", label: "refactor_ai_jobs_upload_jobs_event_key_db_schema.md", kind: "document", concern: "database", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "non_functional", href: "./refactor_ai_jobs_upload_jobs_event_key_db_schema.html" }
             ] },
             { id: "database-change", label: "Change", kind: "type", type: "change", children: [
               { id: "add-media-info-columns", label: "database_add_media_info_columns.md", kind: "document", concern: "database", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./database_add_media_info_columns.html" },
@@ -643,8 +644,10 @@
               { id: "db-health-testing", label: "database-health-check-testing.md", kind: "document", concern: "database", type: "debug", lifecycle: "active", audience: ["qa", "developer", "operator"], aspect: "non_functional", href: "./database-health-check-testing.html" }
             ] },
             { id: "database-rca", label: "RCA", kind: "type", type: "rca", children: [
-              { id: "problem-checksum-sha256-drop-unique", label: "problem_checksum_sha256_mysql_initialization_drop_unique_constraint.md", kind: "document", concern: "database", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_checksum_sha256_mysql_initialization_drop_unique_constraint.html" },
-              { id: "problem-data-production-missing-sessions", label: "problem_data_production_add_missing_sessions.md", kind: "document", concern: "database", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_data_production_add_missing_sessions.html" }
+              { id: "problem-checksum-sha256-drop-unique", label: "problem_security_checksum_sha256_mysql_initialization_drop_unique_constraint.md", kind: "document", concern: "database", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_security_checksum_sha256_mysql_initialization_drop_unique_constraint.html" },
+              { id: "problem-data-production-missing-sessions", label: "problem_data_production_add_missing_sessions.md", kind: "document", concern: "database", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_data_production_add_missing_sessions.html" },
+              { id: "problem-mysql-not-null-silent-failure", label: "problem_mysql_not_null_silent_failure.md", kind: "document", concern: "database", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_mysql_not_null_silent_failure.html" },
+              { id: "problem-mysql-init-race-condition", label: "problem_mysql_init_race_condition.md", kind: "document", concern: "database", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_mysql_init_race_condition.html" }
             ] }
           ]
         },
@@ -695,7 +698,8 @@
               { id: "uploader-changes-20250926", label: "codingChanges/20250926uploaderchanges.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./codingChanges/20250926uploaderchanges.html" },
               { id: "refactor-upload-folder-nav-away-cancels-fix", label: "refactor_upload_folder_nav_away_cancels_fix.md", kind: "document", concern: "upload", type: "change", lifecycle: "proposed", audience: ["developer"], aspect: "non_functional", href: "./refactor_upload_folder_nav_away_cancels_fix.html" },
               { id: "refactor-import-saved-jobs-restart", label: "refactored_import_saved_jobs_browser_restart.md", kind: "document", concern: "upload", type: "change", lifecycle: "active", audience: ["developer", "operator"], aspect: "functional", href: "./refactored_import_saved_jobs_browser_restart.html" },
-              { id: "refactored-uploads-tus-parallel", label: "refactored_uploads_tus_parallel.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_uploads_tus_parallel.html" }
+              { id: "refactored-uploads-tus-parallel", label: "refactored_uploads_tus_parallel.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_uploads_tus_parallel.html" },
+              { id: "refactor-upload-jobs-from-json-to-db", label: "refactored_upload_jobs_from_json_to_db.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_upload_jobs_from_json_to_db.html" }
             ] },
             { id: "upload-rca", label: "RCA", kind: "type", type: "rca", children: [
               { id: "apache-race-condition-hook-write-finalize", label: "problem_apache_race_condition_hook_write_finalize.md", kind: "document", concern: "upload", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_apache_race_condition_hook_write_finalize.html" },
@@ -785,7 +789,8 @@
               { id: "refactor-admin-45-last-steps", label: "refactor_admin_45_last_steps.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "non_functional", href: "./refactor_admin_45_last_steps.html" },
               { id: "refactored-admin-all-pages-move-under-admin", label: "refactored_admin_all_pages_move_under_admin.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_admin_all_pages_move_under_admin.html" },
               { id: "refactor-security-docker-hardened-images", label: "refactor_security_docker_hardened_images.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator", "architect"], aspect: "non_functional", href: "./refactor_security_docker_hardened_images.html" },
-              { id: "feature-trust-provenance", label: "feature_trust_and_provenance.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "admin"], aspect: "functional", href: "./feature_trust_and_provenance.html" }
+              { id: "feature-trust-provenance", label: "feature_trust_and_provenance.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "admin"], aspect: "functional", href: "./feature_trust_and_provenance.html" },
+              { id: "refactor-security-upgrade-ssh-key", label: "refactor_security_upgrade_ssh_key.md", kind: "document", concern: "security", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_security_upgrade_ssh_key.html" }
             ] },
             { id: "security-change", label: "Change", kind: "type", type: "change", children: [
               { id: "security-remediations", label: "security_remediations_20260218.md", kind: "document", concern: "security", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./security_remediations_20260218.html" },
@@ -795,9 +800,10 @@
             { id: "security-rca", label: "RCA", kind: "type", type: "rca", children: [
               { id: "cached-errors", label: "problem_cloudflare_cached_error_messages.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cloudflare_cached_error_messages.html" },
               { id: "cloudflare-caching-media", label: "problem_cloudflare_caching_media.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cloudflare_caching_media.html" },
-              { id: "cert-trust", label: "problem_cert_does_not_trust_gighive_internal.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_cert_does_not_trust_gighive_internal.html" },
-              { id: "hsts-collision", label: "problem_hsts_collision.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_hsts_collision.html" },
-              { id: "sonarqube-s2083", label: "problem_sonarqube_phpsecurityS2083.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer"], aspect: "non_functional", href: "./problem_sonarqube_phpsecurityS2083.html" }
+              { id: "cert-trust", label: "problem_security_cert_does_not_trust_gighive_internal.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_security_cert_does_not_trust_gighive_internal.html" },
+              { id: "hsts-collision", label: "problem_security_hsts_collision.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_security_hsts_collision.html" },
+              { id: "sonarqube-s2083", label: "problem_security_sonarqube_phpsecurityS2083.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["developer"], aspect: "non_functional", href: "./problem_security_sonarqube_phpsecurityS2083.html" },
+              { id: "problem-security-ssh-split-rsa-key", label: "problem_security_ssh_split_rsa_key.md", kind: "document", concern: "security", type: "rca", lifecycle: "active", audience: ["operator", "developer"], aspect: "non_functional", href: "./problem_security_ssh_split_rsa_key.html" }
             ] }
           ]
         },
@@ -818,7 +824,7 @@
               { id: "edge-aware-auth-model", label: "refactor_edge_aware_authentication_model.md", kind: "document", concern: "authentication", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect", "operator"], aspect: "non_functional", href: "./refactor_edge_aware_authentication_model.html" }
             ] },
             { id: "authentication-change", label: "Change", kind: "type", type: "change", children: [
-              { id: "htpasswd-changes", label: "problem_htpasswd_changes.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_htpasswd_changes.html" },
+              { id: "htpasswd-changes", label: "problem_security_htpasswd_changes.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer", "operator"], aspect: "non_functional", href: "./problem_security_htpasswd_changes.html" },
               { id: "passwords-page-change", label: "codingChanges/featureChangedPasswordsPage.md", kind: "document", concern: "authentication", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./codingChanges/featureChangedPasswordsPage.html" },
               { id: "password-unification", label: "refactor_security_password_unification.md", kind: "document", concern: "authentication", type: "change", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactor_security_password_unification.html" }
             ] }
@@ -841,7 +847,7 @@
               { id: "iphone-four-page-rearch", label: "refactored_app_four_page_architecture.md", kind: "document", concern: "api", type: "architecture", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./refactored_app_four_page_architecture.html" }
             ] },
             { id: "api-feature", label: "Feature", kind: "type", type: "feature", children: [
-              { id: "feature-mcp-server", label: "feature_mcp_server.md", kind: "document", concern: "api", type: "feature", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./feature_mcp_server.html" }
+              { id: "feature-mcp-server", label: "feature_mcp_server_completed.md", kind: "document", concern: "api", type: "feature", lifecycle: "active", audience: ["developer", "architect"], aspect: "functional", href: "./feature_mcp_server_completed.html" }
             ] },
             { id: "api-change", label: "Change", kind: "type", type: "change", children: [
               { id: "pr-checkout-upgrade-to-v6", label: "prCheckoutUpgradeToV6.md", kind: "document", concern: "api", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./prCheckoutUpgradeToV6.html" },
@@ -966,7 +972,8 @@
             { id: "ai-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "ai-platform", label: "feature_ai_intelligence_platform.md", kind: "document", concern: "ai", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./feature_ai_intelligence_platform.html" },
               { id: "refactor-ai-scan-methodology", label: "refactor_ai_video_tagger_scan_methodology_improvements.md", kind: "document", concern: "ai", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_ai_video_tagger_scan_methodology_improvements.html" },
-              { id: "refactor-ai-jobs-messaging", label: "refactored_ai_jobs_messaging.md", kind: "document", concern: "ai", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "non_functional", href: "./refactored_ai_jobs_messaging.html" }
+              { id: "refactor-ai-jobs-messaging", label: "refactored_ai_jobs_messaging.md", kind: "document", concern: "ai", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "non_functional", href: "./refactored_ai_jobs_messaging.html" },
+              { id: "refactor-ai-jobs-new-column-source", label: "refactored_ai_jobs_new_column_source.md", kind: "document", concern: "ai", type: "proposal", lifecycle: "historical", audience: ["developer"], aspect: "non_functional", href: "./refactored_ai_jobs_new_column_source.html" }
             ] },
             { id: "ai-howto", label: "Howto", kind: "type", type: "howto", children: [
               { id: "guide-ai-worker-tagging", label: "guide_ai_worker_tagging.md", kind: "document", concern: "ai", type: "howto", lifecycle: "active", audience: ["operator", "developer", "admin"], aspect: "mixed", href: "./guide_ai_worker_tagging.html" }

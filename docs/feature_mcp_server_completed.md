@@ -882,7 +882,7 @@ def get_ai_queue_stats(job_type: str = "categorize_video") -> dict:
     ...
 ```
 
-This happens at process startup when `server.py` is imported. All 10 tools register
+This happens at process startup when `server.py` is imported. All 11 tools register
 unconditionally — no runtime gating.
 
 ### Registration B — Server advertises its tools to the AI client (at session start)
@@ -921,3 +921,112 @@ this entry and uses it to start the process on-demand.
 | A — tools → `FastMCP` instance | Python import time (`server.py` loads) | `@mcp.tool()` decorators |
 | B — server → AI client tool catalog | Each session start (SSH spawn + handshake) | `FastMCP` protocol handler (automatic) |
 | C — server location → Windsurf config | One-time manual step | You (Registration Guide Step 4) |
+
+---
+
+## First Deployment and Smoke Test (2026-06-06 — lab)
+
+### What was deployed
+
+The `mcp_server` Ansible role was enabled on `lab` (group_vars `gighive/gighive.yml`,
+`mcp_server_enabled: true`) and deployed via:
+
+```bash
+ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags mcp_server
+```
+
+All role tasks completed with `changed` status and all validation assertions passed:
+- Python ≥ 3.10 in venv ✅
+- `server.py`, `config.py`, `db.py`, `venv/bin/python` present ✅
+- `import mcp` importable ✅
+- `server.py` syntax clean (`py_compile`) ✅
+
+### Why a raw `tools/list` call fails
+
+Sending `tools/list` directly over stdio without initialization returns:
+
+```json
+{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"Invalid request parameters","data":""}}
+```
+
+This is correct behavior — not a bug. The MCP protocol requires a three-step
+handshake before any tool calls are accepted:
+
+1. Client → server: `initialize` (with `protocolVersion`, `capabilities`, `clientInfo`)
+2. Server → client: `initialize` response (server capabilities + `serverInfo`)
+3. Client → server: `notifications/initialized` (notification, no `id`)
+
+Only after step 3 will the server accept `tools/list` or any `tools/call` request.
+`FastMCP` enforces this automatically; there is no way to bypass it from the protocol
+handler side.
+
+### Smoke test — correct stdio sequence
+
+The following command sends all three required messages in a single pipeline and
+confirms the server responds with the full tool catalog:
+
+```bash
+ssh lab 'printf "%s\n" \
+  "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"0.1\"}}}" \
+  "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\",\"params\":{}}" \
+  "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}" \
+  | /home/ubuntu/gighive/mcp-server/venv/bin/python /home/ubuntu/gighive/mcp-server/server.py 2>/dev/null'
+```
+
+Expected output: two JSON lines — an `initialize` result containing `serverInfo.name: "gighive"`
+and a `tools/list` result containing all 11 registered tools.
+
+Confirmed working on `lab` 2026-06-06: all 11 tools listed, DB connectivity verified
+via `get_ai_queue_stats` returning a valid (empty) response from the lab MySQL instance.
+
+### Activating in Windsurf after deploy
+
+The `mcp_config.json` entry (set up before deploy) requires no changes — the `lab`
+server entry was already present. After the Ansible deploy, reload Windsurf's MCP
+connections (**Command Palette → MCP: Reload Servers**) to bring the lab server online
+alongside `dev`.
+
+---
+
+## Multi-Environment Connectivity Verification (2026-06-06 — staging + prod)
+
+### How the verification was run
+
+From Windsurf/Cascade, all 11 tools were called in parallel across both environments.
+Tools 1–10 (no required inputs) were batched in a single parallel call; tool 6
+(`get_jobs_upload_state`) was probed with a dummy `job_id` after tool 5
+(`get_jobs_upload_ids`) confirmed no upload jobs exist on either server:
+
+```
+Batch 1 (parallel, all environments):
+  get_ai_queue_stats, get_jobs_failed, get_jobs_stale,
+  reset_jobs_retryable (dry_run=true), get_jobs_upload_ids,
+  search_assets_by_tag, get_events, get_assets_untagged,
+  get_tag_namespace_summary,
+  get_env_container_subset(keys=["AI_WORKER_CONCURRENCY", "TUS_MAX_SIZE", "DB_HOST"])
+
+Batch 2 (after batch 1, job_id required):
+  get_jobs_upload_state(job_id="test-probe-123")  ← confirms graceful not-found handling
+```
+
+### Results
+
+| # | Tool | Prod ✅ | Staging ✅ |
+|---|------|---------|----------|
+| 1 | `get_ai_queue_stats` | 0 jobs total | 0 jobs total |
+| 2 | `get_jobs_failed` | 0 failed | 0 failed |
+| 3 | `get_jobs_stale` | 0 stale | 0 stale |
+| 4 | `reset_jobs_retryable` | dry_run: 0 reset | dry_run: 0 reset |
+| 5 | `get_jobs_upload_ids` | empty (no jobs) | empty (no jobs) |
+| 6 | `get_jobs_upload_state` | graceful not-found | graceful not-found |
+| 7 | `search_assets_by_tag` | 50 assets returned | 20 assets returned |
+| 8 | `get_events` | 140 events (1997–2026) | 9 events |
+| 9 | `get_assets_untagged` | 100 shown / all untagged | 5 untagged |
+| 10 | `get_tag_namespace_summary` | empty (no tags) | `scene:` namespace, 4 tags |
+| 11 | `get_env_container_subset` | `AI_WORKER_CONCURRENCY=3` | `AI_WORKER_CONCURRENCY=3` |
+
+**Notable observations:**
+- Prod has the full corpus (140 events, 0 AI tags — pipeline not yet run)
+- Staging has a minimal dataset with 5 tutorial assets tagged under `scene:` namespace — the only tagged assets on any environment
+- `TUS_MAX_SIZE` is `null` on both (key not present in `.env`)
+- All 4 MCP servers (dev, lab, staging, prod) confirmed active with 11 tools each
