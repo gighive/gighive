@@ -209,7 +209,7 @@
   delegate_to: localhost
   become: false
   ansible.builtin.copy:
-    src: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/docker-compose{{ '-ai' if ai_worker_osb_enabled | default(false) | bool else '' }}.yml"
+    src: "{{ repo_root }}/ansible/roles/docker/files/one_shot_bundle/docker-compose.yml"
     dest: "{{ _one_shot_bundle_output_dir }}/docker-compose.yml"
     mode: preserve
 

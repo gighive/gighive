@@ -252,6 +252,31 @@ Write-Host "Wrote:"
 Write-Host "  - $apacheEnvFile"
 Write-Host "  - $mysqlEnvFile"
 
+$composeProfileArg = @()
+
+{% if ai_worker_osb_enabled | default(false) | bool %}
+Write-Host ""
+Write-Host "==> AI Video Tagger"
+Write-Host "    GigHive includes an optional AI feature that automatically tags your videos."
+Write-Host "    If you wish to take advantage of this, you will need an OpenAI API key."
+Write-Host "    Note: enabling this will add 500-700 MB of additional downloads on first start."
+Write-Host "    If you do not want to use the AI features, just select No when prompted."
+Write-Host ""
+$aiEnable = Read-Host "Do you want to enable the AI features of GigHive? [y/N]"
+if ($aiEnable -in 'y', 'Y', 'yes') {
+    $sAiKey = Read-Host "Enter your OpenAI API key (sk-...)" -AsSecureString
+    $bstrAi = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sAiKey)
+    $openaiApiKey = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstrAi)
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstrAi)
+    _PatchEnvKey "AI_WORKER_ENABLED" "true"        $apacheEnvFile
+    _PatchEnvKey "OPENAI_API_KEY"    $openaiApiKey $apacheEnvFile
+    $env:GIGHIVE_AI_ASSETS_DIR = if ($env:GIGHIVE_AI_ASSETS_DIR) { $env:GIGHIVE_AI_ASSETS_DIR } else { "./_host_ai_assets" }
+    $composeProfileArg = @('--profile', 'ai')
+} else {
+    _PatchEnvKey "AI_WORKER_ENABLED" "false" $apacheEnvFile
+}
+{% endif %}
+
 # ---------------------------------------------------------------------------
 # Telemetry setup (Jinja2 expressions baked at bundle-build time)
 # ---------------------------------------------------------------------------
@@ -279,7 +304,7 @@ $env:GIGHIVE_VIDEO_DIR = $videoDir
 $env:GIGHIVE_IPHONE_DIR = "./_host_iphone"
 
 Write-Host "Bringing stack up..."
-Invoke-Compose up -d --build
+Invoke-Compose @composeProfileArg up -d --build
 
 _SendTelemetry "install_success"
 

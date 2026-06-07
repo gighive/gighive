@@ -82,6 +82,19 @@ services:
       - "./mysql/externalConfigs/load_and_transform.sql:/docker-entrypoint-initdb.d/01-load_and_transform.sql"
       - "./mysql/externalConfigs/z-custommysqld.cnf:/etc/mysql/conf.d/z-custommysqld.cnf"
 
+  ai-worker:
+    build: ./ai-worker
+    restart: unless-stopped
+    env_file: ./apache/externalConfigs/.env
+    volumes:
+      - "${GIGHIVE_AI_ASSETS_DIR:-./_host_ai_assets}:/data/ai_assets:rw"
+      - "${GIGHIVE_VIDEO_DIR:-./_host_video}:/data/video:ro"
+      - "${GIGHIVE_AUDIO_DIR:-./_host_audio}:/data/audio:ro"
+    depends_on:
+      - mysqlServer
+    profiles:
+      - ai
+
 volumes:
   mysql_data:
   tusd_data:

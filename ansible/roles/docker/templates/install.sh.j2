@@ -241,6 +241,8 @@ echo "Wrote:"
 echo "  - $APACHE_ENV_FILE"
 echo "  - $MYSQL_ENV_FILE"
 
+COMPOSE_PROFILE_ARG=()
+
 {% if ai_worker_osb_enabled | default(false) | bool %}
 echo ""
 echo "==> AI Video Tagger"
@@ -259,6 +261,7 @@ case "${AI_ENABLE}" in
     _patch_env_key AI_WORKER_ENABLED true           "$APACHE_ENV_FILE"
     _patch_env_key OPENAI_API_KEY    "$OPENAI_API_KEY" "$APACHE_ENV_FILE"
     export GIGHIVE_AI_ASSETS_DIR="${GIGHIVE_AI_ASSETS_DIR:-./_host_ai_assets}"
+    COMPOSE_PROFILE_ARG=(--profile ai)
     ;;
   *)
     _patch_env_key AI_WORKER_ENABLED false "$APACHE_ENV_FILE"
@@ -298,7 +301,7 @@ export GIGHIVE_VIDEO_DIR="$VIDEO_DIR"
 export GIGHIVE_IPHONE_DIR="$IPHONE_DIR"
 
 echo "Bringing stack up..."
-"${DOCKER_COMPOSE[@]}" up -d --build
+"${DOCKER_COMPOSE[@]}" "${COMPOSE_PROFILE_ARG[@]}" up -d --build
 
 _send_telemetry install_success
 
