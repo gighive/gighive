@@ -40,12 +40,12 @@ Add `retries`/`delay`/`until` to any `shell` task that connects as root, so it w
 
 Use Ansible `slurp` + `set_fact` (not shell `grep | cut`) to extract the root password. This is immune to CRLF line endings and passwords containing `=`:
 
+{% raw %}
 ```yaml
 - name: Read MySQL env file
   ansible.builtin.slurp:
     src: "{{ configs_dir }}/.env.mysql"
   register: __mysql_env
-
 - name: Extract MySQL root password
   ansible.builtin.set_fact:
     __mysql_root_pw: >-
@@ -54,6 +54,7 @@ Use Ansible `slurp` + `set_fact` (not shell `grep | cut`) to extract the root pa
          | map('regex_replace', '^MYSQL_ROOT_PASSWORD=', '')
          | list | first }}
 ```
+{% endraw %}
 
 Pass the password to `docker exec` via `environment:` + `-e MYSQL_PWD=` — never inline on the command line.
 
