@@ -76,7 +76,7 @@
 | Step | What happens |
 |---|---|
 | Bundle assembly | `output_bundle.yml` copies base `docker-compose.yml` (with `profiles: [ai]` service); `ai-worker/` files included |
-| install.sh | `COMPOSE_PROFILE_ARG=()` initialized as empty array |
+| install.sh | `COMPOSE_PROFILE_ARG=()` initialized; `if ai_worker_osb_enabled` block not rendered — no AI prompt |
 | User selects N | `*` branch: patches `AI_WORKER_ENABLED=false` in `.env`; array stays empty |
 | Compose up | `docker compose up -d --build` — no `--profile ai`; ai-worker service ignored by Compose |
 | **Result** | **3 containers: apacheWebServer, tusd, mysqlServer** |

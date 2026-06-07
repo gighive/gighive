@@ -27,7 +27,7 @@ Key parts:
 - **env_file**: `./mysql/externalConfigs/.env.mysql`
 - **Volumes**:
   - Persistent data: `mysql_data:/var/lib/mysql`
-  - CSV input directory: `{{ docker_dir }}/mysql/externalConfigs/prepped_csvs/{{ 'full' if database_full | bool else 'sample' }}:/var/lib/mysql-files/`
+  - CSV input directory: `{% raw %}{{ docker_dir }}/mysql/externalConfigs/prepped_csvs/{{ 'full' if database_full | bool else 'sample' }}:/var/lib/mysql-files/{% endraw %}`
   - Init SQL scripts:
     - `create_music_db.sql` mounted as `/docker-entrypoint-initdb.d/00-create_music_db.sql`
     - `load_and_transform.sql` mounted as `/docker-entrypoint-initdb.d/01-load_and_transform.sql`
