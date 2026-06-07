@@ -1,13 +1,13 @@
 *** 
-releaseNotes20260606.txt
-Changes: Docs and group_vars key add
-Scope: egrep -A1 'none' CHANGELOG.md | head -20
+releaseNotes20260607.txt
+Changes: Fix db edit fields after asset/event changes
+Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests" ansible-playbook-gighive2-20260605.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests" ansible-playbook-gighive2-20260607.log
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
 # LAB, rebuild 
@@ -22,8 +22,8 @@ Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260606.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260605.log 
-# OSB ONE-SHOT-BUNDLE UPLOAD TESTS
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260607.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260525.log
 
 # ADMIN functions testing (files + command), to be run after clean build using std sec.yml
@@ -40,19 +40,9 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/prod/prod.yml
-	renamed:    docs/feature_mcp_server.md -> docs/feature_mcp_server_completed.md
-	modified:   docs/knowledge_map.html
-	renamed:    docs/problem_cert_does_not_trust_gighive_internal.md -> docs/problem_security_cert_does_not_trust_gighive_internal.md
-	renamed:    docs/problem_checksum_sha256_mysql_initialization_drop_unique_constraint.md -> docs/problem_security_checksum_sha256_mysql_initialization_drop_unique_constraint.md
-	renamed:    docs/problem_hsts_collision.md -> docs/problem_security_hsts_collision.md
-	renamed:    docs/problem_htpasswd_changes.md -> docs/problem_security_htpasswd_changes.md
-	renamed:    docs/problem_openssh_strictmode_yes_fix_755_home_ubuntu.md -> docs/problem_security_openssh_strictmode_yes_fix_755_home_ubuntu.md
-	renamed:    docs/problem_sonarqube_phpsecurityS2083.md -> docs/problem_security_sonarqube_phpsecurityS2083.md
-	new file:   docs/problem_security_ssh_split_rsa_key.md
-	renamed:    docs/refactor_ai_jobs_new_column_source.md -> docs/refactored_ai_jobs_new_column_source.md
-	renamed:    docs/refactor_ensure_event_add_event_key.md -> docs/refactored_ensure_event_add_event_key.md
-	renamed:    docs/refactor_upload_jobs_from_json_to_db.md -> docs/refactored_upload_jobs_from_json_to_db.md
+	modified:   ansible/roles/docker/files/apache/webroot/db/database_edit_save.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
 
 BROKEN
 What's next: delete doesn't work in iphone upload page now after assets / event change
@@ -114,6 +104,62 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails 
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260606.txt
+Changes: Docs and group_vars key add
+Scope: egrep -A1 'none' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests" ansible-playbook-gighive2-20260605.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260605.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260606.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260606.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260606.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260525.log
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	renamed:    docs/feature_mcp_server.md -> docs/feature_mcp_server_completed.md
+	modified:   docs/knowledge_map.html
+	renamed:    docs/problem_cert_does_not_trust_gighive_internal.md -> docs/problem_security_cert_does_not_trust_gighive_internal.md
+	renamed:    docs/problem_checksum_sha256_mysql_initialization_drop_unique_constraint.md -> docs/problem_security_checksum_sha256_mysql_initialization_drop_unique_constraint.md
+	renamed:    docs/problem_hsts_collision.md -> docs/problem_security_hsts_collision.md
+	renamed:    docs/problem_htpasswd_changes.md -> docs/problem_security_htpasswd_changes.md
+	renamed:    docs/problem_openssh_strictmode_yes_fix_755_home_ubuntu.md -> docs/problem_security_openssh_strictmode_yes_fix_755_home_ubuntu.md
+	renamed:    docs/problem_sonarqube_phpsecurityS2083.md -> docs/problem_security_sonarqube_phpsecurityS2083.md
+	new file:   docs/problem_security_ssh_split_rsa_key.md
+	renamed:    docs/refactor_ai_jobs_new_column_source.md -> docs/refactored_ai_jobs_new_column_source.md
+	renamed:    docs/refactor_ensure_event_add_event_key.md -> docs/refactored_ensure_event_add_event_key.md
+	renamed:    docs/refactor_upload_jobs_from_json_to_db.md -> docs/refactored_upload_jobs_from_json_to_db.md
 
 *** 
 releaseNotes20260606.txt

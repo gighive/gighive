@@ -541,7 +541,7 @@
                     $value = (string)($r['checksumSha256'] ?? '');
                 }
               ?>
-              <?php if ($isAdmin && ($key === 'org' || (!$isGighive && ($key === 'rating' || $key === 'keywords' || $key === 'location' || $key === 'summary' || $key === 'musicians')) || $key === 'song_name')): ?>
+              <?php if ($isAdmin && ($key === 'org' || (!$isGighive && ($key === 'rating' || $key === 'keywords' || $key === 'location' || $key === 'summary')) || $key === 'musicians' || $key === 'song_name')): ?>
                 <?php
                   $inputName = '';
                   if ($key === 'org') {
@@ -673,7 +673,7 @@
     const basicUser = <?= json_encode($user) ?>;
     const viewMode = <?= $isGighive ? json_encode('gighive') : json_encode('defaultcodebase') ?>;
     const supportsExtendedSessionMetadata = viewMode === 'defaultcodebase';
-    const supportsParticipantsEdit = viewMode === 'defaultcodebase';
+    const supportsParticipantsEdit = viewMode === 'defaultcodebase' || viewMode === 'gighive';
 
     function debounce(fn, ms){
       let t = null;

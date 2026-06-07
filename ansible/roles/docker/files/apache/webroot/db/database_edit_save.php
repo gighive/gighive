@@ -45,7 +45,7 @@ if ($appFlavor === '') {
     $appFlavor = 'defaultcodebase';
 }
 $supportsExtendedSessionMetadata = $appFlavor === 'defaultcodebase';
-$supportsParticipantsEdit = $appFlavor === 'defaultcodebase';
+$supportsParticipantsEdit = $appFlavor === 'defaultcodebase' || $appFlavor === 'gighive';
 
 $eventId = $payload['event_id'] ?? null;
 $eventItemId = $payload['event_item_id'] ?? null;
