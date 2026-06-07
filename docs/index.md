@@ -341,8 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="credentials-box">u: guest &nbsp;&nbsp;|&nbsp;&nbsp; p: stormpigsguestuser1234!</div>
 
 ### Get Started
-- Gighive is a containerized deployment of Apache and Mysql running in Docker.  Easiest way to start is by installing Docker and then, the Gighive Quickstart docker bundle.  Follow the instructions below for both:
-
+- Gighive is a containerized deployment of Apache and Mysql running in Docker.  You install Docker first and then Gighive.  Supported platforms are Linux, Mac or Windows..instructions for each below:
 <div class="media-grid">
   <div class="media-card">
     <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4">
@@ -365,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 ### Requirements for Quickstart
-1. Most flavors of Linux x86/64 (tested on Ubuntu 24.04 and 22.04), Mac Sequoia 15.6.1 and Windows 10 or above running Docker.
+1. Most flavors of Linux x86/64 (tested on Ubuntu 24.04 and 22.04), Mac Sequoia 15.6.1 or Windows 10 or above running Docker.
 2. [Quickstart Instructions](setup_instructions_quickstart.md)
 
 ### Why self-host?
