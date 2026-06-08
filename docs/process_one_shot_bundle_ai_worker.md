@@ -96,7 +96,7 @@
 | Step | What happens |
 |---|---|
 | Bundle assembly | Same `docker-compose.yml` shipped (phantom `profiles: [ai]` entry, but harmless); `ai-worker/` files **not** included |
-| install.sh | `COMPOSE_PROFILE_ARG=()` initialized; `{% if ai_worker_osb_enabled %}` block not rendered — no AI prompt |
+| install.sh | `COMPOSE_PROFILE_ARG=()` initialized; `if ai_worker_osb_enabled` block not rendered — no AI prompt |
 | Compose up | `docker compose up -d --build` — profile never activated; `./ai-worker/` never referenced |
 | **Result** | **3 containers: apacheWebServer, tusd, mysqlServer** |
 
