@@ -2,26 +2,26 @@
 
 ## Summary
 
-The file `ansible/roles/docker/files/apache/webroot/index.php` currently contains a hardcoded contact email link:
+Two flavor-specific `index.php` files each contain a hardcoded contact email link:
 
-- `mailto:admin@stormpigs.com`
+- `ansible/roles/docker/files/apache/webroot/index.php` (`app_flavor=defaultcodebase` / stormpigs) — `mailto:admin@stormpigs.com`
+- `ansible/roles/docker/files/apache/overlays/gighive/index.php` (`app_flavor=gighive`) — `mailto:contactus@gighive.app`
 
-Because this codebase is now a shared platform (multi-tenant / multi-flavor), this email address should not be hardcoded in a shared UI page.
+Even though each file is flavor-specific, hardcoding the address makes it non-configurable and couples the code to a particular contact address that may change.
 
 ---
 
 ## Current State
 
-- `index.php` includes `header.php` and then renders the homepage content.
-- The contact link is rendered inline in `index.php`.
+- Each flavor's `index.php` renders the contact link inline.
+- Neither address is configurable via Ansible or environment configuration.
 
 ---
 
 ## Why This Needs Refactoring
 
-- The address `admin@stormpigs.com` is tenant-specific / historical.
-- Hardcoding it makes it easy to accidentally deploy the wrong contact info for a given `APP_FLAVOR`.
-- It is not configurable via Ansible or environment configuration.
+- Addresses are not configurable via Ansible or environment configuration.
+- A flavor's contact address may change without requiring a code change.
 
 ---
 
@@ -29,8 +29,16 @@ Because this codebase is now a shared platform (multi-tenant / multi-flavor), th
 
 A future change should:
 
-- Introduce a configurable variable for the contact email (via Ansible group_vars -> rendered into container env, or via a PHP config include).
-- Update `index.php` to use that configurable value.
-- Provide a safe default for `defaultcodebase` and a blank/hidden contact link for `gighive` unless configured.
+- Introduce a configurable variable `app_flavor_email` in Ansible group_vars, rendered into the container env via `.env.j2`. Binding it to `app_flavor` by name makes it clear they travel together.
+- Update each flavor's `index.php` to read `APP_FLAVOR_EMAIL` from the environment, hiding the contact link if the value is empty.
+
+### Files to change
+
+- `ansible/inventories/group_vars/gighive2/gighive2.yml` — dev: add `app_flavor_email`
+- `ansible/inventories/group_vars/gighive/gighive.yml` — lab/staging: add `app_flavor_email`
+- `ansible/inventories/group_vars/prod/prod.yml` — prod: add `app_flavor_email`
+- `ansible/roles/docker/templates/.env.j2` — render `APP_FLAVOR_EMAIL={{ app_flavor_email | default('') }}`
+- `ansible/roles/docker/files/apache/webroot/index.php` — (`defaultcodebase`) replace hardcoded `mailto:admin@stormpigs.com` with `APP_FLAVOR_EMAIL` env lookup
+- `ansible/roles/docker/files/apache/overlays/gighive/index.php` — (`gighive`) replace hardcoded `mailto:contactus@gighive.app` with `APP_FLAVOR_EMAIL` env lookup
 
 This refactor is tracked separately from the GA4 feature work.

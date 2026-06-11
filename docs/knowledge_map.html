@@ -566,7 +566,7 @@
               { id: "one-shot-bundle-install-sh", label: "process_one_shot_bundle_install_sh.md", kind: "document", concern: "deployment", type: "runbook", lifecycle: "active", audience: ["operator", "developer", "maintainer"], aspect: "non_functional", href: "./process_one_shot_bundle_install_sh.html" }
             ] },
             { id: "deployment-feature", label: "Feature", kind: "type", type: "feature", children: [
-              { id: "feature-install-windows-installer-ps1", label: "feature_install_windows_installer_ps1.md", kind: "document", concern: "deployment", type: "feature", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./feature_install_windows_installer_ps1.html" }
+              { id: "feature-install-windows-installer-ps1", label: "feature_completed_install_windows_installer_ps1.md", kind: "document", concern: "deployment", type: "feature", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./feature_completed_install_windows_installer_ps1.html" }
             ] },
             { id: "deployment-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "bootstrap-phase1", label: "refactored_process_installprerequisites.md", kind: "document", concern: "deployment", type: "proposal", lifecycle: "proposed", audience: ["operator", "architect", "developer"], aspect: "non_functional", href: "./refactored_process_installprerequisites.html" },
@@ -616,7 +616,7 @@
             { id: "database-feature", label: "Feature", kind: "type", type: "feature", children: [
               { id: "add-to-database", label: "feature_db_add_to.md", kind: "document", concern: "database", type: "feature", lifecycle: "proposed", audience: ["admin", "developer", "architect"], aspect: "functional", href: "./feature_db_add_to.html" },
               { id: "admin-import-45", label: "admin_data_import_45_with_upload_media_by_hash.md", kind: "document", concern: "database", type: "feature", lifecycle: "active", audience: ["admin", "developer"], aspect: "functional", href: "./admin_data_import_45_with_upload_media_by_hash.html" },
-              { id: "feature-edit-db-interactively", label: "feature_edit_database_interactively_completed.md", kind: "document", concern: "database", type: "feature", lifecycle: "proposed", audience: ["admin", "developer"], aspect: "functional", href: "./feature_edit_database_interactively_completed.html" },
+              { id: "feature-edit-db-interactively", label: "feature_completed_edit_database_interactively.md", kind: "document", concern: "database", type: "feature", lifecycle: "proposed", audience: ["admin", "developer"], aspect: "functional", href: "./feature_completed_edit_database_interactively.html" },
               { id: "feature-genres-styles-reconnect", label: "feature_genres_styles_reconnect.md", kind: "document", concern: "database", type: "feature", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./feature_genres_styles_reconnect.html" },
               { id: "feature-gighive-db-overlay", label: "codingChanges/featureGighiveDbOverlay.md", kind: "document", concern: "database", type: "feature", lifecycle: "historical", audience: ["developer"], aspect: "functional", href: "./codingChanges/featureGighiveDbOverlay.html" }
             ] },
@@ -687,11 +687,13 @@
               { id: "pr-upload-testing", label: "pr_upload_testing.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "qa"], aspect: "mixed", href: "./pr_upload_testing.html" },
               { id: "refactored-upload-max-bytes-one-var", label: "refactored_upload_max_bytes_one_var.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_upload_max_bytes_one_var.html" },
               { id: "refactor-upload-folder-messaging-server-monotonic-fix", label: "refactored_upload_folder_messaging_server_monotonic_fix.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer"], aspect: "mixed", href: "./refactored_upload_folder_messaging_server_monotonic_fix.html" },
-              { id: "refactor-tus-retry-delays", label: "refactored_tus_retry_delays_and_frame_extractor.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_tus_retry_delays_and_frame_extractor.html" }
+              { id: "refactor-tus-retry-delays", label: "refactored_tus_retry_delays_and_frame_extractor.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "active", audience: ["developer", "operator"], aspect: "non_functional", href: "./refactored_tus_retry_delays_and_frame_extractor.html" },
+              { id: "refactor-upload-using-catalog", label: "refactor_upload_using_catalog.md", kind: "document", concern: "upload", type: "proposal", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "mixed", href: "./refactor_upload_using_catalog.html" }
             ] },
             { id: "upload-feature", label: "Feature", kind: "type", type: "feature", children: [
+              { id: "feature-db-catalog-insert", label: "feature_db_catalog_insert.md", kind: "document", concern: "upload", type: "feature", lifecycle: "proposed", audience: ["developer", "admin", "operator", "architect"], aspect: "functional", href: "./feature_db_catalog_insert.html" },
               { id: "feature-iphone-upload-catalog", label: "feature_iphone_upload_catalog.md", kind: "document", concern: "upload", type: "feature", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./feature_iphone_upload_catalog.html" },
-              { id: "feature-progress-meter-heartbeat", label: "feature_progress_meter_heartbeat.md", kind: "document", concern: "upload", type: "feature", lifecycle: "proposed", audience: ["developer", "architect"], aspect: "functional", href: "./feature_progress_meter_heartbeat.html" }
+              { id: "feature-progress-meter-heartbeat", label: "feature_completed_progress_meter_heartbeat.md", kind: "document", concern: "upload", type: "feature", lifecycle: "active", audience: ["developer", "architect"], aspect: "functional", href: "./feature_completed_progress_meter_heartbeat.html" }
             ] },
             { id: "upload-change", label: "Change", kind: "type", type: "change", children: [
               { id: "upload-php-path-change", label: "change20250314_upload_media_jibe_php_path.md", kind: "document", concern: "upload", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./change20250314_upload_media_jibe_php_path.html" },
@@ -847,7 +849,7 @@
               { id: "iphone-four-page-rearch", label: "refactored_app_four_page_architecture.md", kind: "document", concern: "api", type: "architecture", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./refactored_app_four_page_architecture.html" }
             ] },
             { id: "api-feature", label: "Feature", kind: "type", type: "feature", children: [
-              { id: "feature-mcp-server", label: "feature_mcp_server_completed.md", kind: "document", concern: "api", type: "feature", lifecycle: "active", audience: ["developer", "architect"], aspect: "functional", href: "./feature_mcp_server_completed.html" }
+              { id: "feature-mcp-server", label: "feature_completed_mcp_server.md", kind: "document", concern: "api", type: "feature", lifecycle: "active", audience: ["developer", "architect"], aspect: "functional", href: "./feature_completed_mcp_server.html" }
             ] },
             { id: "api-change", label: "Change", kind: "type", type: "change", children: [
               { id: "pr-checkout-upgrade-to-v6", label: "prCheckoutUpgradeToV6.md", kind: "document", concern: "api", type: "change", lifecycle: "historical", audience: ["developer"], aspect: "mixed", href: "./prCheckoutUpgradeToV6.html" },
@@ -965,9 +967,9 @@
           kind: "concern",
           children: [
             { id: "ai-feature", label: "Feature", kind: "type", type: "feature", children: [
-              { id: "feature-ai-video-tagger", label: "feature_ai_video_tagger_completed.md", kind: "document", concern: "ai", type: "feature", lifecycle: "active", audience: ["developer", "architect"], aspect: "functional", href: "./feature_ai_video_tagger_completed.html" },
-              { id: "feature-ai-video-tagger-osb", label: "feature_ai_video_tagger_osb.md", kind: "document", concern: "ai", type: "feature", lifecycle: "active", audience: ["developer", "operator", "maintainer"], aspect: "functional", href: "./feature_ai_video_tagger_osb.html" },
-              { id: "feature-tagging-manual", label: "feature_tagging_manual_tagging_completed.md", kind: "document", concern: "ai", type: "feature", lifecycle: "active", audience: ["developer", "admin"], aspect: "functional", href: "./feature_tagging_manual_tagging_completed.html" }
+              { id: "feature-ai-video-tagger", label: "feature_completed_ai_video_tagger.md", kind: "document", concern: "ai", type: "feature", lifecycle: "active", audience: ["developer", "architect"], aspect: "functional", href: "./feature_completed_ai_video_tagger.html" },
+              { id: "feature-ai-video-tagger-osb", label: "feature_completed_ai_video_tagger_osb.md", kind: "document", concern: "ai", type: "feature", lifecycle: "active", audience: ["developer", "operator", "maintainer"], aspect: "functional", href: "./feature_completed_ai_video_tagger_osb.html" },
+              { id: "feature-tagging-manual", label: "feature_completed_tagging_manual_tagging.md", kind: "document", concern: "ai", type: "feature", lifecycle: "active", audience: ["developer", "admin"], aspect: "functional", href: "./feature_completed_tagging_manual_tagging.html" }
             ] },
             { id: "ai-proposal", label: "Proposal", kind: "type", type: "proposal", children: [
               { id: "ai-platform", label: "feature_ai_intelligence_platform.md", kind: "document", concern: "ai", type: "proposal", lifecycle: "proposed", audience: ["architect", "developer"], aspect: "mixed", href: "./feature_ai_intelligence_platform.html" },
