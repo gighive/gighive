@@ -46,7 +46,9 @@
 
 <div id="contact-us" style="margin-top: 10px;">
 	<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-		<font class="pageHeading"><a href="mailto:admin@stormpigs.com">CONTACT US</a></font>
+		<?php $app_flavor_email = getenv('APP_FLAVOR_EMAIL'); if ($app_flavor_email): ?>
+		<font class="pageHeading"><a href="mailto:<?= htmlspecialchars($app_flavor_email) ?>">CONTACT US</a></font>
+		<?php endif; ?>
 
 		<font class="pageHeading">
 			<span>Powered by </span>

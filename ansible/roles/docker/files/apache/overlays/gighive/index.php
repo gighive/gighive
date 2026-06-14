@@ -187,8 +187,10 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
         <li><a href="https://gighive.app/gighive_content_policy.html">Content Policy</a>: Please read and understand your responsibilities as an operator.</li>
       </ul>
 
+      <?php $app_flavor_email = getenv('APP_FLAVOR_EMAIL'); if ($app_flavor_email): ?>
       <h3>Contact Us</h3>
-      <p>👉 <a href="mailto:contactus@gighive.app">Contact us</a> for commercial licensing or for any other questions regarding GigHive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 4em; vertical-align: middle;"></p>
+      <p>👉 <a href="mailto:<?= htmlspecialchars($app_flavor_email) ?>">Contact us</a> for commercial licensing or for any other questions regarding GigHive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 4em; vertical-align: middle;"></p>
+      <?php endif; ?>
     </div>
   </div>
 </body>
