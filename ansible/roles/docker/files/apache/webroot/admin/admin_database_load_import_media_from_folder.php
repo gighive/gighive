@@ -24,6 +24,7 @@ $__tus_retry_delays_js = json_encode(array_values(array_map('intval', $__tus_ret
 
 $__tus_remove_fingerprint = filter_var(getenv('TUS_CLIENT_REMOVE_FINGERPRINT_ON_SUCCESS') ?: 'true', FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
 $__tus_parallel_uploads = max(1, (int)(getenv('TUS_CLIENT_PARALLEL_UPLOADS') ?: '1'));
+$__upload_trace_max_client = max(50, (int)(getenv('UPLOAD_TRACE_MAX_CLIENT') ?: '400'));
 ?>
 <!doctype html>
 <html lang="en">
@@ -116,6 +117,7 @@ $__tus_parallel_uploads = max(1, (int)(getenv('TUS_CLIENT_PARALLEL_UPLOADS') ?: 
     <details style="margin-top:1rem">
       <summary class="muted">Previous Jobs (Recovery) <span id="a-jobs-badge"></span></summary>
       <div style="margin-top:.75rem">
+        <p class="muted" style="margin:0 0 .5rem 0;font-size:.875rem">In order to restart a Previous Job, you will need to re-select the folder that you wanted to upload and then press Resume Upload.</p>
         <label class="muted">Saved jobs (most recent first)</label>
         <select id="a-jobs-select" class="dark"><option value="" disabled selected>Loading…</option></select>
         <div id="a-replay-status" style="margin:.5rem 0"></div>
@@ -158,6 +160,7 @@ $__tus_parallel_uploads = max(1, (int)(getenv('TUS_CLIENT_PARALLEL_UPLOADS') ?: 
     <details style="margin-top:1rem">
       <summary class="muted">Previous Jobs (Recovery) <span id="b-jobs-badge"></span></summary>
       <div style="margin-top:.75rem">
+        <p class="muted" style="margin:0 0 .5rem 0;font-size:.875rem">In order to restart a Previous Job, you will need to re-select the folder that you wanted to upload and then press Resume Upload.</p>
         <label class="muted">Saved jobs (most recent first)</label>
         <select id="b-jobs-select" class="dark"><option value="" disabled selected>Loading…</option></select>
         <div id="b-replay-status" style="margin:.5rem 0"></div>
@@ -207,6 +210,8 @@ const AUDIO_EXTS = new Set(<?= json_encode($__audio_exts) ?>);
 const VIDEO_EXTS = new Set(<?= json_encode($__video_exts) ?>);
 const MEDIA_EXTS = new Set([...AUDIO_EXTS, ...VIDEO_EXTS]);
 const APP_TIMEZONE = <?= json_encode(getenv('TZ') ?: 'UTC') ?>;
+const UPLOAD_TRACE_MAX  = <?= $__upload_trace_max_client ?>;
+const UPLOAD_CONCURRENCY = <?= $__tus_parallel_uploads ?>;
 
 // ── Per-section state ────────────────────────────────────────────────────────
 const _S = {
@@ -345,7 +350,7 @@ function renderOkBannerWithDbLink(message,linkLabel){
   }, entry || {});
   s.uploadTrace = Array.isArray(s.uploadTrace) ? s.uploadTrace : [];
   s.uploadTrace.push(enriched);
-  if(s.uploadTrace.length > 400) s.uploadTrace = s.uploadTrace.slice(-400);
+  if(s.uploadTrace.length > UPLOAD_TRACE_MAX) s.uploadTrace = s.uploadTrace.slice(-UPLOAD_TRACE_MAX);
   renderUploadDebug(id);
  }
 
@@ -360,7 +365,7 @@ function renderOkBannerWithDbLink(message,linkLabel){
     s.uploadTrace.push(item);
   }
   s.uploadTrace.sort((a,b)=>String(a.ts||'').localeCompare(String(b.ts||'')));
-  if(s.uploadTrace.length > 400) s.uploadTrace = s.uploadTrace.slice(-400);
+  if(s.uploadTrace.length > UPLOAD_TRACE_MAX) s.uploadTrace = s.uploadTrace.slice(-UPLOAD_TRACE_MAX);
   renderUploadDebug(id);
  }
 
@@ -781,7 +786,7 @@ async function sectionStartUpload(id){
     return;
   }
 
-  html(id+'-upload-status','<div class="muted">'+pending.length+' files to upload, '+present.length+' already present.</div>');
+  html(id+'-upload-status','<div class="muted">'+pending.length+' files to upload, '+present.length+' already present.</div><div class="alert-err" style="margin-top:.5rem">Do not navigate away from this page or the upload job will be put on hold. If you do, don\u2019t fret. You will get a chance to restart the job.</div>');
   renderUploadRows(id,files);
 
   const fileMap=new Map();
@@ -790,7 +795,6 @@ async function sectionStartUpload(id){
     fileMap.set(rel,f);
   }
 
-  const UPLOAD_CONCURRENCY = 3;
   let taskIdx = 0;
   const uploadWorker = async () => {
     while(taskIdx < pending.length) {
@@ -855,21 +859,16 @@ async function sectionResumeUpload(id){
   const jobId=sel&&sel.value?String(sel.value).trim():'';
   if(!jobId){html(id+'-replay-status','<div class="alert-err">Select a job first.</div>');return;}
   const s=_S[id];
+  if(!s.folderKey){html(id+'-replay-status','<div class="alert-err">User must select the folder that they previously tried to upload.</div>');return;}
   s.jobId=jobId;
   el(id+'-upload-panel').style.display='block';
-  el(id+'-upload-btn').textContent='Upload Media';
-  el(id+'-upload-btn').disabled=false;
-  html(id+'-upload-status','<div class="muted">Ready to resume. Source files: select the folder first if uploading new files.</div>');
-  s.uploadTrace=[];
   pushClientTrace(id, {
     endpoint: 'admin_database_load_import_media_from_folder.php',
     phase: 'resume_upload_selected',
     job_id: jobId,
   });
-  await refreshUploadDebug(id);
   const _inp=el(id+'-folder');s._fileList=_inp&&_inp.files?Array.from(_inp.files):[];
-  updateUploadButtonState(id);
-  startUploadDebugPolling(id);
+  await sectionStartUpload(id);
 }
 
 function renderUploadRows(id,files){
@@ -1190,6 +1189,20 @@ async function sectionReplay(id){
     el(id+'-cache-btn').disabled=!(s.folderKey&&canRun);
     ensureUploadRows(id);
   });
+});
+
+// ── Navigation guard ─────────────────────────────────────────────────────────
+window.addEventListener('beforeunload', (e) => {
+  const active = ['a', 'b'].some(id => {
+    const s = _S[id];
+    return s && s.uploadFiles && s.uploadFiles.some(
+      f => f.state === 'uploading' || f.state === 'resuming' || f.state === 'pending'
+    );
+  });
+  if (active) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
 });
 
 // ── Init ─────────────────────────────────────────────────────────────────────

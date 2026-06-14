@@ -43,7 +43,8 @@ function gighive_manifest_write_json(string $path, array $data, int $mode = 0640
     @chmod($path, 0640);
  }
 
- function gighive_manifest_read_upload_trace(string $jobDir, int $limit = 300): array {
+ function gighive_manifest_read_upload_trace(string $jobDir, int $limit = 0): array {
+    if ($limit <= 0) $limit = max(50, (int)(getenv('UPLOAD_TRACE_MAX_SERVER') ?: '300'));
     $path = $jobDir . '/upload_trace.jsonl';
     if (!is_file($path) || !is_readable($path)) {
         return [];

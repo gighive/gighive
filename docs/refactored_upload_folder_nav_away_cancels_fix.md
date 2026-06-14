@@ -52,7 +52,9 @@ Add a `window.addEventListener('beforeunload', ...)` handler that fires a browse
 window.addEventListener('beforeunload', (e) => {
     const active = ['a', 'b'].some(id => {
         const s = _S[id];
-        return s && s.uploadFiles && s.uploadFiles.some(f => f.state === 'uploading' || f.state === 'pending');
+        return s && s.uploadFiles && s.uploadFiles.some(
+            f => f.state === 'uploading' || f.state === 'resuming' || f.state === 'pending'
+        );
     });
     if (active) {
         e.preventDefault();
@@ -78,6 +80,72 @@ Move upload orchestration server-side so the browser is only reporting progress,
 
 ---
 
+## Implementation — Option A (2026-06-14)
+
+### Changes made to `admin_database_load_import_media_from_folder.php`
+
+**1. `beforeunload` navigation guard**
+Added at the bottom of the `<script>` block (before the `// ── Init` section):
+```javascript
+window.addEventListener('beforeunload', (e) => {
+  const active = ['a', 'b'].some(id => {
+    const s = _S[id];
+    return s && s.uploadFiles && s.uploadFiles.some(
+      f => f.state === 'uploading' || f.state === 'resuming' || f.state === 'pending'
+    );
+  });
+  if (active) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+```
+Fires Chrome's "Leave site?" confirmation dialog when any file in either section is actively uploading. Verified working: dialog appeared correctly during live upload test; Cancel resumed uploads uninterrupted.
+
+**2. Inline warning banner on upload start**
+Added to `sectionStartUpload` at the point where the pending/present file count is displayed:
+```javascript
+html(id+'-upload-status', '<div class="muted">' + pending.length + ' files to upload, ' + present.length + ' already present.</div>' +
+  '<div class="alert-err" style="margin-top:.5rem">Do not navigate away from this page or the upload job will be put on hold. If you do, don\'t fret. You will get a chance to restart the job.</div>');
+```
+Banner is replaced naturally by `updateUploadButtonState` when the batch completes (success, failure, or pending).
+
+**3. Instructional message in Recovery panels (both Section A and B)**
+Added above the Saved Jobs dropdown in both recovery `<details>` panels:
+```html
+<p class="muted" style="margin:0 0 .5rem 0;font-size:.875rem">In order to restart a Previous Job, you will need to re-select the folder that you wanted to upload and then press Resume Upload.</p>
+```
+
+**4. `sectionResumeUpload` folder guard**
+Added after the `jobId` check to block Resume Upload if no folder has been selected:
+```javascript
+if(!s.folderKey){html(id+'-replay-status','<div class="alert-err">User must select the folder that they previously tried to upload.</div>');return;}
+```
+`s.folderKey` is set by the folder change handler when the user picks a folder; it is empty string on fresh page load. This prevents the upload panel from opening in a state where `_fileList` would be empty and TUS uploads would silently fail.
+
+**5. `sectionResumeUpload` auto-starts upload (2026-06-14)**
+Removed the intermediate "Upload Media" button press requirement. `sectionResumeUpload` now calls `sectionStartUpload(id)` directly after setting `s._fileList`, making Resume Upload a true one-click restart:
+```javascript
+const _inp=el(id+'-folder');s._fileList=_inp&&_inp.files?Array.from(_inp.files):[];
+await sectionStartUpload(id);
+```
+`sectionStartUpload` handles disabling the button, calling `import_manifest_upload_start.php`, building the `fileMap` from local file handles, and starting TUS workers.
+
+### How to Resume After Navigating Away (updated)
+
+1. Return to the import page (hard refresh not required — page loads fresh after navigation).
+2. **Re-select the source folder** via Choose Folder (required — `_fileList` file handles are not serializable and cannot survive navigation).
+3. Expand **Previous Jobs (Recovery)** — the instructional message explains the folder requirement.
+4. Verify the correct job is auto-selected in the dropdown.
+5. Click **Resume Upload** — uploads start automatically. The guard will show an error if step 2 was skipped. There is no separate "Upload Media" press required.
+
+### Debugging notes (2026-06-14)
+
+- **"Failed to fetch" polling errors** were caused by a post-container-restart bfcache state, not by a PHP error. The Mac browser (192.168.1.224) was serving the page from bfcache while the container's TLS session had reset. Hard refresh resolves this.
+- **`import_manifest_upload_status.php`** still reads from the filesystem (`upload_result.json`, `upload_status.json`) for in-progress state, but falls back to a valid `200 { files: [], complete: false }` response if neither file exists. The 404 "Job not found" seen during testing was due to the job directory being lost when the container was rebuilt (filesystem inside container, not a persistent volume). The recovery panel reads job IDs from the DB (survives rebuild); the status polling endpoint reads from the filesystem (does not survive rebuild). This is a known gap from the `refactored_upload_jobs_from_json_to_db` migration.
+
+---
+
 ## Logic Review (2026-06-11)
 
 Full plan reviewed against `admin_database_load_import_media_from_folder.php` source. Findings addressed:
@@ -89,4 +157,4 @@ Full plan reviewed against `admin_database_load_import_media_from_folder.php` so
 - **Option B cleanup gap fixed** — added requirement to clear `sessionStorage` key on `complete_success` to prevent stale recovery prompt after a successful upload.
 - **TUS resumption logic verified** — tus-js-client stores upload offsets in localStorage keyed by fingerprint; same file + same metadata on re-select produces the same fingerprint and resumes correctly.
 - **Resume step order verified** — `sectionResumeUpload` reads `_fileList` from the folder picker at click time; folder re-selection must precede clicking Resume Upload.
-- **Option A `beforeunload` logic verified** — null-guards and state filter (`uploading` | `pending`) are correct.
+- **Option A `beforeunload` logic verified** — null-guards and state filter (`uploading` | `resuming` | `pending`) are correct. `resuming` added: it is a live in-progress state (grouped with `uploading` in the counts at line 886) and must trigger the guard.

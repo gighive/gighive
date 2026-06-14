@@ -305,6 +305,14 @@ tus_client_remove_fingerprint_on_success: true
 # 1 = sequential (default). 3 = recommended for LAN. 2 = recommended for WAN.
 tus_client_parallel_uploads: 3
 
+# --------------------------------------------------------------------
+# upload log tuning
+# --------------------------------------------------------------------
+# Max trace entries kept in JS memory (client) and read from upload_trace.jsonl (server).
+# Increase for deeper debugging of large jobs; decrease to reduce browser memory on 6500+ file batches.
+upload_trace_max_client: 400
+upload_trace_max_server: 300
+
 #gighive_host — what tests hit (can be IP or hostname)
 #gighive_server_name — what goes into the cert (CN + DNS.1)
 #gighive_server_alias — what goes into the cert (CN + DNS.1)
