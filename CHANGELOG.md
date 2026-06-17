@@ -1,13 +1,13 @@
 *** 
-releaseNotes20260614.txt
-Changes: docs/refactor_email_address.md
-Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
+releaseNotes20260617.txt
+Changes: docs/refactor_email_address.md, three new mcp tools, docs/feature_db_catalog_insert.md, docs/refactor_catalog_edit_tool.md
+Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests" ansible-playbook-gighive2-20260611.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests" ansible-playbook-gighive2-20260617.log
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
 # LAB, rebuild 
@@ -22,7 +22,7 @@ Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260606.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260607.log 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260617.log 
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 
@@ -43,14 +43,34 @@ Changes to be committed:
 	modified:   ansible/inventories/group_vars/gighive/gighive.yml
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
 	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
-	modified:   ansible/roles/docker/files/apache/webroot/index.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_csv.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/catalog_entries_list.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/catalog_scan_start.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/catalog_stats.php
+	new file:   ansible/roles/docker/files/apache/webroot/db/catalog_entry_save.php
+	new file:   ansible/roles/docker/files/apache/webroot/db/database_catalog.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
 	modified:   ansible/roles/docker/templates/.env.j2
-	modified:   docs/knowledge_map.html
-	renamed:    docs/refactor_email_address.md -> docs/refactored_email_address.md
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/mcp_server/files/mcp-server/server.py
+	new file:   ansible/roles/mcp_server/files/mcp-server/tools/schema.py
+	modified:   ansible/roles/validate_app/tasks/main.yml
+	renamed:    docs/feature_db_catalog_insert.md -> docs/feature_completed_db_catalog_insert.md
+	modified:   docs/feature_completed_mcp_server.md
+	modified:   docs/process_one_shot_bundle_install_sh.md
+	new file:   docs/refactor_catalog_edit_tool.md
+	new file:   docs/refactor_catalog_upload_using_catalog.md
+	deleted:    docs/refactor_upload_using_catalog.md
+	renamed:    docs/refactor_status_as_of_20260609.md -> docs/update_choices_as_of_20260609.md
 
 BROKEN
 What's next: delete doesn't work in iphone upload page now after assets / event change
+What's next: clean up index.phps to move vids to quickstart instructions
+What's next: add how to video to iphone home page
 What's next: dupe video fix shown by Jenny upload (Jenny as band or event vs boat as band or event name)
 
 TODO

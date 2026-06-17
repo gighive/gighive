@@ -14,6 +14,7 @@ import tools.ai_pipeline as ai_pipeline
 import tools.media_library as media_library
 import tools.upload_jobs as upload_jobs_mod
 import tools.system as system_mod
+import tools.schema as schema_readonly
 
 mcp = FastMCP("gighive")
 
@@ -21,6 +22,7 @@ ai_pipeline.register(mcp)
 media_library.register(mcp)
 upload_jobs_mod.register(mcp)
 system_mod.register(mcp)
+schema_readonly.register(mcp)
 
 if __name__ == "__main__":
     mcp.run()

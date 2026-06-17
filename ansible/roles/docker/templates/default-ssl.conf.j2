@@ -101,6 +101,21 @@
         </Else>
     </Location>
 
+    # Request-time staging-only public exception for /db/database_catalog.php
+    <Location "/db/database_catalog.php">
+        AuthMerging Off
+        <If "%{HTTP_HOST} == 'staging.gighive.app'">
+            Require all granted
+        </If>
+        <Else>
+            AuthType Basic
+            AuthName "GigHive Protected"
+            AuthBasicProvider file
+            AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+            Require valid-user
+        </Else>
+    </Location>
+
     # Request-time staging-only public access for /audio
     <LocationMatch "^/audio(?:/|$)">
         AuthMerging Off

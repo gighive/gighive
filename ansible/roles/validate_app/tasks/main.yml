@@ -144,32 +144,6 @@
     - db_health_json is defined
     - db_health_json.status != 'ok'
 
-- name: Check core table row counts (events, assets, event_items)
-  ansible.builtin.shell: |
-    docker exec -e "MYSQL_PWD=$MYSQL_ROOT_PW" "{{ mysql_container_name }}" \
-      mysql -uroot "{{ mysql_database }}" -sN -e \
-      "SELECT COUNT(*) FROM events;
-       SELECT COUNT(*) FROM assets;
-       SELECT COUNT(*) FROM event_items;"
-  environment:
-    MYSQL_ROOT_PW: "{{ mysql_root_password }}"
-  register: __core_table_counts
-  changed_when: false
-
-- name: Assert core tables are populated after seed
-  ansible.builtin.assert:
-    that:
-      - __core_table_counts.stdout_lines[0] | int > 0
-      - __core_table_counts.stdout_lines[1] | int > 0
-      - __core_table_counts.stdout_lines[2] | int > 0
-    fail_msg: >-
-      One or more core tables have zero rows — seed data likely failed silently
-      (common cause: NOT NULL column missing from INSERT or LOAD DATA INFILE).
-      events={{ __core_table_counts.stdout_lines[0] | default('?') }}
-      assets={{ __core_table_counts.stdout_lines[1] | default('?') }}
-      event_items={{ __core_table_counts.stdout_lines[2] | default('?') }}
-      See docs/problem_mysql_not_null_silent_failure.md
-
 - name: Ensure test upload file for media-files API exists
   ansible.builtin.copy:
     dest: /tmp/gighive-test-upload.txt
@@ -272,3 +246,28 @@
       - mysql_timezone.stdout | trim == gighive_timezone
     fail_msg: "{{ mysql_container_name }} timezone is {{ mysql_timezone.stdout | trim }}, expected {{ gighive_timezone }}"
 
+- name: Check core table row counts (events, assets, event_items)
+  ansible.builtin.shell: |
+    docker exec -e "MYSQL_PWD=$MYSQL_ROOT_PW" "{{ mysql_container_name }}" \
+      mysql -uroot "{{ mysql_database }}" -sN -e \
+      "SELECT COUNT(*) FROM events;
+       SELECT COUNT(*) FROM assets;
+       SELECT COUNT(*) FROM event_items;"
+  environment:
+    MYSQL_ROOT_PW: "{{ mysql_root_password }}"
+  register: __core_table_counts
+  changed_when: false
+
+- name: Assert core tables are populated after seed
+  ansible.builtin.assert:
+    that:
+      - __core_table_counts.stdout_lines[0] | int > 0
+      - __core_table_counts.stdout_lines[1] | int > 0
+      - __core_table_counts.stdout_lines[2] | int > 0
+    fail_msg: >-
+      One or more core tables have zero rows — seed data likely failed silently
+      (common cause: NOT NULL column missing from INSERT or LOAD DATA INFILE).
+      events={{ __core_table_counts.stdout_lines[0] | default('?') }}
+      assets={{ __core_table_counts.stdout_lines[1] | default('?') }}
+      event_items={{ __core_table_counts.stdout_lines[2] | default('?') }}
+      See docs/problem_mysql_not_null_silent_failure.md

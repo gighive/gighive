@@ -143,6 +143,9 @@ Docker network but the MCP server does not connect to them via HTTP.
 | 8 | `get_assets_untagged` | ~15 lines | `api/ai_jobs.php` — pre-enqueue audit | exact |
 | 9 | `get_tag_namespace_summary` | ~10 lines | `api/tags.php` — corpus quality review | exact |
 | 10 | `get_env_container_subset` | ~20 lines | `refactored_ai_worker_parallelism_enable.md` — env var inspection | needs validation |
+| 12 | `get_schema_tables` | ~10 lines | Developer schema inspection — list all DB tables | exact |
+| 13 | `get_table_ddl` | ~15 lines | Developer schema inspection — full DDL for a single table | exact |
+| 14 | `execute_select` | ~25 lines | Ad-hoc read-only SELECT for developer diagnostics | N/A — caller-supplied SQL |
 
 **Query legend:**
 - **exact** — query sourced directly from a source `.md` refactor doc or existing PHP API file read during this analysis
@@ -381,6 +384,39 @@ after Ansible deploys. The tool takes an allowlist of safe-to-expose key prefixe
 
 ---
 
+### Schema Query Tools (Tools 12–14) — `get_schema_tables`, `get_table_ddl`, `execute_select`
+
+Added 2026-06-15. Supports direct DB schema inspection and ad-hoc read-only queries
+from the AI assistant without requiring a manual `mysql` shell session.
+
+**`get_schema_tables`** — Returns all table names in the database via
+`SELECT TABLE_NAME AS table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE()`.
+The SQL alias normalises the column name (raw `INFORMATION_SCHEMA` columns are uppercase).
+Coding effort: ~10 lines.
+
+**`get_table_ddl(table_name)`** — Returns the full DDL for a single table. Validates
+`table_name` against `INFORMATION_SCHEMA` (parameterised query) before interpolating it
+backtick-quoted into `SHOW CREATE TABLE`. Extracts the DDL from `row['Create Table']`
+(MySQL returns this column with a literal space in its name). Coding effort: ~15 lines.
+
+**`execute_select(sql, limit=200)`** — Runs an arbitrary read-only `SELECT` or CTE
+(`WITH ... SELECT`). Safety constraints:
+- First token must be `SELECT` or `WITH`; all other statements are rejected without a DB call
+- `limit` clamped to a hard maximum of 700 rows
+- If no `LIMIT` clause is already present in `sql`, `LIMIT {limit}` is appended before execution
+- All result values serialised to JSON-safe types: `datetime.date`/`datetime.datetime` → `str`,
+  `bytes` → UTF-8 decoded string
+- Returns `{rows, row_count, truncated}` where `truncated: true` is a heuristic indicating
+  `row_count` reached the cap (there may be more rows)
+
+**Implementation notes:**
+- New module `tools/schema.py`; registered in `server.py` as `import tools.schema as schema_readonly`
+- Uses `db.query()` (autocommit=True, read-only path) with Option B row-capping — no `db.py` changes needed
+- `execute_select` wraps `db.query()` in a `try/except`; MySQL errors return `{error: str(e), rows: [], row_count: 0, truncated: false}` rather than propagating an unhandled exception
+- No Ansible, group_vars, or `.env.j2` changes required
+
+---
+
 ## Deferred Items
 
 ### Deferred 1 — `source` Column on `ai_jobs`
@@ -510,7 +546,7 @@ just-rendered `config.py` (it is not in `files/mcp-server/`). The Docker-specifi
 of the `ai_worker` role (`docker_compose_v2`, Compose template, restart handler) do not
 apply here.
 
-All 10 tools register unconditionally when `mcp_server_enabled: true`. The AI pipeline
+All 14 tools register unconditionally when `mcp_server_enabled: true`. The AI pipeline
 tools (`get_ai_queue_stats`, `get_jobs_failed`, `get_jobs_stale`, `reset_jobs_retryable`)
 query tables that always exist in the schema regardless of `ai_worker_enabled` — they
 return empty results if no jobs have been enqueued, which is itself informative. No
@@ -676,9 +712,10 @@ build only, gated by `mcp_server_enabled: false`.
 - [ ] Write `files/mcp-server/tools/upload_jobs.py` — `get_jobs_upload_ids` (list job IDs for discovery), `get_jobs_upload_state` (`docker exec apacheWebServer cat <path>` to read `upload_status.json`; reconciliation via SQL query against `assets`)
 - [ ] Create `files/mcp-server/tools/__init__.py` — empty file; makes `tools/` a Python package (mirrors `ai_worker` `adapters/__init__.py` pattern)
 - [ ] Write `files/mcp-server/tools/system.py` — `get_env_container_subset` (reads host `.env` directly)
-- [ ] Write `files/mcp-server/server.py` — entry point, registers all 10 tools, `stdio` transport
+- [ ] Write `files/mcp-server/server.py` — entry point, registers all 14 tools, `stdio` transport
 - [ ] Add `mcp_server_enabled: false`, `mcp_server_dir`, and `mcp_env_file` to `group_vars/gighive2/gighive2.yml`, `gighive/gighive.yml`, `prod/prod.yml`; wire role into `site.yml` after `ai_worker`
 - [ ] Write `templates/README.md.j2` — templated SSH config entry; resolves `{{ mcp_server_dir }}` and `{{ ansible_host }}` at deploy time
+- [ ] Write `files/mcp-server/tools/schema.py` — `get_schema_tables`, `get_table_ddl`, `execute_select`; register in `server.py` as `import tools.schema as schema_readonly`
 
 ---
 
@@ -703,7 +740,7 @@ build only, gated by `mcp_server_enabled: false`.
 
 ## GigHive MCP Tools Reference
 
-**"Function" is the correct term.** In MCP, each tool is registered with a `name` and called by the AI assistant exactly like a function — the assistant passes typed arguments and receives a structured response. The table below formalizes the eleven tools with consistent naming, their inputs, and what they return.
+**"Function" is the correct term.** In MCP, each tool is registered with a `name` and called by the AI assistant exactly like a function — the assistant passes typed arguments and receives a structured response. The table below formalizes the fourteen tools with consistent naming, their inputs, and what they return.
 
 All tool names in the Priority Summary and section headings above now use the canonical names defined here.
 
@@ -720,12 +757,16 @@ All tool names in the Priority Summary and section headings above now use the ca
 | 9 | `get_assets_untagged` | Assets with zero confirmed taggings | `limit?: int = 100` | `[{asset_id, source_relpath, file_type, event_name}]` + `{total_untagged}` |
 | 10 | `get_tag_namespace_summary` | Tag distribution across corpus grouped by namespace | `namespace?: str` | `[{namespace, name, usage_count}]` |
 | 11 | `get_env_container_subset` | Read safe env vars from the host `.env` file (secrets never exposed) | `keys: [str]` (must match allowed prefixes: `AI_`, `TUS_`, `DB_HOST`) | `{key: value, ...}` |
+| 12 | `get_schema_tables` | List all tables in the database | (none) | `[{table_name}]` |
+| 13 | `get_table_ddl` | Full `SHOW CREATE TABLE` DDL for a single table | `table_name: str` | `{table_name, ddl}` |
+| 14 | `execute_select` | Run an arbitrary read-only `SELECT` or CTE; hard cap 700 rows | `sql: str`, `limit?: int = 200` (max 700) | `{rows: [...], row_count, truncated}` |
 
 ### Naming convention
 
-- **`get_`** — read-only query; no side effects (tools 1–3, 5–11)
+- **`get_`** — read-only query; no side effects (tools 1–3, 5–6, 8–13)
 - **`search_`** — read-only filtered query with multiple optional parameters (tool 7)
 - **`reset_`** — the one write tool; defaults to `dry_run=true` to require explicit confirmation (tool 4)
+- **`execute_`** — caller-supplied statement; read-only enforced at the tool level; hard row cap applied (tool 14)
 
 ### Module grouping (mirrors the `tools/` file structure)
 
@@ -735,6 +776,7 @@ All tool names in the Priority Summary and section headings above now use the ca
 | `tools/media_library.py` | `search_assets_by_tag`, `get_events`, `get_assets_untagged`, `get_tag_namespace_summary` |
 | `tools/upload_jobs.py` | `get_jobs_upload_ids`, `get_jobs_upload_state` |
 | `tools/system.py` | `get_env_container_subset` |
+| `tools/schema.py` | `get_schema_tables`, `get_table_ddl`, `execute_select` |
 
 `get_env_container_subset` lives in a new `tools/system.py` rather than `ai_pipeline.py` because it reads the host `.env` file rather than the database.
 
@@ -763,6 +805,7 @@ ansible/roles/mcp_server/
             media_library.py
             upload_jobs.py
             system.py
+            schema.py
 ```
 
 ### Deployed layout on the Docker host (runtime)
@@ -785,6 +828,7 @@ ansible/roles/mcp_server/
         media_library.py
         upload_jobs.py
         system.py
+        schema.py
 ```
 
 The `venv/` directory is created idempotently by `ansible.builtin.pip` — if the packages
@@ -882,7 +926,7 @@ def get_ai_queue_stats(job_type: str = "categorize_video") -> dict:
     ...
 ```
 
-This happens at process startup when `server.py` is imported. All 11 tools register
+This happens at process startup when `server.py` is imported. All 14 tools register
 unconditionally — no runtime gating.
 
 ### Registration B — Server advertises its tools to the AI client (at session start)
@@ -1030,3 +1074,43 @@ Batch 2 (after batch 1, job_id required):
 - Staging has a minimal dataset with 5 tutorial assets tagged under `scene:` namespace — the only tagged assets on any environment
 - `TUS_MAX_SIZE` is `null` on both (key not present in `.env`)
 - All 4 MCP servers (dev, lab, staging, prod) confirmed active with 11 tools each
+
+---
+
+## Practical Prompts
+
+Common natural-language prompts for each tool. The typical flow is: use
+`get_schema_tables` + `get_table_ddl` to orient on the schema, then `execute_select`
+for ad-hoc data queries. You can also ask the AI assistant to compose the SQL and then
+call `execute_select` with it.
+
+### `get_schema_tables`
+
+- *"What tables exist in the dev database?"*
+- *"List all tables in the database."*
+
+### `get_table_ddl`
+
+- *"Show me the DDL for the `assets` table."*
+- *"What columns does the `events` table have?"*
+- *"Show the full create statement for `ai_jobs` — I want to see all the indexes."*
+- *"What are the foreign keys on `event_items`?"*
+- *"Show me the DDL for `taggings` — I want to verify the indexes are correct."*
+
+### `execute_select`
+
+**Schema inspection:**
+- *"Run `SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'assets' ORDER BY ORDINAL_POSITION` — show me all columns with their types."*
+- *"Query INFORMATION_SCHEMA.KEY_COLUMN_USAGE to show all foreign key relationships in the database."*
+- *"Show all indexes on the `ai_jobs` table from INFORMATION_SCHEMA.STATISTICS."*
+
+**Data diagnostics:**
+- *"How many assets are in each `file_type` bucket? `SELECT file_type, COUNT(*) FROM assets GROUP BY file_type`"*
+- *"Show me the 10 most recent events: `SELECT event_id, org_name, event_date FROM events ORDER BY event_date DESC LIMIT 10`"*
+- *"How many assets have no `duration_seconds`? `SELECT COUNT(*) FROM assets WHERE duration_seconds IS NULL`"*
+- *"Show me assets with no event association: `SELECT a.asset_id, a.source_relpath FROM assets a LEFT JOIN event_items ei ON ei.asset_id = a.asset_id WHERE ei.asset_id IS NULL`"*
+
+**AI pipeline diagnostics:**
+- *"How many `ai_jobs` are in each status? `SELECT status, COUNT(*) FROM ai_jobs GROUP BY status`"*
+- *"Show me the last 5 failed jobs with their error messages."*
+- *"Are there any tags with very low usage counts? `SELECT t.namespace, t.name, COUNT(tg.id) AS n FROM tags t LEFT JOIN taggings tg ON tg.tag_id = t.id GROUP BY t.namespace, t.name HAVING n < 3`"*

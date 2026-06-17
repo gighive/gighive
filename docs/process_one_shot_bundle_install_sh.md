@@ -95,6 +95,46 @@ runtime PHP app sees `GIGHIVE_INSTALL_CHANNEL=full` even on bundle installs.
 
 See `docs/feature_section_d_install_channel_toggle.md` for the planned fix.
 
+## MySQL Volume Lifecycle and Schema Changes
+
+### How the volume is created
+
+`docker compose up` creates the named volume `<project>_mysql_data` the first time it runs if the
+volume does not already exist. The project name defaults to the directory containing
+`docker-compose.yml` (e.g. `gighive-one-shot-bundle`), so the full volume name is typically
+`gighive-one-shot-bundle_mysql_data`.
+
+MySQL's `docker-entrypoint-initdb.d/` mechanism — which runs `create_music_db.sql` and
+`load_and_transform.sql` — only fires when the data directory is **empty** (i.e. on first
+initialization of a new volume). On all subsequent starts, MySQL skips those scripts entirely.
+
+### Consequence for schema changes
+
+If a volume already exists from a prior install run, `docker compose up -d --build` leaves the
+MySQL container running or restarts it against the existing volume. Any tables added to
+`create_music_db.sql` after the volume was first created will be absent from the running database,
+causing errors like:
+
+```
+SQLSTATE[42S02]: Base table or view not found: 1146 Table 'music_db.catalog_scans' doesn't exist
+```
+
+### Fix: drop the volume before reinstalling
+
+To force MySQL to reinitialize from the current `create_music_db.sql`, the named volume must be
+removed. Run from the bundle directory:
+
+```bash
+docker compose down --volumes --remove-orphans
+```
+
+The `--volumes` flag is required. Plain `docker compose down` stops containers but **silently
+preserves named volumes**. After dropping the volume, the next `docker compose up` (or re-running
+`install.sh`) will create a fresh volume and run the init scripts against the current SQL.
+
+Note: this destroys all data in the database. For a test or fresh install this is the correct
+approach. For a production instance with real data, a SQL migration would be needed instead.
+
 ## Relationship to Telemetry
 
 `_install_channel` is used as the `install_channel` field in telemetry payloads. It is already

@@ -240,6 +240,7 @@ CREATE TABLE IF NOT EXISTS catalog_scans (
     video_count       INT UNSIGNED    NULL,
     audio_size_bytes  BIGINT UNSIGNED NULL,
     video_size_bytes  BIGINT UNSIGNED NULL,
+    skipped_count     INT UNSIGNED    NOT NULL DEFAULT 0,
     started_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at      DATETIME        NULL,
     created_at        TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,

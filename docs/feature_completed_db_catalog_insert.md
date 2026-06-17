@@ -143,12 +143,12 @@ All column names mirror the existing canonical tables (`assets`, `events`, `even
 
 ### `summary` vs `notes`
 
-- **`summary`** — event description; promoted to `events.summary` at ingest time. Follows `UploadService` convention where the `notes` POST parameter maps to `events.summary`.
+- **`summary`** — event description; promoted to `events.summary` at ingest time. The column name matches `events.summary` directly. (Note: the existing single-file upload form in `UploadService` POSTs this value under a field named `notes` — that is a pre-existing form-field naming quirk in the upload layer, not a general naming convention.)
 - **`notes`** — operator-only annotation on the catalog entry itself (e.g., "client hasn't approved", "skip — duplicate recording"). **Not promoted to any downstream table.** Catalog lifecycle only.
 
 ### `path_hash`
 
-SHA-256 of `(source_root + '/' + source_relpath)`, computed in PHP at scan time with no file I/O. Globally unique per physical file path. Powers:
+SHA-256 of `webkitRelativePath` (= SHA-256(`source_root + '/' + source_relpath`)), computed server-side from the browser-provided `relpath` string with no file I/O. Unique per browser-visible relative path. Powers:
 - Cross-scan deduplication (Section B re-scans update existing entries rather than inserting new ones)
 - Clean 1:1 mapping to upload job files at promote time — prevents duplicate entries in `upload_job_files` on re-scan
 
@@ -287,7 +287,7 @@ Used when the corresponding `catalog_entries` column is NULL; inherited from the
 | File | Role |
 |---|---|
 | `admin/admin_database_catalog_media_from_folder.php` | Scan trigger UI (Section A / B) |
-| `admin/catalog_scan_start.php` | POST endpoint — runs the scan, returns JSON summary |
+| `admin/catalog_scan_start.php` | POST endpoint — receives browser FileList metadata, writes catalog DB rows, returns JSON summary |
 | `admin/catalog_entries_list.php` | GET endpoint — paginated entries for the scan trigger UI |
 | `db/database_catalog.php` | Browse / edit / delete UI for catalog entries |
 | `db/catalog_entry_save.php` | POST endpoint — saves field edits and row deletes |
@@ -300,36 +300,39 @@ Mirrors the structure of `admin_database_load_import_media_from_folder.php` with
 
 ### Section A — Catalog Folder (Destructive)
 
-- Clears all `catalog_entries` for the given `source_root` (via cascade from deleted `catalog_scans` rows)
+- User picks a folder via browser `<input type="file" webkitdirectory>` (same picker as import page)
+- JS reads `FileList` metadata (name, size, lastModified, webkitRelativePath) — no hashing, no upload, no TUS
+- JS POSTs a `files` array to `catalog_scan_start.php`
+- Server clears all `catalog_entries` for the given `source_root` (via cascade from deleted `catalog_scans` rows)
 - Creates a fresh `catalog_scans` row (`status = 'running'`)
-- Server-side `scandir` + `stat()` — no file upload, no TUS, no hashing
-- Populates `catalog_entries` from scratch; computes `path_hash` per entry
+- Server iterates the `files` array, computes `path_hash` per entry, batch-INSERTs into `catalog_entries`
 - Updates scan aggregate columns (`total_files`, `total_size_bytes`, etc.) on completion
 - Sets `scan.status = 'complete'`
 
 ### Section B — Add to Catalog (Non-Destructive)
 
-- Scans the same folder
-- For each file: computes `path_hash`
+- Same folder picker flow; user may pick the same or a different folder
+- JS POSTs the `files` array to `catalog_scan_start.php` with `mode = 'add'`
+- For each file: server computes `path_hash`
   - If `path_hash` not in `catalog_entries`: INSERT new entry with `first_seen_scan_id = last_seen_scan_id = current scan_id`
   - If `path_hash` exists: UPDATE `last_seen_scan_id = current scan_id`
-- Entries in DB whose `last_seen_scan_id` was not updated = file no longer on disk (orphan detection, use case #9)
+- Entries in DB whose `last_seen_scan_id` was not updated = file no longer present in the latest pick (orphan detection, use case #9)
 
 ### Key Differences from Folder Import Page
 
 | Aspect | `admin_database_load_import_media_from_folder.php` | `admin_database_catalog_media_from_folder.php` |
 |---|---|---|
-| File selection | Browser file picker (`webkitdirectory`) | Operator types server-side path |
-| File transfer | TUS chunked upload | None — server-side `scandir`/`stat()` only |
-| Hashing | SHA-256 per file (browser-side) | None |
+| File selection | Browser file picker (`webkitdirectory`) | Browser file picker (`webkitdirectory`) — same as import page |
+| File transfer | TUS chunked upload | None — metadata-only POST, no bytes transferred |
+| Hashing | SHA-256 per file (browser-side) | None — `path_hash` derived from `webkitRelativePath` server-side |
 | Media probing | Via `ingestComplete()` | None |
-| Steps | Step 1 (manifest) → Step 2 (upload) → Step 3 (finalize) | Single-step scan |
+| Steps | Step 1 (Choose Folder → hash → manifest) → Step 2 (upload) → Step 3 (finalize) | Step 1 (Choose Folder, scan button enables) → Step 2 (Catalog — metadata POST only) |
 | Output | Assets in `assets` + `event_items` | Entries in `catalog_scans` + `catalog_entries` only |
 | Downstream tables touched | `assets`, `events`, `event_items`, `upload_jobs`, `upload_job_files` | `catalog_scans`, `catalog_entries` only |
 
-### Path Access
+### source_root Derivation
 
-The server-side path must be mounted into the Apache container. For Phase 1, valid scan roots are paths already accessible to the PHP process (e.g., bind-mounted `/srv/audio`, `/srv/video`, or additional NAS mounts). Application-level path validation guards against directory traversal.
+Because file selection is browser-side, `source_root` is derived from `webkitRelativePath`: the first path segment is the top-level folder name chosen by the user (e.g., if the user picks a folder named `2024-recordings`, all `webkitRelativePath` values begin with `2024-recordings/...`). The `path_hash` is SHA-256 of the full `webkitRelativePath`, which equals SHA-256(`source_root` + `'/'` + `source_relpath`) — the same formula as before, just fed browser-provided strings instead of server-provided absolute paths.
 
 ### Phase 1 Boundary
 
@@ -344,7 +347,7 @@ The subsequent **promote step** — taking `status = 'selected'` entries through
 | Decision | Choice Made | Rationale |
 |---|---|---|
 | Catalog vs. extending `assets` | Separate `catalog_scans` + `catalog_entries` tables | `assets.checksum_sha256` is NOT NULL UNIQUE; no checksum = can't fit cleanly in `assets` without corrupting the dedup invariant |
-| Primary dedup key | `UNIQUE(path_hash)` — SHA-256 of `(source_root + '/' + source_relpath)` | Prevents duplicate catalog entries across re-scans; ensures clean 1:1 mapping to upload job files at promote time. `UNIQUE(scan_id, source_relpath(512))` added as secondary within-scan guard |
+| Primary dedup key | `UNIQUE(path_hash)` — SHA-256 of `(source_root + '/' + source_relpath)` = SHA-256(`webkitRelativePath`) | Prevents duplicate catalog entries across re-scans; ensures clean 1:1 mapping to upload job files at promote time. `UNIQUE(scan_id, source_relpath(512))` added as secondary within-scan guard. **Collision risk**: because `source_root` is now just the chosen folder's name (not an absolute path), two physically different folders with the same top-level folder name and overlapping relative paths will produce identical `path_hash` values — operators must use distinct top-level folder names to avoid silent cross-contamination |
 | `duration_seconds` | Omitted; proxy via `size_bytes` ÷ avg bitrate | Duration requires ffprobe; violates no-media-processing constraint. Proxy is sufficient for import time estimation (#2) and AI cost preview (#14) |
 | `item_type` NULL behavior | NULL = auto-derive (wedding→clip, else→song) | Consistent with existing `UploadService` logic; explicit value overrides for highlight/loop use cases |
 | `summary` vs `notes` | Both present with distinct semantics | `summary` → `events.summary` at promote time; `notes` = operator annotation, catalog lifecycle only, never promoted |
@@ -355,13 +358,12 @@ The subsequent **promote step** — taking `status = 'selected'` entries through
 
 ## Database Migration (Existing Installations)
 
-The tables were added to `create_music_db.sql` and will be present on any fresh install. For an existing `music_db` that is already running, apply the statements below manually. No existing tables are modified.
+The tables were added to `create_music_db.sql` and will be present on any fresh install. For an existing `music_db` that is already running, run the following from the **docker host**. Both statements use `IF NOT EXISTS` so the command is safe to re-run.
 
-```sql
--- Run against music_db on the target host.
--- Drop order matters for the rollback; entries must be dropped before scans.
--- Rollback: DROP TABLE IF EXISTS catalog_entries; DROP TABLE IF EXISTS catalog_scans;
+Rollback if needed: `DROP TABLE IF EXISTS catalog_entries; DROP TABLE IF EXISTS catalog_scans;`
 
+```bash
+docker exec -i mysqlServer sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"' << 'MIGRATION'
 CREATE TABLE IF NOT EXISTS catalog_scans (
     scan_id           INT UNSIGNED    NOT NULL AUTO_INCREMENT PRIMARY KEY,
     source_root       VARCHAR(1024)   NOT NULL,
@@ -431,11 +433,103 @@ CREATE TABLE IF NOT EXISTS catalog_entries (
     INDEX idx_catalog_entries_event     (org_name, event_date),
     INDEX idx_catalog_entries_asset     (asset_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+MIGRATION
 ```
+
+### source_relpath collation — decision and skip-tracking plan
+
+#### Decision: revert to `utf8mb4_unicode_ci` (table default)
+
+An earlier revision changed `source_relpath` to `utf8mb4_bin` (byte-exact) to prevent a duplicate-key error when two folders differ only by Unicode diacritics (e.g. `Milos Karadaglic/` vs `Miloš Karadaglić/`). After further review, `utf8mb4_bin` was **reverted** for the following reasons:
+
+| Concern | `utf8mb4_bin` risk | `utf8mb4_unicode_ci` behaviour |
+|---|---|---|
+| Cross-OS NFD/NFC normalization | macOS stores paths as NFD; Linux uses NFC. `_bin` treats them as different even when visually identical — breaks correct dedup in mixed-OS environments | `_ci` normalises these to equal — correct for most users |
+| Consistency with `assets.source_relpath` | Would be an exception column; JOINs between tables could silently fail | Matches existing column on `assets` table — Phase 2 promote workflow is safe |
+| Case-variant folder names (`ACDC` vs `acdc`) | Treated as distinct — operationally surprising | Correctly collapsed |
+| Diacritic-distinct artist folders | Both cataloged independently — benefit for librarian persona < 5% of user base | Second folder's files skipped — acceptable with transparent warning (see below) |
+
+`assets.source_relpath` and all other path columns in the schema use `utf8mb4_unicode_ci`. Consistency and correct cross-OS behaviour outweigh the edge-case benefit.
+
+#### How duplicate paths are handled under `_ci`
+
+`utf8mb4_unicode_ci` uses primary-weight comparison — diacritics are stripped at comparison time, so `s` and `š` are equal. Within a single **reload** scan, if two submitted files resolve to the same `source_relpath` under `_ci` (e.g. both folders contain the same album/track names), the second occurrence is a key collision.
+
+**Reload mode (`INSERT IGNORE` + skip tracking):**
+
+1. Change the batch INSERT to `INSERT IGNORE` (reload mode only).
+2. After each batch: `$skipped += ($batchSize - $stmt->rowCount())`.
+3. If `$skipped > 0` after all batches: run one `SELECT source_relpath FROM catalog_entries WHERE scan_id = $scanId`, diff against `$submittedPaths` in PHP → `$droppedPaths[]`.
+4. Store `$skipped` in the new `catalog_scans.skipped_count` column.
+5. Return `ignored: { count: N, paths: [...] }` in the JSON response.
+6. Render a **warning stat box** in the scan result card if `skipped_count > 0`.
+
+**Add mode (unchanged):** keeps `ON DUPLICATE KEY UPDATE last_seen_scan_id = VALUES(last_seen_scan_id)`. This intentionally updates the last-seen timestamp when a file is re-encountered in a later add scan. Within-batch diacritic collisions in add mode cause the second file's metadata to silently overwrite the first's via the ON DUPLICATE KEY path — acceptable given the rarity.
+
+**Why not use `INSERT IGNORE` for add mode:** the diff against `scan_id` would conflate "file already cataloged from a prior scan" (normal, expected) with "path collision" (warning). These are indistinguishable from a single `SELECT WHERE scan_id = $scanId`, so skip-tracking is limited to reload mode where the scan_id is always fresh.
+
+#### Schema change: `catalog_scans.skipped_count`
+
+Add the following column to `catalog_scans`:
+
+```sql
+skipped_count INT UNSIGNED NOT NULL DEFAULT 0
+```
+
+#### Migration for existing installations
+
+Run from the **docker host** to apply both changes (revert `_bin` + add `skipped_count`):
+
+```bash
+docker exec -i mysqlServer sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" << "SQL"
+ALTER TABLE catalog_entries MODIFY source_relpath VARCHAR(4096) NOT NULL;
+ALTER TABLE catalog_scans ADD COLUMN skipped_count INT UNSIGNED NOT NULL DEFAULT 0;
+SQL'
+```
+
+> **Note:** `ADD COLUMN IF NOT EXISTS` is MariaDB syntax and is not supported in MySQL 8.x. If `skipped_count` already exists, MySQL will return `ERROR 1060 (42S21): Duplicate column name` — that error is safe to ignore.
+
+#### Files changed by this plan
+
+| File | Change |
+|---|---|
+| `create_music_db.sql` | Revert `source_relpath` explicit `COLLATE utf8mb4_bin` → column default; add `skipped_count` to `catalog_scans` |
+| `admin/catalog_scan_start.php` | See implementation notes below |
+| `admin/admin_database_catalog_media_from_folder.php` | `renderSummary()` renders an **Ignored** stat box (orange badge) when `data.ignored.count > 0`, listing the first 5 dropped paths |
+
+#### `catalog_scan_start.php` implementation details (skip tracking)
+
+These are the exact code changes required — caught during logic review:
+
+1. **`insertBatch` return type**: Change `void` → `int`; capture `$stmt` before `execute()` and return `$stmt->rowCount()`.
+2. **`INSERT IGNORE` for reload only**: Change base SQL from `INSERT INTO` to `INSERT IGNORE INTO` when `$mode === 'reload'`. Add mode keeps `ON DUPLICATE KEY UPDATE` unchanged.
+3. **Collect `$submittedRelpaths`**: Inside the `foreach ($filesIn as $entry)` loop, add `$submittedRelpaths[] = $sourceRel` alongside the existing counter increments. This array is needed for the post-INSERT diff. Note: `$sourceRel` is the stripped relpath (`explode('/', $relpath, 2)[1]`), matching exactly what is stored in `source_relpath`.
+4. **Mode-gated skip accumulation**: `if ($mode === 'reload') { $skipped += (count($batch) - $insertBatch($pdo, $batch, $mode)); }` — must be reload-only. In add mode, `rowCount()` returns `2` per ON DUPLICATE KEY row (not `0`), so `batchSize - rowCount` would be incorrect.
+5. **Post-INSERT diff**: `if ($skipped > 0) { $inserted = $pdo->query("SELECT source_relpath FROM catalog_entries WHERE scan_id = $scanId")->fetchAll(PDO::FETCH_COLUMN, 0); $droppedPaths = array_values(array_diff($submittedRelpaths, $inserted)); }`
+6. **`skipped_count` in UPDATE**: Add `skipped_count=?` to the `UPDATE catalog_scans SET ...` statement and append `$skipped` to the execute params array.
+7. **Response**: Add `'ignored' => ['count' => $skipped, 'paths' => $droppedPaths]` to the `json_encode` output.
 
 ---
 
 ## Phase 1 Implementation Plan
+
+### Files Changed
+
+**New (5):**
+
+1. `admin/admin_database_catalog_media_from_folder.php` — scan trigger UI with Section A (destructive reload) and Section B (non-destructive add) forms; uses browser `webkitdirectory` file picker (mirroring the import page): Choose Folder (Step 1) → scan button enables (Step 2)
+2. `admin/catalog_scan_start.php` — POST endpoint that receives a browser-provided `files` metadata array and writes `catalog_scans` + `catalog_entries` rows; no server-side filesystem walk
+3. `admin/catalog_entries_list.php` — GET endpoint returning paginated `catalog_entries` for a given `scan_id`; used by the scan trigger UI post-scan
+4. `db/database_catalog.php` — browse / edit / delete UI for reviewing and annotating all catalog entries before promote
+5. `db/catalog_entry_save.php` — POST endpoint handling inline field edits and row deletes from the catalog review UI
+
+**Modified (3):**
+
+6. `admin/admin_database_load_import_media_from_folder.php` — add **Catalog Folder** nav button
+7. `admin/admin_system.php` — add **Catalog Folder** nav button
+8. `admin/admin_database_load_import_csv.php` — add **Catalog Folder** nav button
+
+---
 
 ### Environment Variables
 
@@ -458,14 +552,14 @@ Mirrors the Section A / Section B structure of `admin_database_load_import_media
 
 | Aspect | Import page | Catalog page |
 |---|---|---|
-| File selection | `webkitdirectory` browser picker | Operator types server-side path (text input) |
+| File selection | `webkitdirectory` browser picker | `webkitdirectory` browser picker — identical |
 | `tus-js-client` | Required | Not needed |
 | `import_progress.css/js` | Required | Not needed |
-| SHA-256 Web Worker | Required | Not needed |
+| SHA-256 Web Worker | Required | Not needed — no hashing |
 | IndexedDB hash cache | Required | Not needed |
 | Duplicate resolution modal | Required | Not needed |
 | Step 2 / Step 3 upload panel | Required | Not needed |
-| JS scan flow | hash → prepare → finalize → poll → upload | POST `catalog_scan_start.php` → render summary |
+| JS scan flow | hash → prepare → finalize → poll → upload | Choose Folder → read FileList metadata → POST `catalog_scan_start.php` → render summary |
 
 Reused from the import page: same CSS card/badge/alert styles, `formatBytes()`, `escapeHtml()`, `el()`, `html()`, `UPLOAD_AUDIO_EXTS_JSON` / `UPLOAD_VIDEO_EXTS_JSON` env var read, `_S` state object pattern.
 
@@ -486,7 +580,6 @@ Nav buttons on this page: existing admin nav buttons (Password Reset, etc.) + **
 **Request** (JSON body):
 ```json
 {
-  "source_root": "/srv/audio",
   "mode": "reload",
   "scan_label": null,
   "org_name": null,
@@ -495,9 +588,21 @@ Nav buttons on this page: existing admin nav buttons (Password Reset, etc.) + **
   "location": null,
   "keywords": null,
   "summary": null,
-  "notes": null
+  "notes": null,
+  "files": [
+    { "relpath": "2024-recordings/set1/song.mp3", "size_bytes": 8421376, "last_modified_ms": 1718000000000 },
+    { "relpath": "2024-recordings/set1/clip.mp4", "size_bytes": 104857600, "last_modified_ms": 1718000100000 }
+  ]
 }
 ```
+
+`relpath` = `file.webkitRelativePath` from the browser `FileList`. The server derives `source_root` (first path segment), `source_relpath` (remainder), `file_ext`, `file_type`, `is_supported`, `mime_type`, `file_mtime` (from `last_modified_ms`), and `path_hash` = SHA-256(`relpath`). No server-side directory walk occurs.
+
+**Guards the endpoint must enforce before any DB writes:**
+- `files` array missing or empty → HTTP 400 `"No files found in selected folder"`
+- `files` count exceeds `MAX_FILES` (50 000) → HTTP 400 `"Too many files; split into smaller batches"`
+- Any `relpath` entry with no `/` separator (i.e. no subdirectory — webkitRelativePath always includes the folder name as the first segment) → skip entry or HTTP 400
+- `mode` not `reload` or `add` → HTTP 400
 
 **Response**:
 ```json
@@ -509,49 +614,52 @@ Nav buttons on this page: existing admin nav buttons (Password Reset, etc.) + **
     "total_files": 150,
     "supported_files": 142,
     "unsupported_files": 8,
-    "total_size_bytes": 5368709120,
+    "total_size_bytes": 5494140928,
     "audio_count": 80,
     "video_count": 62,
     "audio_size_bytes": 1073741824,
     "video_size_bytes": 4294967296,
     "estimated_audio_minutes": 746,
     "estimated_video_minutes": 143,
-    "estimated_ai_cost_usd": 2.86
+    "estimated_ai_cost_usd": 2.85
   },
   "duration_ms": 450
 }
 ```
 
+Note: `total_size_bytes` is the sum of `size_bytes` for **all** files in the browser-provided `files` array, including unsupported files. `audio_size_bytes + video_size_bytes` will therefore be less than `total_size_bytes` whenever unsupported files are present (as in the example above, where 8 unsupported files account for the ~118 MB difference).
+
 **Server-side logic:**
 1. Auth check (admin only)
-2. Normalize `source_root`: `$source_root = rtrim($source_root, '/')` — must be done before validation, hashing, and storage so that `/srv/audio` and `/srv/audio/` produce identical path_hashes across scans. Then validate: non-empty, absolute path, exists on disk, readable by PHP process; reject directory traversal attempts
-3. If `mode === 'reload'`: `DELETE FROM catalog_scans WHERE source_root = ?` (cascades to `catalog_entries`)
-4. `INSERT INTO catalog_scans` (`status = 'running'`)
-5. Recursive `scandir()` walk; for each file:
-   - `pathinfo()` → `file_name`, `file_ext`
+2. Guards (see above): `files` present and non-empty; count ≤ `MAX_FILES` (50 000); `mode` is `reload` or `add`; every `relpath` contains at least one `/`
+3. Derive `source_root` = first path segment of `$files[0]['relpath']` (e.g. `2024-recordings` from `2024-recordings/set1/song.mp3`)
+4. If `mode === 'reload'`: `DELETE FROM catalog_scans WHERE source_root = ?` (cascades to `catalog_entries`)
+5. `INSERT INTO catalog_scans` (`status = 'running'`, `source_root`, optional metadata fields)
+6. Iterate the `files` array; for each entry:
+   - `$relpath = $entry['relpath']` (= `webkitRelativePath`)
+   - Split on first `/`: `source_root` (ignored — already derived), `source_relpath` (remainder)
+   - `pathinfo($relpath)` → `file_name`, `file_ext`
    - Infer `file_type` + `is_supported` from ext against `UPLOAD_AUDIO_EXTS_JSON` / `UPLOAD_VIDEO_EXTS_JSON`
    - Static ext→MIME lookup (no probing)
-   - `stat()` → `size_bytes`, `file_mtime`
-   - `source_relpath` = path relative to `source_root`
-   - `path_hash = hash('sha256', $source_root . '/' . $source_relpath)` (uses already-normalized `$source_root` from step 2)
+   - `size_bytes = (int)$entry['size_bytes']`
+   - `file_mtime = date('Y-m-d H:i:s', intval($entry['last_modified_ms'] / 1000))`
+   - `path_hash = hash('sha256', $relpath)` — SHA-256 of `webkitRelativePath`; equals SHA-256(`source_root . '/' . source_relpath`)
    - If `mode === 'reload'`: `INSERT` with `scan_id`, `first_seen_scan_id`, and `last_seen_scan_id` all set to the current `scan_id`
    - If `mode === 'add'`: `INSERT` (same columns) `ON DUPLICATE KEY UPDATE last_seen_scan_id = current_scan_id` — `scan_id` and `first_seen_scan_id` are left unchanged on conflict, preserving the original scan reference
-6. `UPDATE catalog_scans SET total_files=?, supported_files=?, unsupported_files=?, total_size_bytes=?, audio_count=?, video_count=?, audio_size_bytes=?, video_size_bytes=?` (aggregate counts from in-memory tallies accumulated during the walk)
-7. `UPDATE catalog_scans SET status='complete', completed_at=NOW()`
-8. Compute three derived values on the fly (not stored in `catalog_scans`):
+7. `UPDATE catalog_scans SET total_files=?, supported_files=?, unsupported_files=?, total_size_bytes=?, audio_count=?, video_count=?, audio_size_bytes=?, video_size_bytes=?` (aggregate counts from in-memory tallies accumulated during the iteration)
+8. `UPDATE catalog_scans SET status='complete', completed_at=NOW()`
+9. Compute three derived values on the fly (not stored in `catalog_scans`):
    - `estimated_audio_minutes` = `round(audio_size_bytes / (192 * 125 * 60))` — assumes 192 kbps average bitrate (matches design notes; 192 × 125 = 24,000 bytes/sec)
    - `estimated_video_minutes` = `round(video_size_bytes / (4000 * 125 * 60))` — assumes 4,000 kbps average bitrate (matches design notes; 4000 × 125 = 500,000 bytes/sec)
    - `estimated_ai_cost_usd` = `round(video_count * 0.046, 2)` — proxy cost per video clip at current GPT-4o pricing; update constant as pricing changes
-9. Return JSON summary (stored aggregates + three computed estimates) + `duration_ms`
+10. Return JSON summary (stored aggregates + three computed estimates) + `duration_ms`
 
 **Implementation notes:**
-- Call `set_time_limit(0)` at the top of the scan — a large NAS mount will exceed PHP's default 30-second limit.
-- Skip symlinks during the `scandir()` walk (`is_link($path)`) to prevent infinite recursion on circular symlink graphs.
-- Wrap steps 3–7 in a `try/catch`; on exception set `status = 'failed'` and rethrow/log — prevents scans from being stuck in `'running'` permanently.
-- Use batched INSERTs (e.g., 200 rows per query) rather than one INSERT per file for large directories.
-- Path traversal guard: resolve `source_root` with `realpath()` and reject if it returns false (path does not exist or is not accessible). For Phase 1, the Apache container's bind-mount topology limits accessible paths; a sufficient guard is asserting `realpath()` succeeds and the resolved path does not begin with the webroot (e.g., `/var/www/html`). A configurable `CATALOG_ALLOWED_ROOTS_JSON` env var can be added if stricter whitelisting is needed.
+- Wrap steps 4–8 in a `try/catch`; on exception set `status = 'failed'` and return error JSON — prevents scans from being stuck in `'running'` permanently.
+- Use batched INSERTs (e.g., 200 rows per query) rather than one INSERT per file for large arrays.
 - Static ext→MIME lookup can delegate to `src/Config/MediaTypes.php` (`MediaTypes::audioExts()` / `MediaTypes::videoExts()`) rather than maintaining a separate lookup table.
-- Skip non-file filesystem entries explicitly: `is_file($path)` before processing; skip `.` and `..`.
+- No `set_time_limit(0)` needed — no filesystem walk occurs; iteration over a JSON array is fast even at 50,000 entries.
+- No `realpath()`, no symlink checks, no webroot guard — server never touches the filesystem for file discovery.
 
 ---
 
@@ -560,6 +668,8 @@ Nav buttons on this page: existing admin nav buttons (Password Reset, etc.) + **
 **Request:** `GET catalog_entries_list.php?scan_id=X&page=1&limit=100&file_type=&status=&is_supported=`
 
 **Response:** Paginated `catalog_entries` rows for the given `scan_id` plus the parent `catalog_scans` summary row. Used by `admin_database_catalog_media_from_folder.php` to render the post-scan file table. `db/database_catalog.php` queries `catalog_entries` directly via PDO rather than through this endpoint.
+
+**Section B scope caveat:** For `mode=add` scans, `scan_id` is only assigned to newly inserted entries — pre-existing entries retain their original `scan_id` unchanged (per the `ON DUPLICATE KEY UPDATE` logic). Querying by `scan_id` therefore returns only the delta (files newly added since the last scan), while the parent `catalog_scans` aggregate columns (`total_files`, `audio_count`, etc.) reflect the full current directory. This is intentional: the aggregate shows the current state of the directory; the entry list shows what changed. The post-scan summary card in `admin_database_catalog_media_from_folder.php` should make this distinction explicit when displaying Section B results.
 
 ---
 
@@ -653,7 +763,7 @@ The following **Catalog Folder** button must be added to the top-right nav panel
 
 ```html
 <a href="/admin/admin_database_catalog_media_from_folder.php">
-  <button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Catalog Folder</button>
+  <button type="button" style="border-color:#a855f7;font-size:.8rem;padding:.4rem .8rem">Catalog Folder</button>
 </a>
 ```
 
@@ -664,3 +774,179 @@ The following **Catalog Folder** button must be added to the top-right nav panel
 | `admin/admin_database_load_import_media_from_folder.php` | Password Reset, System & Recovery, CSV Import |
 | `admin/admin_system.php` | Password Reset, Import Media, CSV Import |
 | `admin/admin_database_load_import_csv.php` | Password Reset, Import Media, System & Recovery |
+
+---
+
+## Known Limitations / Future Review Items
+
+### Catalog scan uses synchronous HTTP response, not database polling
+
+`catalog_scan_start.php` processes all file metadata synchronously and returns a single JSON response when complete. The JavaScript `runScan()` function awaits this HTTP response and renders the result card from the returned JSON.
+
+This is intentionally different from `admin_database_load_import_media_from_folder.php`, which uses database-polling because TUS uploads are async and long-running (minutes to hours). The catalog scan writes metadata only — no file uploads — and completes in under 10 seconds for typical collections (~8 000 files in ~7 s observed). A synchronous request/response is appropriate and sufficient.
+
+The `catalog_scans` table already tracks `status = 'running'` → `status = 'complete'` in the DB during the scan. If polling were ever needed (e.g. a future background-queue approach), the status column is already in place.
+
+**To revisit if:** scans regularly exceed 30 seconds (PHP `max_execution_time` limit) or if a poll-based progress bar during large scans becomes a UX requirement.
+
+---
+
+### PHP `max_execution_time` risk for large catalogs
+
+`catalog_scan_start.php` has no `set_time_limit()` call (removed during the `scandir` refactor). PHP's default `max_execution_time` is typically 30 seconds. Batch INSERT of 50 000 files (250 batches × 200 rows) at ~50 ms per query ≈ 12–15 seconds under normal load, which fits within the default. However, under DB contention or on slow storage, this margin can disappear.
+
+**Mitigations in priority order:**
+1. Add `set_time_limit(120)` at the top of `catalog_scan_start.php` as a conservative guard.
+2. If scans regularly approach the limit, consider a poll-based architecture (emit `scan_id` immediately, process in background, JS polls `catalog_scans.status`).
+3. The 50 000 file client-side guard (`MAX_FILES`) is already enforced; do not raise it without also addressing the timeout risk.
+
+---
+
+### Browser folder-picker dialog language
+
+When the user clicks **Choose Folder**, the browser shows a native OS-level dialog ("Upload X files to this site?") before JavaScript receives control. This dialog text is hardcoded by the browser engine and **cannot be customised** by HTML, CSS, or JavaScript — it fires before any JS hook executes. Attempting to prepend a custom `confirm()` call would result in two dialogs in sequence (worse UX).
+
+This affects all `<input type="file" webkitdirectory>` usage across browsers (Chrome, Firefox, Safari each show their own variant). The import media page (`admin_database_load_import_media_from_folder.php`) has the same limitation.
+
+**To revisit if:** a future browser API exposes a pre-picker hook, or if switching to the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (`showDirectoryPicker()`) becomes viable — that API allows a fully custom JS flow without the browser upload dialog, but has different browser support and security model considerations.
+
+---
+
+## Browser-Side FileList Rewrite — Implementation Notes
+
+This section captures all implementation constraints identified during design review, before coding begins. Derived from a cross-check of this plan against `admin_database_load_import_media_from_folder.php` (the model).
+
+### Files Under Change
+
+| File | Change Type | Summary |
+|---|---|---|
+| `admin/admin_database_catalog_media_from_folder.php` | Major rewrite of Sections A + B | Replace server-path text inputs with `webkitdirectory` file picker; rewrite all related JS |
+| `admin/catalog_scan_start.php` | Major rewrite | Remove `scandir()` walk entirely; accept browser-provided `files` JSON array |
+
+`admin/catalog_entries_list.php`, `db/catalog_entry_save.php`, `db/database_catalog.php` — **no changes required**.
+
+### Implementation Checklist
+
+**HTML — both Sections A and B:**
+
+1. File input must carry all three attributes: `webkitdirectory directory multiple style="display:none"` — not just `webkitdirectory`
+2. Two separate elements after the Choose Folder button — matching the model exactly:
+   - `<span id="a-folder-chosen">` — folder name + total file count only (e.g., `2024-recordings (1 234 files)`)
+   - `<div id="a-preview">` — detailed breakdown (total / audio / video / unsupported counts + size) rendered by `buildScanState()` + `renderScanPreview()` equivalent
+3. Remove `id="a-path"` / `id="b-path"` text inputs entirely; no `for="a-path"` label references remain
+
+**JavaScript — `onchange` handler:**
+
+4. `canRun` condition must be `list.length > 0` — **not** `supportedCount > 0`. The import page uses `supportedCount > 0` because it only hashes/uploads supported files. Catalog records all files including unsupported ones (`is_supported = 0`). Using `supportedCount > 0` would block a valid catalog operation on a folder containing only `.vob` or `.m2v` files.
+5. All existing `el(sec + '-path')` references must be removed; replaced with `el(sec + '-folder')`
+6. `_S` state object simplified to `{ mode, folderKey, scanState }` — no upload / trace / abort / jobId fields needed
+
+**JavaScript — scan function:**
+
+7. Section A must gate behind `confirm()` before POSTing — same pattern as import page — since it is destructive (deletes all prior `catalog_entries` for this `source_root`)
+8. `files` array built as: `Array.from(inp.files).map(f => ({ relpath: f.webkitRelativePath || f.name, size_bytes: f.size, last_modified_ms: f.lastModified }))`
+9. Scan button re-enable in `finally`: `el(sec + '-scan-btn').disabled = !(el(sec + '-folder').files && el(sec + '-folder').files.length > 0)`
+
+**PHP — `catalog_scan_start.php`:**
+
+10. Guards enforced in this order before any DB writes: `files` array present and non-empty → count ≤ 50 000 → `mode` is `reload` or `add` → every `relpath` contains at least one `/`
+11. `source_root` = `explode('/', $files[0]['relpath'], 2)[0]` — no `realpath()`, no filesystem check, no webroot guard
+
+---
+
+## Feature: Total Catalog Stats Viewport (Section B — Add to Catalog)
+
+### Rationale
+
+After running an **Add to Catalog** scan, the result card shows stats for the just-scanned folder only. The operator has no immediate visibility into how that scan changed the overall catalog. Adding a second "Total Catalog Stats" card below the scan result gives instant context — total file count, total size, audio/video breakdown, and estimated AI cost across the entire `catalog_entries` table — without leaving the page.
+
+This card is **Add-only** by design. After a Reload scan, showing total catalog stats would be redundant: reload first `DELETE CASCADE`s all prior `catalog_scans` (and their `catalog_entries`) for that `source_root`, then inserts fresh entries — the scan result card already shows the complete, accurate picture for the just-reloaded folder. `INSERT IGNORE` is used during the batch insert only to handle within-batch `path_hash` collisions from the current browser FileList submission (not to preserve old entries). After an Add scan the catalog accumulates across multiple source folders and scans, so the delta between scan card and total card is meaningful and trustworthy.
+
+### Files Touched
+
+| File | Change Type | Summary |
+|---|---|---|
+| `admin/catalog_stats.php` | **New file** | Admin-only JSON endpoint; single aggregate query across all `catalog_entries`; computes derived fields in PHP |
+| `admin/admin_database_catalog_media_from_folder.php` | JS + HTML change | After add scan succeeds, fetch `/admin/catalog_stats.php`, render second card into new `<div id="add-total-result">` |
+
+No schema changes. No group_var changes. No new environment variables.
+
+### New Endpoint: `admin/catalog_stats.php`
+
+**Auth:** Same `$user !== 'admin'` guard as all other admin endpoints. Returns HTTP 403 if not admin.
+
+**Query:**
+```sql
+SELECT
+  COUNT(*)                                                                      AS total_files,
+  COALESCE(SUM(is_supported), 0)                                               AS supported_files,
+  COALESCE(SUM(1 - is_supported), 0)                                           AS unsupported_files,
+  COALESCE(SUM(COALESCE(size_bytes, 0)), 0)                                    AS total_size_bytes,
+  COALESCE(SUM(CASE WHEN file_type = 'audio' THEN 1 ELSE 0 END), 0)           AS audio_count,
+  COALESCE(SUM(CASE WHEN file_type = 'video' THEN 1 ELSE 0 END), 0)           AS video_count,
+  COALESCE(SUM(CASE WHEN file_type = 'audio' THEN COALESCE(size_bytes, 0) ELSE 0 END), 0) AS audio_size_bytes,
+  COALESCE(SUM(CASE WHEN file_type = 'video' THEN COALESCE(size_bytes, 0) ELSE 0 END), 0) AS video_size_bytes
+FROM catalog_entries
+```
+
+`is_supported` is `TINYINT(1) NOT NULL DEFAULT 0`. Outer `COALESCE(..., 0)` wraps every `SUM()` so that an empty table returns zeros rather than `NULL` — without this, PHP arithmetic on `NULL` produces silent `0` only by accident.
+
+**PHP derives these fields** (same formulas as `catalog_scan_start.php`):
+```php
+$estAudioMin = (int)round($audioSizeBytes / (192  * 125 * 60));
+$estVideoMin = (int)round($videoSizeBytes / (4000 * 125 * 60));
+$estAiCost   = round($videoCount * 0.046, 2);
+```
+
+**Response shape** (matches the `summary` sub-object returned by `catalog_scan_start.php`):
+```json
+{
+  "success": true,
+  "summary": {
+    "total_files": N,
+    "supported_files": N,
+    "unsupported_files": N,
+    "total_size_bytes": N,
+    "audio_count": N,
+    "video_count": N,
+    "audio_size_bytes": N,
+    "video_size_bytes": N,
+    "estimated_audio_minutes": N,
+    "estimated_video_minutes": N,
+    "estimated_ai_cost_usd": N
+  }
+}
+```
+
+### Frontend Changes
+
+**HTML** — add below `<div id="add-result">` in Section B:
+```html
+<div id="add-total-result"></div>
+```
+
+**JavaScript** — in `runScan('add')` success path, after rendering the scan card:
+```js
+try {
+  const statsRes = await fetch('/admin/catalog_stats.php');
+  if (!statsRes.ok) throw new Error('HTTP ' + statsRes.status);
+  const statsData = await statsRes.json();
+  if (statsData.success) {
+    html('add-total-result', renderTotalStats(statsData));
+  }
+} catch (e) {
+  html('add-total-result', '<p class="muted" style="margin:.5rem 0">Could not load total catalog stats.</p>');
+}
+```
+
+**`renderTotalStats(data)`** — a new function using the same `.summary-card` / `.summary-grid` / `.stat-box` markup as `renderSummary()`, but:
+- Title: **"Total Catalog Stats"** (no scan # or mode label)
+- No ignored/skipped box (that is scan-specific)
+- No "Note: for Add to Catalog scans…" footnote
+- "Open Catalog Media →" link retained (useful for navigation to the full list)
+
+### Known Limitations
+
+- **Reload mode**: Total Catalog Stats is intentionally not shown after a Reload scan. Reload `DELETE CASCADE`s all prior entries for the `source_root` and inserts fresh ones — the scan result card already shows the complete, accurate picture. `INSERT IGNORE` in reload mode only guards against within-batch `path_hash` collisions in the current browser FileList (e.g. two files that collide under `utf8mb4_unicode_ci`); it does not preserve stale entries.
+- **Performance**: The aggregate query is a full-table scan with no `WHERE` clause. For catalogs of ~50 000 rows (the enforced maximum per scan), this is fast (~1–5 ms). No index changes are needed.
+- **Stale data**: The total stats card reflects the DB state at the moment the scan response is received. If two browser sessions scan concurrently, one session's total card may undercount by the concurrent session's inserts. Acceptable for an admin-only tool.

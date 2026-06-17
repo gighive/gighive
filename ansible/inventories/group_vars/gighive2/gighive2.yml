@@ -402,6 +402,7 @@ filename_seq_pad: 5
 upload_max_bytes: 11811182592
 
 database_pagination_threshold: 750
+catalog_pagination_threshold: 750
 
 serve_one_shot_installer_downloads: false
 
