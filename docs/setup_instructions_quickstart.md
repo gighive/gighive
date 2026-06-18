@@ -183,11 +183,21 @@ sudo rm -rf gighive-one-shot-bundle
 
 ## All-in-one cleanup
     ```bash
+    # Stop and remove all gighive containers
     cd gighive-one-shot-bundle
-    docker compose down --volumes --remove-orphans
-    docker image rm ubuntu-apache-img:1.00
-    docker compose down -v --rmi local
-    docker system prune -f
+    docker rm -f $(docker ps -aq --filter "label=com.docker.compose.project=gighive-one-shot-bundle") 2>/dev/null || true
+    
+    # Remove gighive-built images (the two that are built locally, not pulled)
+    docker image rm ubuntu-apache-img:1.00 gighive-one-shot-bundle-ai-worker 2>/dev/null || true
+    
+    # Remove gighive volumes and network
+    docker volume rm $(docker volume ls -q --filter "label=com.docker.compose.project=gighive-one-shot-bundle") 2>/dev/null || true
+    docker network rm $(docker network ls -q --filter "label=com.docker.compose.project=gighive-one-shot-bundle") 2>/dev/null || true
+    
+    # Clean up dangling layers
+    docker image prune -f
+    
+    # Remove bundle directory
     cd ..
     sudo rm -rf gighive-one-shot-bundle
     ```

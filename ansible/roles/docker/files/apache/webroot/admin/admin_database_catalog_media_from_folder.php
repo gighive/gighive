@@ -366,7 +366,7 @@ function renderSummary(data) {
   const scanId  = data.scan_id;
   const modeLabel = data.mode === 'reload' ? 'Full reload' : 'Delta add';
   const aiLine = s.video_count > 0
-    ? '<div class="stat-box"><div class="stat-label">Est. AI tagging cost</div><div class="stat-value">$' + esc(s.estimated_ai_cost_usd.toFixed(2)) + '</div><div class="muted" style="font-size:.78rem">proxy: ' + esc(s.video_count) + ' videos \xd7 $0.046</div></div>'
+    ? '<div class="stat-box"><div class="stat-label">Est. AI tagging cost</div><div class="stat-value">$' + esc(s.estimated_ai_cost_usd.toFixed(2)) + '</div><div class="muted" style="font-size:.78rem">proxy: ' + esc(s.video_count) + ' videos \xd7 $0.046</div><div class="muted" style="font-size:.78rem">model: ' + esc(s.ai_model || 'n/a') + '</div></div>'
     : '';
   const skippedBox = skipped.count > 0
     ? `<div class="stat-box"><div class="stat-label">Ignored (path collision)</div><div class="stat-value"><span class="badge badge-unsup">${esc(skipped.count)}</span></div><div class="muted" style="font-size:.78rem">dropped \u2014 Unicode-equivalent path already inserted</div></div>`
@@ -423,7 +423,7 @@ function renderSummary(data) {
 function renderTotalStats(data) {
   const s = data.summary;
   const aiLine = s.video_count > 0
-    ? '<div class="stat-box"><div class="stat-label">Est. AI tagging cost</div><div class="stat-value">$' + esc(s.estimated_ai_cost_usd.toFixed(2)) + '</div><div class="muted" style="font-size:.78rem">proxy: ' + esc(s.video_count) + ' videos \xd7 $0.046</div></div>'
+    ? '<div class="stat-box"><div class="stat-label">Est. AI tagging cost</div><div class="stat-value">$' + esc(s.estimated_ai_cost_usd.toFixed(2)) + '</div><div class="muted" style="font-size:.78rem">proxy: ' + esc(s.video_count) + ' videos \xd7 $0.046</div><div class="muted" style="font-size:.78rem">model: ' + esc(s.ai_model || 'n/a') + '</div></div>'
     : '';
   return `
     <div class="summary-card" style="margin-top:.75rem">
@@ -457,6 +457,32 @@ function renderTotalStats(data) {
       </div>
     </div>`;
 }
+
+// ── Back-button / bfcache reset ───────────────────────────────────────────────
+// When the browser restores this page from bfcache (e.persisted === true) the JS
+// heap is preserved but the FileList objects are cleared by the browser for
+// security. The file input internally still "remembers" the previous path, so
+// if the user picks the same folder again the browser fires no 'change' event
+// (no apparent change). Resetting inp.value here clears that memory so the next
+// folder pick — same or different — always fires 'change' and re-enables the
+// scan button.
+window.addEventListener('pageshow', function(e) {
+  if (!e.persisted) return;
+  ['a', 'b'].forEach(function(sec) {
+    _S[sec].folderKey = '';
+    _S[sec].scanState = null;
+    var inp = el(sec + '-folder');
+    if (inp) inp.value = '';
+    var btn = el(sec + '-scan-btn');
+    if (btn) btn.disabled = true;
+    var chosen = el(sec + '-folder-chosen');
+    if (chosen) chosen.textContent = 'No folder selected';
+    html(sec + '-preview', '');
+    html(sec + '-status', '');
+    html(sec + '-result', '');
+  });
+  html('b-total-result', '');
+});
 </script>
 </body>
 </html>

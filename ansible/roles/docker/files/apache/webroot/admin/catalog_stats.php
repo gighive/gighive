@@ -62,6 +62,7 @@ try {
             'estimated_audio_minutes' => $estAudioMin,
             'estimated_video_minutes' => $estVideoMin,
             'estimated_ai_cost_usd'   => $estAiCost,
+            'ai_model'                => (string)(getenv('OPENAI_MODEL') ?: 'n/a'),
         ],
     ]);
 } catch (Throwable $e) {

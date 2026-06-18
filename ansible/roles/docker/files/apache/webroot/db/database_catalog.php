@@ -144,7 +144,7 @@ try {
 
     $listParams = array_merge($params, [$perPage, $offset]);
     $listStmt   = $pdo->prepare(
-        "SELECT e.*, s.source_root
+        "SELECT e.*, s.source_root, s.org_name AS scan_org_name
          FROM catalog_entries e
          JOIN catalog_scans s ON s.scan_id = e.scan_id
          $wc
@@ -258,8 +258,9 @@ $clearSearchHref      = qp(['q_file' => '', 'q_relpath' => '', 'q_org' => '', 'q
     .meta-grid .span2 { grid-column:1/-1; }
     .meta-grid textarea { min-height:50px; resize:vertical; }
     .row-actions { display:flex; gap:.35rem; flex-wrap:wrap; align-items:center; }
-    .save-ok  { color:#4ade80; font-size:.78rem; }
-    .save-err { color:#f87171; font-size:.78rem; }
+    .save-ok   { color:#4ade80; font-size:.78rem; }
+    .save-err  { color:#f87171; font-size:.78rem; }
+    .save-dirty { border-color:#f59e0b !important; }
     .pagination { display:flex; gap:.35rem; align-items:center; flex-wrap:wrap; margin-top:1rem; }
     .footer-bar { background:#0e1530; border:1px solid #1d2a55; border-radius:10px; padding:.75rem 1rem;
                   display:flex; gap:1.5rem; flex-wrap:wrap; align-items:center; margin-top:1.25rem; font-size:.9rem; }
@@ -367,9 +368,12 @@ $clearSearchHref      = qp(['q_file' => '', 'q_relpath' => '', 'q_org' => '', 'q
           <th>Size</th>
           <th>Modified</th>
           <th>Status</th>
-          <th>
-            <div>Org / Date</div>
+          <th style="min-width:120px">
+            <div>Org</div>
             <div class="th-search-row"><input type="text" name="q_org" placeholder="Org…" value="<?= htmlspecialchars($qOrg, ENT_QUOTES) ?>"/></div>
+          </th>
+          <th style="min-width:90px">
+            <div>Event Date</div>
             <div class="th-search-row"><input type="text" name="q_date" placeholder="Date…" value="<?= htmlspecialchars($qDate, ENT_QUOTES) ?>"/></div>
           </th>
           <th>Scan</th>
@@ -394,7 +398,7 @@ $clearSearchHref      = qp(['q_file' => '', 'q_relpath' => '', 'q_org' => '', 'q
                 default    => 'badge-cat',
             };
         ?>
-        <tr id="row-<?= $eid ?>" data-id="<?= $eid ?>" data-supported="<?= (int)$e['is_supported'] ?>" data-status="<?= htmlspecialchars($e['status'], ENT_QUOTES) ?>"
+        <tr id="row-<?= $eid ?>" data-id="<?= $eid ?>" data-supported="<?= (int)$e['is_supported'] ?>" data-status="<?= htmlspecialchars($e['status'], ENT_QUOTES) ?>" data-size-bytes="<?= (int)($e['size_bytes'] ?? 0) ?>"
             class="<?= $isOrphan ? 'orphan' : '' ?>">
           <td><input type="checkbox" class="row-chk" data-id="<?= $eid ?>"/></td>
           <td style="max-width:300px">
@@ -413,9 +417,17 @@ $clearSearchHref      = qp(['q_file' => '', 'q_relpath' => '', 'q_org' => '', 'q
               <?php if ($e['status']==='failed'):   ?><option value="failed"   selected disabled>Failed</option>  <?php endif; ?>
             </select>
           </td>
-          <td class="muted" style="font-size:.8rem;white-space:nowrap">
-            <?= htmlspecialchars((string)($e['org_name'] ?? '—')) ?><br>
-            <?= htmlspecialchars((string)($e['event_date'] ?? '')) ?>
+          <?php
+            $orgVal  = (string)($e['org_name'] ?? $e['scan_org_name'] ?? '');
+            $dateVal = (string)($e['event_date'] ?? '');
+            $orgNeedsReview  = ($orgVal  === '' || $orgVal  === 'Default');
+            $dateNeedsReview = ($dateVal === '');
+          ?>
+          <td style="font-size:.8rem;white-space:nowrap">
+            <span style="<?= $orgNeedsReview  ? 'color:#fb923c' : 'color:#e9eef7' ?>"><?= htmlspecialchars($orgVal  !== '' ? $orgVal  : '—') ?></span>
+          </td>
+          <td style="font-size:.8rem;white-space:nowrap">
+            <span style="<?= $dateNeedsReview ? 'color:#fb923c' : 'color:#a8b3cf' ?>"><?= htmlspecialchars($dateVal !== '' ? $dateVal : '—') ?></span>
           </td>
           <td class="muted" style="font-size:.78rem;white-space:nowrap">
             <?= $isOrphan ? '<span style="color:#fb923c" title="File not seen in the most recent scan of this source root — may have been moved or deleted">⚠ orphan</span><br>' : '' ?>
@@ -424,9 +436,9 @@ $clearSearchHref      = qp(['q_file' => '', 'q_relpath' => '', 'q_org' => '', 'q
           </td>
           <td>
             <div class="row-actions">
-              <button onclick="saveRow(<?= $eid ?>)">Save</button>
-              <button onclick="toggleMeta(<?= $eid ?>)" title="Edit metadata">Edit</button>
-              <button class="danger" onclick="deleteRow(<?= $eid ?>)">Delete</button>
+              <button type="button" id="save-btn-<?= $eid ?>" onclick="saveRow(<?= $eid ?>)">Save</button>
+              <button type="button" onclick="toggleMeta(<?= $eid ?>)" title="Edit metadata">Edit</button>
+              <button type="button" class="danger" onclick="deleteRow(<?= $eid ?>)">Delete</button>
             </div>
             <span id="msg-<?= $eid ?>" class="muted" style="font-size:.78rem"></span>
             <!-- Expandable metadata panel -->
@@ -509,9 +521,14 @@ $clearSearchHref      = qp(['q_file' => '', 'q_relpath' => '', 'q_org' => '', 'q
 
     <!-- Footer summary -->
     <div class="footer-bar">
-      <span><strong><?= number_format($totals['total']) ?></strong> <span class="muted">total catalog entries</span></span>
-      <span><strong style="color:#4ade80"><?= number_format($totals['selected']) ?></strong> <span class="muted">selected</span></span>
-      <span><strong><?= htmlspecialchars(fmtBytes($totals['selected_bytes'])) ?></strong> <span class="muted">selected size</span></span>
+      <span><strong id="footer-total-count"><?= number_format($totals['total']) ?></strong> <span class="muted">total catalog entries</span></span>
+      <span><strong id="footer-sel-count" style="color:#4ade80"><?= number_format($totals['selected']) ?></strong> <span class="muted">selected</span></span>
+      <span><strong id="footer-sel-bytes"><?= htmlspecialchars(fmtBytes($totals['selected_bytes'])) ?></strong> <span class="muted">selected size</span></span>
+      <a id="footer-promote-link" href="/admin/admin_database_catalog_promote.php" style="margin-left:auto;<?= $totals['selected'] === 0 ? 'display:none' : '' ?>">
+        <button type="button" style="border-color:#22c55e;padding:.45rem .9rem;font-size:.85rem">
+          Promote <span id="footer-promote-n"><?= number_format($totals['selected']) ?></span> selected file<span id="footer-promote-s"><?= $totals['selected'] === 1 ? '' : 's' ?></span> to Upload &rarr;
+        </button>
+      </a>
     </div>
 
   </div>
@@ -550,21 +567,118 @@ function getRowPayload(id) {
   };
 }
 
+function fmtBytesJs(b) {
+  b = parseInt(b, 10) || 0;
+  if (b >= 1073741824) return (b / 1073741824).toFixed(2) + ' GB';
+  if (b >= 1048576)    return (b / 1048576).toFixed(1)   + ' MB';
+  if (b >= 1024)       return (b / 1024).toFixed(1)      + ' KB';
+  return b + ' B';
+}
+
+function refreshFooterCounts() {
+  let sel = 0, selBytes = 0;
+  document.querySelectorAll('tr[data-id]').forEach(row => {
+    if (row.dataset.status === 'selected') {
+      sel++;
+      selBytes += parseInt(row.dataset.sizeBytes || '0', 10);
+    }
+  });
+  const selEl    = el('footer-sel-count');
+  const bytesEl  = el('footer-sel-bytes');
+  const link     = el('footer-promote-link');
+  const promoteN = el('footer-promote-n');
+  const promoteS = el('footer-promote-s');
+  if (selEl)    selEl.textContent    = sel.toLocaleString();
+  if (bytesEl)  bytesEl.textContent  = fmtBytesJs(selBytes);
+  if (link)     link.style.display   = sel > 0 ? '' : 'none';
+  if (promoteN) promoteN.textContent = sel.toLocaleString();
+  if (promoteS) promoteS.textContent = sel === 1 ? '' : 's';
+}
+
+function markDirty(id) {
+  const btn = el('save-btn-' + id);
+  if (btn) btn.classList.add('save-dirty');
+}
+
+function markClean(id) {
+  const btn = el('save-btn-' + id);
+  if (btn) btn.classList.remove('save-dirty');
+}
+
+// Cascade non-empty meta fields to a list of other row IDs, updating their inputs if open
+async function cascadeSave(ids, fields) {
+  const fieldPrefixMap = {
+    org_name:'org-', event_date:'edate-', event_type:'etype-', location:'loc-',
+    label:'label-', item_type:'itype-', keywords:'kw-', summary:'summ-',
+    participants:'part-', notes:'notes-',
+  };
+  for (const id of ids) {
+    const msg = el('msg-' + id);
+    if (msg) { msg.textContent = 'Saving…'; msg.className = 'muted'; }
+    try {
+      const body = Object.assign({catalog_entry_id: id, action: 'save'}, fields);
+      const res  = await fetch('/db/catalog_entry_save.php', {
+        method : 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body   : JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.errors ? data.errors.join('; ') : (data.error || 'Error'));
+      if (msg) {
+        msg.textContent = '✓ Saved';
+        msg.className   = 'save-ok';
+        setTimeout(() => { msg.textContent = ''; }, 5000);
+      }
+      markClean(id);
+      // Reflect new values in the meta panel inputs if already open
+      for (const [key, val] of Object.entries(fields)) {
+        const inp = el((fieldPrefixMap[key] || '') + id);
+        if (inp) inp.value = val;
+      }
+    } catch (err) {
+      if (msg) { msg.textContent = '✗ ' + err.message; msg.className = 'save-err'; }
+    }
+  }
+}
+
 async function saveRow(id) {
   const msg = el('msg-' + id);
   msg.textContent = 'Saving…';
   msg.className   = 'muted';
   try {
+    const payload = getRowPayload(id);
     const res  = await fetch('/db/catalog_entry_save.php', {
       method : 'POST',
       headers: {'Content-Type': 'application/json'},
-      body   : JSON.stringify(getRowPayload(id)),
+      body   : JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.errors ? data.errors.join('; ') : (data.error || 'Error'));
     msg.textContent = '✓ Saved';
     msg.className   = 'save-ok';
-    setTimeout(() => { msg.textContent = ''; }, 3000);
+    setTimeout(() => { msg.textContent = ''; }, 5000);
+    const row = el('row-' + id);
+    if (row && payload.status !== undefined) row.dataset.status = payload.status;
+    markClean(id);
+    refreshFooterCounts();
+    // Cascade non-empty meta fields to other checked rows
+    const metaKeys = ['org_name','event_date','event_type','location','label','item_type','keywords','summary','participants','notes'];
+    const cascadeFields = {};
+    for (const k of metaKeys) {
+      if (payload[k] !== null && payload[k] !== undefined) cascadeFields[k] = payload[k];
+    }
+    const otherChecked = getCheckedIds().filter(cid => {
+      if (cid === id) return false;
+      const r = el('row-' + cid);
+      const st = r ? r.dataset.status : '';
+      return st !== 'imported' && st !== 'failed';
+    });
+    if (otherChecked.length > 0 && Object.keys(cascadeFields).length > 0) {
+      const n = otherChecked.length;
+      if (confirm('Apply these changes to ' + n + ' other checked row' + (n === 1 ? '' : 's') + '?')) {
+        await cascadeSave(otherChecked, cascadeFields);
+      }
+    }
   } catch (err) {
     msg.textContent = '✗ ' + err.message;
     msg.className   = 'save-err';
@@ -704,6 +818,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   updateBulkUi();
+
+  // Item 2: status dropdown auto-saves on change
+  document.querySelectorAll('.status-sel').forEach(sel => {
+    sel.addEventListener('change', () => saveRow(parseInt(sel.dataset.id, 10)));
+  });
+
+  // Item 1: meta-panel field changes mark Save button dirty (amber)
+  document.querySelectorAll('.meta-panel').forEach(panel => {
+    const id = parseInt(panel.id.replace('meta-', ''), 10);
+    panel.querySelectorAll('input, select, textarea').forEach(field => {
+      field.addEventListener('input',  () => markDirty(id));
+      field.addEventListener('change', () => markDirty(id));
+    });
+  });
 });
 </script>
 </body>

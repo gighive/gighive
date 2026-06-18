@@ -34,7 +34,7 @@ if (!is_array($payload)) $payload = [];
 $filesIn   = $payload['files']   ?? null;
 $mode      = trim((string)($payload['mode']        ?? 'reload'));
 $scanLabel = trim((string)($payload['scan_label']  ?? '')) ?: null;
-$orgName   = trim((string)($payload['org_name']    ?? '')) ?: null;
+$orgName   = trim((string)($payload['org_name']    ?? '')) ?: 'Default';
 $eventDate = trim((string)($payload['event_date']  ?? '')) ?: null;
 $eventType = trim((string)($payload['event_type']  ?? '')) ?: null;
 $location  = trim((string)($payload['location']    ?? '')) ?: null;
@@ -97,6 +97,20 @@ $mimeMap = [
     'mts'  => 'video/mp2t',        'ts'   => 'video/mp2t',
 ];
 
+// Derive YYYY-MM-DD from filename (YYYYMMDD pattern) with mtime fallback
+$deriveDateFromFilename = static function (string $fileName, ?string $mtime): ?string {
+    if (preg_match('/(?<!\d)(\d{4})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?!\d)/', $fileName, $m)) {
+        $y = (int)$m[1];
+        if ($y >= 1990 && $y <= 2099) {
+            return sprintf('%04d-%02d-%02d', $y, (int)$m[2], (int)$m[3]);
+        }
+    }
+    if ($mtime !== null && preg_match('/^(\d{4}-\d{2}-\d{2})/', $mtime, $m)) {
+        return $m[1];
+    }
+    return null;
+};
+
 set_time_limit(120);
 $startMs = (int)(microtime(true) * 1000);
 $scanId  = 0;
@@ -104,9 +118,9 @@ $scanId  = 0;
 try {
     $pdo = Database::createFromEnv();
 
-    // Step 4 (reload): delete prior scans for this source_root; cascade removes their entries
+    // Step 4 (reload): wipe entire catalog — catalog is ephemeral staging; cascade removes all entries
     if ($mode === 'reload') {
-        $pdo->prepare('DELETE FROM catalog_scans WHERE source_root = ?')->execute([$sourceRoot]);
+        $pdo->exec('DELETE FROM catalog_scans');
     }
 
     // Step 5: create scan row with status=running
@@ -134,10 +148,11 @@ try {
     $batchSize = 200;
     $insertBatch = static function (PDO $pdo, array $rows, string $mode): int {
         if (!$rows) return 0;
-        $ph  = implode(',', array_fill(0, count($rows), '(?,?,?,?,?,?,?,?,?,?,?,?)'));
+        $ph  = implode(',', array_fill(0, count($rows), '(?,?,?,?,?,?,?,?,?,?,?,?,?)'));
         $sql = ($mode === 'reload' ? 'INSERT IGNORE' : 'INSERT') . ' INTO catalog_entries
             (scan_id, source_relpath, file_name, file_ext, file_type, is_supported,
-             mime_type, size_bytes, file_mtime, path_hash, first_seen_scan_id, last_seen_scan_id)
+             mime_type, size_bytes, file_mtime, path_hash, first_seen_scan_id, last_seen_scan_id,
+             event_date)
             VALUES ' . $ph;
         if ($mode === 'add') {
             $sql .= ' ON DUPLICATE KEY UPDATE last_seen_scan_id = VALUES(last_seen_scan_id)';
@@ -182,10 +197,12 @@ try {
             $unsupportedFiles++;
         }
 
+        $derivedDate = $deriveDateFromFilename($fileName, $mtime);
         $batch[] = [
             $scanId, $sourceRel, $fileName, ($ext !== '' ? $ext : null),
             $fileType, $isSupported, $mime, $sizeBytes, $mtime,
             $pathHash, $scanId, $scanId,
+            $derivedDate,
         ];
 
         if (count($batch) >= $batchSize) {
@@ -246,6 +263,7 @@ try {
             'estimated_audio_minutes' => $estAudioMin,
             'estimated_video_minutes' => $estVideoMin,
             'estimated_ai_cost_usd'   => $estAiCost,
+            'ai_model'                => (string)(getenv('OPENAI_MODEL') ?: 'n/a'),
         ],
         'duration_ms' => $durationMs,
     ]);

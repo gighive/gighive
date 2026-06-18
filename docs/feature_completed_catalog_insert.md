@@ -35,6 +35,36 @@ The existing ingestion paths all require commitment: files must be hashed, uploa
 
 ---
 
+## Catalog Lifecycle and Ephemerality
+
+The catalog (`catalog_scans` + `catalog_entries`) is **ephemeral staging, not a long-term database**. Its purpose is to hold a curated selection of files between the scan step and the upload step. Once entries are promoted to `assets/events/event_items`, the catalog record has served its purpose.
+
+### Section A vs Section B — design intent
+
+| Mode | Behavior | When to use |
+|---|---|---|
+| **Section A — Catalog Media (Reload)** | Runs `DELETE FROM catalog_scans` (cascades to all `catalog_entries`) — wipes the **entire** catalog — then scans the selected folder fresh | Starting a new batch; discarding all prior staging work |
+| **Section B — Add to Catalog** | Appends entries from the selected folder without touching existing entries | Building a multi-folder selection before promoting |
+
+Section A wipes **all** scans and entries — not just the one for the folder being scanned. This is intentional: the catalog is a scratchpad, and a reload means "start over completely."
+
+### Auto-populated defaults at scan time
+
+`catalog_scan_start.php` populates two fields automatically so that a fresh scan rarely triggers the promote-time validation error (missing `org_name` or `event_date`):
+
+- **`catalog_scans.org_name`** defaults to `'Default'` when the scan form is submitted with a blank org field. The COALESCE in `catalog_promote_start.php` picks this up for any entry that has no per-entry `org_name`. The operator should review and correct `'Default'` entries in `db/database_catalog.php` before promoting (amber-highlighted Org column indicates values that need review).
+- **`catalog_entries.event_date`** is derived per-entry from the filename at scan time — the scanner looks for an 8-digit `YYYYMMDD` pattern (e.g. `StormPigs20050526_…` → `2005-05-26`). If no date is found in the filename, the file's `last_modified` timestamp date is used as a fallback. Either result is better than NULL: it prevents the promote validation error while still being correctable by the operator (amber-highlighted Event Date column).
+
+### Post-promote wipe (deferred)
+
+After a successful promote, all entries transition to `status = 'imported'` and the catalog's value is exhausted. A post-promote catalog wipe is a planned cleanup step that is not yet implemented. For now, operators can observe `status = 'imported'` entries in the catalog as a record of what has been processed.
+
+### Where permanent data lives
+
+The catalog is upstream of the canonical data model. Permanent data lives in `assets`, `events`, and `event_items` — the catalog contributes no rows to these tables directly. Rows reach them via `ingestComplete()` during the TUS upload step.
+
+---
+
 ## Database Schema
 
 Two new tables: `catalog_scans` (one row per scan job) and `catalog_entries` (one row per file found).
@@ -298,12 +328,12 @@ Used when the corresponding `catalog_entries` column is NULL; inherited from the
 
 Mirrors the structure of `admin_database_load_import_media_from_folder.php` with two sections.
 
-### Section A — Catalog Folder (Destructive)
+### Section A — Catalog Media (Reload)
 
 - User picks a folder via browser `<input type="file" webkitdirectory>` (same picker as import page)
 - JS reads `FileList` metadata (name, size, lastModified, webkitRelativePath) — no hashing, no upload, no TUS
 - JS POSTs a `files` array to `catalog_scan_start.php`
-- Server clears all `catalog_entries` for the given `source_root` (via cascade from deleted `catalog_scans` rows)
+- Server wipes the **entire** catalog: runs `DELETE FROM catalog_scans` which cascades to all `catalog_entries` (not scoped to the current `source_root` — see Catalog Lifecycle below)
 - Creates a fresh `catalog_scans` row (`status = 'running'`)
 - Server iterates the `files` array, computes `path_hash` per entry, batch-INSERTs into `catalog_entries`
 - Updates scan aggregate columns (`total_files`, `total_size_bytes`, etc.) on completion
@@ -338,7 +368,7 @@ Because file selection is browser-side, `source_root` is derived from `webkitRel
 
 Phase 1 ends at **catalog + review**. The operator can scan folders, browse entries in `db/database_catalog.php`, edit metadata fields, and mark entries as `status = 'selected'` or `status = 'skipped'`. No upload, no hashing, no `assets` table writes occur in Phase 1.
 
-The subsequent **promote step** — taking `status = 'selected'` entries through hash → TUS upload → `ingestComplete()` → `assets` INSERT — is Phase 2, documented separately in `docs/refactor_upload_using_catalog.md`. Phase 1 must be fully implemented and stable before Phase 2 begins.
+The subsequent **promote step** — taking `status = 'selected'` entries through hash → TUS upload → `ingestComplete()` → `assets` INSERT — is Phase 2, documented separately in `docs/refactor_catalog_upload_using_catalog.md`. Phase 1 must be fully implemented and stable before Phase 2 begins.
 
 ---
 
@@ -353,6 +383,9 @@ The subsequent **promote step** — taking `status = 'selected'` entries through
 | `summary` vs `notes` | Both present with distinct semantics | `summary` → `events.summary` at promote time; `notes` = operator annotation, catalog lifecycle only, never promoted |
 | `path_hash` nullability | `NOT NULL` | Enforces uniqueness constraint; computed in PHP from path strings with zero file I/O |
 | Per-entry vs scan-level event columns | Both, with entry overriding scan | Scan provides defaults for bulk operation; per-entry override supports multi-event scans (e.g., a NAS with folders for multiple events) |
+| Section A reload scope | Wipes **entire** catalog (`DELETE FROM catalog_scans`, no `WHERE`) | Catalog is ephemeral staging — reload means start over completely, not just replace one source_root. Pre-existing entries from other source_roots are staging artifacts with no value once a fresh session begins. |
+| `catalog_scans.org_name` scan-level default | `'Default'` when blank/absent | Prevents promote-time 422 validation error for operators who skip the scan form; amber Org column in `db/database_catalog.php` signals which entries need review before promoting. |
+| `catalog_entries.event_date` auto-derivation | YYYYMMDD from filename; file mtime fallback | Same goal as org_name default: ensures COALESCE always resolves to a non-NULL value at promote time; filename-derived date is usually correct for structured archives (e.g. `StormPigs20050526_…`); operator can override per-row before promoting. |
 
 ---
 
@@ -563,7 +596,7 @@ Mirrors the Section A / Section B structure of `admin_database_load_import_media
 
 Reused from the import page: same CSS card/badge/alert styles, `formatBytes()`, `escapeHtml()`, `el()`, `html()`, `UPLOAD_AUDIO_EXTS_JSON` / `UPLOAD_VIDEO_EXTS_JSON` env var read, `_S` state object pattern.
 
-**Section A** — Catalog Folder (Destructive): clears existing `catalog_entries` for the `source_root` then scans fresh.
+**Section A** — Catalog Media (Reload): wipes the **entire** catalog (`DELETE FROM catalog_scans`, cascades to all `catalog_entries`), then scans the selected folder fresh. See *Catalog Lifecycle and Ephemerality* above.
 
 **Section B** — Add to Catalog (Non-Destructive): scans and upserts via `path_hash`; existing entries get `last_seen_scan_id` updated.
 
@@ -596,7 +629,9 @@ Nav buttons on this page: existing admin nav buttons (Password Reset, etc.) + **
 }
 ```
 
-`relpath` = `file.webkitRelativePath` from the browser `FileList`. The server derives `source_root` (first path segment), `source_relpath` (remainder), `file_ext`, `file_type`, `is_supported`, `mime_type`, `file_mtime` (from `last_modified_ms`), and `path_hash` = SHA-256(`relpath`). No server-side directory walk occurs.
+`relpath` = `file.webkitRelativePath` from the browser `FileList`. The server derives `source_root` (first path segment), `source_relpath` (remainder), `file_ext`, `file_type`, `is_supported`, `mime_type`, `file_mtime` (from `last_modified_ms`), `path_hash` = SHA-256(`relpath`), and `event_date` (extracted from filename — see step 6). No server-side directory walk occurs.
+
+**Scan-level `org_name` default:** if the submitted `org_name` is blank or absent, the server defaults it to `'Default'` before writing `catalog_scans`. This ensures the COALESCE fallback in `catalog_promote_start.php` always resolves to a non-NULL value, preventing the promote-time 422 validation error for operators who do not fill in the scan form. The operator corrects `'Default'` entries in `db/database_catalog.php` (amber-highlighted Org column) before promoting.
 
 **Guards the endpoint must enforce before any DB writes:**
 - `files` array missing or empty → HTTP 400 `"No files found in selected folder"`
@@ -633,7 +668,7 @@ Note: `total_size_bytes` is the sum of `size_bytes` for **all** files in the bro
 1. Auth check (admin only)
 2. Guards (see above): `files` present and non-empty; count ≤ `MAX_FILES` (50 000); `mode` is `reload` or `add`; every `relpath` contains at least one `/`
 3. Derive `source_root` = first path segment of `$files[0]['relpath']` (e.g. `2024-recordings` from `2024-recordings/set1/song.mp3`)
-4. If `mode === 'reload'`: `DELETE FROM catalog_scans WHERE source_root = ?` (cascades to `catalog_entries`)
+4. If `mode === 'reload'`: `DELETE FROM catalog_scans` — **no `WHERE` clause** — wipes the entire catalog (cascades to all `catalog_entries`). This is intentional: the catalog is ephemeral staging; reload = start over completely.
 5. `INSERT INTO catalog_scans` (`status = 'running'`, `source_root`, optional metadata fields)
 6. Iterate the `files` array; for each entry:
    - `$relpath = $entry['relpath']` (= `webkitRelativePath`)
@@ -644,7 +679,8 @@ Note: `total_size_bytes` is the sum of `size_bytes` for **all** files in the bro
    - `size_bytes = (int)$entry['size_bytes']`
    - `file_mtime = date('Y-m-d H:i:s', intval($entry['last_modified_ms'] / 1000))`
    - `path_hash = hash('sha256', $relpath)` — SHA-256 of `webkitRelativePath`; equals SHA-256(`source_root . '/' . source_relpath`)
-   - If `mode === 'reload'`: `INSERT` with `scan_id`, `first_seen_scan_id`, and `last_seen_scan_id` all set to the current `scan_id`
+   - `event_date`: look for an 8-digit `YYYYMMDD` pattern in `file_name` (e.g. `StormPigs20050526_…` → `2005-05-26`, year must be 1990–2099); if not found, fall back to the date portion of `file_mtime`. Stored per-entry in `catalog_entries.event_date`. Operator can override in `db/database_catalog.php` before promoting.
+   - If `mode === 'reload'`: `INSERT` with `scan_id`, `first_seen_scan_id`, `last_seen_scan_id` all set to the current `scan_id`, and `event_date` set to the derived date
    - If `mode === 'add'`: `INSERT` (same columns) `ON DUPLICATE KEY UPDATE last_seen_scan_id = current_scan_id` — `scan_id` and `first_seen_scan_id` are left unchanged on conflict, preserving the original scan reference
 7. `UPDATE catalog_scans SET total_files=?, supported_files=?, unsupported_files=?, total_size_bytes=?, audio_count=?, video_count=?, audio_size_bytes=?, video_size_bytes=?` (aggregate counts from in-memory tallies accumulated during the iteration)
 8. `UPDATE catalog_scans SET status='complete', completed_at=NOW()`
@@ -718,7 +754,7 @@ The default view shows **all `catalog_entries` across all scans** — the operat
 2. Open `db/database_catalog.php` — browse the full entry list
 3. Edit `event_date` (and any other metadata) per row → saved to `catalog_entries` via `db/catalog_entry_save.php`
 4. Mark desired entries as `status = 'selected'`; mark unwanted entries as `status = 'skipped'`
-5. Phase 2 promote step (see `docs/refactor_upload_using_catalog.md`) picks up `selected` entries and uses the corrected `event_date` as `events.event_date` at ingest time — no re-entry of metadata needed
+5. Phase 2 promote step (see `docs/refactor_catalog_upload_using_catalog.md`) picks up `selected` entries and uses the corrected `event_date` as `events.event_date` at ingest time — no re-entry of metadata needed
 
 This is the gap the existing `admin_database_load_import_media_from_folder.php` does not fill: it has no pre-upload metadata review or correction step.
 

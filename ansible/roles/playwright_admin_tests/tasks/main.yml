@@ -1,0 +1,124 @@
+---
+- name: Assert allow_destructive is enabled
+  ansible.builtin.assert:
+    that: allow_destructive | default(false) | bool
+    fail_msg: >-
+      playwright_admin_tests requires allow_destructive: true.
+      These tests wipe all media data from the target (steps 4, 6, 7).
+      Set allow_destructive: true only on dev environments.
+  delegate_to: localhost
+  become: false
+
+- name: Check Node version
+  ansible.builtin.command:
+    cmd: node --version
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  register: node_version
+
+- name: Assert Node 20 or higher
+  ansible.builtin.assert:
+    that: node_version.stdout[1:] is version('20.0.0', '>=')
+    fail_msg: "Node 20 or higher required. Found: {{ node_version.stdout }}. Run: nvm use 20"
+  delegate_to: localhost
+  become: false
+
+- name: Create playwright work dir
+  ansible.builtin.file:
+    path: "{{ playwright_work_dir }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  become: false
+
+- name: Create playwright media folder
+  ansible.builtin.file:
+    path: "{{ playwright_media_folder }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  become: false
+
+- name: Find video assets
+  ansible.builtin.find:
+    paths: "{{ repo_root }}/assets/video"
+    patterns: "*.mp4"
+  register: video_assets
+  delegate_to: localhost
+  become: false
+
+- name: Find audio assets
+  ansible.builtin.find:
+    paths: "{{ repo_root }}/assets/audio"
+    patterns: "*.mp3"
+  register: audio_assets
+  delegate_to: localhost
+  become: false
+
+- name: Copy media assets to playwright media folder
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ playwright_media_folder }}/"
+    remote_src: true
+  loop: "{{ video_assets.files + audio_assets.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  delegate_to: localhost
+  become: false
+
+- name: Sync role files to playwright work dir
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/"
+    dest: "{{ playwright_work_dir }}/"
+  delegate_to: localhost
+  become: false
+
+- name: Render tests/.env from template
+  ansible.builtin.template:
+    src: tests_env.j2
+    dest: "{{ playwright_work_dir }}/tests/.env"
+    mode: '0600'
+  delegate_to: localhost
+  become: false
+
+- name: Install npm dependencies (npm ci)
+  ansible.builtin.command:
+    cmd: npm ci
+    chdir: "{{ playwright_work_dir }}"
+  delegate_to: localhost
+  become: false
+  changed_when: true
+
+- name: Install Playwright Chromium browser
+  ansible.builtin.command:
+    cmd: npx playwright install chromium
+    chdir: "{{ playwright_work_dir }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Run Playwright admin page tests
+  ansible.builtin.command:
+    cmd: npx playwright test
+    chdir: "{{ playwright_work_dir }}"
+  delegate_to: localhost
+  become: false
+  register: playwright_result
+  failed_when: false
+  changed_when: false
+
+- name: Show Playwright test output
+  ansible.builtin.debug:
+    var: playwright_result.stdout_lines
+  delegate_to: localhost
+  become: false
+
+- name: Assert Playwright tests passed
+  ansible.builtin.assert:
+    that: playwright_result.rc == 0
+    fail_msg: >-
+      Playwright admin tests FAILED (exit code {{ playwright_result.rc }}).
+      HTML report: {{ playwright_work_dir }}/playwright-report/index.html
+  delegate_to: localhost
+  become: false

@@ -66,13 +66,12 @@ try {
     error_log("clear_media.php: Foreign key checks disabled");
 
     // Dynamically truncate all tables except 'users'.
+    // SHOW TABLES bypasses the information_schema cache and only returns physically
+    // existing tables, making this safe to run immediately after a DB restore.
     // TODO: see docs/placeholder_delete_tables_minimal.md — switch to an explicit
     // allowlist once the users table (or other non-media tables) holds real data.
-    $tables = $pdo->query(
-        "SELECT TABLE_NAME FROM information_schema.TABLES
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME != 'users'
-         ORDER BY TABLE_NAME"
-    )->fetchAll(\PDO::FETCH_COLUMN);
+    $allTables = $pdo->query("SHOW TABLES")->fetchAll(\PDO::FETCH_COLUMN);
+    $tables    = array_values(array_filter($allTables, fn($t) => $t !== 'users'));
 
     foreach ($tables as $t) {
         $pdo->exec('TRUNCATE TABLE `' . $t . '`');

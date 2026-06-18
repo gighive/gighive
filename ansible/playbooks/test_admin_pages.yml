@@ -1,0 +1,7 @@
+---
+- name: Run Playwright admin page regression tests
+  hosts: target_vms
+  gather_facts: false
+  roles:
+    - role: playwright_admin_tests
+      tags: [ playwright_admin_tests ]

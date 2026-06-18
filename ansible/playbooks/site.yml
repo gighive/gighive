@@ -123,6 +123,9 @@
     - role: upload_tests
       tags: [ upload_tests ]
       when: run_upload_tests | bool
+    - role: playwright_admin_tests
+      tags: [ playwright_admin_tests ]
+      when: run_playwright_admin_tests | default(false) | bool
     - role: mysql_backup
       tags: [ mysql_backup ]
   post_tasks:

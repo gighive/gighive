@@ -82,6 +82,13 @@ upload_test_destructive_confirm: true
 
 upload_tests_csv_dir: "{{ repo_root }}/ansible/fixtures/upload_tests/csv"
 
+# --------------------------------------------------------------------
+# playwright_admin_tests role
+# --------------------------------------------------------------------
+run_playwright_admin_tests: false
+playwright_work_dir: /tmp/gighive-playwright
+playwright_media_folder: /tmp/gighive-media
+
 upload_test_manifest_source_roots_reload:
   - "{{ video_reduced }}"
 upload_test_manifest_source_roots_add:
