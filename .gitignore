@@ -124,4 +124,4 @@ Secrets.plist              # Custom secrets file (rename to match yours)
 # General macOS cruft
 .DS_Store
 *.swp
-#*.lock
+*.lock
