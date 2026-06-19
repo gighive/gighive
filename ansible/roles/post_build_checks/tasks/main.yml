@@ -648,6 +648,24 @@
   failed_when: false
   tags: [stack_versions]
 
+- name: Slurp composer.lock on controller
+  ansible.builtin.slurp:
+    src: "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/composer.lock"
+  register: stack_composer_lock_raw
+  delegate_to: localhost
+  become: false
+  tags: [stack_versions]
+
+- name: Build Composer packages fact
+  ansible.builtin.set_fact:
+    stack_composer_packages: >-
+      {{
+        (stack_composer_lock_raw.content | b64decode | from_json).packages
+        | items2dict(key_name='name', value_name='version')
+      }}
+  changed_when: false
+  tags: [stack_versions]
+
 - name: Build Stack Versions Summary
   ansible.builtin.set_fact:
     stack_versions_summary:
@@ -661,6 +679,8 @@
       Docker: "{{ stack_docker_raw.stdout | default('N/A') | trim }}"
       OpenAI_Model: "{{ openai_model }}"
       App_Flavor: "{{ app_flavor }}"
+
+      Composer_PHP_Dependency_Manager_Packages: "{{ stack_composer_packages }}"
   changed_when: false
   tags: [stack_versions]
 

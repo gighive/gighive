@@ -118,11 +118,12 @@ mysqlServer            mysql:8.4                "docker-entrypoint.s…"   mysql
 ## curl HTTP smoke tests 
 
 1. Replace `192.168.1.252` with your host IP.
-2. Run the smoke tests.
+2. Run the smoke tests.  Replace viewer_password with the password you chose.
     ```bash
+    # Test getting to the home page
     curl -kI https://192.168.1.252/
-    curl -kI https://192.168.1.252/db/database.php
-    curl -kI https://viewer:secretviewer@192.168.1.252/db/database.php
+    # Test getting to the database 
+    curl -kI https://viewer:[viewer_password]@192.168.1.252/db/database.php
     ```
 3. Open the URL in your favorite browser.
 
