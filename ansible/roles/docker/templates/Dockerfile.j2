@@ -75,11 +75,8 @@ RUN if [ "$APP_FLAVOR" = "gighive" ]; then \
     fi \
  && rm -rf /opt/gighive-overlay
 
-# Then pull in Guzzle, optimize, set perms
-# Clean up temporary SAN config file
-# Ensure PHP-FPM socket directory exists
-RUN composer require guzzlehttp/guzzle --no-interaction --no-progress \
- && chown -R www-data:www-data ${WEB_ROOT} && \
+# Set permissions and clean up
+RUN chown -R www-data:www-data ${WEB_ROOT} && \
     rm -f /tmp/openssl_san.cnf && \
     mkdir -p /run/php && \
     chown -R www-data:www-data /run/php

@@ -126,34 +126,8 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
 
       <h3>Get Started</h3>
       <ul>
-        <li>Gighive is a containerized deployment of Apache and Mysql running in Docker.  You install Docker first and then Gighive.  Supported platforms are Linux, Mac or Windows..instructions for each below:</li>
-      </ul>
-
-      <div class="media-grid">
-        <div class="media-card">
-          <a href="https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4">
-            <img src="https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png" alt="GigHive quickstart installation video for Linux">
-            <div class="card-caption">Quickstart Installation (Linux)</div>
-          </a>
-        </div>
-        <div class="media-card">
-          <a href="https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4">
-            <img src="https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png" alt="GigHive quickstart installation video for Mac">
-            <div class="card-caption">Quickstart Installation (Mac)<br><a href="https://docs.docker.com/desktop/setup/install/mac-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Mac</a></div>
-          </a>
-        </div>
-        <div class="media-card">
-          <a href="https://staging.gighive.app/video/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.mp4">
-            <img src="https://staging.gighive.app/video/thumbnails/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.png" alt="GigHive quickstart installation video for Windows">
-            <div class="card-caption">Quickstart Installation (Windows)<br><a href="https://docs.docker.com/desktop/setup/install/windows-install/" style="color: #2196F3; font-size: 0.85em;">How to install Docker Desktop on Windows</a></div>
-          </a>
-        </div>
-      </div>
-
-      <h3>Requirements for Quickstart</h3>
-      <ul>
-        <li>Most flavors of Linux x86/64 (tested on Ubuntu 24.04 and 22.04), Mac Sequoia 15.6.1 or Windows 10 or above running Docker.</li>
-        <li><a href="https://gighive.app/setup_instructions_quickstart.html">Quickstart Instructions</a></li>
+        <li>GigHive is a containerized deployment of Apache and MySQL running in Docker. Supported platforms: Linux x86/64 (Ubuntu 22.04/24.04), Mac Sequoia 15.6.1+, and Windows 10+.</li>
+        <li><a href="https://gighive.app/setup_instructions_quickstart.html">Quickstart Instructions</a> — includes installation videos for Linux, Mac, and Windows.</li>
       </ul>
 
       <h3>Why self-host?</h3>

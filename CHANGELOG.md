@@ -1,4 +1,246 @@
 *** 
+releaseNotes20260619.txt
+Changes: new install and version of guzzle, new version of psr7, reg composer.lock, Dockerfile update for same, def-ssl fix for tags.php, move qs vids to index
+Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260619.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260605.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260606.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260606.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260618.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/composer.json
+	modified:   ansible/roles/docker/files/apache/webroot/composer.lock
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/autoload_classmap.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/autoload_files.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/autoload_psr4.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/autoload_static.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/installed.json
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/composer/installed.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/LICENSE
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/README.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/UPGRADING.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/composer.json
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/package-lock.json
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/BodySummarizer.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/BodySummarizerInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Client.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/ClientInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/ClientTrait.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Cookie/CookieJar.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Cookie/CookieJarInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Cookie/FileCookieJar.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Cookie/SessionCookieJar.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Cookie/SetCookie.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/BadResponseException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/ClientException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/ConnectException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/GuzzleException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/InvalidArgumentException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/RequestException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/ServerException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/TooManyRedirectsException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Exception/TransferException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/CurlFactory.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/CurlFactoryInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/CurlHandler.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/CurlShareHandleState.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/CurlVersion.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/EasyHandle.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/HeaderProcessor.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/MockHandler.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/Proxy.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/ProxyEnvironment.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Handler/StreamHandler.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/HandlerStack.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/MessageFormatter.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/MessageFormatterInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Middleware.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Pool.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/PrepareBodyMiddleware.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/RedirectMiddleware.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/RequestOptions.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/RetryMiddleware.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/TransferStats.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/TransportSharing.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/Utils.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/functions.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/guzzle/src/functions_include.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/LICENSE
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/README.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/UPGRADING.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/composer.json
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/AggregateException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/CancellationException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/Coroutine.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/Create.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/Each.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/EachPromise.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/FulfilledPromise.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/Is.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/Promise.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/PromiseInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/PromisorInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/RejectedPromise.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/RejectionException.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/TaskQueue.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/TaskQueueInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/promises/src/Utils.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/README.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/UPGRADING.md
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/composer.json
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/AppendStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/BufferStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/CachingStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/DroppingStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/FnStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Header.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/LimitStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Message.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/MessageTrait.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/MultipartStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/NoSeekStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/PumpStream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Query.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Request.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Response.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Rfc3986.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Rfc7230.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/ServerRequest.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Stream.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/StreamDecoratorTrait.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/StreamWrapper.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Uri.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/UriComparator.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/UriNormalizer.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/UriResolver.php
+	modified:   ansible/roles/docker/files/apache/webroot/vendor/guzzlehttp/psr7/src/Utils.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/psr/http-client/CHANGELOG.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/psr/http-client/LICENSE
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/psr/http-client/README.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/psr/http-client/composer.json
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/psr/http-client/src/ClientExceptionInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/psr/http-client/src/ClientInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/psr/http-client/src/NetworkExceptionInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/psr/http-client/src/RequestExceptionInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/LICENSE
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/Php80.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/PhpToken.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/README.md
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/Resources/stubs/Attribute.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/Resources/stubs/PhpToken.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/Resources/stubs/Stringable.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/Resources/stubs/UnhandledMatchError.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/Resources/stubs/ValueError.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/bootstrap.php
+	new file:   ansible/roles/docker/files/apache/webroot/vendor/symfony/polyfill-php80/composer.json
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/Dockerfile.j2
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   docs/index.md
+	new file:   docs/patterns_ui.md
+	new file:   docs/refactor_iphone_security_insecure_tls_breaks_on_names.md
+	new file:   docs/refactor_iphone_tuskit_inject_deprecation.md
+	modified:   docs/setup_instructions_quickstart.md
+
+PRIORITY
+What's next: sync all latest db changes for docs/feature_completed_mcp_server.md and docs/feature_completed_catalog_insert.md to lab/staging/prod
+What's next: after the cleanup, add a splash video as background of https://gighive.app in the same vein as https://corastone.com
+What's next: add "how to use Gighive" video to the home page of the iphone app
+
+TODO
+Feature: encode from browser window
+Feature: additional information provided by ffmpeg (lat/long?) into the media file info field
+What's next: fix telemetry to not rebuild db every time
+What's next: add dialog popup with stack
+What's next: iphone app updates
+Security: upgrade from id_rsa to id_ed25519 in /home/sodo/gighive/docs/refactor_security_upgrade_ssh_key.md 
+DB: rename create_music_db.sql to create_db.sql
+AI: maybe include ai tests for OSB
+Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
+App: Media database page should show the thumbnail
+App: Does the media player have to open a separate window? 
+App: Add How to Use button with link to video at bottom of home page
+App: Add tutorial at bottom of upload page 
+App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
+App: From the upload page, add a link to the supported media file types
+App: Make database scroll one-handed, like modern apps
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Integrate changes for db events
+
+App: App breaks on upload when changing to Messages app
+App: Is it worthwhile to have an embed feature?
+App: Can i provide a link to the Media Details page in the app?
+App: Share link feature in media page
+App/Web: skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+
+Upload: should add "Still processing.." after heartbeat
+Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
+Security: Interesting that security_basic_auth is always needed after docker run
+API: refactor based on docs/refactor_api_cleanup_if_desired.md
+Next: we will need an upload videos/thumbnails only after restore of database function
+Next: admin upload still allowing duplicate shas based upon different column info
+Product: Lock down / remove full build option (full build is saas)
+Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
+Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: protect the debug directory w/admin password	
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails 
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
 releaseNotes20260618.txt
 Changes: docs/feature_db_catalog_insert.md fixes, add playwright_admin_tests role
 Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
@@ -7,7 +249,7 @@ Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests" ansible-playbook-gighive2-20260618.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260618.log
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
 # LAB, rebuild 
@@ -66,67 +308,6 @@ Changes to be committed:
 	modified:   docs/media_duplicates_allow_cross_linked_dupes.md
 	modified:   docs/refactor_catalog_upload_using_catalog.md
 	modified:   docs/setup_instructions_quickstart.md
-
-PRIORITY
-What's next: delete doesn't work in iphone upload page now after assets / event change
-What's next: clean up index.phps to move vids to quickstart instructions
-What's next: add how to video to iphone home page
-What's next: dupe video fix shown by Jenny upload (Jenny as band or event vs boat as band or event name)
-
-TODO
-Feature: encode from browser window
-Feature: additional information provided by ffmpeg (lat/long?) into the media file info field
-What's next: fix telemetry to not rebuild db every time
-What's next: add dialog popup with stack
-What's next: iphone app updates
-Security: upgrade from id_rsa to id_ed25519 in /home/sodo/gighive/docs/refactor_security_upgrade_ssh_key.md 
-DB: rename create_music_db.sql to create_db.sql
-AI: maybe include ai tests for OSB
-Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
-App: Media database page should show the thumbnail
-App: Does the media player have to open a separate window? 
-App: Add How to Use button with link to video at bottom of home page
-App: Add tutorial at bottom of upload page 
-App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
-App: From the upload page, add a link to the supported media file types
-App: Make database scroll one-handed, like modern apps
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Integrate changes for db events
-
-App: App breaks on upload when changing to Messages app
-App: Is it worthwhile to have an embed feature?
-App: Can i provide a link to the Media Details page in the app?
-App: Share link feature in media page
-App/Web: skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-
-Upload: should add "Still processing.." after heartbeat
-Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
-Security: Interesting that security_basic_auth is always needed after docker run
-API: refactor based on docs/refactor_api_cleanup_if_desired.md
-Next: we will need an upload videos/thumbnails only after restore of database function
-Next: admin upload still allowing duplicate shas based upon different column info
-Product: Lock down / remove full build option (full build is saas)
-Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
-Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: protect the debug directory w/admin password	
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails 
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
 
 *** 
 releaseNotes20260617.txt

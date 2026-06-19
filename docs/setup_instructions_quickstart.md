@@ -5,6 +5,15 @@ description: Quickstart install instructions (one-shot bundle)
 
 These are instructions to get up and running with Gighive for users with Docker already installed.
 
+## Installation Videos
+
+Click a thumbnail to watch the quickstart installation walkthrough for your platform.
+
+| Linux | Mac | Windows |
+|:---:|:---:|:---:|
+| [![Quickstart Installation (Linux)](https://staging.gighive.app/video/thumbnails/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.png)](https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4) | [![Quickstart Installation (Mac)](https://staging.gighive.app/video/thumbnails/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.png)](https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4) | [![Quickstart Installation (Windows)](https://staging.gighive.app/video/thumbnails/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.png)](https://staging.gighive.app/video/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.mp4) |
+| [Quickstart Installation (Linux)](https://staging.gighive.app/video/7a5bc7d5d22c7f2778656c5a8880a2c11595901665196fa8f89dfbfe10ec6f98.mp4) | [Quickstart Installation (Mac)](https://staging.gighive.app/video/1755278dbc8240fe9e2ff502c0ef4d5d9cd662ca581f6c59511b1f4fce9b07b8.mp4) · [Install Docker Desktop on Mac](https://docs.docker.com/desktop/setup/install/mac-install/) | [Quickstart Installation (Windows)](https://staging.gighive.app/video/0afe341f6110675421e06ed0a4b3587495b0f57999b4711f4ccafeb969d64638.mp4) · [Install Docker Desktop on Windows](https://docs.docker.com/desktop/setup/install/windows-install/) |
+
 ## Prerequisites
 
 - Read the [PREREQS](PREREQS.md).
