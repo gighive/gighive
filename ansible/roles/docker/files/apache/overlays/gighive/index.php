@@ -114,7 +114,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
   <?php if ($passwordsChanged): ?>
   <div class="user-indicator">Passwords changed</div>
   <?php endif; ?>
-  <video class="card-bg-video" autoplay muted loop playsinline poster="/images/home_bg_poster.jpg">
+  <video id="bg-video" class="card-bg-video" autoplay muted playsinline poster="/images/home_bg_poster.jpg">
     <source src="/images/home_bg.mp4" type="video/mp4">
   </video>
   <div class="video-overlay"></div>
@@ -199,6 +199,15 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       <?php endif; ?>
     </div>
   </div>
+  <script>
+  (function(){
+    var v = document.getElementById('bg-video');
+    var plays = 0;
+    v.addEventListener('ended', function(){
+      if (++plays < 5) { v.play(); }
+    });
+  })();
+  </script>
 </body>
 </html>
 

@@ -351,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<video class="card-bg-video" autoplay muted loop playsinline
+<video id="bg-video" class="card-bg-video" autoplay muted playsinline
        poster="https://staging.gighive.app/images/home_bg_poster.jpg">
   <source src="https://staging.gighive.app/images/home_bg.mp4" type="video/mp4">
 </video>
@@ -416,3 +416,13 @@ GigHive is dual-licensed:
  👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 4em; vertical-align: middle;">
 
 </div>
+
+<script>
+(function(){
+  var v = document.getElementById('bg-video');
+  var plays = 0;
+  v.addEventListener('ended', function(){
+    if (++plays < 5) { v.play(); }
+  });
+})();
+</script>
