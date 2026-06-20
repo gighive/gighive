@@ -231,9 +231,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="wrap">
     <div class="card">
       <div style="position:absolute;top:1.5rem;right:1.5rem;display:flex;flex-direction:column;gap:.4rem;align-items:flex-end">
-        <a href="/admin/admin_database_load_import_media_from_folder.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import Media</button></a>
         <a href="/admin/admin_system.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">System &amp; Recovery</button></a>
-        <a href="/admin/admin_database_load_import_csv.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">CSV Import</button></a>
+        <a href="/admin/admin_database_catalog_media_from_folder.php"><button type="button" style="border-color:#a855f7;font-size:.8rem;padding:.4rem .8rem">Catalog Media</button></a>
+        <a href="/admin/admin_database_load_import_media_from_folder.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import Media</button></a>
+        <a href="/admin/admin_database_load_import_csv.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import CSV</button></a>
       </div>
       <h1 style="padding-right:210px">Admin: Password Reset</h1>
       <p class="muted">

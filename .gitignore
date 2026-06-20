@@ -43,6 +43,10 @@ volumes/
 # temp video dir
 /videos
 
+# home page video
+home_bg.mp4
+home_bg.mp4.old
+
 # tests dir
 /tests
 

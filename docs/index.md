@@ -202,6 +202,41 @@ img {
     color: white;
 }
 
+/* Background video card */
+.card {
+    background: rgba(18, 26, 51, 0.7);
+    border: 1px solid #1d2a55;
+    border-radius: 16px;
+    padding: 2rem;
+}
+
+.card-bg-video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    object-position: center center;
+    z-index: -2;
+}
+
+.video-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: -1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card-bg-video,
+    .video-overlay { display: none; }
+    .card { background: #121a33; }
+}
+
 /* Credentials box */
 .credentials-box {
     display: inline-block;
@@ -312,6 +347,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<video class="card-bg-video" autoplay muted loop playsinline
+       poster="https://staging.gighive.app/images/home_bg_poster.jpg">
+  <source src="https://staging.gighive.app/images/home_bg.mp4" type="video/mp4">
+</video>
+<div class="video-overlay"></div>
+
+<div class="card" markdown="1">
+
 <div class="custom-h1">Welcome to GigHive!</div>
 <div class="custom-h2">Upload, organize, and stream your media.</div>
 - **If you're a musician:** Use Gighive as a library for your band's sessions (audio and video) and let your fans upload footage from every angle of the gig.
@@ -367,3 +410,5 @@ GigHive is dual-licensed:
 ### Contact Us
 
  👉 [Contact us](mailto:contactus@gighive.app) for commercial licensing or for any other questions regarding Gighive. <img src="images/beelogo.png" alt="GigHive bee mascot" style="height: 4em; vertical-align: middle;">
+
+</div>

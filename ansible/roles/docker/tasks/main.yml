@@ -233,6 +233,13 @@
   ignore_errors: true
   tags: docker, compose
 
+- name: Stop tusd container for rebuild
+  community.docker.docker_container:
+    name: "{{ apache_container_name }}_tusd"
+    state: absent
+  ignore_errors: true
+  tags: docker, compose
+
 - name: Stop MySQL container for rebuild (when requested)
   community.docker.docker_container:
     name: "{{ mysql_container_name }}"

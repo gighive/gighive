@@ -26,7 +26,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     body { margin:0; background:#0b1020; color:#e9eef7; }
     .wrap { max-width: 1350px; margin: 0 auto; padding: 2rem; }
-    .card { background: #121a33; border: 1px solid #1d2a55; border-radius: 16px; padding: 2rem; }
+    .card { background: rgba(18, 26, 51, 0.7); border: 1px solid #1d2a55; border-radius: 16px; padding: 2rem; }
     a.btn { display: inline-block; padding: .9rem 1.2rem; border-radius: 10px; text-decoration: none; border: 1px solid #3b82f6; }
 
     /* Fix spacing issues */
@@ -77,6 +77,30 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
       font-size: 0.9em;
       color: #ccc;
     }
+    .card-bg-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      object-position: center center;
+      z-index: -2;
+    }
+    .video-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: -1;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card-bg-video,
+      .video-overlay { display: none; }
+      .card { background: #121a33; }
+    }
   </style>
 </head>
 <body>
@@ -86,6 +110,10 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
   <?php if ($passwordsChanged): ?>
   <div class="user-indicator">Passwords changed</div>
   <?php endif; ?>
+  <video class="card-bg-video" autoplay muted loop playsinline poster="/images/home_bg_poster.jpg">
+    <source src="/images/home_bg.mp4" type="video/mp4">
+  </video>
+  <div class="video-overlay"></div>
   <div class="wrap">
     <div class="card">
       <h1 class="site-title">
