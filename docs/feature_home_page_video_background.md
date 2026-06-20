@@ -222,3 +222,92 @@ ffmpeg -i "Cap0001(0023).m2t" \
 - [ ] Tested on mobile (iOS Safari autoplay + playsinline)
 - [ ] Reduced-motion media query verified
 - [ ] Overlay opacity tuned for readability
+
+---
+
+## Hero Text Readability: Options Considered
+
+**Problem:** With the video fixed full-screen and the `.card` at 70% opacity, the video texture bleeds through behind the `h1`/`h2` hero section ("Welcome to GigHive!" + "Upload, organize, and stream your media."). This competes visually with the headline and mutes its impact.
+
+**Goal:** Give the hero section a clean solid-dark background while preserving the video atmosphere for the content body below it.
+
+---
+
+### Option A — Video top offset + short fade-in gradient (selected, implemented)
+
+Move the video and overlay down so they physically start below the h2, by setting `top` to a pixel value matching the bottom of the hero section. Add a short fade-in gradient on the overlay only at the entry edge. No HTML structural changes required — only CSS.
+
+Above the `top` offset: clean body background color only (no video, no overlay).  
+At the video entry: a quick dissolve (`rgba(0,0,0,0.85) → rgba(0,0,0,0.55)` over 10%).  
+Below that: normal semi-transparent overlay throughout.
+
+```css
+/* index.php — bee image (224px) makes hero ~330px tall */
+.card-bg-video {
+  position: fixed;
+  top: 330px;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  object-position: center center;
+  z-index: -2;
+}
+.video-overlay {
+  position: fixed;
+  top: 330px;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.55) 10%
+  );
+  z-index: -1;
+}
+
+/* docs/index.md — no bee image, hero is text-only ~160px tall */
+.card-bg-video { top: 160px; /* other properties identical */ }
+.video-overlay { top: 160px; /* other properties identical */ }
+```
+
+**Tuning levers:**
+- `top` pixel value — adjust up/down to align with actual h2 bottom edge (affected by font rendering, zoom, and whether a user-indicator div is shown)
+- `0.85` → `1.0` for a harder entry edge; lower for softer
+- `10%` — reduce (e.g. `6%`) for even quicker fade; increase for a longer dissolve
+
+**Pros:** Hero text sits on clean dark background at all viewport sizes; video atmosphere preserved for all content below; short gradient dissolve avoids a harsh edge.  
+**Cons:** Fixed pixel `top` value — doesn't auto-adapt if hero height changes (e.g. font size change, bee image resize, added UI elements above). Needs manual re-tuning if hero section layout changes significantly.
+
+---
+
+### Option B — Opaque gradient on the card itself
+
+Keep the overlay as-is. Change `.card`'s background from `rgba(18,26,51,0.7)` to a gradient — fully opaque at the top, fading to 70% opacity partway down.
+
+```css
+.card {
+  background: linear-gradient(
+    to bottom,
+    rgba(18, 26, 51, 1.0) 0%,
+    rgba(18, 26, 51, 1.0) 20%,
+    rgba(18, 26, 51, 0.7) 40%
+  );
+}
+```
+
+**Pros:** Keeps video atmosphere visible at card side margins even in the hero zone.  
+**Cons:** The card does not span full viewport width — video is still visible in the body margins alongside the hero text, so the headline still competes with background motion on wider screens.
+
+---
+
+### Option C — Two-section HTML split (most structural)
+
+Split the page into a solid-dark hero strip and a video-backed content section:
+- Remove video from global fixed background.
+- Add a full-width solid `#0b1020` hero `<div>` containing `h1` + `h2`.
+- The video becomes the background of a second `<section>` below, using `position: relative` and a contained video element.
+
+**Pros:** Pixel-perfect control; hero text is provably isolated from video at every screen size.  
+**Cons:** Significant HTML restructure in both files; the video no longer tiles the full page on scroll; more maintenance surface.

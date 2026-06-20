@@ -79,7 +79,7 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
     }
     .card-bg-video {
       position: fixed;
-      top: 0;
+      top: 330px;
       left: 0;
       width: 100vw;
       height: 100vh;
@@ -89,11 +89,15 @@ $passwordsChanged = isset($_GET['passwords_changed']) && $_GET['passwords_change
     }
     .video-overlay {
       position: fixed;
-      top: 0;
+      top: 330px;
       left: 0;
       width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.55);
+      height: 100vh;
+      background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.85) 0%,
+        rgba(0, 0, 0, 0.55) 10%
+      );
       z-index: -1;
     }
     @media (prefers-reduced-motion: reduce) {

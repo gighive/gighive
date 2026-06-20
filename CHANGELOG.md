@@ -1,13 +1,13 @@
 *** 
 releaseNotes20260620.txt
-Changes: video on home page  
+Changes: adjust video on home page  
 Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # BASE GIG2 TEST PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260619.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260620.log
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
 # LAB, rebuild 
@@ -33,9 +33,19 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # VULN testing
 	~/scripts/vulnerabilityScanUsingZap.sh
 
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   docs/feature_home_page_video_background.md
+	modified:   docs/index.md
+
 PRIORITY
 What's next: sync all latest db changes for docs/feature_completed_mcp_server.md and docs/feature_completed_catalog_insert.md to lab/staging/prod
-What's next: after the cleanup, add a splash video as background of https://gighive.app in the same vein as https://corastone.com
 What's next: add "how to use Gighive" video to the home page of the iphone app
 
 TODO
@@ -94,9 +104,61 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
 *** 
+releaseNotes20260620.txt
+Changes: video on home page  
+Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# BASE GIG2 TEST PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260620.log
+# PROD ROLLOUT
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-prod-20260606.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# LAB PUSH: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260605.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive" ansible-playbook-gighive-20260606.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260606.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260619.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/overlays/gighive/index.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_csv.php
+	new file:   ansible/roles/docker/files/apache/webroot/images/home_bg_poster.jpg
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/tasks/main.yml
+	new file:   docs/feature_home_page_video_background.md
+	modified:   docs/index.md
+
+*** 
 releaseNotes20260619.txt
 Changes: quickstart instructions fix
-Scope: egrep -A1 'GIG2|OSB' CHANGELOG.md | head -20
+Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2, rebuild 
