@@ -421,6 +421,7 @@ CREATE TABLE IF NOT EXISTS catalog_scans (
     completed_at      DATETIME        NULL,
     created_at        TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    skipped_count     INT UNSIGNED    NOT NULL DEFAULT 0,
     INDEX idx_catalog_scans_status (status),
     INDEX idx_catalog_scans_source (source_root(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

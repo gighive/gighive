@@ -44,8 +44,7 @@ volumes/
 /videos
 
 # home page video
-home_bg.mp4
-home_bg.mp4.old
+#home_bg.mp4
 
 # tests dir
 /tests

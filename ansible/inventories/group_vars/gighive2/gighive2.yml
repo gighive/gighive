@@ -46,7 +46,7 @@ app_flavor: gighive
 app_flavor_email: "contactus@gighive.app"
 database_full: false
 
-gighive_ios_app_version: "1.0.3 (7)"
+gighive_ios_app_version: "1.0.4 (1)"
 
 gighive_enable_installation_tracking: true
 gighive_installation_tracking_endpoint: "https://telemetry.gighive.app"
