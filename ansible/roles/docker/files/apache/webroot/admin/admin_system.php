@@ -216,9 +216,28 @@ function __format_backup_size(int $bytes): string {
         <button type="button" id="exportMediaBtn" onclick="doExportMedia()">Download ZIP</button>
       </div>
 
+      <div class="section-divider">
+        <h2>Section F: Import Media from ZIP</h2>
+        <p class="muted">
+          Import audio and video files from a GigHive export ZIP back onto this server's media volumes.
+          Only files with SHA-256 hash names and supported extensions are imported; all others are skipped safely.
+          Files already present on disk are skipped (idempotent &mdash; safe to re-run).
+        </p>
+        <div class="warning-box">
+          <strong>&#9888;&#65039; Note:</strong> This only restores the media files. A matching database backup
+          (Section C) must also be restored separately to reconstruct the full catalogue.
+        </div>
+        <div class="row">
+          <label for="import_zip_file">ZIP file</label>
+          <input type="file" id="import_zip_file" name="zip_file" accept=".zip" />
+        </div>
+        <div id="importZipStatus"></div>
+        <button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import ZIP</button>
+      </div>
+
       <?php if ($__show_disk_resize): ?>
       <div class="section-divider">
-        <h2>Section F: Write Disk Resize Request (Optional)</h2>
+        <h2>Section G: Write Disk Resize Request (Optional)</h2>
         <p class="muted">
           This creates a resize request file on the server. It does not resize the VM immediately. <a href="https://gighive.app/resizeRequestInstructions.html" target="_blank" rel="noopener noreferrer">Instructions here</a>
         </p>
@@ -908,6 +927,177 @@ function __format_backup_size(int $bytes): string {
     exportRun().finally(() => {
       btn.disabled = false;
       btn.textContent = 'Download ZIP';
+    });
+  }
+
+  function doImportMediaZip() {
+    const fileInput = document.getElementById('import_zip_file');
+    const btn       = document.getElementById('importZipBtn');
+    const statusEl  = document.getElementById('importZipStatus');
+
+    // no-file guard
+    if (!fileInput.files || !fileInput.files[0]) {
+      statusEl.innerHTML = '<div class="alert-error">Please select a ZIP file first.</div>';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Uploading ZIP\u2026';
+
+    function fmtBytes(n) {
+      if (n < 1024)        return n + ' B';
+      if (n < 1048576)     return (n / 1024).toFixed(1) + ' KB';
+      if (n < 1073741824)  return (n / 1048576).toFixed(1) + ' MB';
+      return (n / 1073741824).toFixed(1) + ' GB';
+    }
+
+    const fileSize = fileInput.files[0].size;
+
+    const steps = [
+      { name: 'Upload ZIP',   status: 'running', message: 'Uploading\u2026',
+        progress: { processed: 0, total: fileSize || 1 } },
+      { name: 'Inspect ZIP',  status: 'pending', message: '', progress: null },
+      { name: 'Import files', status: 'pending', message: '', progress: null },
+    ];
+
+    function render() {
+      if (typeof renderImportStepsShared === 'function') {
+        statusEl.innerHTML = renderImportStepsShared(steps, { showProgressBar: true, label: 'Import:', statusIndentPx: 80 });
+      }
+    }
+
+    async function importRun() {
+      render();
+
+      // ── Step 1: Upload + inspect ZIP (prepare) ─────────────────────────────
+      let prepData, prepStatus;
+      try {
+        ({ data: prepData, status: prepStatus } = await new Promise(function (resolve, reject) {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', 'import_media_zip.php');
+          xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+              steps[0] = { name: 'Upload ZIP', status: 'running',
+                           message: fmtBytes(e.loaded) + ' / ' + fmtBytes(e.total) + ' uploaded',
+                           progress: { processed: e.loaded, total: e.total } };
+              render();
+            }
+          };
+          xhr.upload.onload = function () {
+            steps[0] = { name: 'Upload ZIP', status: 'ok',
+                         message: fmtBytes(fileSize) + ' uploaded',
+                         progress: { processed: fileSize, total: fileSize } };
+            steps[1] = { name: 'Inspect ZIP', status: 'running', message: 'Scanning entries\u2026', progress: null };
+            btn.textContent = 'Inspecting ZIP\u2026';
+            render();
+          };
+          xhr.onload = function () {
+            let data = null;
+            try { data = JSON.parse(xhr.responseText); } catch (_e) {}
+            resolve({ data: data, status: xhr.status });
+          };
+          xhr.onerror = function () { reject(new Error('Network error')); };
+          const formData = new FormData();
+          formData.append('mode', 'prepare');
+          formData.append('zip_file', fileInput.files[0]);
+          xhr.send(formData);
+        }));
+      } catch (err) {
+        steps[0] = { name: 'Upload ZIP', status: 'error', message: String(err.message) };
+        render();
+        return;
+      }
+      if (prepStatus < 200 || prepStatus >= 300 || !(prepData && prepData.success)) {
+        const msg = (prepData && (prepData.error || prepData.message)) ? String(prepData.error || prepData.message) : 'HTTP ' + prepStatus;
+        steps[1] = { name: 'Inspect ZIP', status: 'error', message: msg };
+        render();
+        return;
+      }
+
+      const audioCount       = Number(prepData.audio_count)       || 0;
+      const videoCount       = Number(prepData.video_count)       || 0;
+      const unsupportedCount = Number(prepData.unsupported_count) || 0;
+      const totalBytes       = Number(prepData.total_bytes)       || 0;
+      const prepareToken     = String(prepData.prepare_token || '');
+
+      steps[1] = { name: 'Inspect ZIP', status: 'ok',
+                   message: audioCount + ' audio + ' + videoCount + ' video found (' + fmtBytes(totalBytes) + ')',
+                   progress: null };
+      render();
+
+      // ── Step 2: Confirm ───────────────────────────────────────────────────
+      const unsupportedNote = unsupportedCount > 0
+        ? unsupportedCount + ' entries will be skipped (unsupported format).\n\n'
+        : '';
+      const confirmMsg = audioCount + ' audio + ' + videoCount + ' video files ready to import (' + fmtBytes(totalBytes) + ').\n\n'
+        + unsupportedNote
+        + 'Files already on disk are skipped safely.\n\nDo you wish to import?';
+
+      if (!window.confirm(confirmMsg)) {
+        steps[2] = { name: 'Import files', status: 'pending', message: 'Canceled.' };
+        render();
+        return;
+      }
+
+      steps[2] = { name: 'Import files', status: 'running', message: 'Starting\u2026',
+                   progress: { processed: 0, total: audioCount + videoCount || 1 } };
+      btn.textContent = 'Importing\u2026';
+      render();
+
+      // ── Step 3: Start — spawn worker ──────────────────────────────────────
+      let startResp, startData;
+      try {
+        startResp = await fetch('import_media_zip.php', {
+          method: 'POST',
+          body: new URLSearchParams({ mode: 'start', prepare_token: prepareToken })
+        });
+        startData = await startResp.json().catch(() => null);
+      } catch (err) {
+        steps[2] = { name: 'Import files', status: 'error', message: 'Network error: ' + String(err.message) };
+        render();
+        return;
+      }
+
+      if (startResp.status === 410) {
+        steps[2] = { name: 'Import files', status: 'error', message: 'Prepare token expired \u2014 please re-select the ZIP and try again.' };
+        render();
+        return;
+      }
+      if (!startResp.ok || !(startData && startData.success && startData.job_id)) {
+        const msg = (startData && (startData.error || startData.message)) ? String(startData.error || startData.message) : 'HTTP ' + startResp.status;
+        steps[2] = { name: 'Import files', status: 'error', message: msg };
+        render();
+        return;
+      }
+
+      const jobId = String(startData.job_id);
+
+      // ── Step 4: Poll worker progress ──────────────────────────────────────
+      if (typeof resetProgressLatch === 'function') resetProgressLatch();
+
+      const result = await new Promise(function (resolve) {
+        pollJobStatus(jobId, 'import_media_zip_status.php', null, function (state, data) {
+          resolve({ state: state, data: data });
+        }, 1500, null, function (data) {
+          if (data && Array.isArray(data.steps) && data.steps.length > 0) {
+            steps[2] = data.steps[0];
+          }
+          render();
+        });
+      });
+
+      if (result.data && Array.isArray(result.data.steps) && result.data.steps.length > 0) {
+        steps[2] = result.data.steps[0];
+      } else if (result.state === 'error') {
+        const errMsg = (result.data && result.data.error_message) ? String(result.data.error_message) : 'Worker error';
+        steps[2] = { name: 'Import files', status: 'error', message: errMsg };
+      }
+      render();
+    }
+
+    importRun().finally(() => {
+      btn.disabled = false;
+      btn.textContent = 'Import ZIP';
     });
   }
   </script>

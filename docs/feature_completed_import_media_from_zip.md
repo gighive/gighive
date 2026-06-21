@@ -163,6 +163,90 @@ The existing optional Disk Resize section is currently **Section F** (conditiona
 
 ---
 
+## Implementation Checklist
+
+Implement in this order (each file is independently testable before the next):
+
+### 1. `admin/import_media_zip.php`
+- [ ] POST-only guard; HTTP 403 if not admin
+- [ ] `mode=prepare`:
+  - [ ] `isset($_FILES['zip_file'])` guard → HTTP 400 `"No file uploaded"` (must be first)
+  - [ ] `$_FILES['zip_file']['error'] === UPLOAD_ERR_OK` → HTTP 400
+  - [ ] `.zip` extension check → HTTP 400
+  - [ ] `$rc = $zip->open($_FILES['zip_file']['tmp_name'], ZipArchive::RDONLY)` → check `=== true` → HTTP 400
+  - [ ] Check `$zip->numFiles > 50000` immediately after open → HTTP 400 (before any iteration)
+  - [ ] Iterate `statIndex()`: count `$audioCount`, `$videoCount`, `$unsupportedCount`, accumulate `$uncompressedTotal` (all entries) and `$totalBytes` (audio+video only); abort loop early if `$uncompressedTotal > 2 × upload_max_filesize` → HTTP 400
+  - [ ] `$zip->close()` after scan
+  - [ ] `move_uploaded_file($_FILES['zip_file']['tmp_name'], ...)` → check `!== false` → HTTP 500
+  - [ ] Return JSON: `success`, `prepare_token`, `audio_count`, `video_count`, `unsupported_count`, `file_count`, `total_bytes`
+- [ ] `mode=start`:
+  - [ ] Validate `prepare_token` `/^[a-f0-9]{16}$/` → HTTP 400
+  - [ ] Resolve prep file; check `!is_file()` or expired (`filemtime < time() - 1800`) → HTTP 410
+  - [ ] `function_exists('exec')` → HTTP 500 if false (before any file ops)
+  - [ ] `bin2hex(random_bytes(8))` → `$jobId`
+  - [ ] `mkdir($jobDir, 0700, true)` → check → HTTP 500
+  - [ ] `rename($prepPath, $jobDir . 'upload.zip')` → check → HTTP 500
+  - [ ] Write initial `status.json` with `LOCK_EX` (state=running, steps with "Scanning archive…")
+  - [ ] `exec('php ... --job_id=... >> worker.log 2>&1 &')`
+  - [ ] Return `{ "success": true, "job_id": "..." }`
+- [ ] Invalid `mode` value → HTTP 400
+
+### 2. `admin/import_media_zip_worker.php`
+- [ ] `declare(strict_types=1)` + `PHP_SAPI !== 'cli'` guard
+- [ ] Parse `--job_id=` arg; validate `/^[a-f0-9]{16}$/`; build `$jobDir`, `$jsonPath`, `$zipPath`
+- [ ] Set up `$writeStatus` closure (captures `$jobDir`/`$jsonPath`, uses `LOCK_EX` — per `docs/patterns_async_worker.md` boilerplate)
+- [ ] `set_time_limit(0)`
+- [ ] Validate `$zipPath` exists and is readable → write error state and exit
+- [ ] Load audio/video ext lists from env (with fallback defaults)
+- [ ] `$rc = $zip->open($zipPath, ZipArchive::RDONLY)` → check `=== true` → write error state and exit
+- [ ] Initialize counters: `$processed = $added = $alreadyExists = $bytesAdded = $unsupportedCount = 0; $errors = [];`
+- [ ] Pre-scan: accumulate `$total` (valid entries only) and `$uncompressedTotal` (all entries)
+- [ ] Write `status.json` with real `$total` after pre-scan
+- [ ] Disk space check: `disk_free_space('/var/www/html') < $uncompressedTotal * 1.1` → write error state and exit
+- [ ] Destination dir check: `is_dir('/var/www/html/audio')` && `is_dir('/var/www/html/video')` → throw if either missing
+- [ ] Iterate entries:
+  - [ ] Entry validation: path separator / SHA-256 / ext — on fail: `$unsupportedCount++`, `continue`
+  - [ ] `$processed++`
+  - [ ] Classify `$type` by extension; build `$dest`
+  - [ ] `is_file($dest)` → `$alreadyExists++`, `continue`
+  - [ ] `$zip->getStream($name)` → check `=== false` → `$errors[]`, `continue`
+  - [ ] `fopen($dest, 'wb')` → check `=== false` → `fclose($stream)`, `$errors[]`, `continue`
+  - [ ] `stream_copy_to_stream()` → check `=== false` → `fclose($fp)`, `fclose($stream)`, `@unlink($dest)`, `$errors[]`, `continue`
+  - [ ] `fclose($fp)` → check `false` → `fclose($stream)`, `@unlink($dest)`, `$errors[]`, `continue`
+  - [ ] `fclose($stream)`
+  - [ ] `$added++`, `$bytesAdded += $stat['size']`
+  - [ ] Write progress JSON every 10 files
+- [ ] `$zip->close()`
+- [ ] `@unlink($zipPath)`
+- [ ] Check `$added === 0 && $alreadyExists === 0` → write `state: error` and exit
+- [ ] Build final message: include stream error count if `count($errors) > 0`
+- [ ] Write final `status.json` (`state: done`, `completed_at`, `errors` array, `steps`)
+- [ ] Outer `catch (Throwable $e)` → write `state: error` with `steps` containing `$e->getMessage()`
+
+### 3. `admin/import_media_zip_status.php`
+- [ ] HTTP 403 if not admin
+- [ ] Validate `$_GET['job_id']` → `/^[a-f0-9]{16}$/` → HTTP 400
+- [ ] Build `$jobDir`, `$jsonPath`
+- [ ] `!is_file($jsonPath)` → HTTP 404
+- [ ] `$raw = @file_get_contents($jsonPath)` → `=== false` → return running fallback
+- [ ] `$data = json_decode($raw, true)` → `null` → return running fallback
+- [ ] Stale detection: `$data['state'] === 'running'` && age > 3600s → remove `$jobDir`, return error steps
+- [ ] Pass `steps` from `$data` if present; synthesize fallback if absent
+- [ ] Return `{ "success": true, "state": ..., "steps": [...] }`
+
+### 4. `admin/admin_system.php`
+- [ ] Add Section F HTML block: heading, description paragraphs (including DB-restore warning), file input, `#importZipStatus` div, `#importZipBtn` button
+- [ ] Rename existing Disk Resize heading from Section F to Section G
+- [ ] Add `doImportMediaZip()` JS:
+  - [ ] Step 0: no-file guard → show error in `#importZipStatus`, re-enable button, return
+  - [ ] Step 1: XHR POST `import_media_zip.php` mode=prepare via `FormData`; disable button; render `Upload ZIP` step with `upload.onprogress` live counter; on `upload.onload` transition to `Inspect ZIP` step; on `xhr.onload` resolve inspect step with found counts
+  - [ ] Step 2: `window.confirm()` with full message (audio/video counts, bytes, unsupported note); re-enable + return on cancel
+  - [ ] Step 3: POST mode=start with `prepare_token`; HTTP 410 → show error, re-enable; call `resetProgressLatch()` before `pollJobStatus()`
+  - [ ] Step 4: `onDone` renders `data.steps[0].message`; re-enable button
+  - [ ] `finally`-equivalent: `importZipBtn.disabled = false` on all exit paths (cancel, 410, error state, catch)
+
+---
+
 ## Environment Variables
 
 No new environment variables. Phase 2 uses only already-present vars:
@@ -194,16 +278,24 @@ Fallback defaults (same as `catalog_scan_start.php`):
 
 #### `mode=prepare`
 
-Opens the ZIP read-only via `ZipArchive::open()` without extracting to disk. Iterates all entries using `$zip->statIndex()` to read name and uncompressed size. Classifies each entry by **both SHA-256 filename format and extension**: an entry is counted as audio or video only if its filename matches `/^[a-f0-9]{64}\.(ext)$/` at root level (no path separator) and the extension is in the supported audio or video list. Any entry that fails the hash format check or has an unsupported extension is counted as `unsupported_count`. **Saves the uploaded file** under a `prepare_token` path so `start` does not need to re-upload the ZIP. Returns aggregate counts, total bytes, and the token.
+Opens `$_FILES['zip_file']['tmp_name']` read-only via `ZipArchive::open()` without extracting to disk. Iterates all entries using `$zip->statIndex()` to read name and uncompressed size. Classifies each entry by **both SHA-256 filename format and extension**: an entry is counted as audio or video only if its filename matches `/^[a-f0-9]{64}\.(ext)$/` at root level (no path separator) and the extension is in the supported audio or video list. Any entry that fails the hash format check or has an unsupported extension is counted as `unsupported_count`. **Saves the uploaded file** under a `prepare_token` path so `start` does not need to re-upload the ZIP. Returns aggregate counts, total bytes, and the token.
 
-**Guards enforced before reading:**
+**Guards enforced before reading (in order):**
+- `isset($_FILES['zip_file'])` — reject HTTP 400 `"No file uploaded"` if field is absent entirely; must be first
 - `$_FILES['zip_file']['error'] === UPLOAD_ERR_OK` — reject any PHP upload error
 - File extension of `$_FILES['zip_file']['name']` must be `.zip`
-- `ZipArchive::open()` must return `ZipArchive::ER_OK` (validates ZIP format regardless of MIME type)
+- `ZipArchive::open()` must return `true` (not `ZipArchive::ER_OK`/`0` — see Phase 1 bug fix) — validates ZIP format regardless of MIME type. Check: `if ($rc !== true) { return HTTP 400 "Invalid or corrupt ZIP file"; }`
 - Entry count capped at 50,000 — reject with HTTP 400 `"ZIP contains too many entries"` if exceeded
 - Total uncompressed size capped at `2 × upload_max_filesize` — reject with HTTP 400 `"Uncompressed ZIP content exceeds safety limit"` if exceeded (zip bomb protection)
 
-After passing all guards: generate `$prepareToken = bin2hex(random_bytes(8))` and save the uploaded file via `move_uploaded_file()` to `sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.zip'`. The prep file expires after 30 minutes — `start` mode rejects tokens where the prep file's `filemtime()` is older than 1800 seconds.
+After passing all guards: **call `$zip->close()`** to release the read handle on `tmp_name`. Then generate `$prepareToken = bin2hex(random_bytes(8))` and save the uploaded file via `move_uploaded_file($_FILES['zip_file']['tmp_name'], ...)` to `sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.zip'`. If `move_uploaded_file()` returns `false`: return HTTP 500 `"Failed to save uploaded ZIP"` — do not issue a token. The prep file expires after 30 minutes — `start` mode rejects tokens where the prep file's `filemtime()` is older than 1800 seconds.
+
+**Field definitions:**
+- `audio_count` — entries with valid SHA-256 name + supported audio extension
+- `video_count` — entries with valid SHA-256 name + supported video extension
+- `unsupported_count` — all other entries (bad hash format, unsupported ext, subdirectory)
+- `file_count` = `audio_count + video_count + unsupported_count` (total ZIP entry count)
+- `total_bytes` — sum of uncompressed sizes of **audio and video entries only** (what will actually be written to disk; used for disk space estimation in the confirm dialog)
 
 **Response:**
 ```json
@@ -229,8 +321,8 @@ After passing all guards: generate `$prepareToken = bin2hex(random_bytes(8))` an
 3. If `!is_file($prepPath)` or `filemtime($prepPath) < time() - 1800`: return HTTP 410 `"Prepare token expired or not found"` — operator must re-upload the ZIP
 4. **Check `function_exists('exec')`** — return HTTP 500 `"exec() is disabled"` if unavailable. Must happen before any file operations so the prep file is not consumed on a non-recoverable error.
 5. Generate `$jobId = bin2hex(random_bytes(8))` (16 hex chars)
-6. Create job directory: `$jobDir = sys_get_temp_dir() . '/gighive_import_' . $jobId . '/'; mkdir($jobDir, 0700, true)`
-7. Move prep file into job directory: `rename($prepPath, $jobDir . 'upload.zip')`
+6. Create job directory: `$jobDir = sys_get_temp_dir() . '/gighive_import_' . $jobId . '/';` — `if (!mkdir($jobDir, 0700, true))` return HTTP 500 `"Failed to create job directory"`
+7. Move prep file into job directory: `if (!rename($prepPath, $jobDir . 'upload.zip'))` return HTTP 500 `"Failed to move ZIP into job directory"` (covers cross-device move failure)
 8. Write initial `$jobDir . 'status.json'` with `LOCK_EX`: `{ "success": true, "job_id": "...", "state": "running", "updated_at": date('c'), "processed": 0, "total": 0, "added": 0, "already_exists": 0, "bytes_added": 0, "steps": [{ "name": "Import files", "status": "running", "message": "Scanning archive…", "progress": { "processed": 0, "total": 1 } }] }` — includes `steps` so the first poll returns a meaningful display before the worker's pre-scan completes. `total: 0` is expected at this stage; the worker updates it after the pre-scan.
 9. Spawn worker: `exec('php ' . escapeshellarg(__DIR__ . '/import_media_zip_worker.php') . ' --job_id=' . escapeshellarg($jobId) . ' >> ' . escapeshellarg($jobDir . 'worker.log') . ' 2>&1 &')` — named `--job_id=` arg per `docs/patterns_async_worker.md` convention; log retained in job directory for crash diagnosis
 10. Return:
@@ -262,11 +354,17 @@ $zipPath  = $jobDir . 'upload.zip'
 1. `set_time_limit(0)` — large archives may take minutes
 2. Validate `$zipPath` exists and is readable; if not, write `{ "state": "error", "error_message": "ZIP file not found" }` and exit
 3. Load audio/video ext lists from env (same fallback defaults as `catalog_scan_start.php`)
-4. Open ZIP: `$zip->open($zipPath, ZipArchive::RDONLY)` — read-only; the ZIP stays open for the entire run while entries are streamed one-by-one
-5. **Pre-scan all entries** to count valid media files — establishes the progress bar denominator:
+4. Open ZIP: `$rc = $zip->open($zipPath, ZipArchive::RDONLY)` — if `$rc !== true`: write `{ "state": "error", "error_message": "ZipArchive::open failed (code $rc)" }` and exit. Read-only; the ZIP stays open for the entire run while entries are streamed one-by-one
+5. **Initialise all counters** before the pre-scan:
    ```php
-   $total = 0;
-   $uncompressedTotal = 0;
+   $processed = 0; $added = 0; $alreadyExists = 0;
+   $bytesAdded = 0; $unsupportedCount = 0; $errors = [];
+   $total = 0; $uncompressedTotal = 0;
+   ```
+   (`$total` and `$uncompressedTotal` are set in the pre-scan below; the others accumulate during the main iteration loop.)
+
+5a. **Pre-scan all entries** to count valid media files — establishes the progress bar denominator:
+   ```php
    for ($i = 0; $i < $zip->numFiles; $i++) {
        $stat = $zip->statIndex($i);
        $uncompressedTotal += (int)($stat['size'] ?? 0); // all entries, for disk space check
@@ -299,17 +397,23 @@ $zipPath  = $jobDir . 'upload.zip'
 }
 ```
 7. **Disk space check** against the destination: `disk_free_space('/var/www/html') < $uncompressedTotal * 1.1` — if true, write error and exit. Checks the destination volume, not temp dir, since we are writing directly to `/var/www/html/{type}/`.
+7a. **Destination directory check** (pre-loop, use `throw`): `is_dir('/var/www/html/audio')` and `is_dir('/var/www/html/video')` — if either is missing throw immediately. No individual file can be written without these; a missing dir means the volume is not mounted or the container is misconfigured.
 8. Iterate all entries by index (`for $i = 0; $i < $zip->numFiles; $i++`):
    - `$stat = $zip->statIndex($i); $name = $stat['name']`
    - `$ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION))`
    - `$hash = pathinfo($name, PATHINFO_FILENAME)`
-   - **Entry validation (replaces ZipSlip path traversal check):** skip entry if `strpos($name, '/') !== false` (subdirectory), `!preg_match('/^[a-f0-9]{64}$/', $hash)` (not a valid SHA-256), or ext not in audio/video list. Log skipped entries in `$errors[]`.
-   - `$processed++` — incremented for every valid media entry
+   - **Entry validation (replaces ZipSlip path traversal check):** skip entry if `strpos($name, '/') !== false` (subdirectory), `!preg_match('/^[a-f0-9]{64}$/', $hash)` (not a valid SHA-256), or ext not in audio/video list. On skip: `$unsupportedCount++`, `continue` — not counted in `$processed`.
+   - `$processed++` — incremented for every entry that passes validation (valid SHA-256 + supported ext)
    - `$type = isset($audioExtsSet[$ext]) ? 'audio' : 'video'`
    - `$dest = '/var/www/html/' . $type . '/' . $hash . '.' . $ext`
    - If `is_file($dest)`: `$alreadyExists++`, continue — idempotent skip
-   - Stream to destination: `$stream = $zip->getStream($name); $fp = fopen($dest, 'wb'); stream_copy_to_stream($stream, $fp); fclose($fp); fclose($stream)` — **writes this one file directly to its final destination**; no temp extraction directory
-   - On success: `$added++`, `$bytesAdded += $stat['size']`; on failure: append to `$errors[]`
+   - Stream to destination — four checked steps (use `continue` not `throw` so remaining files are still processed):
+     1. `$stream = $zip->getStream($name)` — if `=== false`: `$errors[] = "getStream failed: $name"`, `continue`. Cause: corrupt or unsupported-compression entry.
+     2. `$fp = fopen($dest, 'wb')` — if `=== false`: `fclose($stream)`, `$errors[] = "fopen failed: $dest"`, `continue`. Cause: missing dir, permissions, disk full. Close `$stream` to avoid resource leak.
+     3. `$copied = stream_copy_to_stream($stream, $fp)` — if `=== false`: `fclose($fp)`, `fclose($stream)`, `@unlink($dest)`, `$errors[] = "stream_copy failed: $name"`, `continue`. `@unlink` removes the partial file so a re-run does not incorrectly count it as `$alreadyExists`.
+     4. `if (!fclose($fp))`: `fclose($stream)`, `@unlink($dest)`, `$errors[] = "fclose failed (disk full?): $name"`, `continue`. Catches buffered-write flush failures that `stream_copy_to_stream` did not detect.
+     5. `fclose($stream)` — return value ignored (ZIP entry stream).
+   - On success (all five steps passed): `$added++`, `$bytesAdded += $stat['size']`
    - Write progress JSON every 10 files (includes `steps` — matching Phase 1 worker pattern):
 ```json
 {
@@ -331,13 +435,18 @@ $zipPath  = $jobDir . 'upload.zip'
   "bytes_added": 1572864000, "completed_at": "2026-06-21T14:23:11Z", "errors": [],
   "steps": [
     { "name": "Import files", "status": "ok",
-      "message": "2195 added, 137 already on disk, 9 unsupported (1.5 GB added)",
+      "message": "2195 added, 137 already on disk, 9 skipped (unsupported), 0 errors (1.5 GB added)",
       "progress": { "processed": 2341, "total": 2341 } }
   ]
 }
 ```
 
-If an uncaught exception occurs at any point, write `{ "state": "error", "error_message": "..." }` and exit.
+Final message format: `"{$added} added, {$alreadyExists} already on disk, {$unsupportedCount} skipped (unsupported){$errNote} ({$bytesHuman} added)"` where `$errNote = count($errors) > 0 ? ', ' . count($errors) . ' stream error(s) — see worker.log' : ''`. Stream errors are non-zero when `getStream()`/`fopen()`/`fclose()` failures occurred; the operator can inspect `worker.log` for details. The state remains `done` (not `error`) since a partial import is a valid outcome — the operator can re-run safely (idempotency guarantee).
+
+If an uncaught exception occurs at any point, write the following and exit — include `steps` so the status endpoint passes the actual exception message through to the operator without relying on fallback synthesis:
+```json
+{ "state": "error", "error_message": "<exception message>", "steps": [{ "name": "Import files", "status": "error", "message": "<exception message>" }] }
+```
 
 **Notes:**
 - No `hash_file()` call — the SHA-256 is read directly from the ZIP entry name; this eliminates the previous bottleneck entirely
@@ -356,9 +465,9 @@ If an uncaught exception occurs at any point, write `{ "state": "error", "error_
 **Logic:**
 1. Validate `$jobId` matches `/^[a-f0-9]{16}$/` — reject any other pattern with HTTP 400
 2. Build `$jobDir = sys_get_temp_dir() . '/gighive_import_' . $jobId . '/'`; `$jsonPath = $jobDir . 'status.json'`
-3. If file does not exist: return `{ "success": false, "error": "Job not found" }` HTTP 404
-4. Stale detection via `updated_at` (per `docs/patterns_async_worker.md`): if `state === 'running'` and `updated_at` is more than 3600 seconds ago — remove `$jobDir`, return `{ "success": true, "state": "error", "steps": [{ "name": "Import files", "status": "error", "message": "Worker timed out or failed to start" }] }`
-5. `$data = json_decode(file_get_contents($jsonPath), true)` — `LOCK_EX` writes by the worker make partial reads rare; `null` decode returns a `state: running` fallback
+3. If `!is_file($jsonPath)`: return `{ "success": false, "error": "Job not found" }` HTTP 404
+4. Read and decode: `$raw = @file_get_contents($jsonPath)` — if `=== false` (race: file deleted between step 3 and here): return `{ "success": true, "state": "running", "steps": [...fallback...] }`. `$data = json_decode($raw, true)` — if `null` (partial write): same running fallback.
+5. **Stale detection** (uses decoded `$data`): if `$data['state'] === 'running'` and `(time() - strtotime($data['updated_at'] ?? 'now')) > 3600` — remove `$jobDir` tree, return `{ "success": true, "state": "error", "steps": [{ "name": "Import files", "status": "error", "message": "Worker timed out or failed to start" }] }`
 6. Use `steps` from `$data` if present; synthesise a fallback if absent (matches Phase 1 status endpoint pattern). Return the response directly — the worker writes fully-formed `steps` into `status.json` so synthesis is only a safety net.
 
 Example running response (steps passed through from `status.json`):
@@ -386,7 +495,7 @@ When `state=done`:
     {
       "name": "Import files",
       "status": "ok",
-      "message": "2195 added, 137 already on disk, 9 unsupported (1.5 GB added)",
+      "message": "2195 added, 137 already on disk, 9 skipped (unsupported) (1.5 GB added)",
       "progress": { "processed": 2341, "total": 2341 }
     }
   ]
@@ -439,16 +548,26 @@ When `state=error`:
 
 ---
 
-## `doImportMediaZip()` JS — Four Steps
+## `doImportMediaZip()` JS — Three Rendered Steps
 
-| Step | Name | Action |
+Three steps are rendered in `#importZipStatus` via `renderImportStepsShared()`. A no-file guard and a confirm dialog sit between the steps but do not appear in the progress panel.
+
+| # | Guard / Step | Status messages shown |
 |---|---|---|
-| 1 | Inspect archive | POST `import_media_zip.php` mode=`prepare` via `FormData`. ZIP is uploaded once here. Shows audio/video/unsupported counts, total bytes; receives `prepare_token`. |
-| 2 | Confirm | `window.confirm()` prompt — operator reviews what's in the ZIP before any files are written to disk. |
-| 3 | Import files | POST `import_media_zip.php` mode=`start` with `prepare_token` as a plain form field. **No file re-upload.** Receives `job_id`. Calls `pollJobStatus()` every 1500ms against `import_media_zip_status.php`. Renders live progress bar via `renderImportStepsShared()`. |
-| 4 | Done | `pollJobStatus()` calls `onDone(state, data)`. Renders final summary from `data.steps[0].message`. Re-enables button. |
+| — | **No-file guard** | Before any fetch: if `fileInput.files[0]` is absent, set `importZipStatus.innerHTML` to `"Please select a ZIP file first."` and return early (button never disabled). |
+| 1 | **Upload ZIP** | `"Uploading…"` → `"123.4 MB / 455.1 MB uploaded"` (live, via XHR `upload.onprogress`) → `"455.1 MB uploaded"` ✓ |
+| 2 | **Inspect ZIP** | `"Scanning entries…"` (while PHP scans the ZIP central directory after upload completes) → `"10 audio + 5 video found (455.1 MB)"` ✓ |
+| — | **Confirm** | `window.confirm()` dialog (outside the progress panel): `"{N} audio + {M} video files ready to import ({fmtBytes}).\n\n{if unsupported: "{K} entries will be skipped (unsupported format).\n\n"}Files already on disk are skipped safely.\n\nDo you wish to import?"` — if canceled: step 3 shows `"Canceled."` and button re-enabled. |
+| 3 | **Import files** | `"Starting…"` → `"847 / 2341 files imported"` (live, via `pollJobStatus()` every 1500 ms) → `"2195 added, 137 already on disk, 9 skipped (unsupported) (1.5 GB added)"` ✓ |
 
-JS stores `prepare_token` from the step 1 response in a local variable and passes it as a plain POST field to `start` — the ZIP bytes are transmitted only once regardless of how long the operator takes to confirm.
+**Implementation notes:**
+- Steps 1 and 2 share a single HTTP round-trip (XHR POST `import_media_zip.php` mode=`prepare`). `upload.onprogress` drives step 1's live counter; `upload.onload` transitions the panel to step 2 `"Scanning entries…"`; `xhr.onload` resolves step 2 once the PHP response arrives.
+- The `prepare_token` received from the inspect response is passed as a plain POST field to `mode=start` — ZIP bytes are not re-transmitted.
+- If the start response is HTTP 410 (expired token), step 3 shows `"Prepare token expired — please re-select the ZIP and try again."`
+
+**Button label progression:** `"Import ZIP"` → `"Uploading ZIP…"` → `"Inspecting ZIP…"` → `"Importing…"` → `"Import ZIP"` (re-enabled via `finally`).
+
+**Button re-enable:** `importZipBtn.disabled = false` must happen on **every** exit path — happy path (`state: done`), error path (`state: error`), cancel after confirm, and any `catch` block. Implemented via `importRun().finally(...)`.
 
 ---
 
@@ -749,6 +868,7 @@ function pollJobStatus(jobId, statusUrl, stepsEl, onDone, intervalMs, renderOpts
 
 `doImportMediaZip()` calls (auto-renders into `statusEl`):
 ```js
+resetProgressLatch(); // clear any stale latch from a prior run before starting the poll
 pollJobStatus(jobId, 'import_media_zip_status.php', statusEl, (state, data) => { ... });
 ```
 
