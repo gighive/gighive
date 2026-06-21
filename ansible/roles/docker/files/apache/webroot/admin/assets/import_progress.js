@@ -170,8 +170,63 @@
     return h + '</div>';
   }
 
+  /**
+   * Poll a job status endpoint and optionally render steps via renderImportStepsShared().
+   *
+   * @param {string}        jobId         Job ID returned by the start endpoint
+   * @param {string}        statusUrl     URL to poll (job_id appended as ?job_id=...)
+   * @param {Element|null}  stepsEl       DOM element to auto-render steps into (pass null to skip)
+   * @param {Function}      onDone        Called with (state, data) when state is 'done' or 'error'
+   * @param {number}        [intervalMs]  Poll interval in ms (default 1500)
+   * @param {Object}        [renderOpts]  Options passed to renderImportStepsShared when stepsEl is set
+   * @param {Function}      [onProgress]  Called with (data) on every successful poll response
+   * @returns {{ stop: Function }}        Call stop() to halt polling externally
+   */
+  function pollJobStatus(jobId, statusUrl, stepsEl, onDone, intervalMs, renderOpts, onProgress) {
+    var _interval   = (typeof intervalMs === 'number' && intervalMs > 0) ? intervalMs : 1500;
+    var _renderOpts = (renderOpts && typeof renderOpts === 'object') ? renderOpts
+                    : { showProgressBar: true, label: 'Progress:', statusIndentPx: 80 };
+    var _timer      = null;
+    var _stopped    = false;
+
+    function _poll() {
+      if (_stopped) return;
+      fetch(statusUrl + '?job_id=' + encodeURIComponent(String(jobId)))
+        .then(function (resp) {
+          return resp.ok ? resp.json() : Promise.reject('HTTP ' + resp.status);
+        })
+        .then(function (data) {
+          if (_stopped) return;
+          if (stepsEl && data && Array.isArray(data.steps)) {
+            stepsEl.innerHTML = renderImportStepsShared(data.steps, _renderOpts);
+          }
+          if (typeof onProgress === 'function') onProgress(data);
+          var state = (data && typeof data.state === 'string') ? data.state : 'running';
+          if (state === 'done' || state === 'error') {
+            _stopped = true;
+            if (typeof onDone === 'function') onDone(state, data);
+          } else {
+            _timer = setTimeout(_poll, _interval);
+          }
+        })
+        .catch(function () {
+          if (!_stopped) _timer = setTimeout(_poll, _interval);
+        });
+    }
+
+    _timer = setTimeout(_poll, _interval);
+
+    return {
+      stop: function () {
+        _stopped = true;
+        if (_timer !== null) { clearTimeout(_timer); _timer = null; }
+      }
+    };
+  }
+
   global.renderImportStepsShared = renderImportStepsShared;
   global.getImportProgressEtaText = getImportProgressEtaText;
   global.resetProgressLatch      = resetProgressLatch;
+  global.pollJobStatus           = pollJobStatus;
 
 })(window);

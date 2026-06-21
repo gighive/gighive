@@ -24,7 +24,7 @@ $mode       = isset($_POST['mode'])      ? trim((string)$_POST['mode'])      : '
 if (!in_array($typeFilter, ['all', 'audio', 'video'], true)) {
     $typeFilter = 'all';
 }
-if (!in_array($mode, ['prepare', 'build'], true)) {
+if (!in_array($mode, ['prepare', 'build', 'start'], true)) {
     $mode = 'build';
 }
 
@@ -103,6 +103,100 @@ if ($mode === 'prepare') {
     echo json_encode(['success' => true, 'count' => $found, 'skipped' => $skipped, 'total_bytes' => $totalBytes]);
     exit;
 }
+
+if ($mode === 'start') {
+    // Filter to only rows whose file exists on disk — mirrors prepare mode logic exactly.
+    // This ensures $total in the worker equals prepare's count and the worker has no expected skips.
+    $filtered = [];
+    foreach ($rows as $row) {
+        $sha = trim((string)($row['checksum_sha256'] ?? ''));
+        $ext = strtolower(trim((string)($row['file_ext'] ?? '')));
+        $typ = (string)($row['file_type'] ?? '');
+        if ($sha === '' || preg_match('/^[a-f0-9]{64}$/i', $sha) !== 1) continue;
+        $dir = match($typ) { 'audio' => $audioDir, 'video' => $videoDir, default => null };
+        if ($dir === null) continue;
+        $served = $ext !== '' ? ($sha . '.' . $ext) : $sha;
+        if (!is_file($dir . '/' . $served)) continue;
+        $filtered[] = $row;
+    }
+    $rows = $filtered;
+
+    if (empty($rows)) {
+        http_response_code(404);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'No media files found on disk for the matching records']);
+        exit;
+    }
+
+    $jobId = bin2hex(random_bytes(8));
+
+    $labelPart = $orgFilter !== ''
+        ? preg_replace('/[^a-zA-Z0-9_\-]/', '_', $orgFilter)
+        : 'all';
+    $typePart = $typeFilter !== 'all' ? '_' . $typeFilter : '';
+    $filename = 'gighive_export_' . $labelPart . $typePart . '_' . date('Ymd_His') . '.zip';
+
+    if (!function_exists('exec')) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'exec() is disabled; background worker cannot be spawned']);
+        exit;
+    }
+
+    $jobDir = sys_get_temp_dir() . '/gighive_export_' . $jobId . '/';
+    if (!mkdir($jobDir, 0700, true)) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Failed to create job directory']);
+        exit;
+    }
+
+    if (file_put_contents($jobDir . 'filelist.json', json_encode($rows, JSON_UNESCAPED_SLASHES)) === false) {
+        @rmdir($jobDir);
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Failed to write file list']);
+        exit;
+    }
+
+    $total = count($rows);
+    $initialStatus = json_encode([
+        'success'     => true,
+        'job_id'      => $jobId,
+        'state'       => 'running',
+        'updated_at'  => date('c'),
+        'processed'   => 0,
+        'total'       => $total,
+        'added'       => 0,
+        'skipped'     => 0,
+        'bytes_added' => 0,
+        'filename'    => $filename,
+        'steps'       => [
+            ['name' => 'Build archive', 'status' => 'running', 'message' => '0 / ' . $total . ' written', 'progress' => ['processed' => 0, 'total' => $total]],
+        ],
+    ], JSON_UNESCAPED_SLASHES);
+
+    if (file_put_contents($jobDir . 'status.json', $initialStatus . "\n", LOCK_EX) === false) {
+        @unlink($jobDir . 'filelist.json');
+        @rmdir($jobDir);
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Failed to write initial status']);
+        exit;
+    }
+
+    exec('php ' . escapeshellarg(__DIR__ . '/export_media_worker.php') . ' --job_id=' . escapeshellarg($jobId) . ' >> ' . escapeshellarg($jobDir . 'worker.log') . ' 2>&1 &');
+
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'job_id' => $jobId, 'total' => $total]);
+    exit;
+}
+
+// build mode — deprecated
+http_response_code(410);
+header('Content-Type: application/json');
+echo json_encode(['success' => false, 'error' => 'build mode is deprecated; use mode=start']);
+exit;
 
 $tmpFile = tempnam(sys_get_temp_dir(), 'gighive_export_');
 if ($tmpFile === false) {

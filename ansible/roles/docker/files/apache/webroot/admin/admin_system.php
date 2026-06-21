@@ -196,6 +196,9 @@ function __format_backup_size(int $bytes): string {
           Download a ZIP of media files currently on disk, filtered by band/event name and/or file type.
           Use this to preserve custom files (e.g. tutorial videos) before a database reset, then
           re-import via <a href="/admin/admin_database_load_import_media_from_folder.php" style="color:#60a5fa">Import Media (folder)</a> after rebuilding.
+          This tool is designed for full-corpus backup and restore of small-to-medium libraries (guideline: under 20 GB).
+          Always create a database backup (Section C) at the same time &mdash; the ZIP and DB backup form a matched restore pair.
+          For libraries larger than 20 GB, rsync or direct volume backup is recommended.
         </p>
         <div class="row">
           <label for="export_org_name">Band / Event filter <span class="muted">(leave blank to export all media)</span></label>
@@ -717,14 +720,14 @@ function __format_backup_size(int $bytes): string {
     const statusEl = document.getElementById('exportMediaStatus');
 
     btn.disabled = true;
-    btn.textContent = 'Building ZIP…';
+    btn.textContent = 'Building ZIP\u2026';
 
     if (typeof resetProgressLatch === 'function') resetProgressLatch();
 
     const steps = [
       { name: 'Query database', status: 'running', message: 'Finding matching records\u2026', progress: { processed: 0, total: 1 } },
-      { name: 'Build archive',  status: 'pending', message: '',                             progress: null },
-      { name: 'Download',       status: 'pending', message: '',                             progress: null },
+      { name: 'Build archive',  status: 'pending', message: '',                               progress: null },
+      { name: 'Download',       status: 'pending', message: '',                               progress: null },
     ];
 
     function fmtBytes(n) {
@@ -745,7 +748,7 @@ function __format_backup_size(int $bytes): string {
     const baseParams = { org_name: orgName, file_type: fileType };
 
     async function exportRun() {
-      // ── Step 1: Query database (prepare call) ──────────────────────────────
+      // ── Step 1: Query database (prepare) ──────────────────────────────────
       let prepResp, prepData;
       try {
         prepResp = await fetch('export_media.php', {
@@ -758,70 +761,101 @@ function __format_backup_size(int $bytes): string {
         render();
         return;
       }
-
       if (!prepResp.ok || !(prepData && prepData.success)) {
         const msg = (prepData && (prepData.error || prepData.message)) ? String(prepData.error || prepData.message) : 'HTTP ' + prepResp.status;
         steps[0] = { name: 'Query database', status: 'error', message: msg };
         render();
         return;
       }
-
-      const count      = Number(prepData.count)       || 0;
-      const totalBytes = Number(prepData.total_bytes)  || 0;
-      steps[0] = { name: 'Query database', status: 'ok', message: count + ' file(s) ready to export (' + fmtBytes(totalBytes) + ')', progress: { processed: 1, total: 1 } };
-      const confirmMsg = 'You are about to zip ' + fmtBytes(totalBytes) + ' of files.\n\n' +
+      const count        = Number(prepData.count)      || 0;
+      const totalBytes   = Number(prepData.total_bytes) || 0;
+      const prepSkipped  = Number(prepData.skipped)     || 0;
+      const skippedNote  = prepSkipped > 0 ? ', ' + prepSkipped + ' not on disk' : '';
+      steps[0] = { name: 'Query database', status: 'ok',
+                   message: count + ' file(s) ready to export (' + fmtBytes(totalBytes) + skippedNote + ')',
+                   progress: { processed: 1, total: 1 } };
+      const skippedWarn  = prepSkipped > 0 ? '\n\nNote: ' + prepSkipped + ' DB record(s) have no matching file on disk and will be skipped.' : '';
+      const confirmMsg = 'You are about to zip ' + fmtBytes(totalBytes) + ' of files.' + skippedWarn + '\n\n' +
                          'Make sure you have enough free space to accommodate this download.\n\n' +
                          'Do you wish to continue?';
       if (!window.confirm(confirmMsg)) {
         steps[1] = { name: 'Build archive', status: 'pending', message: 'Canceled before ZIP build', progress: null };
-        steps[2] = { name: 'Download',      status: 'pending', message: '', progress: null };
+        steps[2] = { name: 'Download',      status: 'pending', message: '',                           progress: null };
         render();
         return;
       }
-
-      steps[1] = { name: 'Build archive',  status: 'running', message: 'Zipping ' + count + ' file(s)…', progress: { processed: 0, total: 1 } };
+      steps[1] = { name: 'Build archive', status: 'running', message: 'Starting\u2026',
+                   progress: { processed: 0, total: count || 1 } };
       render();
 
-      // ── Step 2: Build archive ──────────────────────────────────────────────
-      let buildResp;
-      const buildStart = Date.now();
-      const buildTimer = setInterval(() => {
-        const elapsed = ((Date.now() - buildStart) / 1000).toFixed(1);
-        steps[1] = { name: 'Build archive', status: 'running',
-                     message: 'Zipping ' + count + ' file(s)\u2026 ' + elapsed + 's',
-                     progress: { processed: 0, total: 1 } };
-        render();
-      }, 250);
-
+      // ── Step 2: Start async worker ─────────────────────────────────────────
+      let startResp, startData;
       try {
-        buildResp = await fetch('export_media.php', {
+        startResp = await fetch('export_media.php', {
           method: 'POST',
-          body: new URLSearchParams({ ...baseParams, mode: 'build' })
+          body: new URLSearchParams({ ...baseParams, mode: 'start' })
         });
+        startData = await startResp.json().catch(() => null);
       } catch (err) {
-        clearInterval(buildTimer);
         steps[1] = { name: 'Build archive', status: 'error', message: 'Network error: ' + err.message };
         render();
         return;
       }
-      clearInterval(buildTimer);
-
-      if (!(buildResp.ok && (buildResp.headers.get('Content-Type') || '').startsWith('application/zip'))) {
-        const errData = await buildResp.json().catch(() => null);
-        const msg = (errData && (errData.error || errData.message)) ? String(errData.error || errData.message) : 'HTTP ' + buildResp.status;
+      if (!startResp.ok || !(startData && startData.success && startData.job_id)) {
+        const msg = (startData && (startData.error || startData.message)) ? String(startData.error || startData.message) : 'HTTP ' + startResp.status;
         steps[1] = { name: 'Build archive', status: 'error', message: msg };
         render();
         return;
       }
+      const jobId = String(startData.job_id);
 
-      const buildElapsed = ((Date.now() - buildStart) / 1000).toFixed(1);
-      steps[1] = { name: 'Build archive', status: 'ok', message: 'Archive built in ' + buildElapsed + 's', progress: { processed: 1, total: 1 } };
+      // ── Step 3: Poll worker progress ───────────────────────────────────────
+      const buildResult = await new Promise(function (resolve) {
+        pollJobStatus(jobId, 'export_media_status.php', null, function (state, data) {
+          resolve({ state: state, data: data });
+        }, 1500, null, function (data) {
+          if (data && Array.isArray(data.steps) && data.steps.length > 0) {
+            steps[1] = data.steps[0];
+          }
+          render();
+        });
+      });
 
-      // ── Step 3: Download blob with progress ─────────────────────────────
-      // Use total_bytes from prepare (sum of source file sizes) as the denominator;
-      // the build response has no Content-Length so Apache streams instead of buffering
-      const contentLength = totalBytes;
-      const cd    = buildResp.headers.get('Content-Disposition') || '';
+      if (buildResult.state === 'error') {
+        if (buildResult.data && Array.isArray(buildResult.data.steps) && buildResult.data.steps.length > 0) {
+          steps[1] = buildResult.data.steps[0];
+        } else {
+          const errMsg = (buildResult.data && buildResult.data.error_message) ? String(buildResult.data.error_message) : 'Worker error';
+          steps[1] = { name: 'Build archive', status: 'error', message: errMsg };
+        }
+        render();
+        return;
+      }
+
+      if (buildResult.data && Array.isArray(buildResult.data.steps) && buildResult.data.steps.length > 0) {
+        steps[1] = buildResult.data.steps[0];
+      }
+      steps[2] = { name: 'Download', status: 'running', message: 'Requesting archive\u2026', progress: null };
+      render();
+
+      // ── Step 4: Download pre-built ZIP ─────────────────────────────────────
+      let dlResp;
+      try {
+        dlResp = await fetch('export_media_download.php?job_id=' + encodeURIComponent(jobId));
+      } catch (err) {
+        steps[2] = { name: 'Download', status: 'error', message: 'Network error: ' + err.message };
+        render();
+        return;
+      }
+      if (!dlResp.ok || !(dlResp.headers.get('Content-Type') || '').startsWith('application/zip')) {
+        const errData = await dlResp.json().catch(() => null);
+        const msg = (errData && (errData.error || errData.message)) ? String(errData.error || errData.message) : 'HTTP ' + dlResp.status;
+        steps[2] = { name: 'Download', status: 'error', message: msg };
+        render();
+        return;
+      }
+      const contentLength = parseInt(dlResp.headers.get('Content-Length') || '0', 10) || 0;
+      const cd    = dlResp.headers.get('Content-Disposition') || '';
       const match = cd.match(/filename="([^"]+)"/);
       const fname = match ? match[1] : 'gighive_export.zip';
 
@@ -830,10 +864,10 @@ function __format_backup_size(int $bytes): string {
                    progress: contentLength > 0 ? { processed: 0, total: contentLength } : null };
       render();
 
-      // Yield one frame so the browser paints the "0 B / X MB" state before the loop starts
+      // Yield one frame so the browser paints the initial state before the loop starts
       await new Promise(resolve => setTimeout(resolve, 16));
 
-      const reader = buildResp.body.getReader();
+      const reader = dlResp.body.getReader();
       const chunks = [];
       let received     = 0;
       let lastYieldPct = -1;
@@ -845,8 +879,7 @@ function __format_backup_size(int $bytes): string {
         received += value.length;
         if (contentLength > 0) {
           const pct = received / contentLength;
-          // Yield to the browser every 1% so the progress bar actually repaints
-          // even when the entire response was already buffered by the proxy
+          // Yield to the browser every 1% so the progress bar repaints
           if (pct - lastYieldPct >= 0.01) {
             lastYieldPct = pct;
             steps[2] = { name: 'Download', status: 'running',
@@ -866,7 +899,9 @@ function __format_backup_size(int $bytes): string {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      steps[2] = { name: 'Download', status: 'ok', message: fname + ' (' + fmtBytes(received) + ')', progress: { processed: received || contentLength, total: contentLength || received } };
+      steps[2] = { name: 'Download', status: 'ok',
+                   message: fname + ' (' + fmtBytes(received) + ')',
+                   progress: { processed: received || contentLength, total: contentLength || received } };
       render();
     }
 
