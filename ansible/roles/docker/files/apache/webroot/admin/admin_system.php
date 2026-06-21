@@ -114,7 +114,7 @@ function __format_backup_size(int $bytes): string {
         <p class="muted">
           Remove all content (events, assets, event items, participants, etc.) from the database.
           This action is <strong>irreversible</strong> and will clear all media tables.
-          This will not, however, clear the media files from the disk. That is done via Section C: Delete All Media Files from Disk.
+          This will not, however, clear the media files from the disk. That is done via Section D: Delete All Media Files from Disk.
         </p>
         <div class="warning-box">
           <strong>⚠️ Warning:</strong> This will permanently delete all media data from the database.
@@ -161,7 +161,22 @@ function __format_backup_size(int $bytes): string {
       </div>
 
       <div class="section-divider">
-        <h2>Section C: Delete All Media Files from Disk</h2>
+        <h2>Section C: Create Backup Now</h2>
+        <p class="muted">
+          Create an immediate <code>mysqldump | gzip</code> backup of the database. The backup is written to
+          the configured backups directory and the <code>_latest.sql.gz</code> symlink is updated.
+          Use this before running a restore test on a fresh install where the daily cron has not yet run.
+        </p>
+        <div class="warning-box">
+          <strong>⚠️ Warning:</strong> This will overwrite the <code>_latest.sql.gz</code> symlink to point to the new backup.
+        </div>
+        <div id="createBackupStatus"></div>
+        <div id="createBackupLog" style="display:none;margin-top:.75rem;background:#0e1530;border:1px solid #33427a;border-radius:10px;padding:.75rem;max-height:280px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:.85rem;"></div>
+        <button type="button" id="createBackupBtn" onclick="doCreateBackup()">Create Backup Now</button>
+      </div>
+
+      <div class="section-divider">
+        <h2>Section D: Delete All Media Files from Disk</h2>
         <p class="muted">
           Permanently deletes all audio, video, and thumbnail files stored on the server.
           The database is <strong>not</strong> affected — run Section A first if you also want to clear database records.
@@ -176,7 +191,7 @@ function __format_backup_size(int $bytes): string {
       </div>
 
       <div class="section-divider">
-        <h2>Section D: Export Media to ZIP</h2>
+        <h2>Section E: Export Media to ZIP</h2>
         <p class="muted">
           Download a ZIP of media files currently on disk, filtered by band/event name and/or file type.
           Use this to preserve custom files (e.g. tutorial videos) before a database reset, then
@@ -200,7 +215,7 @@ function __format_backup_size(int $bytes): string {
 
       <?php if ($__show_disk_resize): ?>
       <div class="section-divider">
-        <h2>Section E: Write Disk Resize Request (Optional)</h2>
+        <h2>Section F: Write Disk Resize Request (Optional)</h2>
         <p class="muted">
           This creates a resize request file on the server. It does not resize the VM immediately. <a href="https://gighive.app/resizeRequestInstructions.html" target="_blank" rel="noopener noreferrer">Instructions here</a>
         </p>
@@ -378,6 +393,158 @@ function __format_backup_size(int $bytes): string {
   }
 
   let __restorePollTimer = null;
+
+  let __backupPollTimer = null;
+
+  function __fmtBytes(n) {
+    if (n < 1024)       return n + ' B';
+    if (n < 1048576)    return (n / 1024).toFixed(1) + ' KB';
+    if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB';
+    return (n / 1073741824).toFixed(1) + ' GB';
+  }
+
+  function doCreateBackup() {
+    if (!confirm('Create a new database backup now?\n\nThis will overwrite the _latest.sql.gz symlink.')) {
+      return;
+    }
+
+    const btn    = document.getElementById('createBackupBtn');
+    const status = document.getElementById('createBackupStatus');
+    const logEl  = document.getElementById('createBackupLog');
+
+    btn.disabled = true;
+    btn.textContent = 'Starting backup…';
+    status.innerHTML = '<div class="muted">Starting backup job...</div>';
+    logEl.style.display = 'block';
+    logEl.textContent = '';
+
+    if (__backupPollTimer) {
+      clearInterval(__backupPollTimer);
+      __backupPollTimer = null;
+    }
+
+    fetch('/db/run_backup.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    })
+    .then(async response => {
+      const data = await response.json().catch(() => null);
+      return { ok: response.ok, data };
+    })
+    .then(({ ok, data }) => {
+      if (!(ok && data && data.success && data.job_id)) {
+        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+        status.innerHTML = '<div class="alert-err">Error: ' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+        btn.disabled = false;
+        btn.textContent = 'Create Backup Now';
+        return;
+      }
+
+      const jobId = String(data.job_id);
+      status.innerHTML = '<div class="alert-ok">Backup started. Job: <code>' + jobId.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</code></div>';
+      btn.textContent = 'Backup Running…';
+      pollBackupLog(jobId);
+    })
+    .catch(error => {
+      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      btn.disabled = false;
+      btn.textContent = 'Create Backup Now';
+    });
+  }
+
+  function pollBackupLog(jobId) {
+    const btn    = document.getElementById('createBackupBtn');
+    const status = document.getElementById('createBackupStatus');
+    const logEl  = document.getElementById('createBackupLog');
+
+    let offset = 0;
+
+    const tick = () => {
+      fetch('/db/run_backup_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
+        method: 'GET'
+      })
+      .then(async response => {
+        const data = await response.json().catch(() => null);
+        return { ok: response.ok, data };
+      })
+      .then(({ ok, data }) => {
+        if (!(ok && data && data.success)) {
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
+          status.innerHTML = '<div class="alert-err">Error reading backup status: ' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+          if (__backupPollTimer) {
+            clearInterval(__backupPollTimer);
+            __backupPollTimer = null;
+          }
+          btn.disabled = false;
+          btn.textContent = 'Create Backup Now';
+          return;
+        }
+
+        if (typeof data.log_chunk === 'string' && data.log_chunk.length) {
+          logEl.textContent += data.log_chunk;
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        if (typeof data.offset === 'number') {
+          offset = data.offset;
+        }
+
+        const st = String(data.state || 'running');
+        if (st === 'ok') {
+          if (__backupPollTimer) {
+            clearInterval(__backupPollTimer);
+            __backupPollTimer = null;
+          }
+          status.innerHTML = '<div class="alert-ok">Backup completed successfully.</div>';
+          btn.textContent = 'Backup Created!';
+          btn.style.background = '#28a745';
+          btn.style.borderColor = '#28a745';
+          btn.style.color = 'white';
+
+          if (data.filename) {
+            const selectEl = document.getElementById('restore_backup_file');
+            if (selectEl) {
+              const placeholder = selectEl.querySelector('option[disabled]');
+              if (placeholder) {
+                placeholder.remove();
+              }
+              const newOpt = document.createElement('option');
+              newOpt.value = String(data.filename);
+              const sizeLabel = (typeof data.size_bytes === 'number') ? ' (' + __fmtBytes(data.size_bytes) + ')' : '';
+              newOpt.textContent = String(data.filename) + sizeLabel;
+              selectEl.insertBefore(newOpt, selectEl.firstChild);
+            }
+          }
+
+          const restoreBtn = document.getElementById('restoreDbBtn');
+          if (restoreBtn) {
+            restoreBtn.removeAttribute('disabled');
+          }
+        } else if (st === 'error') {
+          if (__backupPollTimer) {
+            clearInterval(__backupPollTimer);
+            __backupPollTimer = null;
+          }
+          const code = (data.exit_code !== null && data.exit_code !== undefined) ? String(data.exit_code) : '?';
+          status.innerHTML = '<div class="alert-err">Backup failed. Exit code: ' + code.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+          btn.disabled = false;
+          btn.textContent = 'Create Backup Now';
+        }
+      })
+      .catch(err => {
+        status.innerHTML = '<div class="alert-err">Network error: ' + err.message + '</div>';
+        if (__backupPollTimer) {
+          clearInterval(__backupPollTimer);
+          __backupPollTimer = null;
+        }
+        btn.disabled = false;
+        btn.textContent = 'Create Backup Now';
+      });
+    };
+
+    tick();
+    __backupPollTimer = setInterval(tick, 1500);
+  }
 
   function confirmRestoreDatabase() {
     const sel = document.getElementById('restore_backup_file');

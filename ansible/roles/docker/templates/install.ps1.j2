@@ -264,10 +264,53 @@ Write-Host "    If you do not want to use the AI features, just select No when p
 Write-Host ""
 $aiEnable = Read-Host "Do you want to enable the AI features of GigHive? [y/N]"
 if ($aiEnable -in 'y', 'Y', 'yes') {
-    $sAiKey = Read-Host "Enter your OpenAI API key (sk-...)" -AsSecureString
-    $bstrAi = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sAiKey)
-    $openaiApiKey = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstrAi)
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstrAi)
+    $openaiApiKey = ""
+    $aiKeyAttempts = 0
+    $aiKeyDone = $false
+    while (-not $aiKeyDone) {
+        $aiKeyAttempts++
+        if ($aiKeyAttempts -gt 5) {
+            Write-Error "Too many failed attempts — please re-run install.ps1 and select No to skip AI features."
+            exit 1
+        }
+        $sAiKey = Read-Host "Enter your OpenAI API key (sk-...)" -AsSecureString
+        $bstrAi = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sAiKey)
+        $openaiApiKey = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstrAi)
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstrAi)
+        if ($openaiApiKey -eq "") {
+            Write-Host "Key cannot be empty. Please try again."
+            continue
+        }
+        if (-not $script:_curlAvailable) {
+            Write-Host "    curl.exe not available — proceeding with key unverified."
+            $aiKeyDone = $true
+            continue
+        }
+        Write-Host "    Verifying key with OpenAI..."
+        $aiKeyHttp = curl.exe --silent -o NUL -w '%{http_code}' --max-time 5 `
+            -H "Authorization: Bearer $openaiApiKey" `
+            "https://api.openai.com/v1/models" 2>$null
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($aiKeyHttp)) { $aiKeyHttp = "000" }
+        $aiKeyHttp = ([string]$aiKeyHttp).Trim()
+        switch ($aiKeyHttp) {
+            "200" {
+                Write-Host "    Key verified."
+                $aiKeyDone = $true
+            }
+            "401" {
+                Write-Host "    OpenAI rejected the key (HTTP 401) — please check and try again."
+            }
+            default {
+                Write-Host "    Could not reach OpenAI to verify the key (HTTP $aiKeyHttp)."
+                $skipVerify = Read-Host "    Proceed with this key unverified? [y/N]"
+                if ($skipVerify -in 'y', 'Y', 'yes') {
+                    $aiKeyDone = $true
+                } else {
+                    Write-Host "    Re-enter your key or check your network connection."
+                }
+            }
+        }
+    }
     _PatchEnvKey "AI_WORKER_ENABLED" "true"        $apacheEnvFile
     _PatchEnvKey "OPENAI_API_KEY"    $openaiApiKey $apacheEnvFile
     $env:GIGHIVE_AI_ASSETS_DIR = if ($env:GIGHIVE_AI_ASSETS_DIR) { $env:GIGHIVE_AI_ASSETS_DIR } else { "./_host_ai_assets" }

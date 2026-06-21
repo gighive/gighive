@@ -36,6 +36,11 @@ mkdir -p /var/www/private/import_jobs
 chown -R www-data:www-data /var/www/private/import_jobs || true
 chmod 775 /var/www/private/import_jobs || true
 
+# Ensure backup dir is writable by www-data for on-demand backups (full channel)
+if [ -d /var/www/private/mysql_backups ]; then
+  chmod g+w /var/www/private/mysql_backups || true
+fi
+
 # Container-side DB backup (one-shot bundle only)
 if [[ "${GIGHIVE_INSTALL_CHANNEL:-full}" == "quickstart" ]]; then
   mkdir -p /var/www/private/mysql_backups

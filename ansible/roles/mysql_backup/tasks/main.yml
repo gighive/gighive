@@ -14,7 +14,7 @@
     state: directory
     owner: "{{ mysql_backup_user }}"
     group: "{{ apache_group | default('www-data') }}"
-    mode: "0750"
+    mode: "0770"
 
 - name: Install dbDump.sh
   ansible.builtin.template:

@@ -75,6 +75,7 @@ require_cmd() {
 }
 
 require_cmd docker
+require_cmd curl
 if docker compose version >/dev/null 2>&1; then
   DOCKER_COMPOSE=(docker compose)
 elif command -v docker-compose >/dev/null 2>&1; then
@@ -256,12 +257,57 @@ read -r -p "Do you want to enable the AI features of GigHive? [y/N]: " AI_ENABLE
 case "${AI_ENABLE}" in
   y|Y|yes)
     OPENAI_API_KEY=""
-    read -r -s -p "Enter your OpenAI API key (sk-...): " OPENAI_API_KEY
-    echo
-    _patch_env_key AI_WORKER_ENABLED true           "$APACHE_ENV_FILE"
-    _patch_env_key OPENAI_API_KEY    "$OPENAI_API_KEY" "$APACHE_ENV_FILE"
-    export GIGHIVE_AI_ASSETS_DIR="${GIGHIVE_AI_ASSETS_DIR:-./_host_ai_assets}"
-    COMPOSE_PROFILE_ARG=(--profile ai)
+    _ai_key_attempts=0
+    while true; do
+      _ai_key_attempts=$((_ai_key_attempts + 1))
+      if [[ "$_ai_key_attempts" -gt 5 ]]; then
+        echo "Too many failed attempts — please re-run install.sh and select No to skip AI features." >&2
+        exit 1
+      fi
+      read -r -s -p "Enter your OpenAI API key (sk-...): " OPENAI_API_KEY
+      echo
+      if [[ -z "$OPENAI_API_KEY" ]]; then
+        echo "Key cannot be empty. Please try again." >&2
+        continue
+      fi
+      echo "    Verifying key with OpenAI..."
+      _ai_key_http=$(curl -s -o /dev/null -w "%{http_code}" \
+        --max-time 5 \
+        -H "Authorization: Bearer $OPENAI_API_KEY" \
+        https://api.openai.com/v1/models) || _ai_key_http="000"
+      case "$_ai_key_http" in
+        200)
+          echo "    Key verified."
+          _patch_env_key AI_WORKER_ENABLED true              "$APACHE_ENV_FILE"
+          _patch_env_key OPENAI_API_KEY    "$OPENAI_API_KEY" "$APACHE_ENV_FILE"
+          export GIGHIVE_AI_ASSETS_DIR="${GIGHIVE_AI_ASSETS_DIR:-./_host_ai_assets}"
+          COMPOSE_PROFILE_ARG=(--profile ai)
+          break
+          ;;
+        401)
+          echo "    OpenAI rejected the key (HTTP 401) — please check and try again." >&2
+          ;;
+        000)
+          echo "    Could not reach OpenAI to verify the key (network error)."
+          read -r -p "    Proceed with this key unverified? [y/N]: " _ai_skip_verify
+          case "$_ai_skip_verify" in
+            y|Y|yes)
+              _patch_env_key AI_WORKER_ENABLED true              "$APACHE_ENV_FILE"
+              _patch_env_key OPENAI_API_KEY    "$OPENAI_API_KEY" "$APACHE_ENV_FILE"
+              export GIGHIVE_AI_ASSETS_DIR="${GIGHIVE_AI_ASSETS_DIR:-./_host_ai_assets}"
+              COMPOSE_PROFILE_ARG=(--profile ai)
+              break
+              ;;
+            *)
+              echo "    Re-enter your key or check your network connection." >&2
+              ;;
+          esac
+          ;;
+        *)
+          echo "    Unexpected response from OpenAI (HTTP $_ai_key_http) — please try again." >&2
+          ;;
+      esac
+    done
     ;;
   *)
     _patch_env_key AI_WORKER_ENABLED false "$APACHE_ENV_FILE"

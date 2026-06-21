@@ -1,0 +1,171 @@
+<?php declare(strict_types=1);
+
+$user = $_SERVER['PHP_AUTH_USER']
+     ?? $_SERVER['REMOTE_USER']
+     ?? $_SERVER['REDIRECT_REMOTE_USER']
+     ?? null;
+
+if ($user !== 'admin') {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error'   => 'Forbidden',
+        'message' => 'Admin access required',
+    ]);
+    exit;
+}
+
+$jobId  = isset($_GET['job_id']) ? trim((string)$_GET['job_id']) : '';
+$offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+if ($offset < 0) {
+    $offset = 0;
+}
+
+if ($jobId === '' || !preg_match('/^[0-9]{8}-[0-9]{6}-[a-f0-9]{12}$/', $jobId)) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error'   => 'Bad Request',
+        'message' => 'Invalid job_id',
+    ]);
+    exit;
+}
+
+$logDir = getenv('GIGHIVE_MYSQL_RESTORE_LOG_DIR') ?: '';
+if ($logDir === '') {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error'   => 'Server Error',
+        'message' => 'Log directory not configured (missing env var).',
+    ]);
+    exit;
+}
+
+$baseLogDir = realpath($logDir);
+if ($baseLogDir === false || !is_dir($baseLogDir)) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error'   => 'Server Error',
+        'message' => 'Log directory is invalid or not accessible.',
+    ]);
+    exit;
+}
+
+$resolveFile = static function (string $dir, string $fileName): ?string {
+    $it = new DirectoryIterator($dir);
+    foreach ($it as $fileInfo) {
+        if (!$fileInfo->isFile()) {
+            continue;
+        }
+        if ($fileInfo->getFilename() !== $fileName) {
+            continue;
+        }
+        $realPath = $fileInfo->getRealPath();
+        return is_string($realPath) && $realPath !== '' ? $realPath : null;
+    }
+    return null;
+};
+
+$logFileName = 'backup-' . $jobId . '.log';
+$rcFileName  = 'backup-' . $jobId . '.rc';
+$pidFileName = 'backup-' . $jobId . '.pid';
+
+$logFile = $resolveFile($baseLogDir, $logFileName);
+$rcFile  = $resolveFile($baseLogDir, $rcFileName);
+$pidFile = $resolveFile($baseLogDir, $pidFileName);
+
+try {
+    if (!is_string($logFile) || $logFile === '' || !is_readable($logFile)) {
+        throw new RuntimeException('Log file not found for job_id.');
+    }
+
+    $state    = 'running';
+    $exitCode = null;
+
+    if (is_string($rcFile) && $rcFile !== '' && is_readable($rcFile)) {
+        $rawRc = trim((string)file_get_contents($rcFile));
+        if (preg_match('/^-?\d+$/', $rawRc)) {
+            $exitCode = (int)$rawRc;
+            $state    = ($exitCode === 0) ? 'ok' : 'error';
+        }
+    } else {
+        // Best-effort running check via pid file.
+        if (is_string($pidFile) && $pidFile !== '' && is_readable($pidFile)) {
+            $rawPid = trim((string)file_get_contents($pidFile));
+            if (preg_match('/^\d+$/', $rawPid)) {
+                $pid = (int)$rawPid;
+                if ($pid > 0 && !is_dir('/proc/' . $pid)) {
+                    // Process ended but rc file not present (unexpected). Mark as error.
+                    $state = 'error';
+                }
+            }
+        }
+    }
+
+    $fh = fopen($logFile, 'rb');
+    if ($fh === false) {
+        throw new RuntimeException('Failed to open log file.');
+    }
+
+    $stat = fstat($fh);
+    $size = is_array($stat) && isset($stat['size']) ? (int)$stat['size'] : 0;
+    if ($offset > $size) {
+        $offset = $size;
+    }
+
+    if (fseek($fh, $offset) !== 0) {
+        // If fseek fails, fall back to start.
+        $offset = 0;
+        fseek($fh, 0);
+    }
+
+    $maxBytes = 131072; // 128 KiB per poll
+    $data = '';
+    while (!feof($fh) && strlen($data) < $maxBytes) {
+        $chunk = fread($fh, min(8192, $maxBytes - strlen($data)));
+        if ($chunk === false || $chunk === '') {
+            break;
+        }
+        $data .= $chunk;
+    }
+
+    $newOffset = $offset + strlen($data);
+    fclose($fh);
+
+    $response = [
+        'success'   => true,
+        'job_id'    => $jobId,
+        'state'     => $state,
+        'exit_code' => $exitCode,
+        'offset'    => $newOffset,
+        'log_chunk' => $data,
+    ];
+
+    // When complete, extract filename and size_bytes from the OK line.
+    if ($state === 'ok') {
+        $fullLog = @file_get_contents($logFile) ?: '';
+        if (preg_match('/OK: wrote (\d+) bytes to (.+\.sql\.gz)/', $fullLog, $m)) {
+            $response['filename']   = basename($m[2]);
+            $response['size_bytes'] = (int)$m[1];
+        }
+    }
+
+    http_response_code(200);
+    header('Content-Type: application/json');
+    echo json_encode($response);
+
+} catch (Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error'   => 'Server Error',
+        'message' => $e->getMessage(),
+    ]);
+}

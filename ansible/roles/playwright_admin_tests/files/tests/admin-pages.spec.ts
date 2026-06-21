@@ -22,7 +22,24 @@ function getMediaDir(): string {
 
 test.describe.configure({ mode: 'serial' });
 
-test('Admin pages full regression — all 12 steps', async ({ page }) => {
+test('Create backup — Section C smoke test', async ({ page }) => {
+  page.on('dialog', dialog => dialog.accept());
+
+  await page.goto('/admin/admin_system.php');
+  await page.click('#createBackupBtn');
+  await expect(page.locator('#createBackupStatus .alert-ok')).toBeVisible({ timeout: 60_000 });
+
+  // Backup file should now appear as at least one selectable (enabled) option.
+  // Use not.toHaveCount(0) rather than toHaveCount(1): on a non-fresh VM or re-run,
+  // PHP already rendered prior backup files as enabled options, so count may be > 1.
+  const sel = page.locator('#restore_backup_file');
+  await expect(sel.locator('option:not([disabled])')).not.toHaveCount(0);
+
+  // Restore button should be enabled
+  await expect(page.locator('#restoreDbBtn')).toBeEnabled();
+});
+
+test('Admin pages full regression — all 13 steps', async ({ page }) => {
   // Auto-accept every window.confirm() dialog throughout the test
   page.on('dialog', dialog => dialog.accept());
 
@@ -51,14 +68,14 @@ test('Admin pages full regression — all 12 steps', async ({ page }) => {
   ).toString('base64');
   await page.setExtraHTTPHeaders({ 'Authorization': `Basic ${newB64}` });
 
-  // ── Step 2: admin_system.php — Section D: Export Media to ZIP ──────────────
+  // ── Step 2: admin_system.php — Section E: Export Media to ZIP ──────────────
   await page.goto('/admin/admin_system.php');
   await page.fill('#export_org_name', '');           // blank = export all
   await page.selectOption('#export_file_type', 'all');
   await page.click('#exportMediaBtn');
   await expect(page.locator('#exportMediaStatus')).not.toBeEmpty({ timeout: 30_000 });
 
-  // ── Step 3: admin_system.php — Section E: Write Disk Resize Request ─────────
+  // ── Step 3: admin_system.php — Section F: Write Disk Resize Request ─────────
   // Only rendered when GIGHIVE_INSTALL_CHANNEL=full; skipped otherwise
   if (await page.locator('#writeResizeRequestBtn').isVisible()) {
     await page.fill('#resize_inventory_host', 'gighive2');
@@ -71,23 +88,27 @@ test('Admin pages full regression — all 12 steps', async ({ page }) => {
   await page.click('#clearMediaBtn');
   await expect(page.locator('#clearMediaStatus .alert-ok')).toBeVisible({ timeout: 60_000 });
 
-  // ── Step 5: admin_system.php — Section B: Restore DB from Backup ────────────
+  // ── Step 5: admin_system.php — Section C: Create Backup Now ─────────────────
+  await page.click('#createBackupBtn');
+  await expect(page.locator('#createBackupStatus .alert-ok')).toBeVisible({ timeout: 60_000 });
+
+  // ── Step 6: admin_system.php — Section B: Restore DB from Backup ────────────
   await page.selectOption('#restore_backup_file', { index: 0 });
   await page.fill('#restore_confirm', 'RESTORE');
   await page.click('#restoreDbBtn');
   await expect(page.locator('#restoreDbStatus .alert-ok')).toBeVisible({ timeout: 120_000 });
 
-  // ── Step 6: admin_system.php — Section A: Clear All Media Data (again) ───────
+  // ── Step 7: admin_system.php — Section A: Clear All Media Data (again) ───────
   // Reload page to reset state after restore job
   await page.goto('/admin/admin_system.php');
   await page.click('#clearMediaBtn');
   await expect(page.locator('#clearMediaStatus .alert-ok')).toBeVisible({ timeout: 60_000 });
 
-  // ── Step 7: admin_system.php — Section C: Delete All Media Files from Disk ───
+  // ── Step 8: admin_system.php — Section D: Delete All Media Files from Disk ───
   await page.click('#clearMediaFilesBtn');
   await expect(page.locator('#clearMediaFilesStatus .alert-ok')).toBeVisible({ timeout: 30_000 });
 
-  // ── Step 8: Import Media — Section B: Add to DB from Folder (non-destructive)
+  // ── Step 9: Import Media — Section B: Add to DB from Folder (non-destructive)
   await page.goto('/admin/admin_database_load_import_media_from_folder.php');
   await page.locator('#b-folder').setInputFiles(mediaDir);
   await page.waitForFunction(
@@ -105,7 +126,7 @@ test('Admin pages full regression — all 12 steps', async ({ page }) => {
     { timeout: 300_000 }
   );
 
-  // ── Step 9: Import Media — Section C: Single File Upload (new tab) ───────────
+  // ── Step 10: Import Media — Section C: Single File Upload (new tab) ──────────
   const [uploadTab] = await Promise.all([
     page.context().waitForEvent('page'),
     page.click('button:has-text("Upload Utility")'),
@@ -113,7 +134,7 @@ test('Admin pages full regression — all 12 steps', async ({ page }) => {
   await expect(uploadTab).toHaveURL(/upload_form\.php/);
   await uploadTab.close();
 
-  // ── Step 10: Import Media — Section A: Reload DB from Folder (destructive) ───
+  // ── Step 11: Import Media — Section A: Reload DB from Folder (destructive) ───
   // Uploads the media files whose checksums steps 11–12 will reference
   await page.locator('#a-folder').setInputFiles(mediaDir);
   await page.waitForFunction(
@@ -131,13 +152,13 @@ test('Admin pages full regression — all 12 steps', async ({ page }) => {
     { timeout: 300_000 }
   );
 
-  // ── Step 11: CSV Import — Section A: Legacy single-CSV ───────────────────────
+  // ── Step 12: CSV Import — Section A: Legacy single-CSV ───────────────────────
   await page.goto('/admin/admin_database_load_import_csv.php');
   await page.setInputFiles('#database_csv', CSV_LEGACY);
   await page.click('#importDbBtn');
   await expect(page.locator('#importDbStatus .alert-ok')).toBeVisible({ timeout: 60_000 });
 
-  // ── Step 12: CSV Import — Section B: Normalized CSVs (FINAL STATE) ───────────
+  // ── Step 13: CSV Import — Section B: Normalized CSVs (FINAL STATE) ──────────
   // DB ends up matching original MySQL init: 2 events, songs, asset checksums
   await page.setInputFiles('#normalized_sessions_csv',      CSV_SESSIONS);
   await page.setInputFiles('#normalized_session_files_csv', CSV_SESSION_FILES);
