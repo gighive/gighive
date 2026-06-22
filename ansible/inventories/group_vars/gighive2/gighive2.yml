@@ -480,3 +480,4 @@ ai_chunk_concurrency: 4
 mcp_server_enabled: true
 mcp_server_dir: "{{ gighive_home }}/mcp-server"
 mcp_env_file: "{{ docker_dir }}/apache/externalConfigs/.env"
+mcp_docs_path: "{{ gighive_home }}/docs"

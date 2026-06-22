@@ -175,7 +175,7 @@ if ($mode === 'start') {
         exit;
     }
 
-    $prepPath = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.zip';
+    $prepPath = sys_get_temp_dir() . '/gighive_zip_prepare_' . basename($prepareToken) . '.zip';
     if (!is_file($prepPath) || filemtime($prepPath) < time() - 1800) {
         http_response_code(410);
         header('Content-Type: application/json');

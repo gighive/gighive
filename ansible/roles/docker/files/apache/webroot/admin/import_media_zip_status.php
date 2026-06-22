@@ -26,7 +26,7 @@ if ($jobId === '' || !preg_match('/^[a-f0-9]{16}$/', $jobId)) {
     exit;
 }
 
-$jobDir   = sys_get_temp_dir() . '/gighive_import_' . $jobId . '/';
+$jobDir   = sys_get_temp_dir() . '/gighive_import_' . basename($jobId) . '/';
 $jsonPath = $jobDir . 'status.json';
 
 if (!is_file($jsonPath)) {

@@ -52,6 +52,12 @@ Add the same `"mcpServers"` block to `~/.config/Claude/claude_desktop_config.jso
 | `get_assets_untagged` | Assets with zero confirmed taggings |
 | `get_tag_namespace_summary` | Tag distribution across corpus |
 | `get_env_container_subset` | Read safe env vars from host .env |
+| `get_schema_tables` | List all tables in the database |
+| `get_table_ddl` | Full SHOW CREATE TABLE DDL for a single table |
+| `execute_select` | Run an arbitrary read-only SELECT or CTE (hard cap 700 rows) |
+| `list_docs` | List documentation files, optionally filtered by category prefix |
+| `search_docs` | Full-text search across documentation files, returns snippets |
+| `read_doc` | Return full content of a named documentation file |
 
 ## Notes
 
@@ -59,3 +65,4 @@ Add the same `"mcpServers"` block to `~/.config/Claude/claude_desktop_config.jso
 - No persistent daemon runs between sessions.
 - Credentials are loaded from `{{ mcp_env_file }}` at startup.
 - MySQL is reached via `127.0.0.1:3306` (Docker-exposed port on host).
+- Documentation files are read from `{{ mcp_docs_path }}`.
