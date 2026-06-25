@@ -45,7 +45,7 @@
 - name: Run SQL script from external file and display output
   ansible.builtin.shell: |
     echo "Running SQL script..."
-    docker exec -i "{{ mysql_container_name }}" mysql -uroot -p{{ mysql_root_password }} -D music_db < "{{ dbscripts_dir }}/select.sql"
+    docker exec -i "{{ mysql_container_name }}" mysql -uroot -p{{ mysql_root_password }} -D media_db < "{{ dbscripts_dir }}/select.sql"
   register: sql_output
   changed_when: false
 

@@ -15,7 +15,7 @@ def get_connection():
     """Create and return a new mysql-connector connection from env vars."""
     return mysql.connector.connect(
         host=os.getenv('DB_HOST', 'mysqlServer'),
-        database=os.getenv('MYSQL_DATABASE', 'music_db'),
+        database=os.getenv('MYSQL_DATABASE', 'media_db'),
         user=os.getenv('MYSQL_USER', 'appuser'),
         password=os.getenv('MYSQL_PASSWORD', ''),
         charset='utf8mb4',

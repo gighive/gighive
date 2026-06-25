@@ -20,7 +20,7 @@ def _connect() -> mysql.connector.MySQLConnection:
     return mysql.connector.connect(
         host=config.MYSQL_HOST,
         port=config.MYSQL_PORT,
-        database=os.getenv('MYSQL_DATABASE', 'music_db'),
+        database=os.getenv('MYSQL_DATABASE', 'media_db'),
         user=os.getenv('MYSQL_USER', 'appuser'),
         password=os.getenv('MYSQL_PASSWORD', ''),
         charset='utf8mb4',

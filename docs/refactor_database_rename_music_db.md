@@ -18,7 +18,7 @@ This refactor supersedes that note with a more complete and named target (`media
 **83 total files** contain `music_db` in the repository. The vast majority are log files,
 docs, and CHANGELOG history — which are **read-only artifacts and do not need to change**.
 
-Functional files requiring changes: **29 code/config files**, grouped below.
+Functional files requiring changes: **27 code/config files**, grouped below.
 
 ---
 
@@ -93,14 +93,13 @@ filename directly in volume mount paths.
 
 ---
 
-### 5. Shell Scripts — DB name hardcoded or SQL filename referenced (4 files)
+### 5. Shell Scripts — DB name hardcoded or SQL filename referenced (3 files)
 
 | File | Line | Change |
 |------|------|--------|
 | `ansible/roles/docker/files/mysql/dbScripts/dbDump.sh` | 5 | `DB=music_db` → `DB=media_db` (hardcoded, not using env var) |
 | `ansible/roles/docker/files/mysql/dbScripts/dbCommands.sh` | 19, 22 | `create_music_db.sql` → `create_media_db.sql` (filename ref in cp/exec) |
 | `ansible/roles/docker/files/mysql/dbScripts/reloadMyDatabase.sh` | 10 | `create_music_db.sql` → `create_media_db.sql` (filename ref in exec) |
-| `ansible/roles/docker/files/mysql/dbScripts/backupSanity.sh` | 1–2 | Example backup filename with date stamp — cosmetic/comment only |
 
 ---
 
@@ -157,6 +156,7 @@ and in the ssh/docker exec command. The others use env var fallback defaults or 
 - **All `docs/*.md`** — historical documentation; do not rewrite
 - **`user-prompts.md`** — historical record
 - `ansible/roles/db_migrations/tasks/main.yml` line 24 — comment only
+- `ansible/roles/docker/files/mysql/dbScripts/backupSanity.sh` — example filename in comment; not referenced by any other script
 
 ---
 
@@ -225,7 +225,7 @@ docker exec -i mysqlServer mysql -u root -p"$MYSQL_ROOT_PASSWORD" \
 ## Implementation Order (Recommended)
 
 - **Steps 1–7** — file changes across the codebase
-- **Step 8** — git commit; do not deploy yet
+- **Step 8** — `git commit` + `git push`; do not run Ansible yet
 - **Steps 9–11** — per environment: backup → edit dump → restore (creates `media_db` while app stays on `music_db`)
 - **Step 12** — pull latest code (lab/staging only)
 - **Steps 13–14** — Ansible deploy (no DB creation needed; `media_db` already exists) and verify
@@ -240,7 +240,12 @@ docker exec -i mysqlServer mysql -u root -p"$MYSQL_ROOT_PASSWORD" \
 5. Update all template fallback defaults
 6. Update PHP/Python/shell hardcoded names and defaults
 7. Update `validate_app` Ansible task
-8. Commit the branch — **do not deploy yet**
+8. Commit and push:
+   ```bash
+   git commit -m "files edited for music_db rename"
+   git push origin master
+   ```
+   **Do not run the Ansible deploy yet** — `media_db` doesn't exist on any environment until step 11.
 
 ### Phase 2 — Per-environment rollout (dev → lab → staging → prod)
 
@@ -269,10 +274,12 @@ Repeat steps 9–15 for each environment in order:
     ./dbRestore.sh -y -f /path/to/media_db_YYYY-MM-DD_HHMMSS.sql.gz
     ```
 
-12. **Pull the latest code** (lab/staging only — prod and dev already have it):
-    ```bash
-    git pull origin master
-    ```
+12. **Sync code to control machine:**
+    - **Dev / Prod** — already have the code from step 8; nothing to do
+    - **Lab / Staging** — pull the committed changes:
+      ```bash
+      git pull origin master
+      ```
 
 13. **Run Ansible deploy** — `media_db` already exists, so containers connect cleanly on
     restart with no downtime window.
@@ -316,6 +323,18 @@ Prod:
 ```bash
 script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-YYYYMMDD.log
 ```
+
+---
+
+## Rollback
+
+If something goes wrong after the Ansible deploy (step 13) on a given environment:
+
+- Revert group_vars (`mysql_database: media_db` → `music_db`) for that environment
+- Re-run the Ansible deploy for that environment — containers restart pointing to `music_db`
+- `music_db` was never dropped, so data is intact and the app recovers immediately
+- Investigate the failure before retrying the migration
+- Once resolved, re-run steps 9–15 from scratch on that environment (create a fresh backup first)
 
 ---
 

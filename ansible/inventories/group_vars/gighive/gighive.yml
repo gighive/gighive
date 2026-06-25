@@ -375,7 +375,7 @@ apache_container_name: apacheWebServer
 apache_docker_image: "ubuntu-apache-img:1.00"
  
 # --- MySQL db/user ---
-mysql_database: music_db
+mysql_database: media_db
 mysql_user: appuser
 mysql_db_host: mysqlServer
 mysql_container_name: "{{ mysql_db_host }}"

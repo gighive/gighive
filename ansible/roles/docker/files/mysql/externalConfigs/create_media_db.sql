@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS music_db;
-CREATE DATABASE music_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE music_db;  -- ensure subsequent statements target music_db
+DROP DATABASE IF EXISTS media_db;
+CREATE DATABASE media_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE media_db;  -- ensure subsequent statements target media_db
 
 /****************************
  * Canonical core entities  *

@@ -187,7 +187,7 @@ try {
     $finishStep(3, 'ok', 'Tables truncated');
 
     $host = getenv('DB_HOST') ?: 'localhost';
-    $db = getenv('MYSQL_DATABASE') ?: 'music_db';
+    $db = getenv('MYSQL_DATABASE') ?: 'media_db';
     $dbUser = getenv('MYSQL_USER') ?: 'appuser';
     $dbPass = getenv('MYSQL_PASSWORD') ?: '';
 

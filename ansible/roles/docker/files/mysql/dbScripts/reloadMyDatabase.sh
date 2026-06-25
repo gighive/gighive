@@ -7,5 +7,5 @@ else
   exit 1
 fi
 
-docker exec -i mysqlServer sh -c "mysql -u root -p\"$MYSQL_ROOT_PASSWORD\" \"$MYSQL_DATABASE\" < /docker-entrypoint-initdb.d/00-create_music_db.sql"
+docker exec -i mysqlServer sh -c "mysql -u root -p\"$MYSQL_ROOT_PASSWORD\" \"$MYSQL_DATABASE\" < /docker-entrypoint-initdb.d/00-create_media_db.sql"
 docker exec -i mysqlServer sh -c "mysql -u root -p\"$MYSQL_ROOT_PASSWORD\" \"$MYSQL_DATABASE\" < /docker-entrypoint-initdb.d/01-load_and_transform.sql"

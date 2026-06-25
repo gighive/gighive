@@ -9,7 +9,7 @@
 #     --ssh-target ubuntu@gighive2 \
 #     --db-host gighive2 \
 #     --db-user root \
-#     --db-name music_db \
+#     --db-name media_db \
 #     --limit 5000000
 
 import argparse
@@ -684,7 +684,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--db-port", type=int, default=3306, help="MySQL port (default: 3306)")
     p.add_argument("--db-user", default=os.getenv("MYSQL_USER") or os.getenv("DB_USER") or "root")
     p.add_argument("--db-password", default=os.getenv("MYSQL_PASSWORD") or os.getenv("DB_PASSWORD") or "")
-    p.add_argument("--db-name", default=os.getenv("MYSQL_DATABASE") or os.getenv("DB_NAME") or "music_db")
+    p.add_argument("--db-name", default=os.getenv("MYSQL_DATABASE") or os.getenv("DB_NAME") or "media_db")
     p.add_argument("--limit", type=int, default=5000000, help="Max rows to process per run (default: 500000)")
     p.add_argument("--only-type", choices=["audio", "video"], default=None, help="Only process one file_type")
     p.add_argument(

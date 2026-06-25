@@ -16,10 +16,10 @@ else
   exit 1
 fi
 
-docker cp create_music_db.sql mysqlServer:/docker-entrypoint-initdb.d/00-create_music_db.sql
+docker cp create_media_db.sql mysqlServer:/docker-entrypoint-initdb.d/00-create_media_db.sql
 # MYSQL_ROOT_PASSWORD and other DB credentials are provided via the Docker-rendered .env
 # file (from untracked secrets.yml / vault); no real passwords are stored in this repo.
-docker exec -i mysqlServer sh -c "mysql -u root -p\"$MYSQL_ROOT_PASSWORD\" \"$MYSQL_DATABASE\" < /docker-entrypoint-initdb.d/00-create_music_db.sql"
+docker exec -i mysqlServer sh -c "mysql -u root -p\"$MYSQL_ROOT_PASSWORD\" \"$MYSQL_DATABASE\" < /docker-entrypoint-initdb.d/00-create_media_db.sql"
 
 source ../externalConfigs/.env.mysql
 docker cp select.sql mysqlServer:/tmp/select.sql

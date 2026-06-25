@@ -82,7 +82,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
       - "{{ docker_dir }}/mysql/externalConfigs/prepped_csvs/{{ 'full' if database_full | bool else 'sample' }}:/var/lib/mysql-files/"
-      - "{{ docker_dir }}/mysql/externalConfigs/create_music_db.sql:/docker-entrypoint-initdb.d/00-create_music_db.sql"
+      - "{{ docker_dir }}/mysql/externalConfigs/create_media_db.sql:/docker-entrypoint-initdb.d/00-create_media_db.sql"
       - "{{ docker_dir }}/mysql/externalConfigs/load_and_transform.sql:/docker-entrypoint-initdb.d/01-load_and_transform.sql"
       - "{{ docker_dir }}/mysql/externalConfigs/z-custommysqld.cnf:/etc/mysql/conf.d/z-custommysqld.cnf"
 

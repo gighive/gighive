@@ -1,4 +1,4 @@
-USE music_db;
+USE media_db;
 SHOW TABLES;
 -- 1. Count the total number of Jam Sessions imported
 SELECT COUNT(*) AS total_jam_sessions FROM Jam_Sessions;

@@ -1,4 +1,4 @@
-USE music_db;
+USE media_db;
 
 -- Disable foreign key checks to safely truncate all tables
 SET FOREIGN_KEY_CHECKS=0;

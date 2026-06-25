@@ -78,7 +78,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
 
       - "./mysql/externalConfigs/prepped_csvs/sample:/var/lib/mysql-files/"
-      - "./mysql/externalConfigs/create_music_db.sql:/docker-entrypoint-initdb.d/00-create_music_db.sql"
+      - "./mysql/externalConfigs/create_media_db.sql:/docker-entrypoint-initdb.d/00-create_media_db.sql"
       - "./mysql/externalConfigs/load_and_transform.sql:/docker-entrypoint-initdb.d/01-load_and_transform.sql"
       - "./mysql/externalConfigs/z-custommysqld.cnf:/etc/mysql/conf.d/z-custommysqld.cnf"
 

@@ -19,7 +19,7 @@ final class Database
     public static function createFromEnv(): PDO
     {
         $host    = getenv('DB_HOST') ?: 'localhost';
-        $db      = getenv('MYSQL_DATABASE') ?: 'music_db';
+        $db      = getenv('MYSQL_DATABASE') ?: 'media_db';
         $user    = getenv('MYSQL_USER') ?: 'appuser';
         $pass    = getenv('MYSQL_PASSWORD') ?: 'musiclibrary';
         $charset = getenv('DB_CHARSET') ?: 'utf8mb4';

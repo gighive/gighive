@@ -120,7 +120,7 @@ $videoDir = $root . '/video';
 $thumbDir = $videoDir . '/thumbnails';
 
 $dbHost = getenv('DB_HOST') ?: 'localhost';
-$dbName = getenv('MYSQL_DATABASE') ?: 'music_db';
+$dbName = getenv('MYSQL_DATABASE') ?: 'media_db';
 
 $results = [
     'deleted' => [],

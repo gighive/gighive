@@ -1,2 +1,2 @@
-DROP DATABASE IF EXISTS music_db;
+DROP DATABASE IF EXISTS media_db;
 

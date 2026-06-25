@@ -322,7 +322,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("--db-port", type=int, default=3306)
     p.add_argument("--db-user", default=os.getenv("MYSQL_USER") or os.getenv("DB_USER") or "root")
     p.add_argument("--db-password", default=os.getenv("MYSQL_PASSWORD") or os.getenv("DB_PASSWORD") or "")
-    p.add_argument("--db-name", default=os.getenv("MYSQL_DATABASE") or os.getenv("DB_NAME") or "music_db")
+    p.add_argument("--db-name", default=os.getenv("MYSQL_DATABASE") or os.getenv("DB_NAME") or "media_db")
     p.add_argument("--backup-csv", default="")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--delete-old-remote-blobs", action="store_true")

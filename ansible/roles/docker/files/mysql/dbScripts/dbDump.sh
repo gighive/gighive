@@ -2,7 +2,7 @@
 PASSWORD=musiclibrary
 CONTAINER=mysqlServer
 USER=root
-DB=music_db
+DB=media_db
 docker exec -e MYSQL_PWD="$PASSWORD" -i $CONTAINER \
   mysqldump -u$USER --single-transaction --quick --lock-tables=0 \
   --routines --events --triggers --default-character-set=utf8mb4 \
