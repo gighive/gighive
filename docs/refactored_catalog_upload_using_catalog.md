@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready — Phase 1 (`docs/feature_completed_catalog_insert.md`) is complete and stable as of June 2026.
+Implemented. Phase 1 (`docs/feature_completed_catalog_insert.md`) is complete and stable as of June 2026.
 
 ---
 
