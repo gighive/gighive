@@ -245,11 +245,11 @@ docker exec -i mysqlServer mysql -u root -p"$MYSQL_ROOT_PASSWORD" \
    git commit -m "files edited for music_db rename"
    git push origin master
    ```
-   **Do not run the Ansible deploy yet** — `media_db` doesn't exist on any environment until step 11.
+   **Do not run the Ansible deploy yet** — each environment needs its `rebuild_mysql_data` flag set first (step 11) before the per-environment rollout begins.
 
 ### Phase 2 — Per-environment rollout (dev → lab → staging → prod)
 
-Repeat steps 9–15 for each environment in order:
+Repeat steps 9–17 for each environment in order:
 
 9. **Create a fresh backup** (Admin → System & Recovery → Section C, or wait for the daily
    cron). This produces `music_db_YYYY-MM-DD_HHMMSS.sql.gz` in the backups directory.
@@ -267,11 +267,13 @@ Repeat steps 9–15 for each environment in order:
     zcat "$NEW" | grep -m5 'music_db\|media_db'
     ```
 
-11. **Restore from the edited backup via SSH** — the admin UI cannot see `media_db_*.sql.gz`
-    while `MYSQL_DATABASE=music_db`; SSH is the only option. The app continues running on
-    `music_db` uninterrupted during this step:
-    ```bash
-    ./dbRestore.sh -y -f /path/to/media_db_YYYY-MM-DD_HHMMSS.sql.gz
+11. **Set `rebuild_mysql_data: true`** in the appropriate group_vars file on the control
+    machine (do **not** commit this change):
+    - Dev: `ansible/inventories/group_vars/gighive2/gighive2.yml`
+    - Lab / Staging: `ansible/inventories/group_vars/gighive/gighive.yml`
+    - Prod: `ansible/inventories/group_vars/prod/prod.yml`
+    ```yaml
+    rebuild_mysql_data: true # Rebuild MySQL container + wipe database (nuclear)
     ```
 
 12. **Sync code to control machine:**
@@ -281,12 +283,20 @@ Repeat steps 9–15 for each environment in order:
       git pull origin master
       ```
 
-13. **Run Ansible deploy** — `media_db` already exists, so containers connect cleanly on
-    restart with no downtime window.
+13. **Run Ansible deploy** — MySQL volume is wiped and `media_db` is freshly initialised
+    from `create_media_db.sql`, which automatically grants `appuser` access. Brief MySQL
+    downtime during the rebuild.
 
-14. **Verify** with the `validate_app` role.
+14. **Restore data via Admin UI** — after Ansible completes, the app is running on an empty
+    `media_db`. Go to Admin → System & Recovery → Section B, select the
+    `media_db_YYYY-MM-DD_HHMMSS.sql.gz` backup created in step 10, type `RESTORE` to
+    confirm.
 
-15. **Leave `music_db` intact** for several days of stable operation, then drop:
+15. **Set `rebuild_mysql_data: false`** in the same group_vars file edited in step 11.
+
+16. **Verify** with the `validate_app` role.
+
+17. **Leave `music_db` intact** for several days of stable operation, then drop:
     ```bash
     docker exec -i mysqlServer mysql -u root -p"$MYSQL_ROOT_PASSWORD" \
       -e "DROP DATABASE IF EXISTS music_db;"
@@ -296,11 +306,11 @@ Repeat steps 9–15 for each environment in order:
 
 ## Workflow per Environment
 
-- **Dev** — perform steps 1–8 (file changes + `git commit`), then steps 9–15 (skip step 12)
-- **Lab / Staging** — perform steps 9–15 (step 12 `git pull` applies)
-- **Prod** — Ansible runs from pop-os (dev) and rsync's the codebase from there, so the committed changes are automatically included; perform steps 9–15 (skip step 12)
+- **Dev** — perform steps 1–8 (file changes + `git commit`), then steps 9–17 (skip step 12)
+- **Lab / Staging** — perform steps 9–17 (step 12 `git pull` applies)
+- **Prod** — Ansible runs from pop-os (dev) and rsync's the codebase from there, so the committed changes are automatically included; perform steps 9–17 (skip step 12)
 
-For all environments, steps 9–15 are performed independently in sequence on each environment.
+For all environments, steps 9–17 are performed independently in sequence on each environment.
 
 **Step 13 Ansible commands by environment:**
 
@@ -328,13 +338,13 @@ script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible
 
 ## Rollback
 
-If something goes wrong after the Ansible deploy (step 13) on a given environment:
+If something goes wrong after the Ansible deploy (step 13) or restore (step 14) on a given environment:
 
 - Revert group_vars (`mysql_database: media_db` → `music_db`) for that environment
 - Re-run the Ansible deploy for that environment — containers restart pointing to `music_db`
 - `music_db` was never dropped, so data is intact and the app recovers immediately
 - Investigate the failure before retrying the migration
-- Once resolved, re-run steps 9–15 from scratch on that environment (create a fresh backup first)
+- Once resolved, re-run steps 9–17 from scratch on that environment (create a fresh backup first)
 
 ---
 

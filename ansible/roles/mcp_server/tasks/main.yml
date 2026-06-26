@@ -1,4 +1,10 @@
 ---
+- name: Kill any stale mcp-server processes before updating
+  ansible.builtin.shell: pkill -f "mcp-server/server.py"
+  failed_when: false
+  changed_when: false
+  when: mcp_server_enabled | default(false) | bool
+
 - name: Create mcp-server directory on host
   ansible.builtin.file:
     path: "{{ mcp_server_dir }}"
