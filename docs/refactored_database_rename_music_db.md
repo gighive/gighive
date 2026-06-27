@@ -351,3 +351,9 @@ If something goes wrong after the Ansible deploy (step 13) or restore (step 14) 
 ## Status
 
 - [ ] Not started
+
+---
+
+## Related
+
+- `docs/problem_environment_change_requires_process_restart.md` — documents the stale MCP server process issue discovered during this refactor, where long-running processes holding `MYSQL_DATABASE=music_db` in memory caused access-denied errors after `.env` was updated to `media_db`. The fix (pkill task in the mcp_server Ansible role) is documented there.

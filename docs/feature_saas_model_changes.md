@@ -55,7 +55,7 @@ have been applied.
 After Phase 1, a single-user install is multi-tenant with one tenant — the
 application behaves identically to today.
 
-**Phase 2 features gate on `SAAS_MODE`.** A self-hosted operator sets
+**Phase 2 full SaaS features gate on `SAAS_MODE`**, which is established in Phase 1a. A self-hosted operator sets
 `SAAS_MODE=false` and gets none of the SaaS-specific behaviour. They can
 upgrade through any Phase 2 release safely, picking up bug fixes and
 non-SaaS improvements without being forced into OIDC or multi-tenancy.
@@ -78,8 +78,7 @@ through that release will be locked out.
 
 **The single most important takeaway from this document:**
 
-The pre-release schema changes (steps 1–3) — `tenants` table, `tenant_id` FKs on 9 data tables,
-five unique-constraint fixes, and the greenfield `users` table — are purely additive. They have no behavioral
+The pre-release schema changes (steps 1–4) — update `create_media_db.sql`, migrate all environments, Ansible rebuild, and restore — put the `tenants` table, `tenant_id` FKs on 9 data tables, five unique-constraint fixes, the greenfield `users` table, and the QR upload tables in place. They are purely additive. They have no behavioral
 impact on a single-user install. A seed tenant row is inserted, all existing rows
 are backfilled with `tenant_id = 1`, and the application continues to work exactly
 as before.
@@ -100,13 +99,29 @@ done cheaply.
 ### Implementation Summary
 
 **Phase 1 — SaaS-Ready Schema** *(pre-release)*
-- Step 1: Add `tenants` table; seed single-tenant row
-- Step 2: Add `tenant_id` FK to 9 tables; fix 5 unique constraints; backfill `tenant_id = 1`
-- Step 3: Drop and recreate `users` as greenfield SaaS-native schema
+- Step 1: Update `create_media_db.sql` with all DB changes for SaaS-ready tenant schema and QR code upload feature; **git commit and push before starting Step 2** (same gate as rename doc step 8 — Ansible must have the updated file before the rebuild in Step 3)
+- Step 2: *(repeat per environment)* Take pre-migration backup; apply combined migration via single docker command + DDL; take post-migration backup via `admin_system.php`
+- Step 3: *(repeat per environment)* Run Ansible playbook to rebuild MySQL from `create_media_db.sql` — set `rebuild_mysql_data: true` in `group_vars` before running; verify the Step 2 post-migration backup is accessible first; reset `rebuild_mysql_data: false` in `group_vars` immediately after rebuild completes
+- Step 4: *(repeat per environment)* Restore DB from the **post-migration** backup taken in Step 2 (the `admin_system.php` backup, not the pre-migration one); verify with `validate_app` + `upload_tests` once restore is confirmed good
+
+> **Steps 2–4 follow the same backup → rebuild → restore pattern as the `music_db` → `media_db` rename** — see [`docs/refactored_database_rename_music_db.md`](refactored_database_rename_music_db.md) (Phase 2, steps 9–16) for the detailed per-environment bash commands and Ansible instructions. The key difference is that this migration sandwiches a DDL migration between two backups instead of one:
+>
+> | This doc (steps 2–4) | Rename doc (steps 9–16, excl. 10) |
+> |---|---|
+> | Step 2a: take **pre-migration** backup | Step 9: create fresh backup |
+> | Step 2b: **apply DDL migration** *(unique to this migration)* | — |
+> | Step 2c: take **post-migration** backup | *(rename has only one backup)* |
+> | Step 3: set `rebuild_mysql_data: true` | Step 11: set `rebuild_mysql_data: true` |
+> | *(implicit)* sync code to control machine | Step 12: `git pull` (lab/staging) |
+> | Step 3: run Ansible deploy | Step 13: run Ansible deploy |
+> | Step 4: restore from **post-migration** backup | Step 14: restore via Admin UI |
+> | Step 3: reset `rebuild_mysql_data: false` | Step 15: set `rebuild_mysql_data: false` |
+> | Step 4: verify with `validate_app` + `upload_tests` | Step 16: verify with `validate_app` |
+
+**Phase 1a — Standalone Enhancements + SaaS Prerequisites** *(pre-release; ships with self-hosted)*
+- Step 5: Per-event QR code upload links + anonymous upload form; `SAAS_MODE` env flag (group_vars → `.env.j2`) — see [`docs/feature_iphone_qr_code_support.md`](feature_iphone_qr_code_support.md) for full detail
 
 **Phase 2 — Full SaaS Mode** *(post-release)*
-- Step 4: Per-event QR code signed upload links + anonymous upload form
-- Step 5: `SAAS_MODE` env flag (group_vars → `.env.j2`)
 - Step 6: Wildcard subdomain routing + Cloudflare TLS
 - Step 7: OIDC federation — Google, Microsoft, Apple; JIT provisioning; ToS gate
 - Step 8: RBAC middleware; remove Apache Basic Auth; local PHP login for `SAAS_MODE=false`
@@ -126,25 +141,86 @@ done cheaply.
 
 ---
 
+### Migration Strategy
+
+For existing environments, the schema changes are applied via in-place `ALTER TABLE`
+statements rather than a rebuild from backup.
+
+**Why not rebuild from backup:**
+- Backups predate Phase 1, so a restore lands back at the old schema — the ALTER
+  statements would still need to run after restore, so a restore buys nothing.
+- Current test data (taggings, assets, events, etc.) is worth preserving for
+  post-migration verification.
+
+**Why in-place `ALTER TABLE` is correct:**
+- Row counts are tiny — all ALTERs complete near-instantly with no lock contention.
+- The `DEFAULT 1` on each new `tenant_id` column means no row needs to be touched
+  before the FK is added; the backfill `UPDATE` statements are a safety net only.
+
+**Two-track approach:**
+1. **`create_media_db.sql`** — updated with the full Phase 1 schema so any future
+   fresh install (new VM, CI, developer onboarding) comes up correctly without
+   needing to run migrations.
+2. **Migration script** — the `ALTER TABLE` SQL, run once in-place against all
+   existing environments (dev, lab, staging, prod).
+
+---
+
+### Why Existing Code Is Unaffected
+
+The doc's high-level claim of "purely additive / zero behavioral impact" holds because
+every `INSERT` statement in the PHP codebase against the 8 affected tables uses
+**explicit named column lists** — no positional `VALUES` anywhere. MySQL automatically
+applies `DEFAULT 1` for the unspecified `tenant_id` on every existing `INSERT`.
+No PHP page, API endpoint, or admin tool needs to change for Phase 1.
+
+| File | Table | Pattern |
+|---|---|---|
+| `src/Repositories/AssetRepository.php` | `assets` | `INSERT INTO assets (checksum_sha256, file_ext, ...)` |
+| `src/Repositories/EventRepository.php` | `events` | `INSERT INTO events (event_key, event_date, ...)` |
+| `src/Services/UploadService.php` | `participants` | `INSERT INTO participants (name)` |
+| `src/Services/UnifiedIngestionCore.php` | `ai_jobs` | `INSERT INTO ai_jobs (job_type, target_type, target_id)` |
+| `api/ai_jobs.php` | `ai_jobs` | named columns (×3 call sites) |
+| `api/taggings.php` | `taggings` | `INSERT INTO taggings (tag_id, target_type, ...)` |
+| `admin/catalog_scan_start.php` | `catalog_scans` | named columns |
+| `admin/import_manifest_upload_start.php` | `upload_jobs` | named columns |
+| `admin/import_database.php` | `events` | named columns |
+| `admin/import_normalized.php` | `events`, `assets` | named columns |
+| `db/database_edit_save.php` | `participants` | named columns |
+
+`SELECT` and `DELETE` statements are trivially unaffected by adding a column.
+
+**The one deferred code change (step 8, not Phase 1):** The `DEFAULT 1` on `tenant_id`
+is transitional. At step 8, when the RBAC middleware enforces `tenant_id` from session
+context, the `DEFAULT` is dropped and every `INSERT` above must be updated to supply
+the session's `tenant_id` explicitly. That work belongs to step 8, not here.
+
+---
+
 ### Implementation Steps by Phase
 
 **Phase 1 — SaaS-Ready Schema** *(do before first external release; zero behavioral impact on single-user mode)*
 
-1. Add `tenants` table and seed a single-tenant row for the existing install
-2. Add `tenant_id` FK to 9 data tables (8 via ALTER TABLE + `users` via DROP/CREATE in step 3); fix the 5 broken unique constraints; backfill all existing rows with `tenant_id = 1`. Note: `tags` is listed in the schema section but intentionally kept as a global shared-vocabulary table — it does not receive `tenant_id`; *`tenant_id` must be added with `DEFAULT 1` on each ALTER TABLE — without a default, any existing INSERT that does not supply `tenant_id` (including iPhone upload API calls) will fail immediately; DELETE statements are unaffected — adding a column with a default does not break DELETE queries; the default is a transitional aid only and must be dropped at step 8 when the RBAC middleware takes over enforcement*
-3. Drop and recreate the `users` table as a clean greenfield SaaS-ready schema — the current `users` table is unused legacy; there is no data migration risk; the new table is tenant-scoped, OIDC-native, and contains no email-registration baggage (columns present but auth not yet wired)
+1. Update `create_media_db.sql` with all DB changes: `tenants` table, `tenant_id` FK on 9 data tables (with 5 unique-constraint fixes), greenfield `users` table, `event_upload_tokens` table, `anon_upload_attributions` table. Note: `tags` is intentionally kept as a global shared-vocabulary table — it does not receive `tenant_id`. Full DDL is in the Database Migration section.
+2. *(Repeat per environment)* Take pre-migration backup; apply the combined migration via single docker exec command (see Database Migration section for the full DDL heredoc); take post-migration backup via `admin_system.php`. The `tenant_id` columns are added with `DEFAULT 1` — this backfills all existing rows automatically with no separate UPDATE needed. *The default is transitional and must be dropped at step 8 when RBAC middleware takes over enforcement. The existing `users` table is unused legacy with no data migration risk — it is replaced with the OIDC-native schema; auth is not wired until step 7.*
+3. *(Repeat per environment)* Run Ansible playbook to rebuild MySQL from `create_media_db.sql` — set `rebuild_mysql_data: true` in `group_vars` before running; confirm the step 2 post-migration backup exists and passes `gzip -t` first — this step wipes the data volume. Reset `rebuild_mysql_data: false` in `group_vars` immediately after rebuild completes.
+4. *(Repeat per environment)* Restore DB from the **post-migration** backup taken in step 2 (the `admin_system.php` backup, not the pre-migration one). The restore replaces the Ansible-built schema with the migrated data state. Once restore is confirmed good, git commit `create_media_db.sql` and any related changes.
+
+**Phase 1a — Standalone Enhancements + SaaS Prerequisites** *(pre-release; ships with self-hosted)*
+
+5. Per-event QR code fan upload links + `SAAS_MODE` env flag — owner generates a per-event QR code; fans scan to upload without an account; attribution recorded via ToS checkbox + optional display name; owner can revoke tokens and view fan-contributed uploads in the event admin page; iPhone with app installed uses iOS Universal Link → native app; Android and iPhone without app fall back to `db/upload_form_single.php`. `SAAS_MODE` flag gates Basic Auth (self-hosted, `false`) vs. OIDC (`true`); set via Ansible `group_vars` → `.env.j2`. *Does not depend on OIDC, RBAC, or subdomain routing — implement immediately after Phase 1.*
+
+   → **Full implementation detail, sequenced task list, and test matrix:** [`docs/feature_iphone_qr_code_support.md`](feature_iphone_qr_code_support.md)
 
 **Phase 2 — Full SaaS Mode** *(post-release; each step is independently shippable)*
 
-> **iOS note:** Steps that affect the web UI have parallel iOS app counterparts. Specifically: step 4 (QR guest upload — guest upload mode with no login), step 6 (subdomain tenant routing), step 7 (OIDC login via Google/Apple), and step 8 (RBAC session enforcement). iOS App Store submission requires Sign in with Apple if any third-party login is offered (step 7). Track these as implementation subtasks within each step rather than separate steps.
+> **iOS note:** Steps 6, 7, and 8 have parallel iOS app counterparts: step 6 (subdomain tenant routing), step 7 (OIDC login via Google/Apple), and step 8 (RBAC session enforcement). iOS App Store submission requires Sign in with Apple if any third-party login is offered (step 7). Track these as implementation subtasks within each step rather than separate steps.
 
-4. Implement per-event QR code upload links — signed URL encodes `event_id` + expiry + HMAC; fan scans QR → web upload form or iOS app; optional self-reported display name (stored in a new `event_upload_tokens` table alongside `token_hash`, `event_id`, `expires_at`, `is_active`; anon display name stored per-upload in a new `anon_upload_attributions` table keyed to the upload job); anonymous upload form must include a ToS acceptance checkbox (anonymous users have no JIT provisioning flow); no OIDC, no account created; owner can revoke; improves on today's zero-attribution shared-password model. *Tenant isolation note: these new tables do not need a direct `tenant_id` column — tenant scope is derived through their FK chain (`event_upload_tokens.event_id` → `events.tenant_id`; `anon_upload_attributions.upload_job_id` → `upload_jobs.tenant_id`). Create them with these FKs from day one.* *Does not depend on OIDC, RBAC, or subdomain routing — implement this immediately after Track 1 as a standalone quick win*
-5. Add `SAAS_MODE` env flag — Basic Auth preserved for self-hosted when `false`; OIDC required when `true`; must be in place before any OIDC code ships; **deployment convention: `SAAS_MODE` is set via Ansible `group_vars` (e.g. `saas_mode: false` for self-hosted environments, `saas_mode: true` for the SaaS deployment) and rendered into the `.env` file via the `.env.j2` template** — not hardcoded; self-hosted installs default to `false` without any change to their existing `group_vars`
-6. Establish subdomain routing — wildcard DNS `*.gighive.app` + wildcard TLS (Cloudflare handles both); front controller extracts slug and resolves tenant; reserve blocked subdomains (`www`, `api`, `auth`, `admin`, `billing`, `login`, `signup`, etc.); single shared OIDC callback at `gighive.app/auth/callback` with tenant slug in `state` parameter; **CSRF protection: `state` must encode both the tenant slug AND a random nonce, and optionally an invite token reference** (e.g. JSON `{"slug":"band-foo","nonce":"<random>","invite_token_id":<id_or_null>}` base64-encoded), where the nonce is stored server-side in the pre-redirect session and verified on callback — without this the callback endpoint is forgeable; the `invite_token_id` field is null for self-serve signup and set to the `contributor_invite_tokens.token_id` for invite redemptions — the callback handler uses this to distinguish the two JIT provisioning paths (see Phase 4 item 1)
-7. Implement OIDC federation — Google, Microsoft, Apple; Authorization Code Flow; single shared callback handler; JIT user provisioning on first login; **ToS/Privacy Policy gate fires here on any first login regardless of path**; *GDPR/CCPA timing gap: data subject rights obligations begin the moment the first real user accepts ToS at this step. Hard delete (step 17) does not exist yet — any deletion request between steps 7 and 17 must be handled as a manual database operation* (self-serve signup, contributor invite, or direct login — every new `users` row must record ToS version + acceptance timestamp before the user reaches the application)
-8. Build RBAC middleware — `Auth.php` session gate; enforce `owner` / `contributor` / `viewer` / `superadmin` on every page and API endpoint; **the middleware must check `tenants.is_public` before requiring a session** — requests for public-tenant content must pass through without login (the `is_public` column is already on `tenants` from step 1; the toggle UI is wired in step 12); **the QR upload route from step 4 must be explicitly exempted from the session gate** — it is secured by HMAC signature validation, not by session; removing Basic Auth in this step must not break that endpoint; **`SAAS_MODE=false` local auth: a simple PHP login form must be shipped as part of this step** — it validates a hashed password from `.env`, sets the same `$_SESSION` keys as the OIDC path, and grants `owner` role for `tenant_id = 1`; without this, every self-hosted install upgrading through this release is locked out (see Coexistence section above); *drop the `DEFAULT 1` from all `tenant_id` columns at this step — the RBAC middleware now enforces tenant context on every request, so the transitional default added in step 2 is no longer needed and should be removed to prevent silent data leaks from any INSERT that omits `tenant_id`*
-9. Replace shared htpasswd with signed contributor invite links — tenant owner generates; guest authenticates via any supported IDP; single-use and expiring; *Quota timing gap: uploads from steps 4 and 9 onwards accumulate without any measurement or enforcement until step 13 ships. Prioritize step 13 immediately after launch to close this window*
-10. Migrate file storage to tenant-scoped paths; add session-gated media serving (PHP passthrough or X-Sendfile); migration scope includes all existing files including those uploaded via QR links in step 4 (which land in the flat filesystem pre-migration); ***breaking upgrade for all install types*** — self-hosted installs upgrading to any release containing this change must run the one-time file migration script to move existing media into `/<tenant-id>/` subdirectories; do not ship this without the migration script
+6. Establish subdomain routing — wildcard DNS `*.gighive.app` + wildcard TLS (Cloudflare handles both); front controller extracts slug and resolves tenant; reserve blocked subdomains (`www`, `api`, `auth`, `admin`, `billing`, `login`, `signup`, etc.); single shared OIDC callback at `gighive.app/auth/callback` with tenant slug in `state` parameter; **CSRF protection: `state` must encode both the tenant slug AND a random nonce, and optionally an invite token reference** (e.g. JSON `{"slug":"band-foo","nonce":"<random>","invite_token_id":<id_or_null>}` base64-encoded), where the nonce is stored server-side in the pre-redirect session and verified on callback — without this the callback endpoint is forgeable; the `invite_token_id` field is null for self-serve signup and set to the `contributor_invite_tokens.token_id` for invite redemptions — the callback handler uses this to distinguish the two JIT provisioning paths (see step 9)
+7. Implement OIDC federation — Google, Microsoft, Apple; Authorization Code Flow; single shared callback handler; JIT user provisioning on first login; **ToS/Privacy Policy gate fires here on any first login regardless of path**; **the callback handler owns `tenants` row creation for new self-serve signups** — `users.tenant_id` is `NOT NULL`, so the `tenants` row must be inserted atomically before the `users` row; the three provisioning paths are: (a) self-serve signup (`invite_token_id` null in state) → create `tenants` row → create `users` row with new `tenant_id`; (b) contributor invite (`invite_token_id` set) → validate invite token → look up existing `tenants` row → create `users` row; (c) returning user → find existing `users` row → no row creation; *GDPR/CCPA timing gap: data subject rights obligations begin the moment the first real user accepts ToS at this step. Hard delete (step 17) does not exist yet — any deletion request between steps 7 and 17 must be handled as a manual database operation* (self-serve signup, contributor invite, or direct login — every new `users` row must record ToS version + acceptance timestamp before the user reaches the application)
+8. Build RBAC middleware — `Auth.php` session gate; enforce `owner` / `contributor` / `viewer` / `superadmin` on every page and API endpoint; **the middleware must check `tenants.is_public` before requiring a session** — requests for public-tenant content must pass through without login (the `is_public` column is already on `tenants` from step 1; the toggle UI is wired in step 12); **the QR upload route from step 5 must be explicitly exempted from the session gate** — it is secured by CSPRNG token hash validation (DB lookup), not by session; removing Basic Auth in this step must not break that endpoint; **`SAAS_MODE=false` local auth: a simple PHP login form must be shipped as part of this step** — it validates a hashed password from `.env`, sets the same `$_SESSION` keys as the OIDC path, and grants `owner` role for `tenant_id = 1`; without this, every self-hosted install upgrading through this release is locked out (see Coexistence section above); *drop the `DEFAULT 1` from all `tenant_id` columns at this step — the RBAC middleware now enforces tenant context on every request, so the transitional default added in step 2 is no longer needed and should be removed to prevent silent data leaks from any INSERT that omits `tenant_id`*
+9. Replace shared htpasswd with signed contributor invite links — tenant owner generates; guest authenticates via any supported IDP; single-use and expiring; *Quota timing gap: uploads from steps 5 and 9 onwards accumulate without any measurement or enforcement until step 13 ships. Prioritize step 13 immediately after launch to close this window*
+10. Migrate file storage to tenant-scoped paths; add session-gated media serving (PHP passthrough or X-Sendfile); migration scope includes all existing files including those uploaded via QR links in step 5 (which land in the flat filesystem pre-migration); ***breaking upgrade for all install types*** — self-hosted installs upgrading to any release containing this change must run the one-time file migration script to move existing media into `/<tenant-id>/` subdirectories; do not ship this without the migration script
 11. Implement public/private content visibility — **backend only in this step**: wire `tenants.is_public` enforcement into the auth middleware (already built in step 8, which must have been designed `is_public`-aware); default is private (`is_public = 0`); the owner-facing UI toggle lives on the tenant settings page built in step 12; per-event granularity deferred as a future enhancement
 12. Build tenant settings page + self-serve signup + onboarding flow — the tenant settings page is the owner UI shell; **this step wires the visibility toggle UI for step 11** (backend was done there, UI switch lives here), and provides the housing for the quota bar (step 13) and rate limit config (step 18) as those features are built; onboarding: OIDC signup creates tenant row; empty state shows brand message + two CTAs (import existing media / invite contributors); ToS acceptance is enforced at JIT provisioning (step 7), not here — this step covers the first-run UX only
 13. Storage quota tracking — track per-tenant bytes used (blob storage is the cost driver; record count is negligible); surface usage bar on owner dashboard; enforce at upload time with a graceful error; alert at configurable threshold; *initial implementation measures local filesystem bytes — quota measurement mechanism must be updated in step 19 when object storage is adopted*
@@ -178,7 +254,7 @@ model enforces tenant isolation.
 | Concern | Current state |
 |---|---|
 | Auth | Apache Basic Auth via `.htpasswd`; one `admin` user per install |
-| Database | Single DB (`music_db`), no tenant column on most tables |
+| Database | Single DB (`media_db`), no tenant column on most tables |
 | `org_name` on `events` | Free-text label, not a FK — used as a discriminator but not enforced |
 | File storage | Flat local filesystem under `/var/www/html/audio/` and `/var/www/html/video/` |
 | `users` table | Exists (email/password/activation) but has no FK to any data table |
@@ -233,6 +309,13 @@ model enforces tenant isolation.
      `uq_taggings_tag_target` from `UNIQUE (tag_id, target_type, target_id)` to
      `UNIQUE (tenant_id, tag_id, target_type, target_id)` — the current constraint
      collides across tenants because `target_id` is a raw polymorphic integer.
+     *Denormalised here means the tenant could technically be derived by following
+     the FK chain (`taggings.run_id → helper_runs.job_id → ai_jobs.tenant_id`) for
+     AI-created rows — but we store it directly on `taggings` anyway for query
+     efficiency. We still add a proper FK constraint (`REFERENCES tenants`) because
+     human-created taggings have `run_id = NULL` and have no chain to follow, so
+     `tenant_id` is their only tenant anchor. The FK enforces referential integrity
+     on all rows regardless of source.*
    - `catalog_scans` — add `tenant_id`; the `org_name` column here is free-text
      with no FK to `events`, so tenant scope cannot be derived from any existing
      FK chain.
@@ -306,25 +389,30 @@ model enforces tenant isolation.
 - The existing `org_name` values on `events` remain valid as sub-labels
   within that tenant.
 
-### Step 4 — Anonymous Upload Link Tables
+### Step 5 — Anonymous Upload Link Tables
 
-These two tables are created in Phase 2 step 4 (not in the initial Phase 1
-migration). They do not need a direct `tenant_id` column — tenant scope is
+These two tables are created as part of Phase 1 steps 1–4 (the combined DB migration). They do not need a direct `tenant_id` column — tenant scope is
 derived through their FK chain.
 
 ```sql
 CREATE TABLE event_upload_tokens (
   token_id    bigint unsigned NOT NULL AUTO_INCREMENT,
   event_id    int unsigned    NOT NULL,
-  token_hash  char(64)        NOT NULL  COMMENT 'SHA-256 of the raw signed token',
+  token_hash  char(64)        NOT NULL  COMMENT 'SHA-256 hex of the raw CSPRNG token; raw token is never stored',
   expires_at  datetime        NOT NULL,
-  is_active   tinyint(1)      NOT NULL DEFAULT 1,
-  created_at  datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  is_active           tinyint(1)      NOT NULL DEFAULT 1,
+  created_by_user_id  int unsigned    DEFAULT NULL  COMMENT 'user_id of owner who generated the token; NULL pre-step-7 (Basic Auth era)',
+  created_at          datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (token_id),
   UNIQUE KEY uq_event_upload_tokens_hash (token_hash),
   KEY idx_event_upload_tokens_event (event_id),
+  KEY idx_event_upload_tokens_creator (created_by_user_id),
   CONSTRAINT fk_eut_event FOREIGN KEY (event_id)
     REFERENCES events (event_id) ON DELETE CASCADE
+  -- fk_eut_created_by deferred to step 7: ALTER TABLE event_upload_tokens
+  --   ADD CONSTRAINT fk_eut_created_by FOREIGN KEY (created_by_user_id)
+  --   REFERENCES users (id) ON DELETE SET NULL;
+  -- No users table exists in Phase 1a.
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE anon_upload_attributions (
@@ -746,7 +834,7 @@ Simplest operationally; requires rigorous query discipline to never leak
 cross-tenant data. Suitable for v1 SaaS.
 
 **Option B — Schema-per-tenant**
-One MySQL schema per tenant (`music_db_band_foo`, `music_db_band_bar`).
+One MySQL schema per tenant (`media_db_band_foo`, `media_db_band_bar`).
 Strong isolation, simpler queries (no `WHERE tenant_id`), but schema
 migrations must run N times and connection pooling is harder.
 
@@ -903,14 +991,18 @@ session_set_cookie_params([
 Also set `session.gc_maxlifetime` appropriately (e.g. 8 hours) in `php.ini`
 or via `ini_set`.
 
-**SEC-6 — HMAC signing key management for QR tokens and invite links (steps 4, 9)**
-*Risk:* Both QR upload signed URLs and contributor invite links rely on HMAC
-signatures. If the key is weak, hardcoded, or predictable, tokens can be forged.
+**SEC-6a — QR upload token security (step 4)**
+*Design:* QR tokens are opaque CSPRNG tokens (32 bytes, base64url-encoded); the server stores only `SHA-256(raw_token)`. Security comes from 256-bit entropy — no HMAC signing key is required, managed, or rotatable. There is no `APP_HMAC_KEY` dependency for QR tokens.
+*Risk:* Token entropy is only as strong as the CSPRNG. Using `rand()`, `mt_rand()`, or `uniqid()` would make tokens guessable.
+*Remediation:* Use `random_bytes(32)` in PHP and `SecRandomCopyBytes` on iOS exclusively. Store only the hash. This is enforced in the implementation spec.
+
+**SEC-6b — HMAC signing key management for contributor invite links (step 9)**
+*Risk:* Contributor invite links rely on HMAC signatures. If the key is weak, hardcoded, or predictable, invite tokens can be forged.
 There is no rotation strategy in the plan.
-*Remediation:* Use a single env var `APP_HMAC_KEY` containing ≥32 bytes of
+*Remediation:* Use env var `APP_HMAC_KEY` containing ≥32 bytes of
 cryptographically random data (generated at deploy time via `openssl rand -hex
 32`). Use `hash_hmac('sha256', $payload, $key)`. Document that rotating
-`APP_HMAC_KEY` invalidates all outstanding QR tokens and invite links — warn
+`APP_HMAC_KEY` invalidates all outstanding invite links — warn
 operators before rotation. Consider including a key version prefix in the token
 (e.g. `v1:<hmac>`) so future rotation can support a brief overlap window.
 
@@ -964,8 +1056,10 @@ is a stored XSS vector.
 *Remediation:* (a) Sanitize at write time: strip or reject any HTML/JS.
 (b) Enforce length limit (e.g. 100 chars) in both the upload form and the DB
 insert. (c) Escape on output with `htmlspecialchars($name, ENT_QUOTES, 'UTF-8')`
-wherever `display_name` is rendered. (d) Consider adding a `Content-Security-Policy`
-header that blocks inline scripts platform-wide.
+wherever `display_name` is rendered. (d) Set a `Content-Security-Policy` header
+on all pages that render `display_name` — this is a requirement, not optional.
+See implementation spec `docs/feature_iphone_qr_code_support.md` SEC-16 for the
+exact CSP directive. At minimum: `default-src 'self'; script-src 'self'`.
 
 **SEC-10 — No rate limiting on auth endpoints before step 18 (steps 7–17 window)**
 *Risk:* `/auth/callback` and the upload endpoints have no per-IP or per-token
@@ -985,18 +1079,20 @@ This does not need to wait for the full rate-limit config page in step 18.
 *Risk:* Two requests arriving simultaneously with the same single-use invite
 token could both pass an `is_active = 1` check before either sets it to 0,
 provisioning two accounts from one invite.
-*Remediation:* Use an atomic update-and-check pattern:
+*Remediation:* Use an atomic update-and-check pattern against `contributor_invite_tokens`:
 ```sql
--- For QR upload tokens (event_upload_tokens table):
-UPDATE event_upload_tokens SET is_active = 0
+UPDATE contributor_invite_tokens SET is_active = 0
 WHERE token_hash = ? AND is_active = 1 AND expires_at > NOW();
 ```
 Check `$stmt->rowCount() === 1` before proceeding. If zero rows updated, the
 token was already used or expired — reject the request.
 
-*Note:* The contributor invite links (step 9) use the same pattern against
-`contributor_invite_tokens`. The DDL for that table is defined in Section 2d.
-The same `rowCount() === 1` check applies there.
+*Important:* **Do NOT apply this pattern to `event_upload_tokens` (QR upload
+tokens).** QR upload tokens are multi-use — many fans scan the same QR code
+for the same event. The owner revokes a QR token manually by setting
+`is_active = 0`. Setting it to 0 on the first upload would invalidate the token
+for all subsequent fans. The race-condition concern does not apply because
+multiple concurrent uploads from the same QR token are expected and valid.
 
 **SEC-12 — Apple `display_name` arrives only once (step 7)**
 *Risk:* Apple sends the user's name only on the first authorization. A code
@@ -1192,3 +1288,221 @@ addressed during initial implementation and an expensive refactor later.
   `tenant_id` scoping and quota enforcement are new concerns.
 - The existing Ansible + Docker Compose stack continues to work for
   self-hosted single-tenant installs; SaaS is a separate deployment track.
+
+---
+
+## Database Migration
+
+### Step 2 — Apply Combined DB Migration *(repeat per environment)*
+
+Apply the combined live migration to an existing `media_db`. Run after Step 1 (`create_media_db.sql` update) is committed.
+
+**Prerequisite:** Complete Step 1 before running Step 2 on any environment. The Ansible rebuild in Step 3 will fail or produce a stale schema if `create_media_db.sql` is not already updated.
+
+---
+
+**A. Take a pre-migration backup**
+
+Before touching anything, capture the current state. From the **docker host**:
+
+```bash
+docker exec -i mysqlServer sh -lc \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -h 127.0.0.1 -u root \
+   --single-transaction --quick --lock-tables=0 --routines --events --triggers \
+   --default-character-set=utf8mb4 --databases "$MYSQL_DATABASE" | gzip' \
+  > pre_migration_$(date +%Y-%m-%d).sql.gz
+```
+
+This is your rollback — if anything goes wrong before step C, restore this file via `admin_system.php` (Section B).
+
+---
+
+**B. Apply the combined migration via single docker command**
+
+```bash
+docker exec -i mysqlServer sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"' << 'MIGRATION'
+
+-- ── Tenant schema (Phase 1 steps 1–3) ────────────────────────────────────────
+
+-- 1. Create tenants table and seed the single existing install as tenant 1
+CREATE TABLE IF NOT EXISTS tenants (
+  tenant_id              int unsigned NOT NULL AUTO_INCREMENT,
+  slug                   varchar(64)  NOT NULL,
+  display_name           varchar(255) NOT NULL,
+  plan                   enum('free','pro','enterprise') NOT NULL DEFAULT 'free',
+  is_active              tinyint(1)   NOT NULL DEFAULT 1,
+  is_public              tinyint(1)   NOT NULL DEFAULT 0,
+  stripe_customer_id     varchar(64)  DEFAULT NULL,
+  stripe_subscription_id varchar(64)  DEFAULT NULL,
+  plan_expires_at        datetime     DEFAULT NULL,
+  created_at             datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at             datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (tenant_id),
+  UNIQUE KEY uq_tenants_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO tenants (tenant_id, slug, display_name, plan, is_active)
+  VALUES (1, 'default', 'Default', 'free', 1);
+
+-- 2. events: add tenant_id, replace instance-wide unique with per-tenant unique
+ALTER TABLE events
+  ADD COLUMN  tenant_id int unsigned NOT NULL DEFAULT 1 AFTER event_id,
+  DROP INDEX  uq_events_date_org,
+  ADD CONSTRAINT uq_events_tenant_date_org UNIQUE (tenant_id, event_date, org_name),
+  ADD CONSTRAINT fk_events_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id);
+
+-- 3. assets: add tenant_id, scope checksum deduplication per tenant
+ALTER TABLE assets
+  ADD COLUMN  tenant_id int unsigned NOT NULL DEFAULT 1 AFTER asset_id,
+  DROP INDEX  uq_assets_checksum,
+  ADD CONSTRAINT uq_assets_tenant_checksum UNIQUE (tenant_id, checksum_sha256),
+  ADD CONSTRAINT fk_assets_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id);
+
+-- 4. participants: add tenant_id, scope name uniqueness per tenant
+--    The inline UNIQUE on the name column creates an index named 'name' in MySQL.
+ALTER TABLE participants
+  ADD COLUMN  tenant_id int unsigned NOT NULL DEFAULT 1 AFTER participant_id,
+  DROP INDEX  name,
+  ADD CONSTRAINT uq_participants_tenant_name UNIQUE (tenant_id, name),
+  ADD CONSTRAINT fk_participants_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id);
+
+-- 5. upload_jobs: add tenant_id
+ALTER TABLE upload_jobs
+  ADD COLUMN  tenant_id int unsigned NOT NULL DEFAULT 1 AFTER id,
+  ADD KEY idx_upload_jobs_tenant (tenant_id),
+  ADD CONSTRAINT fk_upload_jobs_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id);
+
+-- 6. ai_jobs: add tenant_id
+ALTER TABLE ai_jobs
+  ADD COLUMN  tenant_id int unsigned NOT NULL DEFAULT 1 AFTER id,
+  ADD KEY idx_ai_jobs_tenant (tenant_id),
+  ADD CONSTRAINT fk_ai_jobs_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id);
+
+-- 7. taggings: add tenant_id, scope tag+target uniqueness per tenant
+--    idx_taggings_tag added to give fk_taggings_tag a covering index after uq_taggings_tag_target
+--    (which starts with tag_id) is dropped; the new unique starts with tenant_id, not tag_id.
+ALTER TABLE taggings
+  ADD COLUMN  tenant_id int unsigned NOT NULL DEFAULT 1 AFTER id,
+  ADD KEY idx_taggings_tag (tag_id),
+  DROP INDEX  uq_taggings_tag_target,
+  ADD CONSTRAINT uq_taggings_tenant_tag_target UNIQUE (tenant_id, tag_id, target_type, target_id),
+  ADD CONSTRAINT fk_taggings_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id);
+
+-- 8. catalog_scans: add tenant_id (org_name is free-text; tenant cannot be derived via FK)
+ALTER TABLE catalog_scans
+  ADD COLUMN  tenant_id int unsigned NOT NULL DEFAULT 1 AFTER scan_id,
+  ADD KEY idx_catalog_scans_tenant (tenant_id),
+  ADD CONSTRAINT fk_catalog_scans_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id);
+
+-- 9. catalog_entries: add tenant_id, scope path_hash uniqueness per tenant
+ALTER TABLE catalog_entries
+  ADD COLUMN  tenant_id int unsigned NOT NULL DEFAULT 1 AFTER catalog_entry_id,
+  DROP INDEX  uq_catalog_entries_path_hash,
+  ADD CONSTRAINT uq_catalog_entries_tenant_path_hash UNIQUE (tenant_id, path_hash),
+  ADD CONSTRAINT fk_catalog_entries_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id);
+
+-- 10. Recreate users table — legacy email/password schema replaced with OIDC-native schema.
+--     No data migration risk: the existing users table was never wired to any data table.
+DROP TABLE IF EXISTS users;
+CREATE TABLE users (
+  id              int unsigned  NOT NULL AUTO_INCREMENT,
+  tenant_id       int unsigned  NOT NULL,
+  idp_provider    varchar(32)   NOT NULL DEFAULT 'local'
+                                COMMENT 'google | microsoft | apple | local',
+  idp_subject     varchar(255)  DEFAULT NULL
+                                COMMENT 'IDP sub/oid claim — globally unique per provider',
+  role            enum('owner','contributor','viewer','superadmin')
+                                NOT NULL DEFAULT 'viewer',
+  email           varchar(255)  DEFAULT NULL
+                                COMMENT 'Display/contact only — not an auth credential',
+  display_name    varchar(255)  DEFAULT NULL,
+  avatar_url      varchar(1024) DEFAULT NULL,
+  tos_version     varchar(32)   DEFAULT NULL
+                                COMMENT 'ToS version accepted, e.g. "2024-01"',
+  tos_accepted_at datetime      DEFAULT NULL
+                                COMMENT 'NULL means ToS not yet accepted',
+  created_at      datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_users_idp (idp_provider, idp_subject),
+  KEY idx_users_tenant (tenant_id),
+  CONSTRAINT fk_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── QR code upload feature (Phase 1a step 5) ─────────────────────────────────
+
+-- 11. QR upload tokens — no tenant_id needed; scope derives via event_id → events.tenant_id
+CREATE TABLE IF NOT EXISTS event_upload_tokens (
+  token_id            bigint unsigned NOT NULL AUTO_INCREMENT,
+  event_id            INT             NOT NULL,
+  token_hash          char(64)        NOT NULL  COMMENT 'SHA-256 hex of the raw token; raw token is never stored',
+  expires_at          datetime        NOT NULL,
+  is_active           tinyint(1)      NOT NULL DEFAULT 1,
+  created_by_user_id  int unsigned    DEFAULT NULL
+                                      COMMENT 'user_id of owner; NULL pre-step-7 (Basic Auth era)',
+  created_at          datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (token_id),
+  UNIQUE KEY uq_event_upload_tokens_hash (token_hash),
+  KEY idx_event_upload_tokens_event (event_id),
+  KEY idx_event_upload_tokens_creator (created_by_user_id),
+  CONSTRAINT fk_eut_event FOREIGN KEY (event_id)
+    REFERENCES events (event_id) ON DELETE CASCADE
+  -- fk_eut_created_by deferred to step 7:
+  --   ALTER TABLE event_upload_tokens ADD CONSTRAINT fk_eut_created_by
+  --   FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 12. Anonymous upload attribution — scope derives via upload_job_id → upload_jobs.tenant_id
+CREATE TABLE IF NOT EXISTS anon_upload_attributions (
+  attribution_id  bigint unsigned NOT NULL AUTO_INCREMENT,
+  token_id        bigint unsigned NOT NULL,
+  upload_job_id   varchar(64)     NOT NULL,
+  display_name    varchar(255)    DEFAULT NULL  COMMENT 'Self-reported fan display name; max 100 chars enforced in app layer',
+  tos_accepted_at datetime        NOT NULL      COMMENT 'Timestamp of anonymous ToS acceptance',
+  created_at      datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (attribution_id),
+  KEY idx_anon_upload_token (token_id),
+  KEY idx_anon_upload_job (upload_job_id),
+  CONSTRAINT fk_aua_token FOREIGN KEY (token_id)
+    REFERENCES event_upload_tokens (token_id) ON DELETE CASCADE,
+  CONSTRAINT fk_aua_job FOREIGN KEY (upload_job_id)
+    REFERENCES upload_jobs (job_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+MIGRATION
+```
+
+**Notes on step B:**
+- `DEFAULT 1` on each new `tenant_id` column backfills all existing rows automatically — no separate UPDATE needed.
+- `event_upload_tokens` and `anon_upload_attributions` use `IF NOT EXISTS` — safe to re-run if the command is interrupted after the ALTER statements complete.
+- The ALTER statements are not idempotent — if step B is interrupted mid-way, restore from the step A backup and re-run from scratch.
+
+---
+
+**C. Take a post-migration backup via admin_system.php**
+
+Use Section C ("Create Backup Now") in `admin_system.php`. This produces a timestamped `.sql.gz` full dump (schema + data + routines) and updates the `_latest.sql.gz` symlink. This is the backup used in Step 4.
+
+**Rollback options for Step 2:**
+- **Before step C completes:** restore the step A backup via `admin_system.php`.
+- **After step C:** restore the step C backup — it captures the fully migrated state.
+- **QR tables only (if needed in isolation):** `DROP TABLE IF EXISTS anon_upload_attributions; DROP TABLE IF EXISTS event_upload_tokens;`
+
+---
+
+### Step 3 — Rebuild MySQL from `create_media_db.sql` *(repeat per environment)*
+
+Destroys the MySQL container's data volume and reinitializes from scratch using the updated `create_media_db.sql` as a Docker init script. Verifies the DDL file runs cleanly end-to-end.
+
+1. Confirm the Step 2 post-migration backup (`admin_system.php` Section C backup) exists and is accessible.
+2. Set `rebuild_mysql_data: true` in the environment's `group_vars`.
+3. Run the Ansible playbook.
+4. **Reset `rebuild_mysql_data: false` in `group_vars` immediately after the rebuild completes** — leaving it `true` will wipe the DB on the next routine Ansible run.
+
+---
+
+### Step 4 — Restore DB from Post-Migration Backup *(repeat per environment)*
+
+Use Section B ("Restore Database From Backup") in `admin_system.php`, selecting the Step 2 post-migration backup (the `admin_system.php` Section C backup, not the pre-migration one). The restore pipes `zcat backup.sql.gz | mysql` — the dump's embedded `CREATE DATABASE / USE / DROP TABLE IF EXISTS` statements fully replace the Ansible-built schema with the correct migrated state.
+
+Once restore is confirmed good (smoke test the app), git commit `create_media_db.sql` and any related changes.

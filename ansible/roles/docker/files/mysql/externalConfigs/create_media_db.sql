@@ -3,10 +3,33 @@ CREATE DATABASE media_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_c
 USE media_db;  -- ensure subsequent statements target media_db
 
 /****************************
+ * SaaS — Tenants           *
+ ****************************/
+CREATE TABLE tenants (
+  tenant_id              int unsigned  NOT NULL AUTO_INCREMENT,
+  slug                   varchar(64)   NOT NULL,
+  display_name           varchar(255)  NOT NULL,
+  plan                   enum('free','pro','enterprise') NOT NULL DEFAULT 'free',
+  is_active              tinyint(1)    NOT NULL DEFAULT 1,
+  is_public              tinyint(1)    NOT NULL DEFAULT 0,
+  stripe_customer_id     varchar(64)   DEFAULT NULL,
+  stripe_subscription_id varchar(64)   DEFAULT NULL,
+  plan_expires_at        datetime      DEFAULT NULL,
+  created_at             datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at             datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (tenant_id),
+  UNIQUE KEY uq_tenants_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO tenants (tenant_id, slug, display_name, plan, is_active)
+  VALUES (1, 'default', 'Default', 'free', 1);
+
+/****************************
  * Canonical core entities  *
  ****************************/
 CREATE TABLE assets (
-    asset_id INT PRIMARY KEY AUTO_INCREMENT,
+    asset_id        INT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id       int unsigned NOT NULL DEFAULT 1,
     checksum_sha256 CHAR(64) NULL,
     file_type ENUM('audio','video') NOT NULL,
     file_ext VARCHAR(16) NULL,
@@ -20,12 +43,14 @@ CREATE TABLE assets (
     media_created_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT uq_assets_checksum UNIQUE (checksum_sha256)
+    CONSTRAINT uq_assets_tenant_checksum UNIQUE (tenant_id, checksum_sha256),
+    CONSTRAINT fk_assets_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE events (
-    event_id  INT PRIMARY KEY AUTO_INCREMENT,
-    event_key CHAR(36) NOT NULL,
+    event_id   INT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id  int unsigned NOT NULL DEFAULT 1,
+    event_key  CHAR(36) NOT NULL,
     event_date DATE NOT NULL,
     org_name VARCHAR(128) NOT NULL DEFAULT 'default',
     event_type ENUM('band','wedding','other') DEFAULT NULL,
@@ -41,8 +66,9 @@ CREATE TABLE events (
     explicit TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT uq_events_key      UNIQUE (event_key),
-    CONSTRAINT uq_events_date_org   UNIQUE (event_date, org_name)
+    CONSTRAINT uq_events_key             UNIQUE (event_key),
+    CONSTRAINT uq_events_tenant_date_org UNIQUE (tenant_id, event_date, org_name),
+    CONSTRAINT fk_events_tenant          FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE event_items (
@@ -64,9 +90,12 @@ CREATE TABLE event_items (
  ********************/
 CREATE TABLE participants (
     participant_id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    tenant_id      int unsigned NOT NULL DEFAULT 1,
+    name           VARCHAR(255) NOT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT uq_participants_tenant_name UNIQUE (tenant_id, name),
+    CONSTRAINT fk_participants_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE event_participants (
@@ -82,23 +111,36 @@ CREATE TABLE event_participants (
  * Auth             *
  ********************/
 CREATE TABLE users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password_hash CHAR(60) NOT NULL,
-  is_active TINYINT(1) NOT NULL DEFAULT 0,
-  activation_token CHAR(32) NULL,
-  reset_token CHAR(32) NULL,
-  reset_expires DATETIME NULL,
-  failed_logins INT NOT NULL DEFAULT 0,
-  locked_until DATETIME NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  id              int unsigned  NOT NULL AUTO_INCREMENT,
+  tenant_id       int unsigned  NOT NULL,
+  idp_provider    varchar(32)   NOT NULL DEFAULT 'local'
+                                COMMENT 'google | microsoft | apple | local',
+  idp_subject     varchar(255)  DEFAULT NULL
+                                COMMENT 'IDP sub/oid claim — globally unique per provider',
+  role            enum('owner','contributor','viewer','superadmin')
+                                NOT NULL DEFAULT 'viewer',
+  email           varchar(255)  DEFAULT NULL
+                                COMMENT 'Display/contact only — not an auth credential',
+  display_name    varchar(255)  DEFAULT NULL,
+  avatar_url      varchar(1024) DEFAULT NULL,
+  tos_version     varchar(32)   DEFAULT NULL
+                                COMMENT 'ToS version accepted, e.g. "2024-01"',
+  tos_accepted_at datetime      DEFAULT NULL
+                                COMMENT 'NULL means ToS not yet accepted',
+  created_at      datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_users_idp (idp_provider, idp_subject),
+  KEY idx_users_tenant (tenant_id),
+  CONSTRAINT fk_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /****************************
  * AI Platform              *
  ****************************/
 CREATE TABLE IF NOT EXISTS ai_jobs (
   id          BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  tenant_id   int unsigned     NOT NULL DEFAULT 1,
   job_type    VARCHAR(64)      NOT NULL,
   source      VARCHAR(64)      NULL,
   target_type ENUM('asset','event','event_item','participant') NOT NULL,
@@ -113,7 +155,9 @@ CREATE TABLE IF NOT EXISTS ai_jobs (
   created_at  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_ai_jobs_claim  (status, job_type, priority, created_at),
-  KEY idx_ai_jobs_target (target_type, target_id)
+  KEY idx_ai_jobs_target (target_type, target_id),
+  KEY idx_ai_jobs_tenant (tenant_id),
+  CONSTRAINT fk_ai_jobs_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS helper_runs (
@@ -157,6 +201,7 @@ CREATE TABLE IF NOT EXISTS tags (
 
 CREATE TABLE IF NOT EXISTS taggings (
   id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  tenant_id     int unsigned    NOT NULL DEFAULT 1,
   tag_id        BIGINT UNSIGNED NOT NULL,
   target_type   ENUM('asset','event','event_item','segment') NOT NULL,
   target_id     BIGINT UNSIGNED NOT NULL,
@@ -166,12 +211,14 @@ CREATE TABLE IF NOT EXISTS taggings (
   source        ENUM('ai','human') NOT NULL DEFAULT 'ai',
   run_id        BIGINT UNSIGNED NULL,
   created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_taggings_tag_target (tag_id, target_type, target_id),
+  UNIQUE KEY uq_taggings_tenant_tag_target (tenant_id, tag_id, target_type, target_id),
+  KEY idx_taggings_tag        (tag_id),
   KEY idx_taggings_target     (target_type, target_id),
   KEY idx_taggings_run        (run_id),
   KEY idx_taggings_source     (source),
-  CONSTRAINT fk_taggings_tag FOREIGN KEY (tag_id) REFERENCES tags (id),
-  CONSTRAINT fk_taggings_run FOREIGN KEY (run_id) REFERENCES helper_runs (id)
+  CONSTRAINT fk_taggings_tag    FOREIGN KEY (tag_id)    REFERENCES tags (id),
+  CONSTRAINT fk_taggings_run    FOREIGN KEY (run_id)    REFERENCES helper_runs (id),
+  CONSTRAINT fk_taggings_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /****************************
@@ -179,6 +226,7 @@ CREATE TABLE IF NOT EXISTS taggings (
  ****************************/
 CREATE TABLE IF NOT EXISTS upload_jobs (
     id           INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    tenant_id    int unsigned NOT NULL DEFAULT 1,
     job_id       VARCHAR(64)  NOT NULL,
     job_type     VARCHAR(32)  NOT NULL DEFAULT 'manifest_import',
     status       VARCHAR(32)  NOT NULL DEFAULT 'in_progress',
@@ -187,7 +235,9 @@ CREATE TABLE IF NOT EXISTS upload_jobs (
     completed_at DATETIME     NULL,
     UNIQUE KEY uq_upload_jobs_job_id (job_id),
     INDEX        idx_upload_jobs_started (started_at),
-    INDEX        idx_upload_jobs_status  (status)
+    INDEX        idx_upload_jobs_status  (status),
+    KEY          idx_upload_jobs_tenant  (tenant_id),
+    CONSTRAINT   fk_upload_jobs_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS upload_job_files (
@@ -222,6 +272,7 @@ CREATE TABLE IF NOT EXISTS upload_job_files (
  ****************************/
 CREATE TABLE IF NOT EXISTS catalog_scans (
     scan_id           INT UNSIGNED    NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    tenant_id         int unsigned    NOT NULL DEFAULT 1,
     source_root       VARCHAR(1024)   NOT NULL,
     scan_label        VARCHAR(255)    NULL,
     org_name          VARCHAR(128)    NULL,
@@ -246,11 +297,14 @@ CREATE TABLE IF NOT EXISTS catalog_scans (
     created_at        TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_catalog_scans_status (status),
-    INDEX idx_catalog_scans_source (source_root(255))
+    INDEX idx_catalog_scans_source (source_root(255)),
+    KEY idx_catalog_scans_tenant (tenant_id),
+    CONSTRAINT fk_catalog_scans_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS catalog_entries (
     catalog_entry_id   INT UNSIGNED    NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    tenant_id          int unsigned    NOT NULL DEFAULT 1,
     scan_id            INT UNSIGNED    NOT NULL,
     source_relpath     VARCHAR(4096)   NOT NULL,
     file_name          VARCHAR(512)    NOT NULL,
@@ -283,10 +337,50 @@ CREATE TABLE IF NOT EXISTS catalog_entries (
     CONSTRAINT fk_catalog_entries_job         FOREIGN KEY (upload_job_id)      REFERENCES upload_jobs   (job_id)   ON DELETE SET NULL,
     CONSTRAINT fk_catalog_entries_first_scan  FOREIGN KEY (first_seen_scan_id) REFERENCES catalog_scans (scan_id)  ON DELETE SET NULL,
     CONSTRAINT fk_catalog_entries_last_scan   FOREIGN KEY (last_seen_scan_id)  REFERENCES catalog_scans (scan_id)  ON DELETE SET NULL,
-    UNIQUE KEY uq_catalog_entries_path_hash    (path_hash),
+    CONSTRAINT uq_catalog_entries_tenant_path_hash UNIQUE (tenant_id, path_hash),
     UNIQUE KEY uq_catalog_entries_scan_relpath (scan_id, source_relpath(512)),
     INDEX idx_catalog_entries_status    (status),
     INDEX idx_catalog_entries_file_type (file_type),
     INDEX idx_catalog_entries_event     (org_name, event_date),
-    INDEX idx_catalog_entries_asset     (asset_id)
+    INDEX idx_catalog_entries_asset     (asset_id),
+    CONSTRAINT fk_catalog_entries_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/****************************
+ * QR Upload Tokens         *
+ ****************************/
+CREATE TABLE IF NOT EXISTS event_upload_tokens (
+  token_id            bigint unsigned NOT NULL AUTO_INCREMENT,
+  event_id            INT             NOT NULL,
+  token_hash          char(64)        NOT NULL  COMMENT 'SHA-256 hex of the raw token; raw token is never stored',
+  expires_at          datetime        NOT NULL,
+  is_active           tinyint(1)      NOT NULL DEFAULT 1,
+  created_by_user_id  int unsigned    DEFAULT NULL
+                                      COMMENT 'user_id of owner; NULL pre-step-7 (Basic Auth era)',
+  created_at          datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (token_id),
+  UNIQUE KEY uq_event_upload_tokens_hash (token_hash),
+  KEY idx_event_upload_tokens_event (event_id),
+  KEY idx_event_upload_tokens_creator (created_by_user_id),
+  CONSTRAINT fk_eut_event FOREIGN KEY (event_id)
+    REFERENCES events (event_id) ON DELETE CASCADE
+  -- fk_eut_created_by deferred to step 7:
+  --   ALTER TABLE event_upload_tokens ADD CONSTRAINT fk_eut_created_by
+  --   FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS anon_upload_attributions (
+  attribution_id  bigint unsigned NOT NULL AUTO_INCREMENT,
+  token_id        bigint unsigned NOT NULL,
+  upload_job_id   varchar(64)     NOT NULL,
+  display_name    varchar(255)    DEFAULT NULL  COMMENT 'Self-reported fan display name; max 100 chars enforced in app layer',
+  tos_accepted_at datetime        NOT NULL      COMMENT 'Timestamp of anonymous ToS acceptance',
+  created_at      datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (attribution_id),
+  KEY idx_anon_upload_token (token_id),
+  KEY idx_anon_upload_job (upload_job_id),
+  CONSTRAINT fk_aua_token FOREIGN KEY (token_id)
+    REFERENCES event_upload_tokens (token_id) ON DELETE CASCADE,
+  CONSTRAINT fk_aua_job FOREIGN KEY (upload_job_id)
+    REFERENCES upload_jobs (job_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

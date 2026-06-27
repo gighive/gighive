@@ -21,7 +21,7 @@
 
 # Tasks below are gated on the legacy files table existing (pre-PR1 installs only).
 # Post-PR1 canonical schema: files table does not exist; delete_token_hash and
-# media_created_at are already defined on the assets table via create_music_db.sql.
+# media_created_at are already defined on the assets table via create_media_db.sql.
 
 - name: Check if files.delete_token_hash column exists
   community.docker.docker_container_exec:

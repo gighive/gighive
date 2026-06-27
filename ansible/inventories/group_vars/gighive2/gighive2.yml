@@ -72,7 +72,7 @@ reduced_audio: true
 # --------------------------------------------------------------------
 # upload_tests role
 # --------------------------------------------------------------------
-run_upload_tests: false
+run_upload_tests: true
 
 upload_test_restore_only: false
 upload_test_restore_db_after: true
