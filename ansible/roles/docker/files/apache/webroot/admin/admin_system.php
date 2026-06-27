@@ -415,6 +415,7 @@ function __format_backup_size(int $bytes): string {
   }
 
   let __restorePollTimer = null;
+  let __restorePollTick = null;
 
   let __backupPollTimer = null;
 
@@ -665,6 +666,7 @@ function __format_backup_size(int $bytes): string {
             clearInterval(__restorePollTimer);
             __restorePollTimer = null;
           }
+          __restorePollTick = null;
           btn.disabled = false;
           btn.textContent = 'Restore Database';
           return;
@@ -684,6 +686,7 @@ function __format_backup_size(int $bytes): string {
             clearInterval(__restorePollTimer);
             __restorePollTimer = null;
           }
+          __restorePollTick = null;
           status.innerHTML = renderOkBannerWithDbLink('Restore completed successfully.', 'See Restored Database');
           btn.disabled = true;
           btn.textContent = 'Database Restored!';
@@ -695,6 +698,7 @@ function __format_backup_size(int $bytes): string {
             clearInterval(__restorePollTimer);
             __restorePollTimer = null;
           }
+          __restorePollTick = null;
           const code = (data.exit_code !== null && data.exit_code !== undefined) ? String(data.exit_code) : '?';
           status.innerHTML = '<div class="alert-err">Restore failed. Exit code: ' + code.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
           btn.disabled = false;
@@ -710,6 +714,7 @@ function __format_backup_size(int $bytes): string {
           clearInterval(__restorePollTimer);
           __restorePollTimer = null;
         }
+        __restorePollTick = null;
         btn.disabled = false;
         btn.style.background = '';
         btn.style.borderColor = '';
@@ -718,9 +723,16 @@ function __format_backup_size(int $bytes): string {
       });
     };
 
+    __restorePollTick = tick;
     tick();
     __restorePollTimer = setInterval(tick, 1500);
   }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && __restorePollTick) {
+      __restorePollTick();
+    }
+  });
 
   const __dbLinkStyle = 'display:inline-block;margin-left:10px;padding:8px 16px;background:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold;';
 
