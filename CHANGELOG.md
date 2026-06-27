@@ -1,5 +1,9 @@
 *** 
 releaseNotes20260627.txt
+Changes: changelog and VERSION for OSB
+
+*** 
+releaseNotes20260627.txt
 Changes: admin_system.php restore / backup no cache
 Scope: egrep -A1 'GIG2|PROD' CHANGELOG.md | head -20
 
@@ -24,7 +28,7 @@ Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260627.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260626.log 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260627.log 
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
