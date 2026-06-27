@@ -9,17 +9,29 @@ finished with `EXIT_CODE=0`.
 
 ## Root Cause
 
-The restore status page polls `/db/restore_database_status.php` every 1.5 seconds via
-`setInterval(tick, 1500)`. When the browser tab is moved to the background, modern browsers
-(Chrome, Firefox) aggressively throttle background timers — the interval can fire as
-infrequently as once per minute. If the restore completes while the tab is inactive, the
-final `state: "ok"` response is never received in a reasonable time. When the user switches
-back to the tab the interval has not yet fired since they returned, so the UI still shows
-"Restore Running…".
+**Cloudflare caching the GET polling response.**
+
+The restore status page polls `/db/restore_database_status.php` (a GET request) every
+1.5 seconds. The production domain (`www.stormpigs.com`) is proxied through Cloudflare.
+The status endpoint did not emit a `Cache-Control: no-store` header, so Cloudflare cached
+the first `state: "running"` response and served it to all subsequent browser polls —
+even after the restore had completed and the server was returning `state: "ok"`.
+
+The server-side restore itself completes correctly (confirmed via `EXIT_CODE=0` in the log
+file and by curling the status endpoint directly from `localhost`, which bypasses
+Cloudflare). The problem is exclusively in the browser → Cloudflare → origin path.
+
+**Confirmed** by accessing the admin page via the LAN IP (`192.168.1.227`) instead of the
+public hostname: bypassing Cloudflare allowed the browser to receive the real `state: "ok"`
+response and the UI updated correctly.
+
+Browser tab throttling (initially suspected) is **not** the cause — Chrome's minimal
+throttling rules do not throttle timers on a visible foreground tab.
 
 ## Workaround (before fix)
 
-Check restore status from the command line on the server:
+Access the admin page via the server's **local IP address** to bypass Cloudflare, or check
+restore status from the command line:
 
 ```bash
 # View the full restore log
@@ -35,16 +47,24 @@ The Job ID is shown in the UI banner: `Restore started. Job: <JOB_ID>`.
 
 ## Fix
 
-Added a `visibilitychange` listener to `admin_system.php` that fires an immediate status
-poll when the tab regains focus, bypassing the throttled interval.
+Added `Cache-Control: no-store` header to both polling endpoints so Cloudflare never
+caches their responses.
 
-**File:** `ansible/roles/docker/files/apache/webroot/admin/admin_system.php`
+**Files changed:**
+- `ansible/roles/docker/files/apache/webroot/db/restore_database_status.php`
+- `ansible/roles/docker/files/apache/webroot/db/run_backup_status.php`
 
-Changes:
-- Added `let __restorePollTick = null;` alongside the existing `__restorePollTimer`
-- `pollRestoreLog()` stores `tick` into `__restorePollTick` at start and nulls it on
-  completion (`ok`, `error`, or network failure)
-- Added one `visibilitychange` listener at page scope:
+```php
+http_response_code(200);
+header('Content-Type: application/json');
+header('Cache-Control: no-store');   // ← added
+echo json_encode([...]);
+```
+
+**Also added** (not the root cause fix, but a useful resilience improvement):
+
+A `visibilitychange` listener in `admin_system.php` that fires an immediate status poll
+when the browser tab regains focus, in case the timer has been throttled for any reason:
 
 ```javascript
 document.addEventListener('visibilitychange', () => {
@@ -53,8 +73,3 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 ```
-
-**How it resolves the issue:** The `visibilitychange` event is not throttled — it fires
-the instant the tab becomes active. The immediate `tick()` call hits the status endpoint,
-reads the `.rc` file, and if the restore is done returns `state: "ok"`, causing the UI to
-update immediately rather than waiting for the next sluggish interval tick.
