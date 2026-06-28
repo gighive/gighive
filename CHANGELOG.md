@@ -1,15 +1,11 @@
 *** 
-releaseNotes20260627.txt
-Changes: changelog and VERSION for OSB
-
-*** 
-releaseNotes20260627.txt
-Changes: admin_system.php restore / backup no cache
+releaseNotes20260628.txt
+Changes: Steps 1-10 of docs/feature_iphone_qr_code_implementation.md
 Scope: egrep -A1 'GIG2|PROD' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260627.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260628.log
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
 # GIG2 ADMIN TESTS
@@ -45,15 +41,41 @@ ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/
 
 sodo@pop-os:~/gighive$ git status
 On branch master
-Your branch is ahead of 'origin/master' by 1 commit.
-  (use "git push" to publish your local commits)
+Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/db/restore_database_status.php
-	modified:   ansible/roles/docker/files/apache/webroot/db/run_backup_status.php
-	modified:   docs/problem_admin_restore_status_no_refresh.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/playbooks/site.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_csv.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/ai_worker.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/event_qr.php
+	new file:   ansible/roles/docker/files/apache/webroot/api/upload-token.php
+	modified:   ansible/roles/docker/files/apache/webroot/config.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_single.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/UploadController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/UploadTokenValidator.php
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/.env.j2
+	new file:   ansible/roles/docker/templates/apple-app-site-association.j2
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   ansible/roles/qr_code/tasks/main.yml
+	new file:   docs/feature_iphone_qr_code_implementation.md
+	modified:   docs/feature_iphone_qr_code_support.md
+	new file:   docs/feature_iphone_qr_code_support_conversation.md
+	modified:   docs/feature_saas_model_changes.md
+*** 
+releaseNotes20260627.txt
+Changes: changelog and VERSION for OSB
 
 PRIORITY
 What's next: add "how to use Gighive" video to the home page of the iphone app
@@ -112,6 +134,59 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260627.txt
+Changes: admin_system.php restore / backup no cache
+Scope: egrep -A1 'GIG2|PROD' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2 PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260627.log
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260412.log
+# GIG2 ADMIN TESTS
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true"' ansible-playbook-gighive-bundle-tests-20260627.log 
+# PROD ROLLOUT
+Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260627.log
+# LAB PUSH: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260627.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260627.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260413.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260627.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260627.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
+# OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+# OSB create install.sh only
+ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/db/restore_database_status.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/run_backup_status.php
+	modified:   docs/problem_admin_restore_status_no_refresh.md
 
 *** 
 releaseNotes20260627.txt
@@ -11663,7 +11738,7 @@ If I need to revert, go back to files previous to 5/28 (so 5/27)
 Create and register the VM still blows up when rerun
 
 TASK [cloud_init : Create & register VM if missing] *********************************************************************
-task path: /mnt/scottsfiles/scripts/newlibrary/roles/cloud_init/tasks/main.yml:122
+task path: scripts/newlibrary/roles/cloud_init/tasks/main.yml:122
 fatal: [newlibrary]: FAILED! => {"changed": true, "cmd": ["VBoxManage", "createvm", "--name", "newlibrary", "--ostype", "Ubuntu_64", "--register"], "delta": "0:00:00.027878", "end": "2025-05-28 22:30:14.365667", "msg": "non-zero return code", "rc": 1, "start": "2025-05-28 22:30:14.337789", "stderr": "VBoxManage: error: Machine settings file '/home/sodo/VirtualBox VMs/newlibrary/newlibrary.vbox' already exists\nVBoxManage: error: Details: code VBOX_E_FILE_ERROR (0x80bb0004), component MachineWrap, interface IMachine, callee nsISupports\nVBoxManage: error: Context: \"CreateMachine(bstrSettingsFile.raw(), bstrName.raw(), ComSafeArrayAsInParam(groups), bstrOsTypeId.raw(), createFlags.raw(), bstrCipher.raw(), bstrPasswordId.raw(), Bstr(strPassword).raw(), machine.asOutParam())\" at line 397 of file VBoxManageMisc.cpp", "stderr_lines": ["VBoxManage: error: Machine settings file '/home/sodo/VirtualBox VMs/newlibrary/newlibrary.vbox' already exists", "VBoxManage: error: Details: code VBOX_E_FILE_ERROR (0x80bb0004), component MachineWrap, interface IMachine, callee nsISupports", "VBoxManage: error: Context: \"CreateMachine(bstrSettingsFile.raw(), bstrName.raw(), ComSafeArrayAsInParam(groups), bstrOsTypeId.raw(), createFlags.raw(), bstrCipher.raw(), bstrPasswordId.raw(), Bstr(strPassword).raw(), machine.asOutParam())\" at line 397 of file VBoxManageMisc.cpp"], "stdout": "", "stdout_lines": []}
 
 PLAY RECAP **************************************************************************************************************

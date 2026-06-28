@@ -49,10 +49,11 @@ volumes/
 # tests dir
 /tests
 
-# Node / Playwright
+# Node / Playwright / iphone code
 node_modules/
 playwright-report/
 test-results/
+GigHive-iPhone
 
 # Debug directories
 **/debug/

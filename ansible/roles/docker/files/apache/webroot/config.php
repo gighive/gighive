@@ -12,4 +12,5 @@ define('SMTP_USER',   $_ENV['SMTP_USER']);
 define('SMTP_PASS',   $_ENV['SMTP_PASS']);
 define('FROM_EMAIL',  $_ENV['FROM_EMAIL']);
 define('SITE_URL',    rtrim($_ENV['SITE_URL'], '/'));
+define('SAAS_MODE', filter_var(getenv('SAAS_MODE') ?: 'false', FILTER_VALIDATE_BOOLEAN));
 

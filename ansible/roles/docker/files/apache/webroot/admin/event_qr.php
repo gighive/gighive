@@ -1,0 +1,414 @@
+<?php declare(strict_types=1);
+
+$user = $_SERVER['PHP_AUTH_USER']
+    ?? $_SERVER['REMOTE_USER']
+    ?? $_SERVER['REDIRECT_REMOTE_USER']
+    ?? null;
+
+if ($user !== 'admin') {
+    http_response_code(403);
+    echo '<h1>Forbidden</h1><p>Admin access required.</p>';
+    exit;
+}
+
+require_once __DIR__ . '/../vendor/autoload.php';
+use Production\Api\Infrastructure\Database;
+
+$pdo     = null;
+$dbError = '';
+try {
+    $pdo = Database::createFromEnv();
+} catch (\Throwable $e) {
+    $dbError = $e->getMessage();
+}
+
+$orgs = [];
+if ($pdo) {
+    try {
+        $orgs = $pdo->query(
+            'SELECT DISTINCT org_name FROM events ORDER BY org_name ASC'
+        )->fetchAll(PDO::FETCH_COLUMN);
+    } catch (\Throwable $e) { /* ignore */ }
+}
+
+$orgName     = trim($_GET['org_name']   ?? '');
+$eventDate   = trim($_GET['event_date'] ?? '');
+$eventId     = null;
+$loadError   = '';
+$revokedMsg  = trim($_GET['msg'] ?? '') === 'revoked' ? 'Token revoked.' : '';
+
+if ($orgName !== '' || $eventDate !== '') {
+    if ($orgName === '' || strlen($orgName) > 255) {
+        $loadError = 'Org name is required (max 255 characters).';
+    } elseif ($eventDate === '') {
+        $loadError = 'Event date is required.';
+    } else {
+        $dt = \DateTime::createFromFormat('Y-m-d', $eventDate);
+        if ($dt === false || $dt->format('Y-m-d') !== $eventDate) {
+            $loadError = 'Invalid date — use YYYY-MM-DD format.';
+        }
+    }
+
+    if ($loadError === '' && $pdo) {
+        try {
+            $stmt = $pdo->prepare(
+                'SELECT event_id FROM events WHERE tenant_id = 1 AND event_date = ? AND org_name = ? LIMIT 1'
+            );
+            $stmt->execute([$eventDate, $orgName]);
+            $eventId = $stmt->fetchColumn();
+
+            if (!$eventId) {
+                $ins = $pdo->prepare(
+                    'INSERT INTO events (tenant_id, event_key, event_date, org_name) VALUES (1, UUID(), ?, ?)'
+                );
+                $ins->execute([$eventDate, $orgName]);
+                $eventId = (int)$pdo->lastInsertId();
+            }
+            $eventId = (int)$eventId;
+        } catch (\Throwable $e) {
+            $loadError = 'Database error: ' . $e->getMessage();
+        }
+    }
+}
+
+$postMsg    = '';
+$postOk     = null;
+$newQrUrl   = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'generate') {
+        $defaultTtlEnv = (int)(getenv('QR_TOKEN_DEFAULT_TTL_HOURS') ?: 168);
+        $expiryHours   = (int)($_POST['ttl_hours'] ?? $defaultTtlEnv);
+        if (!in_array($expiryHours, [4, 24, 168, 336], true)) {
+            $postMsg = 'Invalid expiry value.';
+            $postOk  = false;
+        } else {
+            try {
+                $rawToken  = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+                $tokenHash = hash('sha256', $rawToken);
+                $stmt = $pdo->prepare(
+                    'INSERT INTO event_upload_tokens (event_id, token_hash, expires_at, created_by_user_id)
+                     VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR), NULL)'
+                );
+                $stmt->execute([$eventId, $tokenHash, $expiryHours]);
+                $scheme   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $host     = $_SERVER['HTTP_HOST'] ?? 'gighive.app';
+                $newQrUrl = $scheme . '://' . $host . '/upload/' . $rawToken;
+                $postMsg  = 'QR code generated.';
+                $postOk   = true;
+            } catch (\Throwable $e) {
+                $postMsg = 'Error generating token: ' . $e->getMessage();
+                $postOk  = false;
+            }
+        }
+
+    } elseif ($action === 'revoke') {
+        $tokenId = (int)($_POST['token_id'] ?? 0);
+        if ($tokenId <= 0) {
+            $postMsg = 'Invalid token ID.';
+            $postOk  = false;
+        } else {
+            try {
+                $stmt = $pdo->prepare(
+                    'UPDATE event_upload_tokens SET is_active = 0 WHERE token_id = ? AND event_id = ?'
+                );
+                $stmt->execute([$tokenId, $eventId]);
+                header('Location: /admin/event_qr.php?org_name=' . urlencode($orgName)
+                     . '&event_date=' . urlencode($eventDate) . '&msg=revoked');
+                exit;
+            } catch (\Throwable $e) {
+                $postMsg = 'Error revoking token: ' . $e->getMessage();
+                $postOk  = false;
+            }
+        }
+    }
+}
+
+$tokens       = [];
+$guestUploads = [];
+if ($pdo && $eventId) {
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT token_id, token_hash, expires_at, is_active, created_at
+             FROM event_upload_tokens
+             WHERE event_id = ?
+             ORDER BY created_at DESC'
+        );
+        $stmt->execute([$eventId]);
+        $tokens = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $e) { /* ignore */ }
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT a.display_name, a.tos_accepted_at, a.created_at,
+                    j.job_id,
+                    t.is_active AS token_active, t.expires_at
+             FROM anon_upload_attributions a
+             JOIN event_upload_tokens t ON t.token_id = a.token_id
+             JOIN upload_jobs j ON j.job_id = a.upload_job_id
+             WHERE t.event_id = ?
+             ORDER BY a.created_at DESC'
+        );
+        $stmt->execute([$eventId]);
+        $guestUploads = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $e) { /* ignore */ }
+}
+
+$defaultTtl = (int)(getenv('QR_TOKEN_DEFAULT_TTL_HOURS') ?: 168);
+if (!in_array($defaultTtl, [4, 24, 168, 336], true)) {
+    $defaultTtl = 168;
+}
+$qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUOTES);
+?>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin: Guest QR Upload</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    body { margin:0; background:#0b1020; color:#e9eef7; }
+    .wrap { max-width:880px; margin:3rem auto; padding:1rem; }
+    h1 { margin:0 0 1.5rem; }
+    h2 { margin:0 0 .75rem; font-size:1.1rem; }
+    a { color:#60a5fa; }
+    .card { background:#121a33; border:1px solid #1d2a55; border-radius:12px; padding:1.25rem; margin-bottom:1.25rem; }
+    label { font-weight:600; display:block; margin-bottom:.3rem; }
+    input[type=text], input[type=date] { padding:.65rem; border-radius:8px; border:1px solid #33427a; background:#0e1530; color:#e9eef7; font-size:.95rem; }
+    button { padding:.7rem 1.2rem; border-radius:10px; border:1px solid #3b82f6; background:transparent; color:#e9eef7; cursor:pointer; font-size:.95rem; }
+    button:hover:not(:disabled) { background:#1e40af; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-danger { border-color:#dc2626; }
+    .btn-danger:hover:not(:disabled) { background:#991b1b; }
+    .btn-sm { padding:.3rem .75rem; font-size:.82rem; }
+    .alert-ok  { background:#11331a; border:1px solid #1f7a3b; padding:.75rem 1rem; border-radius:8px; margin-bottom:.75rem; }
+    .alert-err { background:#3b0d14; border:1px solid #b4232a; padding:.75rem 1rem; border-radius:8px; margin-bottom:.75rem; }
+    .muted { color:#a8b3cf; font-size:.9rem; }
+    .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table { width:100%; border-collapse:collapse; font-size:.88rem; }
+    th,td { border:1px solid #1d2a55; padding:7px 10px; text-align:left; vertical-align:middle; }
+    th { background:#0e1530; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:.78rem; font-weight:600; }
+    .badge-active  { background:#1a3320; color:#4ade80; }
+    .badge-expired { background:#3b2700; color:#fbbf24; }
+    .badge-revoked { background:#3b1a1a; color:#f87171; }
+    .warn-row td { color:#fbbf24; }
+    .form-row { display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.75rem; }
+    .form-row .field { display:flex; flex-direction:column; gap:.3rem; }
+    .ttl-group { display:flex; gap:.75rem; flex-wrap:wrap; margin:.5rem 0 .75rem; }
+    .ttl-group label { font-weight:400; display:flex; align-items:center; gap:.35rem; }
+    #qr-wrap { display:none; text-align:center; margin:.75rem 0 .25rem; }
+    #qr-canvas { display:block; margin:.5rem auto; image-rendering:pixelated; }
+    .license-footer { text-align:center; margin-top:2rem; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@<?= $qrJsVersion ?>/build/qrcode.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>Guest QR Upload</h1>
+  <p><a href="/admin/admin_system.php">← System</a></p>
+
+  <?php if ($dbError): ?>
+    <div class="alert-err">DB error: <?= htmlspecialchars($dbError, ENT_QUOTES) ?></div>
+  <?php endif; ?>
+
+  <!-- Event Selector -->
+  <div class="card">
+    <h2>Event Selector</h2>
+    <form method="GET" action="/admin/event_qr.php">
+      <div class="form-row">
+        <div class="field">
+          <label for="event_date">Event date *</label>
+          <input id="event_date" type="date" name="event_date" required
+                 value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>">
+        </div>
+        <div class="field">
+          <label for="org_name">Organization *</label>
+          <input id="org_name" type="text" name="org_name" list="org-list" required
+                 value="<?= htmlspecialchars($orgName, ENT_QUOTES) ?>" style="min-width:220px">
+          <datalist id="org-list">
+            <?php foreach ($orgs as $o): ?>
+              <option value="<?= htmlspecialchars($o, ENT_QUOTES) ?>">
+            <?php endforeach; ?>
+          </datalist>
+          <small class="muted">Choose an existing organization or add new</small>
+        </div>
+        <div class="field" style="justify-content:flex-end">
+          <button type="submit">Load Event</button>
+        </div>
+      </div>
+    </form>
+    <?php if ($loadError): ?>
+      <div class="alert-err"><?= htmlspecialchars($loadError, ENT_QUOTES) ?></div>
+    <?php elseif ($eventId): ?>
+      <div class="alert-ok">Event loaded: <strong><?= htmlspecialchars($orgName, ENT_QUOTES) ?></strong> &mdash; <?= htmlspecialchars($eventDate, ENT_QUOTES) ?></div>
+    <?php else: ?>
+      <p class="muted">Enter a date and org name, then click Load Event.</p>
+      <p class="muted">This is your starting point — no existing media required.</p>
+    <?php endif; ?>
+  </div>
+
+  <?php if ($eventId): ?>
+
+  <?php if ($revokedMsg): ?>
+    <div class="alert-ok"><?= htmlspecialchars($revokedMsg, ENT_QUOTES) ?></div>
+  <?php endif; ?>
+
+  <!-- Section 1: QR Generator -->
+  <div class="card">
+    <h2>QR Code Generator (<?= htmlspecialchars($orgName, ENT_QUOTES) ?> &mdash; <?= htmlspecialchars($eventDate, ENT_QUOTES) ?>)</h2>
+    <?php if ($postMsg && $postOk !== null): ?>
+      <div class="<?= $postOk ? 'alert-ok' : 'alert-err' ?>"><?= htmlspecialchars($postMsg, ENT_QUOTES) ?></div>
+    <?php endif; ?>
+
+    <form method="POST" action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>">
+      <input type="hidden" name="action" value="generate">
+      <label>Link expiry</label>
+      <div class="ttl-group">
+        <?php foreach ([4 => '4 hours', 24 => '24 hours', 168 => '7 days', 336 => '14 days'] as $h => $lbl): ?>
+          <label>
+            <input type="radio" name="ttl_hours" value="<?= $h ?>" <?= $defaultTtl === $h ? 'checked' : '' ?>>
+            <?= htmlspecialchars($lbl, ENT_QUOTES) ?>
+          </label>
+        <?php endforeach; ?>
+      </div>
+      <button type="submit">Generate QR</button>
+    </form>
+
+    <div id="qr-wrap">
+      <canvas id="qr-canvas"></canvas>
+      <p class="muted" id="qr-url-text" style="word-break:break-all"></p>
+      <button type="button" id="qr-download-btn">Download PNG</button>
+    </div>
+  </div>
+
+  <!-- Section 2: Upload Tokens -->
+  <div class="card">
+    <h2>Upload Tokens (<?= htmlspecialchars($orgName, ENT_QUOTES) ?> &mdash; <?= htmlspecialchars($eventDate, ENT_QUOTES) ?>)</h2>
+    <?php if (empty($tokens)): ?>
+      <p class="muted">No tokens generated yet.</p>
+    <?php else: ?>
+      <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Token (hash prefix)</th><th>Expires</th><th>Status</th><th>Created</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <?php
+          $now = new \DateTime('now');
+          foreach ($tokens as $tok):
+            $isActive  = (bool)$tok['is_active'];
+            $expiry    = new \DateTime($tok['expires_at']);
+            $isExpired = $expiry <= $now;
+            if (!$isActive) {
+                $status = 'revoked';
+            } elseif ($isExpired) {
+                $status = 'expired';
+            } else {
+                $status = 'active';
+            }
+            $isWarn = ($status !== 'active');
+          ?>
+          <tr <?= $isWarn ? 'class="warn-row"' : '' ?>>
+            <td><code><?= htmlspecialchars(substr($tok['token_hash'], 0, 8), ENT_QUOTES) ?>…</code></td>
+            <td><?= htmlspecialchars($tok['expires_at'], ENT_QUOTES) ?></td>
+            <td><span class="badge badge-<?= $status ?>"><?= ucfirst($status) ?></span></td>
+            <td><?= htmlspecialchars($tok['created_at'], ENT_QUOTES) ?></td>
+            <td>
+              <?php if ($status === 'active'): ?>
+                <form method="POST"
+                      action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>"
+                      style="display:inline">
+                  <input type="hidden" name="action" value="revoke">
+                  <input type="hidden" name="token_id" value="<?= (int)$tok['token_id'] ?>">
+                  <button type="submit" class="btn-danger btn-sm"
+                          onclick="return confirm('Revoke this token? Guests with this QR link will no longer be able to upload.')">Revoke</button>
+                </form>
+              <?php else: ?>
+                &mdash;
+              <?php endif; ?>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+      </div>
+    <?php endif; ?>
+  </div>
+
+  <!-- Section 3: Guest Uploads -->
+  <div class="card">
+    <h2>Guest Uploads (<?= htmlspecialchars($orgName, ENT_QUOTES) ?> &mdash; <?= htmlspecialchars($eventDate, ENT_QUOTES) ?>)</h2>
+    <?php if (empty($guestUploads)): ?>
+      <p class="muted">No guest uploads yet.</p>
+    <?php else: ?>
+      <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Display name</th><th>ToS accepted</th><th>Uploaded</th><th>Job ID</th><th>Token status</th></tr>
+        </thead>
+        <tbody>
+          <?php foreach ($guestUploads as $gu):
+            $tokenActive  = (bool)$gu['token_active'];
+            $tokenExpiry  = new \DateTime($gu['expires_at']);
+            $tokenExpired = $tokenExpiry <= $now;
+            $tokenStatus  = !$tokenActive ? 'revoked' : ($tokenExpired ? 'expired' : 'active');
+            $isWarnRow    = ($tokenStatus !== 'active');
+            $displayName  = $gu['display_name'] !== null
+                ? htmlspecialchars($gu['display_name'], ENT_QUOTES)
+                : '<em>(anonymous)</em>';
+          ?>
+          <tr <?= $isWarnRow ? 'class="warn-row"' : '' ?>>
+            <td><?= $displayName ?></td>
+            <td><?= htmlspecialchars((string)($gu['tos_accepted_at'] ?? ''), ENT_QUOTES) ?></td>
+            <td><?= htmlspecialchars((string)($gu['created_at'] ?? ''), ENT_QUOTES) ?></td>
+            <td><code style="font-size:.78rem"><?= htmlspecialchars((string)($gu['job_id'] ?? ''), ENT_QUOTES) ?></code></td>
+            <td><span class="badge badge-<?= $tokenStatus ?>"><?= ucfirst($tokenStatus) ?></span></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+      </div>
+    <?php endif; ?>
+  </div>
+
+  <?php endif; // eventId ?>
+
+  <div class="license-footer">
+    <p class="muted" style="font-size:.8rem">
+      GigHive is dual-licensed. <a href="https://gighive.app" target="_blank">Licensing info</a>
+    </p>
+  </div>
+</div>
+
+<script>
+(function() {
+  const qrUrl = <?= json_encode($newQrUrl) ?>;
+  if (!qrUrl) return;
+  const wrap    = document.getElementById('qr-wrap');
+  const canvas  = document.getElementById('qr-canvas');
+  const urlText = document.getElementById('qr-url-text');
+  if (!wrap || !canvas) return;
+  wrap.style.display = 'block';
+  if (urlText) urlText.textContent = qrUrl;
+  if (typeof QRCode !== 'undefined') {
+    QRCode.toCanvas(canvas, qrUrl, { width: 256, margin: 2 }, function(err) {
+      if (err) console.error('QR render error:', err);
+    });
+  }
+  const dlBtn = document.getElementById('qr-download-btn');
+  if (dlBtn) {
+    dlBtn.addEventListener('click', function() {
+      const a = document.createElement('a');
+      a.download = 'guest-upload-qr.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+  }
+})();
+</script>
+</body>
+</html>

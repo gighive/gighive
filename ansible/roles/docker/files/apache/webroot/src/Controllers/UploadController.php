@@ -5,6 +5,7 @@ use OpenApi\Attributes as OA;
 use PDO;
 use Production\Api\Exceptions\DuplicateChecksumException;
 use Production\Api\Services\UploadService;
+use Production\Api\Services\UploadTokenValidator;
 use Production\Api\Repositories\AssetRepository;
 
 final class UploadController
@@ -216,8 +217,27 @@ final class UploadController
     )]
     public function finalize(array $post): array
     {
+        $rawToken = $_SERVER['HTTP_X_UPLOAD_TOKEN'] ?? null;
+        $tokenResult = null;
+        if ($rawToken !== null) {
+            if (strlen($rawToken) > 128) {
+                return [
+                    'status'  => 400,
+                    'headers' => ['Content-Type' => 'application/json'],
+                    'body'    => ['error' => 'invalid token'],
+                ];
+            }
+            $tokenResult = (new UploadTokenValidator($this->pdo))->validate($rawToken);
+            if ($tokenResult === null) {
+                return [
+                    'status'  => 404,
+                    'headers' => ['Content-Type' => 'application/json'],
+                    'body'    => ['error' => 'invalid or expired'],
+                ];
+            }
+        }
         try {
-            $result = $this->service->finalizeTusUpload($post);
+            $result = $this->service->finalizeTusUpload($post, $tokenResult);
             return [
                 'status'  => 201,
                 'headers' => ['Content-Type' => 'application/json'],

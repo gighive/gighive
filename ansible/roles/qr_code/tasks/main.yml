@@ -1,0 +1,202 @@
+---
+# roles/qr_code/tasks/main.yml
+#
+# Smoke tests for QR Code Guest Upload infrastructure (Phase 1a).
+# All tests verify the Apache auth-bypass layer introduced in default-ssl.conf.j2
+# and the static AASA file baked into the Docker image.
+# These run after the docker role (containers must be up).
+
+- name: Build common Host header dict for QR smoke tests
+  ansible.builtin.set_fact:
+    _qr_host_header: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {} }}"
+  changed_when: false
+  tags: [qr_code, smoke]
+
+# --- AASA file ---
+
+- name: Assert AASA file exists inside Apache container
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: "sh -c 'test -f {{ qr_aasa_container_path }}'"
+  register: _qr_aasa_file_check
+  changed_when: false
+  failed_when: (_qr_aasa_file_check.rc | default(1)) != 0
+  tags: [qr_code, smoke, aasa]
+
+- name: Fetch AASA file (must be 200 + application/json)
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}{{ qr_aasa_web_path }}"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _qr_host_header }}"
+    return_content: true
+    status_code: 200
+  register: _qr_aasa_response
+  changed_when: false
+  tags: [qr_code, smoke, aasa]
+
+- name: Assert AASA Content-Type is application/json
+  ansible.builtin.assert:
+    that:
+      - "'application/json' in (_qr_aasa_response.content_type | default(''))"
+    fail_msg: >-
+      AASA served with wrong Content-Type: {{ _qr_aasa_response.content_type | default('missing') }}.
+      Check Apache <Location "{{ qr_aasa_web_path }}"> block in default-ssl.conf.j2.
+  tags: [qr_code, smoke, aasa]
+
+- name: Assert AASA body contains expected appIDs entry
+  ansible.builtin.assert:
+    that:
+      - "qr_aasa_app_id in _qr_aasa_response.content"
+    fail_msg: >-
+      AASA body does not contain expected app ID {{ qr_aasa_app_id }}.
+      Body: {{ _qr_aasa_response.content[:500] }}
+  tags: [qr_code, smoke, aasa]
+
+# --- Apache auth bypass: guest landing page ---
+
+- name: Guest URL {{ qr_guest_upload_prefix }}/<token> must NOT require Basic Auth (Apache auth bypass)
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}{{ qr_guest_upload_prefix }}/{{ qr_smoke_token }}"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _qr_host_header }}"
+    return_content: false
+    status_code: [200, 302, 400, 404, 410, 500]
+  register: _qr_fan_url_probe
+  changed_when: false
+  tags: [qr_code, smoke, auth]
+
+- name: Assert guest URL did not return 401 (auth bypass confirmed)
+  ansible.builtin.assert:
+    that:
+      - _qr_fan_url_probe.status != 401
+    fail_msg: >-
+      {{ qr_guest_upload_prefix }}/<token> returned 401 — Apache auth bypass is not working.
+      Check <Location "/db/upload_form_single.php"> AuthMerging Off block in default-ssl.conf.j2.
+  tags: [qr_code, smoke, auth]
+
+# --- Apache auth bypass: token validation API ---
+
+- name: Token API {{ qr_token_api_path }} must NOT require Basic Auth (Apache auth bypass)
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}{{ qr_token_api_path }}"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _qr_host_header }}"
+    return_content: false
+    status_code: [200, 400, 404, 500]
+  register: _qr_token_api_probe
+  changed_when: false
+  tags: [qr_code, smoke, auth]
+
+- name: Assert token API did not return 401 (auth bypass confirmed)
+  ansible.builtin.assert:
+    that:
+      - _qr_token_api_probe.status != 401
+    fail_msg: >-
+      {{ qr_token_api_path }} returned 401 — Apache auth bypass is not working.
+      Check <Location "{{ qr_token_api_path }}"> AuthMerging Off block in default-ssl.conf.j2.
+  tags: [qr_code, smoke, auth]
+
+# --- Apache auth bypass: TUS endpoint with X-Upload-Token ---
+
+- name: TUS {{ tus_public_path }}/ with X-Upload-Token header must NOT return 401 (SetEnvIf gate)
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}{{ tus_public_path }}/"
+    method: OPTIONS
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _qr_host_header | combine({'Tus-Resumable': '1.0.0', 'X-Upload-Token': qr_smoke_token}) }}"
+    return_content: false
+    status_code: [200, 204, 400, 404, 405]
+  register: _qr_tus_token_probe
+  changed_when: false
+  tags: [qr_code, smoke, auth]
+
+- name: Assert TUS OPTIONS with X-Upload-Token did not return 401 (SetEnvIf confirmed)
+  ansible.builtin.assert:
+    that:
+      - _qr_tus_token_probe.status != 401
+    fail_msg: >-
+      {{ tus_public_path }}/ OPTIONS with X-Upload-Token returned 401 — SetEnvIf + RequireAny not working.
+      Check SetEnvIf X-Upload-Token and <LocationMatch "^{{ tus_public_path }}(?:/|$)"> in default-ssl.conf.j2.
+  tags: [qr_code, smoke, auth]
+
+# --- Env vars ---
+
+- name: Assert QR_TOKEN_DEFAULT_TTL_HOURS is set in Apache container environment
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: printenv QR_TOKEN_DEFAULT_TTL_HOURS
+  register: _qr_ttl_env
+  changed_when: false
+  failed_when: (_qr_ttl_env.rc | default(1)) != 0 or (_qr_ttl_env.stdout | trim) == ''
+  tags: [qr_code, smoke, env]
+
+- name: Assert QR_TOKEN_DEFAULT_TTL_HOURS is a positive integer
+  ansible.builtin.assert:
+    that:
+      - (_qr_ttl_env.stdout | trim) is match('^[0-9]+$')
+      - (_qr_ttl_env.stdout | trim | int) > 0
+    fail_msg: >-
+      QR_TOKEN_DEFAULT_TTL_HOURS='{{ _qr_ttl_env.stdout | trim }}' is not a positive integer.
+      Check qr_token_default_ttl_hours in group_vars and QR_TOKEN_DEFAULT_TTL_HOURS in .env.j2.
+  tags: [qr_code, smoke, env]
+
+- name: Assert SAAS_MODE is set in Apache container environment
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: printenv SAAS_MODE
+  register: _qr_saas_mode_env
+  changed_when: false
+  failed_when: (_qr_saas_mode_env.rc | default(1)) != 0 or (_qr_saas_mode_env.stdout | trim) == ''
+  tags: [qr_code, smoke, env]
+
+- name: Assert SAAS_MODE is 'true' or 'false'
+  ansible.builtin.assert:
+    that:
+      - (_qr_saas_mode_env.stdout | trim) in ['true', 'false']
+    fail_msg: >-
+      SAAS_MODE='{{ _qr_saas_mode_env.stdout | trim }}' must be 'true' or 'false'.
+      Check saas_mode in group_vars and SAAS_MODE in .env.j2.
+  tags: [qr_code, smoke, env]
+
+# --- QR tables ---
+
+- name: Assert event_upload_tokens table exists in MySQL
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD"
+      -D "$MYSQL_DATABASE" -e "DESC event_upload_tokens" > /dev/null 2>&1 && echo 1 || echo 0'
+  register: _qr_eut_table
+  changed_when: false
+  tags: [qr_code, smoke, db]
+
+- name: Fail if event_upload_tokens table is missing
+  ansible.builtin.assert:
+    that:
+      - (_qr_eut_table.stdout | trim) == '1'
+    fail_msg: >-
+      event_upload_tokens table not found in {{ mysql_container_name }}.
+      Cannot proceed — ensure the database schema has been initialised before running this role.
+  tags: [qr_code, smoke, db]
+
+- name: Assert anon_upload_attributions table exists in MySQL
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD"
+      -D "$MYSQL_DATABASE" -e "DESC anon_upload_attributions" > /dev/null 2>&1 && echo 1 || echo 0'
+  register: _qr_aua_table
+  changed_when: false
+  tags: [qr_code, smoke, db]
+
+- name: Fail if anon_upload_attributions table is missing
+  ansible.builtin.assert:
+    that:
+      - (_qr_aua_table.stdout | trim) == '1'
+    fail_msg: >-
+      anon_upload_attributions table not found in {{ mysql_container_name }}.
+      Cannot proceed — ensure the database schema has been initialised before running this role.
+  tags: [qr_code, smoke, db]

@@ -261,11 +261,25 @@ final class UploadService
      * Finalize a completed tusd upload (Option A).
      * Expects JSON body containing upload_id + same metadata fields used by handleUpload.
      */
-    public function finalizeTusUpload(array $post): array
+    public function finalizeTusUpload(array $post, ?TokenValidationResult $tokenResult = null): array
     {
         $uploadId = trim((string)($post['upload_id'] ?? ''));
         if ($uploadId === '' || preg_match('/^[A-Za-z0-9_-]+$/', $uploadId) !== 1) {
             throw new \InvalidArgumentException('Missing or invalid upload_id');
+        }
+
+        // Token-mode field validation
+        $tokenLabel = null;
+        $tokenDisplayName = null;
+        if ($tokenResult !== null) {
+            $tokenLabel      = trim((string)($post['label'] ?? ''));
+            $tosAccepted     = $post['tos_accepted'] ?? null;
+            $tokenDisplayName = isset($post['display_name'])
+                ? substr(strip_tags(trim((string)$post['display_name'])), 0, 100)
+                : null;
+            if ($tokenLabel === '' || strlen($tokenLabel) > 255 || $tosAccepted !== true) {
+                throw new \InvalidArgumentException('Missing or invalid token-mode fields (label, tos_accepted)');
+            }
         }
 
         // tusd data + hook outputs are mounted into the Apache container under /var/www/private
@@ -347,6 +361,14 @@ final class UploadService
             }
         }
 
+        // Token-mode: override event context from token; ignore any client-supplied event fields
+        if ($tokenResult !== null) {
+            $mergedPost['event_date'] = $tokenResult->eventDate;
+            $mergedPost['org_name']   = $tokenResult->orgName;
+            $mergedPost['event_type'] = $tokenResult->eventType !== '' ? $tokenResult->eventType : 'band';
+            $mergedPost['label']      = $tokenLabel;
+        }
+
         $srcPath = $dataDir . '/' . $uploadId;
         if (!is_file($srcPath)) {
             throw new \RuntimeException('Upload data missing on disk');
@@ -382,6 +404,25 @@ final class UploadService
                 @unlink($srcPath);
             }
             throw $e;
+        }
+
+        // Token-mode: atomic write of upload_jobs + anon_upload_attributions
+        if ($tokenResult !== null) {
+            $this->pdo->beginTransaction();
+            try {
+                $this->pdo->prepare(
+                    'INSERT INTO upload_jobs (tenant_id, job_id, job_type, status, total_files, started_at)
+                     VALUES (1, ?, \'qr_guest_upload\', \'completed\', 1, NOW())'
+                )->execute([$uploadId]);
+                $this->pdo->prepare(
+                    'INSERT INTO anon_upload_attributions (token_id, upload_job_id, display_name, tos_accepted_at)
+                     VALUES (?, ?, ?, NOW())'
+                )->execute([$tokenResult->tokenId, $uploadId, $tokenDisplayName]);
+                $this->pdo->commit();
+            } catch (\Throwable $attrEx) {
+                $this->pdo->rollBack();
+                throw new \RuntimeException('Failed to record guest upload attribution: ' . $attrEx->getMessage());
+            }
         }
 
         $markerResult = $result;

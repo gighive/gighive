@@ -201,6 +201,15 @@
     state: directory
     mode: "0755"
 
+- name: Render Apple App Site Association (AASA) file from template
+  ansible.builtin.template:
+    src: apple-app-site-association.j2
+    dest: "{{ docker_dir }}/apache/webroot/.well-known/apple-app-site-association"
+    mode: '0644'
+  become: true
+  become_user: "{{ ansible_user }}"
+  tags: docker, compose, qr_code
+
 - name: Render Dockerfile from Jinja2 template
   template:
     src: Dockerfile.j2

@@ -143,7 +143,7 @@ $untaggedCount = $stats['video_assets'] - $stats['tagged_assets'];
 <body>
 <div class="wrap">
   <h1>AI Video Tagger</h1>
-  <p><a href="/admin/admin_system.php">← System</a> &nbsp;|&nbsp; <a href="/db/tag_browser.php">Browse All Tags</a></p>
+  <p><a href="/admin/admin_system.php">← System</a> &nbsp;|&nbsp; <a href="/db/tag_browser.php">Browse All Tags</a> &nbsp;|&nbsp; <a href="/admin/event_qr.php">Guest QR Upload</a></p>
 
   <?php if ($dbError): ?>
     <div class="alert-err">DB error: <?= htmlspecialchars($dbError, ENT_QUOTES) ?></div>

@@ -118,6 +118,8 @@
       when: mcp_server_enabled | default(false) | bool
     - role: post_build_checks
       tags: [ post_build_checks ]
+    - role: qr_code
+      tags: [ qr_code ]
     - role: validate_app
       tags: [ validate_app ]
     - role: upload_tests

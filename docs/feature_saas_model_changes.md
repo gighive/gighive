@@ -208,7 +208,7 @@ the session's `tenant_id` explicitly. That work belongs to step 8, not here.
 
 **Phase 1a — Standalone Enhancements + SaaS Prerequisites** *(pre-release; ships with self-hosted)*
 
-5. Per-event QR code fan upload links + `SAAS_MODE` env flag — owner generates a per-event QR code; fans scan to upload without an account; attribution recorded via ToS checkbox + optional display name; owner can revoke tokens and view fan-contributed uploads in the event admin page; iPhone with app installed uses iOS Universal Link → native app; Android and iPhone without app fall back to `db/upload_form_single.php`. `SAAS_MODE` flag gates Basic Auth (self-hosted, `false`) vs. OIDC (`true`); set via Ansible `group_vars` → `.env.j2`. *Does not depend on OIDC, RBAC, or subdomain routing — implement immediately after Phase 1.*
+5. Per-event QR code guest upload links + `SAAS_MODE` env flag — owner generates a per-event QR code; guests scan to upload without an account; attribution recorded via ToS checkbox + optional display name; owner can revoke tokens and view guest-contributed uploads in the event admin page; iPhone with app installed uses iOS Universal Link → native app; Android and iPhone without app fall back to `db/upload_form_single.php`. `SAAS_MODE` flag gates Basic Auth (self-hosted, `false`) vs. OIDC (`true`); set via Ansible `group_vars` → `.env.j2`. *Does not depend on OIDC, RBAC, or subdomain routing — implement immediately after Phase 1.*
 
    → **Full implementation detail, sequenced task list, and test matrix:** [`docs/feature_iphone_qr_code_support.md`](feature_iphone_qr_code_support.md)
 
@@ -1051,7 +1051,7 @@ Only the PHP passthrough script should be allowed to serve those files.
 
 **SEC-9 — Anonymous upload display names are unvalidated user input — stored XSS (step 4)**
 *Risk:* `anon_upload_attributions.display_name` is self-reported by an
-unauthenticated fan. If displayed in the admin UI without output escaping, it
+unauthenticated guest. If displayed in the admin UI without output escaping, it
 is a stored XSS vector.
 *Remediation:* (a) Sanitize at write time: strip or reject any HTML/JS.
 (b) Enforce length limit (e.g. 100 chars) in both the upload form and the DB
@@ -1088,10 +1088,10 @@ Check `$stmt->rowCount() === 1` before proceeding. If zero rows updated, the
 token was already used or expired — reject the request.
 
 *Important:* **Do NOT apply this pattern to `event_upload_tokens` (QR upload
-tokens).** QR upload tokens are multi-use — many fans scan the same QR code
+tokens).** QR upload tokens are multi-use — many guests scan the same QR code
 for the same event. The owner revokes a QR token manually by setting
 `is_active = 0`. Setting it to 0 on the first upload would invalidate the token
-for all subsequent fans. The race-condition concern does not apply because
+for all subsequent guests. The race-condition concern does not apply because
 multiple concurrent uploads from the same QR token are expected and valid.
 
 **SEC-12 — Apple `display_name` arrives only once (step 7)**

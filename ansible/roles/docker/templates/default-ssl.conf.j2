@@ -57,6 +57,13 @@
 
     RewriteEngine On
 
+    # Guest QR upload token detection — allows bypassing Basic Auth on token-authenticated paths.
+    # Apache only uses this as a forward gate; PHP and tusd are the authoritative token validators.
+    SetEnvIf X-Upload-Token .+ upload_token_auth
+
+    # QR guest upload routing — /upload/<token> served by PHP handler (rewritten internally)
+    RewriteRule ^/upload/([A-Za-z0-9_-]+)$ /db/upload_form_single.php?token=$1 [L,QSA]
+
     # Route MVC API endpoints to the front controller.
     # Keep legacy script endpoint /api/uploads.php intact.
     RewriteCond %{REQUEST_URI} ^/api/uploads(?:/.*)?$
@@ -216,13 +223,16 @@
         Require user admin uploader
     </Location>
 
-    # --- UPLOADS API (MVC ROUTES): admin + uploader ---
+    # --- UPLOADS API (MVC ROUTES): admin + uploader, or QR upload token ---
     <LocationMatch "^/api/uploads(?:/|$)">
         AuthType Basic
         AuthName "GigHive Upload"
         AuthBasicProvider file
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
-        Require user admin uploader
+        <RequireAny>
+            Require user admin uploader
+            Require env upload_token_auth
+        </RequireAny>
     </LocationMatch>
 
     # --- MEDIA-FILES API: admin + uploader ---
@@ -233,14 +243,30 @@
         Require user admin uploader
     </Location>
 
-    # --- TUS UPLOAD ENDPOINT: admin + uploader ---
+    # --- TUS UPLOAD ENDPOINT: admin + uploader, or QR upload token ---
     <LocationMatch "^/files(?:/|$)">
         AuthType Basic
         AuthName "GigHive Upload"
         AuthBasicProvider file
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
-        Require user admin uploader
+        <RequireAny>
+            Require user admin uploader
+            Require env upload_token_auth
+        </RequireAny>
     </LocationMatch>
+
+    # --- QR GUEST LANDING PAGE: unauthenticated (Apache internally rewrites /upload/<token> here) ---
+    # PHP gates admin features on $user === 'admin'; guests are gated by token validation.
+    <Location "/db/upload_form_single.php">
+        AuthMerging Off
+        Require all granted
+    </Location>
+
+    # --- QR TOKEN VALIDATION API: unauthenticated by design; PHP validates the raw token ---
+    <Location "/api/upload-token.php">
+        AuthMerging Off
+        Require all granted
+    </Location>
 
     ProxyPreserveHost On
     RequestHeader set X-Forwarded-Proto "https"
@@ -282,6 +308,13 @@
          </FilesMatch>
      </IfModule>
  
+    # --- APPLE-APP-SITE-ASSOCIATION: served publicly; Content-Type must be application/json ---
+    # /.well-known/ is not in the catch-all auth LocationMatch, so no AuthMerging needed.
+    <Location "/.well-known/apple-app-site-association">
+        Header set Content-Type "application/json"
+        Options -Indexes
+    </Location>
+
     <FilesMatch "^(composer\.(json|lock)|config\.php)$">
         Require all denied
     </FilesMatch>

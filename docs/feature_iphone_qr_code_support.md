@@ -1,4 +1,4 @@
-# Feature: QR Code Fan Upload (Phase 1a, Step 5)
+# Feature: QR Code Guest Upload (Phase 1a, Step 5)
 
 **Status:** Not started  
 **Phase:** 1a (pre-release; ships with self-hosted)  
@@ -14,9 +14,9 @@
 
 ## Overview
 
-QR Code Fan Upload enables anonymous, credential-free media contribution from venue attendees — fans at a concert, guests at a wedding. The event owner generates a per-event QR code from the admin page. When a fan scans it, **iPhone with the app installed** is routed to the native GigHive app via Universal Links, landing on a pre-filled upload screen that requires only ToS acceptance. **Android and iPhone without the app** go to a web form. All uploads are attributed to the event and the QR token with an optional self-reported display name; no account is created.
+QR Code Fan Upload enables anonymous, credential-free media contribution from venue attendees — fans at a concert, guests at a wedding. The event owner generates a per-event QR code from the admin page. When a guest scans it, **iPhone with the app installed** is routed to the native GigHive app via Universal Links, landing on a pre-filled upload screen that requires only ToS acceptance. **Android and iPhone without the app** go to a web form. All uploads are attributed to the event and the QR token with an optional self-reported display name; no account is created.
 
-This replaces the current model where fan uploads share a single set of htpasswd credentials with zero per-upload attribution.
+This replaces the current model where guest uploads share a single set of htpasswd credentials with zero per-upload attribution.
 
 ---
 
@@ -24,11 +24,11 @@ This replaces the current model where fan uploads share a single set of htpasswd
 
 1. Promoter (band manager, wedding coordinator) opens the event admin page and generates a QR code for the event.
 2. The QR code is displayed on-screen at the venue — on a projector, printed flyer, or handout.
-3. A fan or guest scans the QR code with their phone camera.
+3. A guest scans the QR code with their phone camera.
 4. **iPhone with app installed** → iOS opens the native GigHive app directly via Universal Links and routes to the upload screen for that event. No login required.
 5. **Android, or iPhone without the app** → phone opens the URL in the browser and lands on `db/upload_form_single.php`.
 6. User accepts ToS (one checkbox), optionally enters a display name, selects file(s), and uploads.
-7. Upload is attributed to the event and the QR token. The owner can see all fan-contributed uploads in the event admin view.
+7. Upload is attributed to the event and the QR token. The owner can see all guest-contributed uploads in the event admin view.
 
 ---
 
@@ -79,7 +79,7 @@ CREATE TABLE anon_upload_attributions (
   attribution_id  bigint unsigned NOT NULL AUTO_INCREMENT,
   token_id        bigint unsigned NOT NULL,
   upload_job_id   varchar(64)     NOT NULL,
-  display_name    varchar(255)    DEFAULT NULL  COMMENT 'Self-reported fan display name',
+  display_name    varchar(255)    DEFAULT NULL  COMMENT 'Self-reported guest display name',
   tos_accepted_at datetime        NOT NULL      COMMENT 'Timestamp of anonymous ToS acceptance',
   created_at      datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (attribution_id),
@@ -262,7 +262,7 @@ The plan notes this explicitly so the implementation does not re-implement file 
 ### Token validation hardening
 - **No `hash_equals()` call is needed in the token validation path.** The raw token is hashed in PHP (`hash('sha256', $rawToken)`) and looked up via `WHERE token_hash = ?` using a prepared statement. PHP never compares hash strings directly; the DB handles the equality check. `hash_equals()` is only relevant when comparing two hash strings in PHP (e.g., HMAC verification) — it must not be added here or it signals a misunderstood flow to future developers.
 - Do not distinguish "token not found" from "token expired" or "token revoked" in error responses — all return the same 404
-- **Do NOT set `is_active = 0` on token use** — QR tokens are multi-use (many fans per event). Owner revocation is a manual `UPDATE event_upload_tokens SET is_active = 0`. See saas doc SEC-11 for the contrast with single-use invite links.
+- **Do NOT set `is_active = 0` on token use** — QR tokens are multi-use (many guests per event). Owner revocation is a manual `UPDATE event_upload_tokens SET is_active = 0`. See saas doc SEC-11 for the contrast with single-use invite links.
 - Raw token appears in Apache access logs (`/upload/<token>` path). With a 24-hour default expiry this is accepted risk. If expiry is extended beyond 7 days, consider configuring Apache `LogFormat` to redact the token component of `/upload/*` paths.
 
 ---
@@ -273,7 +273,7 @@ The plan notes this explicitly so the implementation does not re-implement file 
 |---|---|---|
 | Token security model | Opaque CSPRNG token (32 bytes); SHA-256 hash stored in DB | Tokens are revocable, auditable, and require no signing key to manage. 256-bit randomness is computationally unguessable. HMAC-signed URLs (the alternative) require a signing key and rotation infrastructure with no additional security benefit over a CSPRNG token |
 | Attribution record creation | Single `POST /api/uploads/finalize` call with `X-Upload-Token` header; creates `anon_upload_attributions` row atomically | Eliminates a separate submit endpoint. Two-step attribution (upload → separate submit) creates a window where upload completes without an attribution record. Mirrors web path which does both in one PHP request |
-| `label` source for fan uploads | Auto-derived from uploaded filename by iOS app | Fans are not metadata authors; prompting for a label adds friction. Filename is always available and sufficient for owner identification in the event admin view |
+| `label` source for guest uploads | Auto-derived from uploaded filename by iOS app | Guests are not metadata authors; prompting for a label adds friction. Filename is always available and sufficient for owner identification in the event admin view |
 | Web path upload mechanism | Reuse existing `tus-js-client` in `upload_form_single.php` with `X-Upload-Token` header — same TUS infrastructure as admin path | `upload_form_single.php` already uses tus-js-client. Adding a second non-TUS multipart upload mechanism would require a new server-side file handler and duplicate pipeline logic. Passing `X-Upload-Token` in tus-js-client `headers` option requires zero library changes; the finalize endpoint already plans an X-Upload-Token path (item 4). Simpler and consistent. |
 | iOS session object for QR path | New `GuestUploadSession` — `AuthSession` not reused | `AuthSession` is tightly coupled to Basic Auth credentials `(user: String, pass: String)?`. A guest upload has no credentials — mixing these would corrupt the auth model |
 | `POST /api/upload-token/submit` endpoint | Eliminated | Redundant once the token-auth finalize variant creates the `anon_upload_attributions` row atomically |
@@ -295,20 +295,40 @@ The plan notes this explicitly so the implementation does not re-implement file 
 
 **Server / PHP**
 
-1. DB tables — `event_upload_tokens` and `anon_upload_attributions` already added to `create_media_db.sql` and the combined Phase 1 migration (steps 1–4); confirm tables exist before proceeding
-2. Apache vhost config — two additions; **must be deployed before item 6 is testable**:
-   - **Fan upload routing:** `RewriteRule ^/upload/([A-Za-z0-9_-]+)$ /db/upload_form_single.php?token=$1 [L,QSA]` — routes fan QR URLs to the PHP handler; without this rule the fan URL 404s
-   - **AASA:** create static file at `ansible/roles/docker/files/apache/webroot/.well-known/apple-app-site-association` — deployed by Ansible alongside all other webroot files; no `.php` extension, no DB hit; add `<Location /.well-known/apple-app-site-association>` Apache block — `Content-Type: application/json`, no redirect, no auth; app entry `WB7D4FC7XU.com.gighive.GigHive`; pattern `/upload/*`
+1. DB tables — `event_upload_tokens` and `anon_upload_attributions` already added to `create_media_db.sql` and the combined Phase 1 migration (steps 1–4); the `qr_code` Ansible role verifies both tables exist at the start of its run and exits with an explanatory message if either is missing — no remediation is attempted automatically
+2. Apache vhost config (`default-ssl.conf.j2`) — **four** additions; **must be deployed before any guest-path endpoint is testable**. ⚠️ Apache re-evaluates auth against the *rewritten* URL after an internal rewrite — without explicit exemptions, guests receive `401` on every leg of the upload because they have no htpasswd credentials:
+   - **Guest upload routing:** `RewriteRule ^/upload/([A-Za-z0-9_-]+)$ /db/upload_form_single.php?token=$1 [L,QSA]` — routes guest QR URLs to the PHP handler. Place this rewrite *before* the existing MVC rewrite rules.
+   - **Auth exemptions** — six `SetEnvIf`/`Location`/`LocationMatch` changes (all implemented in `default-ssl.conf.j2`):
+     1. `SetEnvIf X-Upload-Token .+ upload_token_auth` inside `<VirtualHost>` (before the `<LocationMatch>` auth blocks) — Apache sets an env var when the header is non-empty; PHP and tusd remain the authoritative validators.
+     2. `<Location "/db/upload_form_single.php"> AuthMerging Off; Require all granted </Location>` — overrides the catch-all `/db/` Basic Auth for the guest landing page; PHP gates admin sections on `$user === 'admin'` and guest sections on token presence, so no credentials are required at the Apache layer.
+     3. Replace `Require user admin uploader` in `<LocationMatch "^/files(?:/|$)">` with `<RequireAny> Require user admin uploader; Require env upload_token_auth </RequireAny>` — allows guest TUS chunks to reach tusd when the token header is present.
+     4. Replace `Require user admin uploader` in `<LocationMatch "^/api/uploads(?:/|$)">` with the same `<RequireAny>` block — allows the token-auth finalize call to reach PHP.
+     5. `<Location "/api/upload-token.php"> AuthMerging Off; Require all granted </Location>` — fully unauthenticated by design; PHP validates the token.
+     6. `<Location "/.well-known/apple-app-site-association"> Header set Content-Type "application/json"; Options -Indexes </Location>` — `/.well-known/` is not covered by the catch-all auth LocationMatch, so no auth directive is needed; only the Content-Type header is required.
+   - **`/api/upload-token` routing:** `api/upload-token.php` is a direct PHP file accessed **with the `.php` extension** at `/api/upload-token.php` — consistent with other standalone API files (`api/tags.php`, etc.); no additional rewrite rule is needed. iOS `QRTokenAPIClient` must use `.appendingPathComponent("upload-token.php")` — see the Concrete iOS Code Changes section.
+   - **AASA:** rendered from Jinja2 template `ansible/roles/docker/templates/apple-app-site-association.j2` (uses `{{ qr_aasa_app_id }}` and `{{ qr_guest_upload_prefix }}`) by a task in the docker role before `docker compose build`; output written to `{{ docker_dir }}/apache/webroot/.well-known/apple-app-site-association` and baked into the Docker image; no `.php` extension, no DB hit
 3. `src/Services/UploadTokenValidator.php` — shared class, `namespace Production\Api\Services` (matches all existing services); `validate(string $rawToken): TokenValidationResult|null`; used by items 4, 5, and 6 to prevent validation logic from drifting; build this before any token-consuming endpoint
 4. `GET /api/upload-token` (`api/upload-token.php`) — unauthenticated token validation endpoint; returns event details for iOS; calls `UploadTokenValidator`
-5. `POST /api/uploads/finalize` (`api/uploads/finalize.php`) — add `X-Upload-Token` auth path alongside existing Basic Auth; calls `UploadTokenValidator`; derives event context from DB; accepts `label` (required), `display_name` (optional, strip HTML, max 100 chars — **implement sanitization here, do not defer**), `tos_accepted` (required, must be JSON `true`); creates `anon_upload_attributions` row atomically; see implementation notes below
-6. `db/upload_form_single.php` — add `require_once __DIR__ . '/../vendor/autoload.php';` and `use Production\Api\Services\UploadTokenValidator;` at the top (same pattern as `db/delete_media_files.php` — currently absent from this file); add QR token mode (third mode alongside existing admin/fan modes): detect `?token=` from URL (set by Apache rewrite in item 2); validate via `UploadTokenValidator`; pre-populate event fields from DB (read-only); show ToS checkbox (required) + display name field (optional, `strip_tags(trim($displayName))` before storing, `htmlspecialchars()` at every render, max 100 chars — **implement sanitization here, do not defer**); use **existing TUS infrastructure** with `X-Upload-Token: <raw_token>` in TUS `headers` option and finalize `fetch` headers; omit `withCredentials: true` and Basic Auth in token mode; pass `display_name` and `tos_accepted: true` in finalize body; finalize endpoint (item 5) creates `anon_upload_attributions` row atomically
-7. `db/upload_form_single.php` — add admin QR generator section (visible only when `$user === 'admin'`, scoped by `?event_id=X`; **note:** this Basic Auth username check is acceptable for Phase 1a — revisit when OIDC/RBAC ships in step 7): CSPRNG token via `bin2hex(random_bytes(32))` → 64-char hex raw token; SHA-256 hash stored in DB; `event_upload_tokens` INSERT; QR render via `qrcode@1.5.4` CDN (jsDelivr), canvas display + PNG download button
-   - **Expiry:** Owner selects from a dropdown at generation time: **4h / 24h / 7d**; pre-selected value comes from `QR_TOKEN_DEFAULT_TTL_HOURS` env var; PHP computes `expires_at = NOW() + INTERVAL <hours> HOUR`; server validates `expires_at > NOW()` on INSERT regardless of client input
-   - **Default:** `QR_TOKEN_DEFAULT_TTL_HOURS=24` — add `qr_token_default_ttl_hours: 24` to Ansible `group_vars` and add `QR_TOKEN_DEFAULT_TTL_HOURS={{ qr_token_default_ttl_hours }}` to `.env.j2` (same pattern as other env vars in that template); overridable per environment without a code deploy
-8. `db/upload_form_single.php` — add token revocation UI in the admin section (`$user === 'admin'` gate — same Phase 1a caveat as item 7): list active tokens for the event (`?event_id=X`); POST to toggle `is_active = 0` on a token row
-9. `db/upload_form_single.php` — add fan-upload list in the admin section (`$user === 'admin'` gate — same Phase 1a caveat as item 7; same `?event_id=X` scope): query `anon_upload_attributions JOIN event_upload_tokens ON token_id WHERE event_upload_tokens.event_id = ? JOIN upload_jobs ON upload_job_id`; display columns: display name, upload timestamp, filename (`upload_jobs` label), token `is_active` status; flat list ordered by `anon_upload_attributions.created_at DESC`; show a note on rows where the token has since been revoked (`is_active = 0`)
-10. `SAAS_MODE` env flag — add `saas_mode` boolean to Ansible `group_vars` (false for self-hosted, true for SaaS); render into `.env` via `.env.j2`; add `SAAS_MODE` read in PHP bootstrap; gates OIDC requirement vs. Basic Auth preservation
+5. `POST /api/uploads/finalize` — add `X-Upload-Token` auth path alongside existing Basic Auth; calls `UploadTokenValidator`; derives event context from DB; accepts `label` (required), `display_name` (optional, strip HTML, max 100 chars — **implement sanitization here, do not defer**), `tos_accepted` (required, must be JSON `true`); creates `anon_upload_attributions` row atomically; see implementation notes below. **There is no standalone `finalize.php`** — finalize is handled through the MVC layer:
+   ```
+   POST /api/uploads/finalize
+     → api/uploads.php          (thin router)
+     → src/index.php            (route dispatch)
+     → UploadController::finalize()
+     → UploadService::finalizeTusUpload()
+   ```
+   Changes land in `src/Controllers/UploadController.php` (auth mode detection; token validation; pass token context to service) and `src/Services/UploadService.php::finalizeTusUpload()` (accept token-mode params; atomic `anon_upload_attributions` INSERT)
+
+   > **TODO:** After implementing this step, update `docs/database_schema.mermaidchart` to add `event_upload_tokens` and `anon_upload_attributions` tables and their FK relationships (`event_upload_tokens → events`, `anon_upload_attributions → event_upload_tokens`, `anon_upload_attributions → upload_jobs`).
+6. `db/upload_form_single.php` — add `require_once __DIR__ . '/../vendor/autoload.php';` and `use Production\Api\Services\UploadTokenValidator;` at the top (same pattern as `db/delete_media_files.php` — currently absent from this file); add QR token mode (third mode alongside the existing admin and authenticated-user modes): detect `?token=` from URL (set by Apache rewrite in item 2); validate via `UploadTokenValidator`; replace the editable event metadata fields with read-only pre-populated values from the token result (event name, date, type — no user input); show ToS checkbox (required) + display name field (optional, `strip_tags(trim($displayName))` before storing, `htmlspecialchars()` at every render, max 100 chars — **implement sanitization here, do not defer**); keep existing file picker and Upload button; use **existing TUS infrastructure** with `X-Upload-Token: <raw_token>` in TUS `headers` option and finalize `fetch` headers; omit `withCredentials: true` and Basic Auth in token mode; pass `display_name` and `tos_accepted: true` in finalize body; finalize endpoint (item 5) creates `anon_upload_attributions` row atomically. **No admin QR management on this page** — that belongs on the dedicated `admin/event_qr.php` (item 7).
+7. `admin/event_qr.php` — **new dedicated page** for admin QR code management; follows the existing `admin/` page convention (e.g. `admin/ai_worker.php`); requires `$user === 'admin'` gate (**note:** Basic Auth username check acceptable for Phase 1a — revisit when OIDC/RBAC ships in step 7 of the SaaS model); scoped by `?event_id=X` with an event selector dropdown. Contains three sections:
+   - **QR Code Generator:** CSPRNG token via `rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=')` → ~43-char base64url raw token; SHA-256 hash stored in `event_upload_tokens`; raw token never stored; expiry dropdown (**4h / 24h / 7d**, pre-selected from `QR_TOKEN_DEFAULT_TTL_HOURS` env var); PHP computes `expires_at = NOW() + INTERVAL <hours> HOUR` server-side and validates on INSERT; QR rendered to `<canvas>` via `qrcode@1.5.4` (jsDelivr CDN); PNG download button exports canvas data URL; QR encodes `https://gighive.app/upload/<raw_token>`
+   - **Active Tokens:** table of all tokens for the event — truncated hash, expiry, status (Active / Expired / Revoked); [Revoke] button on active rows POSTs to same page and sets `is_active = 0`; POST handler re-verifies `token_id` belongs to the same `event_id` to prevent cross-event tampering
+   - **Guest Uploads:** flat list from `anon_upload_attributions JOIN event_upload_tokens ON token_id WHERE event_upload_tokens.event_id = ? JOIN upload_jobs ON upload_job_id`; columns: display name, uploaded timestamp, filename (from `upload_jobs` label), token status; ordered by `anon_upload_attributions.created_at DESC`; rows from revoked tokens flagged
+   - **Default:** `QR_TOKEN_DEFAULT_TTL_HOURS=24` already in group_vars → `.env.j2`; no additional env wiring needed
+8. *(absorbed into item 7 — token revocation is a section of `admin/event_qr.php`, not a separate step)*
+9. *(absorbed into item 7 — guest upload list is a section of `admin/event_qr.php`, not a separate step)*
+10. `SAAS_MODE` env flag — add `saas_mode` boolean to Ansible `group_vars` (false for self-hosted, true for SaaS); render into `.env` via `.env.j2`; add `SAAS_MODE` read in PHP bootstrap; **no runtime behavior gates on this flag in Phase 1a** — it is read at bootstrap as infrastructure for the Step 7 OIDC gate; implementers should not look for anything to conditionally wire in Phase 1a
 
 **iOS App**
 
@@ -322,7 +342,7 @@ The plan notes this explicitly so the implementation does not re-implement file 
 18. `Sources/App/UploadClient.swift` — add `uploadToken: String?` to `init()`; omit `Authorization: Basic` header when token present; pass `X-Upload-Token` in finalize request; **do this before item 21** — `GuestUploadView.doUpload()` instantiates `UploadClient(uploadToken:)`
 19. `Sources/App/TUSUploadClient.swift` — add `uploadToken: String?` to `init()`; in `generateHeaders` closure replace `if let basicAuth { … }` with `if let uploadToken { mutated["X-Upload-Token"] = uploadToken } else if let basicAuth { … }`
 20. `Sources/App/GigHiveApp.swift` — add `@StateObject guestSession`; add `.environmentObject(guestSession)`; add `.onOpenURL` to parse `/upload/<raw_token>` and assign to `guestSession.rawToken`
-21. `Sources/App/GuestUploadView.swift` — new view: event info pre-populated from token, ToS checkbox (required), display name field (optional), file picker (**video-only filter** — `PHPickerFilter.videos`; fans at events capture video clips, not audio); `label` auto-derived from filename; no credentials; **post-upload state:** on success `guestSession.clear()` is called — the view must handle `eventDetails == nil` + `rawToken == nil` gracefully by showing a "Upload received — thank you!" confirmation with a Dismiss button that pops the view; **depends on items 13–20 all being complete**
+21. `Sources/App/GuestUploadView.swift` — new view: event info pre-populated from token, ToS checkbox (required), display name field (optional), file picker (**video-only filter** — `PHPickerFilter.videos`; guests at events capture video clips, not audio); `label` auto-derived from filename; no credentials; **post-upload state:** on success `guestSession.clear()` is called — the view must handle `eventDetails == nil` + `rawToken == nil` gracefully by showing a "Upload received — thank you!" confirmation with a Dismiss button that pops the view; **depends on items 13–20 all being complete**
 22. `Sources/App/SplashView.swift` — add third `NavigationLink` route: if `guestSession.rawToken != nil`, navigate directly to `GuestUploadView` bypassing `LoginView`; **depends on item 21**
 23. iOS fallback/error screen — shown within `GuestUploadView` (item 21) when token validation fails; offer "Open in Safari" button reconstructing `guestSession.baseURL + /upload/ + rawToken`
 
@@ -341,10 +361,10 @@ The plan notes this explicitly so the implementation does not re-implement file 
 - iOS app modifications to existing files (`GigHiveApp`, `TUSUploadClient`, `UploadClient`, `SplashView`, `project.yml`, entitlements)
 
 **Deferred (not Phase 1a):**
-- Owner UI: browsable fan-contributed upload list per event — the data exists in `anon_upload_attributions` from day one; the admin view is a follow-on feature
+- Owner UI: browsable guest-contributed upload list per event — the data exists in `anon_upload_attributions` from day one; the admin view is a follow-on feature
 - `created_by_user_id` population — automatically populated when step 7 (OIDC/RBAC) ships; NULL in the interim
 - Rate limiting per QR token (e.g., max N uploads per token) — not designed; deferred
-- Storage quota measurement for fan uploads — addressed in Phase 2 step 13
+- Storage quota measurement for guest uploads — addressed in Phase 2 step 13
 
 ---
 
@@ -355,13 +375,14 @@ The plan notes this explicitly so the implementation does not re-implement file 
 | File | Type | Change |
 |---|---|---|
 | `create_media_db.sql` | Modified | Add `event_upload_tokens` and `anon_upload_attributions` DDLs |
-| `db/upload_form_single.php` | New | Token validation, event display, ToS + display name form, standard multipart upload handler (Android + web fallback path) |
-| `admin/<event-admin-page>.php` | New or Modified (filename TBD) | QR code generator: CSPRNG token generation, `event_upload_tokens` INSERT, QR render via `qrcode` JS CDN (`qrcode@1.5.4/build/qrcode.min.js`), PNG download button, revocation UI |
-| `src/Services/UploadTokenValidator.php` | New | Shared `validate(string $rawToken): ?TokenValidationResult`; called by `upload_form_single.php`, `api/upload-token.php`, and `api/uploads/finalize.php` to prevent drift |
+| `db/upload_form_single.php` | Modified | Add QR token mode (third mode): detect `?token=`, validate via `UploadTokenValidator`, replace editable metadata with read-only event info, add ToS checkbox + optional display name, TUS upload with `X-Upload-Token` header. No admin QR management on this page. |
+| `admin/event_qr.php` | New | Dedicated admin QR management page (`$user === 'admin'` gate): event selector, QR code generator (CSPRNG token, expiry dropdown, canvas + PNG download), active token table with revoke, guest upload list from `anon_upload_attributions` |
+| `src/Services/UploadTokenValidator.php` | New | Shared `validate(string $rawToken): ?TokenValidationResult`; called by `upload_form_single.php`, `api/upload-token.php`, and `UploadController::finalize()` to prevent drift |
 | `api/upload-token.php` | New | `GET /api/upload-token` — unauthenticated token validation via `UploadTokenValidator`; returns event details for iOS app |
-| `api/uploads/finalize.php` | Modified | Add `X-Upload-Token` auth path alongside existing Basic Auth; derive event context from DB; accept `label`, `display_name`, `tos_accepted` in body; create `anon_upload_attributions` row atomically |
-| `.well-known/apple-app-site-association` | New | AASA JSON: app entry `WB7D4FC7XU.com.gighive.GigHive`, pattern `/upload/*` |
-| Apache vhost config | Modified | Add `<Location /.well-known/apple-app-site-association>` block: `Content-Type: application/json`, no auth |
+| `src/Controllers/UploadController.php` | Modified | Add auth mode detection in `finalize()`: read `X-Upload-Token` header; validate via `UploadTokenValidator`; pass token context to service |
+| `src/Services/UploadService.php` | Modified | Add token-auth path to `finalizeTusUpload()`: accept `display_name`, `tos_accepted`; derive event context from token; INSERT `anon_upload_attributions` row atomically |
+| `ansible/roles/docker/templates/apple-app-site-association.j2` | New | Jinja2 template rendered by docker role before build; uses `qr_aasa_app_id` and `qr_guest_upload_prefix` group_vars; output baked into Docker image at `/.well-known/apple-app-site-association` |
+| Apache vhost config (`default-ssl.conf.j2`) | Modified | `SetEnvIf X-Upload-Token`; guest upload rewrite rule; `<RequireAny>` on `/files/` and `/api/uploads/` LocationMatch blocks; `AuthMerging Off` exemptions for `/db/upload_form_single.php` and `/api/upload-token.php`; AASA Content-Type block |
 
 ### iOS App
 
@@ -372,7 +393,7 @@ The plan notes this explicitly so the implementation does not re-implement file 
 | `Sources/App/GigHiveApp.swift` | Modified | Add `.onOpenURL { url in }` on `WindowGroup`; add `@StateObject private var guestSession = GuestUploadSession()` and `.environmentObject(guestSession)` alongside existing `session` and `uploadState` |
 | `Sources/App/GuestUploadSession.swift` | New | `@MainActor ObservableObject`: `rawToken`, `baseURL`, `eventDetails`, `displayName`, `tosAccepted`; `clear()` resets all fields after successful upload |
 | `Sources/App/QRTokenAPIClient.swift` | New | Unauthenticated `GET /api/upload-token` call; attribution record created by the token-auth finalize call — no separate submit endpoint |
-| `Sources/App/GuestUploadView.swift` | New | Fan upload screen: event name/date pre-populated from token, ToS checkbox (required), display name field (optional), file picker; no credentials |
+| `Sources/App/GuestUploadView.swift` | New | Guest upload screen: event name/date pre-populated from token, ToS checkbox (required), display name field (optional), file picker; no credentials |
 | `Sources/App/TUSUploadClient.swift` | Modified | Add `uploadToken: String?` to `init()`; replace the existing `if let basicAuth { ... }` block in `generateHeaders` with `if let uploadToken { mutated["X-Upload-Token"] = uploadToken } else if let basicAuth { ... }` — token auth takes priority; Basic Auth header omitted entirely when a token is present |
 | `Sources/App/UploadClient.swift` | Modified | Add `uploadToken: String?` to `init()`; pass `X-Upload-Token` header in finalize `URLRequest`; omit `Authorization: Basic` header when token present |
 | `Sources/App/SplashView.swift` | Modified | Add third navigation route: if `guestSession.rawToken != nil`, navigate directly to `GuestUploadView` bypassing `LoginView` |
@@ -383,7 +404,33 @@ The plan notes this explicitly so the implementation does not re-implement file 
 | `Sources/App/DocumentPickerView.swift` | Extracted | Move `DocumentPickerView` UIViewControllerRepresentable out of `UploadView.swift`; make `internal` for reuse in `GuestUploadView` |
 | `Sources/App/UploadView.swift` | Modified | Remove `private struct FinalizeResponse`, `private func handleFinalizeResponse`, `private func extractJSONCandidate`, `PHPickerView`, and `DocumentPickerView` definitions (all moved to their own files above); file becomes a pure view with no embedded utilities |
 
-### `api/uploads/finalize.php` — implementation notes
+### Ansible / Infrastructure
+
+| File | Type | Change |
+|---|---|---|
+| `ansible/roles/docker/templates/.env.j2` | Modified | Add `QR_TOKEN_DEFAULT_TTL_HOURS={{ qr_token_default_ttl_hours \| default(24) \| int }}` and `SAAS_MODE={{ (saas_mode \| default(false)) \| ternary('true', 'false') }}` |
+| `ansible/roles/docker/templates/apple-app-site-association.j2` | New | Jinja2 template replacing the former static file; rendered by docker role `tasks/main.yml` before `docker compose build`; `appIDs`: `{{ qr_aasa_app_id }}`, `components`: `{{ qr_guest_upload_prefix }}/*`; output written to `{{ docker_dir }}/apache/webroot/.well-known/apple-app-site-association` and baked into image |
+| `ansible/inventories/group_vars/gighive2/gighive2.yml` | Modified | Add QR Code Guest Upload variable block (all 8 variables; see list below) |
+| `ansible/inventories/group_vars/gighive/gighive.yml` | Modified | Same QR Code Guest Upload variable block |
+| `ansible/inventories/group_vars/prod/prod.yml` | Modified | Same QR Code Guest Upload variable block |
+| `ansible/roles/qr_code/tasks/main.yml` | New | Smoke test role: verifies AASA file presence and `application/json` Content-Type; Apache `AuthMerging Off` bypass on guest URL and token API; TUS `X-Upload-Token` bypass via `SetEnvIf`; `QR_TOKEN_DEFAULT_TTL_HOURS` positive integer and `SAAS_MODE` `true`/`false` env vars; `event_upload_tokens` and `anon_upload_attributions` table existence. All container exec tasks use `community.docker.docker_container_exec`; all paths driven by group_vars — no hardcoded literals |
+| `ansible/playbooks/site.yml` | Modified | Add `qr_code` role (tag `qr_code`) after `post_build_checks`, before `validate_app` |
+
+#### Group vars added (all three environments: `gighive2`, `gighive`, `prod`)
+
+```yaml
+# QR Code Guest Upload (Phase 1a)
+qr_token_default_ttl_hours: 24          # pre-selected TTL in the admin token dropdown; overridable per env
+saas_mode: false                         # Phase 1a: always false; wired in Step 7 for OIDC gate
+qr_guest_upload_prefix: "/upload"          # URL prefix for guest landing page (/upload/<token>)
+qr_token_api_path: "/api/upload-token.php"  # unauthenticated token validation endpoint
+qr_aasa_web_path: "/.well-known/apple-app-site-association"  # Apple-mandated AASA URL path
+qr_aasa_container_path: "/var/www/html/.well-known/apple-app-site-association"  # path inside Apache container
+qr_aasa_app_id: "WB7D4FC7XU.com.gighive.GigHive"  # Apple Team ID + Bundle ID for Universal Links
+qr_smoke_token: "qr-smoke-aabbccddeeff" # synthetic token value used by the qr_code smoke test role
+```
+
+### `POST /api/uploads/finalize` — implementation notes (`UploadController` + `UploadService`)
 
 1. **Detect auth mode**: if `X-Upload-Token` header present and non-empty, set `$mode = 'token'`; if `Authorization: Basic` header present, set `$mode = 'basic'`; otherwise return `401`.
 2. **Token-mode validation**: compute `$tokenHash = hash('sha256', $rawToken)`; query `SELECT t.token_id, e.event_id, e.event_date, e.org_name, e.event_type FROM event_upload_tokens t JOIN events e ON e.event_id = t.event_id WHERE t.token_hash = ? AND t.is_active = 1 AND t.expires_at > NOW()`. Return `404` if zero rows — do not distinguish not-found from expired/revoked.
@@ -427,7 +474,7 @@ SQL
 docker exec -i mysqlServer sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"' << 'MIGRATION'
 CREATE TABLE IF NOT EXISTS event_upload_tokens (
   token_id            bigint unsigned NOT NULL AUTO_INCREMENT,
-  event_id            int unsigned    NOT NULL,
+  event_id            INT             NOT NULL,
   token_hash          char(64)        NOT NULL  COMMENT 'SHA-256 hex of the raw token; raw token is never stored',
   expires_at          datetime        NOT NULL,
   is_active           tinyint(1)      NOT NULL DEFAULT 1,
@@ -448,7 +495,7 @@ CREATE TABLE IF NOT EXISTS anon_upload_attributions (
   attribution_id  bigint unsigned NOT NULL AUTO_INCREMENT,
   token_id        bigint unsigned NOT NULL,
   upload_job_id   varchar(64)     NOT NULL,
-  display_name    varchar(255)    DEFAULT NULL  COMMENT 'Self-reported fan display name',
+  display_name    varchar(255)    DEFAULT NULL  COMMENT 'Self-reported guest display name',
   tos_accepted_at datetime        NOT NULL      COMMENT 'Timestamp of anonymous ToS acceptance',
   created_at      datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (attribution_id),
@@ -467,31 +514,6 @@ MIGRATION
 ## Concrete iOS Code Changes
 
 > All diffs are against the snapshot at `/mnt/scottsfiles/gighive/GigHive-iPhone/GigHive` (2026-06-26).
-
-### Inconsistencies and Logic Errors Found During Deep Dive
-
-The following issues were identified by reading the source and are corrected in the change specs below:
-
-| # | Finding | Fix |
-|---|---|---|
-| 1 | `UploadPayload` has no `displayName` or `tosAccepted` fields — the finalize body cannot carry attribution data for the guest path | Add both fields to `UploadPayload`; `finalizeTusUpload` includes them in the JSON body only when `uploadToken != nil` |
-| 2 | `GuestUploadSession` was defined with `rawToken`, `eventDetails`, `displayName`, `tosAccepted` but no `baseURL` — `QRTokenAPIClient` and `UploadClient` both need the server base URL, and `UploaderDeleteTokenStore` is keyed by host | Add `baseURL: URL?` to `GuestUploadSession`; extract from the incoming Universal Link in `onOpenURL` |
-| 3 | `UploadClient.uploadWithMultipartInputStream` line 119 has `guard let label … !label.isEmpty else { throw … }` — if `GuestUploadView` does not pre-populate `payload.label`, the upload throws before TUS starts | `GuestUploadView` must set `payload.label = fileURL.lastPathComponent` when building `UploadPayload` |
-| 4 | `UploadClient.finalizeTusUpload` always sends `Authorization: Basic` when `basicAuth != nil`; for guest path both `basicAuth` and `uploadToken` could be present if not guarded | `UploadClient` should pass `basicAuth: nil` to `TUSUploadClient` when `uploadToken != nil`, and in `finalizeTusUpload` the `Authorization` block must be guarded `if uploadToken == nil` |
-| 5 | `QRTokenAPIClient` description in the iOS app requirements table still mentioned the eliminated `POST /api/upload-token/submit` endpoint | Fixed in the table above |
-| 6 | `SplashView` navigation uses `NavigationLink(destination:isActive:)` (iOS 15-compat pattern) — the guest route must follow the same pattern, not a programmatic `NavigationPath` push | Guest `NavigationLink` added with `isActive: $goToGuestUpload`; triggered from both `.onAppear` and `.onChange(of: guestSession.rawToken)` |
-| 7 | After a successful guest upload, `UploadView` stores a delete token keyed on `session.baseURL.host` — guest uploads have no `session.baseURL`; they use `guestSession.baseURL` | `GuestUploadView` must use `guestSession.baseURL?.host` as the `UploaderDeleteTokenStore` host key |
-| 8 | `GuestUploadSession` has no `@MainActor` — `@Published` mutations from inside `Task { }` run off the main actor and produce "Publishing changes from background threads" warnings/crashes in iOS 17+ | Annotate `GuestUploadSession` with `@MainActor`; mark `clear()` as `@MainActor` |
-| 9 | `defer { isUploading = false; uploadProgress = nil }` inside `Task { }` mutates `@State` off the main actor | Replace with `await MainActor.run { isUploading = false; uploadProgress = nil }` inside the task; annotate `doUpload()` as `@MainActor` |
-| 10 | `guestSession.eventDetails!` force-unwrap after `guard guestSession.eventDetails != nil` | Replace guard with `guard let eventDetails = guestSession.eventDetails else { return }` and use `eventDetails` directly in `forGuestUpload()` call |
-| 11 | `selectedPhotoItem: PhotosPickerItem?` is the `PhotosPicker` SwiftUI API (iOS 16+) — `GuestUploadView` uses `PHPickerView` (UIKit, iOS 14+); the two approaches are mutually exclusive | Remove `selectedPhotoItem` — dead state not used with the `PHPickerView` / sheet-trigger approach |
-| 12 | PHP `base64_encode()` produces standard base64 (`+`, `/`, `=`); URL path requires base64url (`-`, `_`, no padding) | Token generation must use: `rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=')` |
-| 13 | `json_decode($body, true)` returns `null` on malformed JSON; accessing `['tos_accepted']` on `null` is a PHP 8 `TypeError` | After `json_decode()`, check `json_last_error() === JSON_ERROR_NONE` and `is_array($body)` before accessing keys; return `400` on failure |
-| 14 | `UploadTokenValidator::validate()` return type is `?object` — callers cannot statically verify the shape | Return a typed `TokenValidationResult` value object (or `readonly class`) with documented properties; or at minimum add `@return` PHPDoc |
-| 15 | `DateFormatter` instantiation in `UploadPayload.forGuestUpload()` is expensive per call | Declare `private static let eventDateFormatter: DateFormatter` on the factory type; reuse it across calls |
-| 16 | `QRTokenError.invalidOrExpired(-1)` used for URL construction failure conflates a programming error with an HTTP status | Add `case malformedBaseURL` to `QRTokenError`; throw it when `URLComponents` or `.url` returns nil |
-
----
 
 ### `UploadClient.swift` — `UploadPayload` struct
 
@@ -681,7 +703,7 @@ final class QRTokenAPIClient {
     func validateToken(_ rawToken: String) async throws -> QREventDetails {
         let url = baseURL
             .appendingPathComponent("api")
-            .appendingPathComponent("upload-token")
+            .appendingPathComponent("upload-token.php")
         guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             throw QRTokenError.malformedBaseURL
         }
@@ -769,7 +791,9 @@ final class QRTokenAPIClient {
         }
 ```
 
-> **iOS 17+ note:** The single-parameter `.onChange(of:_:)` form is deprecated in iOS 17. Will produce a compiler warning but not a crash. Acceptable for Phase 1a; update to two-parameter form (`.onChange(of:initial:_:)`) before the next iOS SDK bump.
+> **iOS 17+ note:** The single-parameter `.onChange(of:_:)` form is deprecated in iOS 17. Will produce a compiler warning but not a crash. Acceptable for Phase 1a.
+
+> **`goToGuestUpload` reset on dismiss:** After `guestSession.clear()` sets `rawToken = nil`, the `.onChange` guard (`if token != nil`) correctly prevents re-navigation, but `goToGuestUpload` remains `true`. The `NavigationLink(isActive:)` keeps the link state active. The Dismiss / back button in `GuestUploadView` must set `goToGuestUpload = false` (e.g., via an `@Environment(\.dismiss)` action or a binding passed from `SplashView`) so that a subsequent QR scan from `SplashView` can trigger navigation again cleanly. Update `.onChange` to the two-parameter form (`.onChange(of:initial:_:)`) before the next iOS SDK bump.
 
 **6. Update the `SplashView_Previews`** to inject a `GuestUploadSession`:
 
@@ -828,6 +852,11 @@ struct GuestUploadView: View {
         // If tokenError != nil: show error + "Open in Safari" button
         //   (URL = guestSession.baseURL + "/upload/" + guestSession.rawToken)
         // Otherwise (eventDetails populated):
+        //
+        // ⚠️ Second-scan handling: use `.task(id: guestSession.rawToken) { }` instead of
+        // `.task { }` or `.onAppear { }` so that if the user scans a different QR code while
+        // GuestUploadView is already on the stack, the task re-runs and re-validates the new
+        // rawToken. A plain `.task` or `.onAppear` fires only once.
         //   Pre-populated fields (read-only): orgName, eventDate, title
         //   User-editable: guestSession.displayName (optional, max 100 chars)
         //   guestSession.tosAccepted (required toggle/checkbox)
@@ -835,6 +864,7 @@ struct GuestUploadView: View {
         //   Upload button: disabled until tosAccepted && fileURL != nil && eventDetails != nil
     }
 
+    @MainActor
     private func doUpload() {
         guard let fileURL,
               let baseURL = guestSession.baseURL,
@@ -945,23 +975,24 @@ All QR URLs use the apex domain: `https://gighive.app/upload/<token>`. The AASA 
 ```json
 {
   "applinks": {
-    "apps": [],
     "details": [
       {
-        "appID": "WB7D4FC7XU.com.gighive.GigHive",
-        "paths": [ "/upload/*" ]
+        "appIDs": [ "WB7D4FC7XU.com.gighive.GigHive" ],
+        "components": [
+          { "/": "/upload/*" }
+        ]
       }
     ]
   }
 }
 ```
 
-**Apache config** — add to the `gighive.app` apex vhost so the AASA is served without auth:
+> **Format note:** Uses the modern `"components"` array format (iOS 13+, preferred for new AASA files). The legacy `"paths"` format still works but Apple's AASA CDN validator flags it for new deployments.
+
+**Apache config** — already implemented in `default-ssl.conf.j2` (item 2 above). The `/.well-known/` path is not covered by the catch-all auth `LocationMatch`, so only the Content-Type header is required — no auth directives needed:
 
 ```apache
-<Location /.well-known/apple-app-site-association>
-    Satisfy Any
-    Allow from all
+<Location "/.well-known/apple-app-site-association">
     Header set Content-Type "application/json"
     Options -Indexes
 </Location>
@@ -1024,7 +1055,7 @@ extension UploadPayload {
 
 ### `src/Services/UploadTokenValidator.php` — new file
 
-Create at `src/Services/UploadTokenValidator.php`. All three token-consuming endpoints (`upload_form_single.php`, `api/upload-token.php`, `api/uploads/finalize.php`) call this class to prevent validation logic from drifting.
+Create at `src/Services/UploadTokenValidator.php`. All three token-consuming endpoints (`upload_form_single.php`, `api/upload-token.php`, and `UploadController::finalize()`) call this class to prevent validation logic from drifting.
 
 ```php
 <?php
@@ -1146,18 +1177,18 @@ class UploadTokenValidator
 |---|---|
 | Valid token in URL (`/upload/<token>`) | Form renders with read-only event fields, ToS checkbox, display name input |
 | Expired/revoked/invalid token | Error page rendered; no upload form shown |
-| Fan completes upload | TUS upload succeeds; finalize creates `anon_upload_attributions` row; success message shown |
-| Fan submits without checking ToS | Client-side block; form not submitted |
+| Guest completes upload | TUS upload succeeds; finalize creates `anon_upload_attributions` row; success message shown |
+| Guest submits without checking ToS | Client-side block; form not submitted |
 
 ### Admin Sections (`upload_form_single.php`)
 
 | Case | Expected |
 |---|---|
-| Admin visits `?event_id=X` | QR generator, revocation list, fan upload list all visible |
+| Admin visits `?event_id=X` | QR generator, revocation list, guest upload list all visible |
 | Admin visits `?event_id=` nonexistent | Graceful 404 or error; no PHP warning |
 | Admin generates QR code | Token row inserted in `event_upload_tokens`; QR renders on canvas; PNG download works |
 | Admin revokes a token | `is_active` set to `0`; token no longer validates |
-| Fan upload list | Rows from `anon_upload_attributions` displayed; revoked-token rows flagged |
+| Guest upload list | Rows from `anon_upload_attributions` displayed; revoked-token rows flagged |
 
 ### iOS — Universal Link + Guest Upload Flow
 
@@ -1166,7 +1197,38 @@ class UploadTokenValidator
 | Tap QR link with app installed | App opens; `guestSession.rawToken` set; navigates to `GuestUploadView` |
 | `GuestUploadView` loads with valid token | Spinner → event info displayed; form enabled |
 | `GuestUploadView` loads with invalid/expired token | Error state shown; "Open in Safari" button reconstructs correct URL |
-| Fan uploads successfully | Progress shown; on 200/201 response, `guestSession.clear()` called; success confirmation shown |
-| Fan taps Dismiss after success | Navigation pops; `SplashView` shown without re-triggering guest navigation |
+| Guest uploads successfully | Progress shown; on 200/201 response, `guestSession.clear()` called; success confirmation shown |
+| Guest taps Dismiss after success | Navigation pops; `SplashView` shown without re-triggering guest navigation |
 | App receives second QR scan while `GuestUploadView` on stack | `rawToken` updated; view re-validates new token |
 
+---
+
+## Security Controls — Apache Auth Bypass (Step 2)
+
+### What's newly exposed
+
+| Endpoint | Previously | Now |
+|---|---|---|
+| `/upload/<token>` → `upload_form_single.php` | 401 (no htpasswd) | Open; PHP validates token |
+| `/api/upload-token.php` | 401 | Open; PHP validates token |
+| `/files/` (TUS) with `X-Upload-Token` header | 401 | Apache passes through; tusd receives |
+| `/api/uploads/` with `X-Upload-Token` header | 401 | Apache passes through; PHP validates token |
+| `/.well-known/apple-app-site-association` | Served (no auth required anyway) | Content-Type header added only |
+
+### Controls at each layer
+
+**Token entropy** — Tokens are 32 CSPRNG bytes encoded as base64url (~43 chars, 256 bits of entropy). Brute-forcing is computationally infeasible. The raw token is never stored — only its SHA-256 hash hits the DB, so a DB breach does not yield usable tokens.
+
+**PHP is the actual authorization gate, not Apache** — Apache only checks for a non-empty `X-Upload-Token` header to set `upload_token_auth`. The value is irrelevant to Apache. PHP's `UploadTokenValidator` enforces legitimacy: it hashes the raw token, queries `event_upload_tokens` for an active, non-expired row, and returns `null` (→ 404) on any miss. Apache never trusts the token — it only stops blocking the request.
+
+**Admin sections stay protected** — `AuthMerging Off` on `upload_form_single.php` removes the htpasswd challenge at the Apache layer, but PHP checks `$_SERVER['PHP_AUTH_USER'] === 'admin'` to gate the admin sections. Since Apache no longer challenges for credentials, that variable is unset on unauthenticated requests, keeping the token generator, revocation UI, and guest upload list invisible to guests.
+
+**Token expiry and revocation** — Every token has an `expires_at` enforced server-side on every validation call. Tokens can be revoked by setting `is_active = 0`. PHP checks both conditions in the same prepared-statement query; expired and revoked tokens both return 404 with no distinguishing message.
+
+### Residual risks
+
+> **Deferred housekeeping:** The `.htpasswd` file includes an existing `guest` user account used for limited read-only access. Now that "guest" is the established term for QR upload attendees, this htpasswd user should be renamed (e.g. to `readonly`) at some point to avoid conceptual confusion. No functional impact in Phase 1a.
+
+**TUS storage spam** — Any request with a non-empty `X-Upload-Token` header passes Apache and reaches tusd. Tusd does not validate the token; it receives chunks regardless. A caller with any non-empty token value could upload files that sit orphaned on disk (finalize requires a valid token and will 404 without one). The `upload_max_bytes` limit caps per-upload size. Repeated attempts could fill the storage volume — this is a low-severity DoS vector acceptable for Phase 1a given the expected deployment context (private event venues, not open public internet). A tusd-level cleanup job for unfinalized uploads is a follow-on hardening item.
+
+**`upload_form_single.php` direct access without `?token=`** — With `Require all granted`, any client can reach this URL with no token query parameter. PHP must handle the no-token case gracefully (error state, no information disclosure, no PHP warnings). This is an implementation correctness requirement in subtask 6.

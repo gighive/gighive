@@ -679,6 +679,7 @@
       Docker: "{{ stack_docker_raw.stdout | default('N/A') | trim }}"
       OpenAI_Model: "{{ openai_model }}"
       App_Flavor: "{{ app_flavor }}"
+      QR_Code_JS: "{{ qr_code_js_version | default('N/A') }}"
 
       Composer_PHP_Dependency_Manager_Packages: "{{ stack_composer_packages }}"
   changed_when: false

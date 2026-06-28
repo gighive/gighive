@@ -1,5 +1,31 @@
 <?php declare(strict_types=1);
 // Merged upload form: serves both admin and uploader roles. See docs/refactor_upload_form_into_single.md
+require_once __DIR__ . '/../vendor/autoload.php';
+use Production\Api\Infrastructure\Database;
+use Production\Api\Services\UploadTokenValidator;
+
+$rawToken = $_GET['token'] ?? null;
+$tokenResult = null;
+
+if ($rawToken !== null) {
+    if (strlen($rawToken) > 128) {
+        http_response_code(400); exit;
+    }
+    try {
+        $pdo = Database::createFromEnv();
+    } catch (\Throwable $e) {
+        http_response_code(500); exit;
+    }
+    $tokenResult = (new UploadTokenValidator($pdo))->validate($rawToken);
+    if ($tokenResult === null) {
+        http_response_code(410);
+        echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+           . '<title>Link Expired</title><style>body{font-family:system-ui,Arial,sans-serif;margin:3rem;max-width:500px;}</style></head>'
+           . '<body><h1>This upload link is no longer valid.</h1>'
+           . '<p>The QR code you scanned has expired or been revoked. Please contact the organizer for a new link.</p></body></html>';
+        exit;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -66,6 +92,35 @@
   $chunkSizeBytes = (int)(getenv('TUS_CLIENT_CHUNK_SIZE_BYTES') ?: '8388608');
   if ($chunkSizeBytes <= 0) $chunkSizeBytes = 8388608;
   ?>
+  <?php if ($tokenResult !== null): ?>
+  <div class="user-indicator">Guest upload &mdash; <?= htmlspecialchars($tokenResult->orgName, ENT_QUOTES) ?></div>
+  <h1>Upload Media</h1>
+  <form id="uploadForm">
+    <label for="file">Media file (audio/video) *</label>
+    <input id="file" name="file" type="file" accept="<?= htmlspecialchars($accept, ENT_QUOTES) ?>" required />
+
+    <label>Event date</label>
+    <input type="text" value="<?= htmlspecialchars($tokenResult->eventDate, ENT_QUOTES) ?>" readonly />
+
+    <label>Organization</label>
+    <input type="text" value="<?= htmlspecialchars($tokenResult->orgName, ENT_QUOTES) ?>" readonly />
+
+    <label for="label">Song title or table identifier *</label>
+    <input id="label" name="label" type="text" placeholder="Song title or wedding table label" required />
+
+    <label for="display_name">Your name (optional)</label>
+    <input id="display_name" name="display_name" type="text" maxlength="100" placeholder="Displayed with your upload" />
+
+    <div class="row" style="margin-top:16px;">
+      <input id="tos_checkbox" type="checkbox" />
+      <label class="inline" for="tos_checkbox">I agree to the Terms of Service &mdash; my upload will be stored and may be used by the organizer. *</label>
+    </div>
+
+    <button id="btnUpload" type="submit" disabled>Upload</button>
+    <div class="legend">* = mandatory</div>
+    <div id="status">Ready.</div>
+  </form>
+  <?php else: ?>
   <div class="user-indicator">User is logged in as <?= htmlspecialchars($user, ENT_QUOTES) ?></div>
   <h1>Upload Media</h1>
   <form id="uploadForm" action="/api/uploads.php" method="POST" enctype="multipart/form-data">
@@ -116,6 +171,7 @@
     <div class="legend">* = mandatory</div>
     <div id="status">Ready.</div>
   </form>
+  <?php endif; ?>
   <div id="myUploads" style="margin-top:16px; display:none;"></div>
   <pre id="result" style="margin-top:24px; white-space:pre-wrap;"></pre>
 
@@ -130,6 +186,7 @@
       const statusEl = document.getElementById('status');
       const resultEl = document.getElementById('result');
 
+      const UPLOAD_TOKEN = <?= json_encode($rawToken) ?>;
       const STORAGE_KEY = 'uploader_delete_tokens_v1';
       const IS_ADMIN = <?= json_encode($user === 'admin') ?>;
 
@@ -231,7 +288,14 @@
       // rolled back: no localStorage persistence
 
       const hasPersistentStorage = checkLocalStoragePersistence();
-      if (!hasPersistentStorage && !IS_ADMIN) {
+      if (UPLOAD_TOKEN !== null) {
+        const tosCheckbox = document.getElementById('tos_checkbox');
+        if (tosCheckbox) {
+          tosCheckbox.addEventListener('change', function() {
+            if (btn) btn.disabled = !this.checked;
+          });
+        }
+      } else if (!hasPersistentStorage && !IS_ADMIN) {
         if (btn) btn.disabled = true;
         if (statusEl) statusEl.textContent = 'Uploads disabled: this browser does not support persistent local storage (private browsing?).';
         try { form && form.addEventListener('submit', function(e) { e.preventDefault(); }); } catch(_) {}
@@ -365,7 +429,8 @@
           retryDelays: [0, 1000, 3000, 5000],
           chunkSize: CHUNK_SIZE,
           metadata: metadata,
-          withCredentials: true,
+          withCredentials: UPLOAD_TOKEN === null,
+          headers: UPLOAD_TOKEN !== null ? { 'X-Upload-Token': UPLOAD_TOKEN } : {},
           onBeforeRequest: function(req) {
             try {
               const u = req && req._xhr && req._xhr.responseURL ? req._xhr.responseURL : (upload.url || '');
@@ -424,11 +489,23 @@
               statusEl.innerHTML = prefix.replace(/^Uploading…/, 'Finalizing…') + '<span class="spinner"></span>';
             }
 
+            const displayNameEl = document.getElementById('display_name');
+            const finalizeBody = UPLOAD_TOKEN !== null
+              ? {
+                  upload_id: uploadId,
+                  label: (labelInput ? (labelInput.value || '').trim() : ''),
+                  display_name: (displayNameEl ? (displayNameEl.value || '').trim() : ''),
+                  tos_accepted: true,
+                }
+              : { upload_id: uploadId };
+
             fetch('/api/uploads/finalize', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ upload_id: uploadId }),
-              credentials: 'same-origin'
+              headers: UPLOAD_TOKEN !== null
+                ? { 'Content-Type': 'application/json', 'X-Upload-Token': UPLOAD_TOKEN }
+                : { 'Content-Type': 'application/json' },
+              body: JSON.stringify(finalizeBody),
+              credentials: UPLOAD_TOKEN !== null ? 'omit' : 'same-origin',
             })
               .then(async function(r) {
                 const t = await r.text();
