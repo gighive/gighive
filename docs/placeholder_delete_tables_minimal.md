@@ -2,37 +2,61 @@
 
 ## Context
 
-`admin/clear_media.php` currently uses a **generic dynamic truncate** — it queries
-`information_schema.TABLES` for all tables in the database except `users` and truncates
-them all in one pass.
+`admin/clear_media.php` uses a **generic dynamic truncate** — it queries `SHOW TABLES`
+for all tables in the database, excludes a small list of non-media tables, and truncates
+the rest in one pass.
 
-This was intentional while the `users` table holds no real data and all tables are
-effectively media/content tables.
+This was intentional while all tables were effectively media/content tables.
 
-## When to Act
+---
 
-Once any of the following become true, revisit this and switch to an **explicit allowlist**
-of media tables to truncate:
+## Immediate Problem — Addressed (2026-07-03)
 
-- The `users` table contains real user accounts that must survive a media wipe
-- New non-media tables are added (e.g. settings, billing, audit logs, permissions) that
-  should not be cleared by a "Clear Database" operation
-- The admin "Clear Database" function is split into separate granular operations
+**Problem:** The SaaS refactor (QR code / multi-tenancy feature) added a `tenants` table
+with a seed row `(tenant_id=1, slug='default')`. `clear_media.php` was wiping that row
+along with media content, because `tenants` was not in the exclusion list. Every table
+with a `FOREIGN KEY ... REFERENCES tenants` (`events`, `assets`, `upload_jobs`, etc.)
+then failed on insert with `SQLSTATE[23000]: Integrity constraint violation 1452`.
 
-## Required Change
+The failure surfaced in the Playwright regression test: after the clear→backup→restore→clear
+cycle (steps 4–8), the import in step 9 hit the FK constraint and returned ERROR, leaving
+`#b-upload-panel` permanently hidden.
 
-Replace the dynamic `information_schema` query in `clear_media.php` with an explicit list:
+**Fix applied:** `tenants` added to the exclusion list in `clear_media.php`:
+
+```php
+$excluded = ['users', 'tenants'];
+$tables   = array_values(array_filter($allTables, fn($t) => !in_array($t, $excluded, true)));
+```
+
+`tenants` now survives all clear/backup/restore cycles, keeping `tenant_id=1` available
+at all times.
+
+---
+
+## Remaining Work — Explicit Allowlist
+
+The dynamic approach still carries risk: any future non-media table added to the schema
+will be silently wiped unless it is also added to `$excluded`. The long-term fix is to
+switch to an **explicit allowlist** of media tables to truncate.
+
+When to act:
+- The `users` table contains real user accounts
+- Additional non-media tables are added (settings, billing, audit logs, permissions, etc.)
+- The "Clear Database" operation is split into separate granular operations
+
+Candidate explicit allowlist (update to match current schema at time of change):
 
 ```php
 $tables = [
     'taggings', 'derived_assets', 'helper_runs', 'ai_jobs', 'tags',
     'upload_job_files', 'upload_jobs',
+    'anon_upload_attributions', 'event_upload_tokens',
+    'catalog_entries', 'catalog_scans',
     'event_participants', 'event_items',
     'assets', 'events', 'participants',
 ];
 ```
-
-Update the list to match the current schema at the time of the change.
 
 ## File to Edit
 

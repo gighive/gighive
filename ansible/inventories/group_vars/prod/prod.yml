@@ -488,11 +488,12 @@ mcp_docs_path: "{{ gighive_home }}/docs"
 # QR Code Guest Upload (Phase 1a)
 # --------------------------------------------------------------------
 qr_token_default_ttl_hours: 168
+qr_gallery_default_lifespan_days: 90
 saas_mode: false
 qr_guest_upload_prefix: "/upload"
 qr_token_api_path: "/api/upload-token.php"
 qr_aasa_web_path: "/.well-known/apple-app-site-association"
 qr_aasa_container_path: "/var/www/html/.well-known/apple-app-site-association"
-qr_aasa_app_id: "WB7D4FC7XU.com.gighive.GigHive"
+qr_aasa_app_id: "WB7D4FC7XU.app.gighive.GigHive"
 qr_smoke_token: "qr-smoke-aabbccddeeff"
 qr_code_js_version: "1.5.4"

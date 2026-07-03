@@ -1,4 +1,7 @@
 <?php declare(strict_types=1);
+session_start();
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
 
 $user = $_SERVER['PHP_AUTH_USER']
     ?? $_SERVER['REMOTE_USER']
@@ -71,9 +74,10 @@ if ($orgName !== '' || $eventDate !== '') {
     }
 }
 
-$postMsg    = '';
-$postOk     = null;
-$newQrUrl   = null;
+$postMsg    = (string)($_SESSION['flash_msg'] ?? '');
+$postOk     = isset($_SESSION['flash_ok'])  ? (bool)$_SESSION['flash_ok']  : null;
+$newQrUrl   = ($_SESSION['flash_url'] ?? '') ?: null;
+unset($_SESSION['flash_msg'], $_SESSION['flash_ok'], $_SESSION['flash_url']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
     $action = $_POST['action'] ?? '';
@@ -93,11 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
                      VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR), NULL)'
                 );
                 $stmt->execute([$eventId, $tokenHash, $expiryHours]);
-                $scheme   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                $host     = $_SERVER['HTTP_HOST'] ?? 'gighive.app';
-                $newQrUrl = $scheme . '://' . $host . '/upload/' . $rawToken;
-                $postMsg  = 'QR code generated.';
-                $postOk   = true;
+                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $host   = $_SERVER['HTTP_HOST'] ?? 'gighive.app';
+                $_SESSION['flash_url'] = $scheme . '://' . $host . '/upload/' . $rawToken;
+                $_SESSION['flash_msg'] = 'QR code generated.';
+                $_SESSION['flash_ok']  = true;
+                header('Location: /admin/event_qr.php?org_name=' . urlencode($orgName)
+                     . '&event_date=' . urlencode($eventDate));
+                exit;
             } catch (\Throwable $e) {
                 $postMsg = 'Error generating token: ' . $e->getMessage();
                 $postOk  = false;
@@ -204,7 +211,7 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
     #qr-canvas { display:block; margin:.5rem auto; image-rendering:pixelated; }
     .license-footer { text-align:center; margin-top:2rem; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@<?= $qrJsVersion ?>/build/qrcode.min.js"></script>
+  <script src="/admin/assets/qrcode.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -219,27 +226,25 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
   <div class="card">
     <h2>Event Selector</h2>
     <form method="GET" action="/admin/event_qr.php">
-      <div class="form-row">
-        <div class="field">
+      <div style="display:grid;grid-template-columns:auto 1fr auto;gap:.75rem;align-items:end;margin-bottom:.4rem">
+        <div>
           <label for="event_date">Event date *</label>
           <input id="event_date" type="date" name="event_date" required
-                 value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>">
+                 value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>" style="display:block;width:100%;box-sizing:border-box">
         </div>
-        <div class="field">
+        <div>
           <label for="org_name">Organization *</label>
           <input id="org_name" type="text" name="org_name" list="org-list" required
-                 value="<?= htmlspecialchars($orgName, ENT_QUOTES) ?>" style="min-width:220px">
+                 value="<?= htmlspecialchars($orgName, ENT_QUOTES) ?>" style="display:block;width:100%;box-sizing:border-box">
           <datalist id="org-list">
             <?php foreach ($orgs as $o): ?>
               <option value="<?= htmlspecialchars($o, ENT_QUOTES) ?>">
             <?php endforeach; ?>
           </datalist>
-          <small class="muted">Choose an existing organization or add new</small>
         </div>
-        <div class="field" style="justify-content:flex-end">
-          <button type="submit">Load Event</button>
-        </div>
+        <button type="submit">Load Event</button>
       </div>
+      <small class="muted">Choose an existing organization or add new</small>
     </form>
     <?php if ($loadError): ?>
       <div class="alert-err"><?= htmlspecialchars($loadError, ENT_QUOTES) ?></div>
@@ -279,7 +284,7 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
     </form>
 
     <div id="qr-wrap">
-      <canvas id="qr-canvas"></canvas>
+      <div id="qr-inner" style="display:inline-block;margin:.5rem auto"></div>
       <p class="muted" id="qr-url-text" style="word-break:break-all"></p>
       <button type="button" id="qr-download-btn">Download PNG</button>
     </div>
@@ -389,22 +394,27 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
   const qrUrl = <?= json_encode($newQrUrl) ?>;
   if (!qrUrl) return;
   const wrap    = document.getElementById('qr-wrap');
-  const canvas  = document.getElementById('qr-canvas');
+  const inner   = document.getElementById('qr-inner');
   const urlText = document.getElementById('qr-url-text');
-  if (!wrap || !canvas) return;
+  if (!wrap || !inner) return;
   wrap.style.display = 'block';
   if (urlText) urlText.textContent = qrUrl;
-  if (typeof QRCode !== 'undefined') {
-    QRCode.toCanvas(canvas, qrUrl, { width: 256, margin: 2 }, function(err) {
-      if (err) console.error('QR render error:', err);
-    });
-  }
+  new QRCode(inner, {
+    text: qrUrl,
+    width: 256,
+    height: 256,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
   const dlBtn = document.getElementById('qr-download-btn');
   if (dlBtn) {
     dlBtn.addEventListener('click', function() {
+      const img = inner.querySelector('img');
+      if (!img) return;
       const a = document.createElement('a');
       a.download = 'guest-upload-qr.png';
-      a.href = canvas.toDataURL('image/png');
+      a.href = img.src;
       a.click();
     });
   }

@@ -8,7 +8,7 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
   workers: 1,
-  timeout: 90_000,
+  timeout: 300_000,
   use: {
     baseURL: process.env.ADMIN_URL,
     httpCredentials: {

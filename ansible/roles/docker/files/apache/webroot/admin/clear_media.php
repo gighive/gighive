@@ -65,13 +65,16 @@ try {
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
     error_log("clear_media.php: Foreign key checks disabled");
 
-    // Dynamically truncate all tables except 'users'.
+    // Dynamically truncate all media/content tables.
     // SHOW TABLES bypasses the information_schema cache and only returns physically
     // existing tables, making this safe to run immediately after a DB restore.
-    // TODO: see docs/placeholder_delete_tables_minimal.md — switch to an explicit
-    // allowlist once the users table (or other non-media tables) holds real data.
+    // Excluded tables must survive a media wipe:
+    //   users   — application credentials
+    //   tenants — SaaS seed row (tenant_id=1); wiping this breaks all FK constraints
+    //             on events, assets, upload_jobs, etc. See docs/placeholder_delete_tables_minimal.md.
     $allTables = $pdo->query("SHOW TABLES")->fetchAll(\PDO::FETCH_COLUMN);
-    $tables    = array_values(array_filter($allTables, fn($t) => $t !== 'users'));
+    $excluded  = ['users', 'tenants'];
+    $tables    = array_values(array_filter($allTables, fn($t) => !in_array($t, $excluded, true)));
 
     foreach ($tables as $t) {
         $pdo->exec('TRUNCATE TABLE `' . $t . '`');

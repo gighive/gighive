@@ -1,6 +1,6 @@
 # Phase 1a Implementation Checklist — QR Code Guest Upload
 
-**Status:** Not started  
+**Status:** All steps complete ✅  
 **Reference plan:** `docs/feature_iphone_qr_code_support.md`  
 **Walkthrough rationale:** `docs/feature_iphone_qr_code_support_conversation.md`
 
@@ -103,7 +103,7 @@ RewriteRule ^/upload/([A-Za-z0-9_-]+)$ /db/upload_form_single.php?token=$1 [L,QS
 
 ---
 
-### Step 3 — `src/Services/UploadTokenValidator.php` *(New)*
+### ~~Step 3~~ — `src/Services/UploadTokenValidator.php` *(New)* ✅ COMPLETE
 
 **Namespace:** `Production\Api\Services`  
 **Build before:** steps 4, 5, 6
@@ -154,7 +154,7 @@ class UploadTokenValidator {
 
 ---
 
-### Step 4 — `api/upload-token.php` *(New)*
+### ~~Step 4~~ — `api/upload-token.php` *(New)* ✅ COMPLETE
 
 Unauthenticated `GET` endpoint. Returns event details for iOS `QRTokenAPIClient`.
 
@@ -191,7 +191,7 @@ echo json_encode([
 
 ---
 
-### Step 5 — `UploadController.php` + `UploadService.php` *(Both Modified)*
+### ~~Step 5~~ — `UploadController.php` + `UploadService.php` *(Both Modified)* ✅ COMPLETE
 
 **`src/Controllers/UploadController.php` — `finalize()` method:**
 
@@ -243,7 +243,7 @@ $stmt->execute([$tokenResult->tokenId, $uploadJobId, $displayName]);
 
 ---
 
-### Step 6 — `db/upload_form_single.php` *(Modified)*
+### ~~Step 6~~ — `db/upload_form_single.php` *(Modified)* ✅ COMPLETE
 
 Add at the top of the file (currently absent — same pattern as `db/delete_media_files.php`):
 ```php
@@ -288,7 +288,7 @@ if ($rawToken !== null) {
 
 ---
 
-### Step 7 — `admin/event_qr.php` *(New)*
+### ~~Step 7~~ — `admin/event_qr.php` *(New)* ✅ COMPLETE
 
 New page following the `admin/ai_worker.php` convention. Gate: `$user === 'admin'`. Scoped by `?event_id=X`.
 
@@ -455,7 +455,7 @@ This surfaces the commercial license requirement to operators without cluttering
 
 ---
 
-### Step 10 — `config.php` (or PHP bootstrap) *(Modified)*
+### ~~Step 10~~ — `config.php` (or PHP bootstrap) *(Modified)* ✅ COMPLETE
 
 Read `SAAS_MODE` from env at bootstrap:
 ```php
@@ -468,7 +468,7 @@ define('SAAS_MODE', filter_var(getenv('SAAS_MODE') ?: 'false', FILTER_VALIDATE_B
 
 ## iOS Steps
 
-### Steps 11 & 12 — `Configs/GigHive.entitlements` + `project.yml` *(Both Modified)*
+### ~~Steps 11 & 12~~ — `Configs/GigHive.entitlements` + `project.yml` *(Both Modified)* ✅ COMPLETE
 
 Commit these together — never one without the other.
 
@@ -491,7 +491,7 @@ Run `xcodegen generate` after both are in place.
 
 ---
 
-### Step 13 — `Sources/App/GuestUploadSession.swift` *(New)*
+### ~~Step 13~~ — `Sources/App/GuestUploadSession.swift` *(New)* ✅ COMPLETE
 
 ```swift
 @MainActor
@@ -520,7 +520,7 @@ struct QREventDetails: Codable {
 
 ---
 
-### Step 14 — `Sources/App/QRTokenAPIClient.swift` *(New)*
+### ~~Step 14~~ — `Sources/App/QRTokenAPIClient.swift` *(New)* ✅ COMPLETE
 
 ```swift
 @MainActor
@@ -549,7 +549,7 @@ enum QRTokenError: Error {
 
 ---
 
-### Steps 15 & 16 — Extractions from `UploadView.swift`
+### ~~Steps 15 & 16~~ — Extractions from `UploadView.swift` ✅ COMPLETE
 
 **Step 15 — New files `FinalizeResponse.swift` + `FinalizeResponseHandler.swift`:**
 - Move `private struct FinalizeResponse` → `internal struct FinalizeResponse` (own file)
@@ -567,7 +567,7 @@ enum QRTokenError: Error {
 
 ---
 
-### Step 17 — `Sources/App/UploadPayload+GuestUpload.swift` *(New)*
+### ~~Step 17~~ — `Sources/App/UploadPayload+GuestUpload.swift` *(New)* ✅ COMPLETE
 
 ```swift
 extension UploadPayload {
@@ -591,7 +591,7 @@ extension UploadPayload {
 
 ---
 
-### Step 18 — `Sources/App/UploadClient.swift` *(Modified)*
+### ~~Step 18~~ — `Sources/App/UploadClient.swift` *(Modified)* ✅ COMPLETE
 
 1. Add `private let uploadToken: String?` stored property
 2. Add `uploadToken: String? = nil` to `init()` — existing callers unaffected
@@ -608,7 +608,7 @@ if let token = uploadToken {
 
 ---
 
-### Step 19 — `Sources/App/TUSUploadClient.swift` *(Modified)*
+### ~~Step 19~~ — `Sources/App/TUSUploadClient.swift` *(Modified)* ✅ COMPLETE
 
 1. Add `private let uploadToken: String?` stored property
 2. Add `uploadToken: String? = nil` to `init(tusBaseURL:basicAuth:allowInsecure:chunkSize:)` — existing callers unaffected
@@ -624,7 +624,7 @@ if let uploadToken {
 
 ---
 
-### Step 20 — `Sources/App/GigHiveApp.swift` *(Modified)*
+### ~~Step 20~~ — `Sources/App/GigHiveApp.swift` *(Modified)* ✅ COMPLETE
 
 ```swift
 @StateObject private var guestSession = GuestUploadSession()
@@ -651,7 +651,7 @@ On `WindowGroup` (both NavigationStack iOS 16+ and NavigationView iOS 14–15 br
 
 ---
 
-### Step 21 — `Sources/App/GuestUploadView.swift` *(New)*
+### ~~Step 21~~ — `Sources/App/GuestUploadView.swift` *(New)* ✅ COMPLETE
 
 **Depends on steps 13–20 all complete.**
 
@@ -713,7 +713,7 @@ if guestSession.rawToken == nil && !isUploading {
 
 ---
 
-### Step 22 — `Sources/App/SplashView.swift` *(Modified)*
+### ~~Step 22~~ — `Sources/App/SplashView.swift` *(Modified)* ✅ COMPLETE
 
 Add third `NavigationLink` (invisible — empty label):
 ```swift
@@ -729,7 +729,7 @@ NavigationLink(destination: GuestUploadView(), isActive: $isGuestUpload) { }
 
 ---
 
-### Step 23 — iOS Error / Fallback Screen *(inside `GuestUploadView`)*
+### ~~Step 23~~ — iOS Error / Fallback Screen *(inside `GuestUploadView`)* ✅ COMPLETE
 
 Shown when `QRTokenAPIClient` throws. No separate file.
 
@@ -856,9 +856,40 @@ These are not implementation steps but must be resolved before Phase 1a ships:
 
 ## Deferred (Not Phase 1a)
 
+- **`guest_event_view.php`** — lightweight read-only page accessible via the upload token (no Basic Auth), showing only that event's uploaded files (filename, thumbnail, timestamp). Replaces the "View File in Database" link that currently appears after a successful guest upload (hidden in token mode for now). Scope: token validates → query `anon_upload_attributions` JOIN `assets` for that `event_id` → read-only list, no admin controls, no delete. Implement after iOS steps are complete.
+- **Web upload form post-upload event gallery link** — after a successful guest upload on `db/upload_form_single.php`, surface a link to `guest_event_view.php` (above) scoped to the same `org_id` + `event_id`. The page should carry a clear human-readable message explaining that other attendees of the same event can also view and contribute — e.g. "Everyone who attended StormPigs on 2026-07-17 can view and upload videos from that night." Requires `guest_event_view.php` to be built first.
+- **iOS `GuestUploadView` post-upload event gallery link** — after a successful upload in the iOS app, show the same "view event media" call-to-action (open `guest_event_view.php?token=<token>` in `SFSafariViewController`). Also evaluate whether `GuestUploadView` should display richer upload progress detail comparable to the full `UploadView` (chunk progress bar, file size, estimated time); currently the simplified view omits these. Design decision: determine whether that extra detail is useful for typical guest video clip sizes or adds unnecessary complexity.
+- **Upload quality, abuse prevention, and shared gallery policy** — a cluster of related design questions that must be resolved together before the guest event gallery (see above) ships:
+
+  **Stale / off-topic video detection**
+  - Video `creation_date` metadata is one signal; clips recorded significantly before the event date are likely unrelated. Questions: (a) how to extract creation date reliably on iOS (`AVAsset.creationDate`) and server-side (`ffprobe`), (b) what tolerance window is appropriate (same calendar day? ±1 day to handle late-night events that cross midnight?), (c) whether to hard-reject, warn the guest, or silently flag for organizer review without blocking the upload.
+
+  **GPS / location validation**
+  - Many phones embed GPS coordinates in video metadata. If the event has a known venue lat/long, a clip recorded miles away is a strong indicator of unrelated content. Design questions: (a) do we store venue lat/long per event?, (b) what radius threshold is reasonable (venue ±1 km?), (c) GPS may be absent or spoofed — treat as a soft signal, not a hard gate.
+
+  **Automated content moderation**
+  - No current mechanism prevents upload of inappropriate content (explicit video, etc.). Options to evaluate: (a) integrate a cloud content moderation API (e.g. AWS Rekognition, Google Vision SafeSearch, Microsoft Content Moderator) as a post-upload async job — quarantine the asset until cleared; (b) perceptual hash blacklist for known CSAM/NCII (PhotoDNA or similar); (c) organizer-side "report" button on `guest_event_view.php` as a human fallback. Without at least one of these, enabling a public-facing shared gallery carries meaningful liability risk.
+  - **Minimum viable / Phase 1 safeguard — honor system warning:** before the automated options above are built, display a clear plain-language warning on both `db/upload_form_single.php` and `GuestUploadView` at the point of upload. Example language: *"You're on the honor system — please don't upload abusive, pornographic, violent, or otherwise inappropriate content. Uploads are reviewed by the event organizer and may be removed."* This sets a behavioral norm, creates a paper trail that the guest was warned, and costs nothing to implement. It should be treated as a baseline that is always present even after automated moderation is added.
+
+  **Shared gallery policy — should guests see each other's videos at all?**
+  - The shared experience argument: attendees of the same event share context, trust, and a common memory — a curated gallery of clips from that night has clear value for everyone present, similar to a shared photo album.
+  - The risk argument: without identity verification or content moderation, bad actors can upload anything and it surfaces immediately to all other attendees.
+  - A middle path: hold uploads in a "pending" state visible only to the organizer until approved (or auto-approved after a short delay if no moderation flag is set). The organizer dashboard (`admin/event_qr.php`) would gain a moderation queue. This keeps the shared experience while giving organizers control.
+  - Decision needed before `guest_event_view.php` is built.
+
+  **Display name auto-population and social accountability**
+  - Currently `display_name` is optional and self-reported. Auto-populating from the iPhone's device name (accessible via `UIDevice.current.name` on iOS) would pre-fill the field with something tied to the person's actual device ("Scott's iPhone"), creating a soft social accountability signal without requiring account creation.
+  - Tradeoff: device names are self-set and easily changed; they are not verified identity. But the friction of changing them before uploading is a mild deterrent against casual abuse.
+  - Consider making `display_name` required (not optional) if the shared gallery ships — anonymous uploads with no display name are harder to hold accountable.
 - Owner UI: browsable guest-contributed upload list per event (data exists in `anon_upload_attributions`; UI is follow-on)
 - `created_by_user_id` population — wired when OIDC/RBAC ships (step 7 SaaS model); `NULL` in interim
 - Rate limiting per QR token (max N uploads per token) — not designed yet
 - Storage quota measurement for guest uploads — Phase 2 step 13
 - htpasswd `guest` user rename to `readonly` — avoids conceptual collision with QR guest persona; deferred, no Phase 1a functional impact
 - `anon_upload_attributions.display_name` column COMMENT — update `'Self-reported fan display name'` → `'Self-reported guest display name'` in `create_media_db.sql`; reverted from this session; bundle with next DDL change batch (cosmetic only, no schema impact)
+
+---
+
+## Shared Event Gallery
+
+See **`docs/feature_iphone_qr_code_shared_gallery.md`** for the full rationale, risk analysis, and numbered safety framework.

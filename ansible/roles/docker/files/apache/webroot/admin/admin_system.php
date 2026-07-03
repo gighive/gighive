@@ -466,7 +466,7 @@ function __format_backup_size(int $bytes): string {
       }
 
       const jobId = String(data.job_id);
-      status.innerHTML = '<div class="alert-ok">Backup started. Job: <code>' + jobId.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</code></div>';
+      status.innerHTML = '<div class="muted">Backup started. Job: <code>' + jobId.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</code></div>';
       btn.textContent = 'Backup Running…';
       pollBackupLog(jobId);
     })
@@ -630,7 +630,7 @@ function __format_backup_size(int $bytes): string {
       }
 
       const jobId = String(data.job_id);
-      status.innerHTML = '<div class="alert-ok">Restore started. Job: <code>' + jobId.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</code></div>';
+      status.innerHTML = '<div class="muted">Restore started. Job: <code>' + jobId.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</code></div>';
       btn.textContent = 'Restore Running…';
       pollRestoreLog(jobId);
     })

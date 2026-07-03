@@ -312,20 +312,24 @@ if ($rawToken !== null) {
       }
 
       function maybeSetAuto() {
-        if (autoBox.checked) {
-          const v = ymd(dateInput.value || new Date());
+        if (autoBox && autoBox.checked) {
+          const v = ymd((dateInput && dateInput.value) || new Date());
           if (v) labelInput.value = 'Auto ' + v;
         }
       }
 
-      autoBox.addEventListener('change', function() {
-        if (this.checked) {
-          maybeSetAuto();
-        }
-      });
-      dateInput.addEventListener('change', function() {
-        if (autoBox.checked) maybeSetAuto();
-      });
+      if (autoBox) {
+        autoBox.addEventListener('change', function() {
+          if (this.checked) {
+            maybeSetAuto();
+          }
+        });
+      }
+      if (dateInput) {
+        dateInput.addEventListener('change', function() {
+          if (autoBox && autoBox.checked) maybeSetAuto();
+        });
+      }
 
       form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -555,18 +559,20 @@ if ($rawToken !== null) {
                 if (resultEl) {
                   resultEl.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
 
-                  const existingLink = document.getElementById('viewFileInDatabaseLink');
-                  if (existingLink && existingLink.parentNode) {
-                    existingLink.parentNode.removeChild(existingLink);
-                  }
+                  if (UPLOAD_TOKEN === null) {
+                    const existingLink = document.getElementById('viewFileInDatabaseLink');
+                    if (existingLink && existingLink.parentNode) {
+                      existingLink.parentNode.removeChild(existingLink);
+                    }
 
-                  const link = document.createElement('a');
-                  link.id = 'viewFileInDatabaseLink';
-                  link.href = '/db/database.php?view=event';
-                  link.textContent = 'View File in Database';
-                  link.style.display = 'inline-block';
-                  link.style.marginTop = '10px';
-                  resultEl.parentNode.insertBefore(link, resultEl.nextSibling);
+                    const link = document.createElement('a');
+                    link.id = 'viewFileInDatabaseLink';
+                    link.href = '/db/database.php?view=event';
+                    link.textContent = 'View File in Database';
+                    link.style.display = 'inline-block';
+                    link.style.marginTop = '10px';
+                    resultEl.parentNode.insertBefore(link, resultEl.nextSibling);
+                  }
                 }
               })
               .catch(function(err) {

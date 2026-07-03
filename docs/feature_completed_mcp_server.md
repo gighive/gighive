@@ -1077,6 +1077,47 @@ Batch 2 (after batch 1, job_id required):
 
 ---
 
+## Troubleshooting
+
+### `transport closed` error — MCP tool calls fail despite green indicator in Windsurf
+
+**Symptom:** Windsurf shows the MCP server as connected (green dot, tool count shown),
+but every tool call immediately fails with:
+```
+transport error: transport closed
+```
+
+**Cause:** The MCP server is spawned on-demand via SSH and communicates over `stdio`.
+It exits when the session ends — there is no persistent daemon. Windsurf's green indicator
+reflects whether the initial SSH handshake succeeded, not whether the spawned Python
+process is still alive. A stale SSH session (from a previous Windsurf window, a prior
+failed deploy, or an idle connection that the SSH server dropped) causes Windsurf to show
+green but fail on every actual tool invocation because the `server.py` process has already
+exited.
+
+**Resolution (in order):**
+1. Re-run the Ansible playbook with the `mcp_server` tag — its first task
+   (`pkill -f "mcp-server/server.py"`) kills any stale process, then syncs and re-validates
+   the server:
+   ```bash
+   ansible-playbook -i ansible/inventories/inventory_gighive2.yml \
+     ansible/playbooks/site.yml --tags set_targets,mcp_server
+   ```
+2. **Reload the Windsurf developer window** (Cmd/Ctrl+Shift+P → "Developer: Reload Window").
+   This forces a fresh SSH connection and a new `server.py` spawn.
+3. Verify the process is live on the VM:
+   ```bash
+   ps -ef | grep mcp
+   # Expected: /home/ubuntu/gighive/mcp-server/venv/bin/python .../server.py
+   ```
+
+**Prevention:** This is an inherent characteristic of the `stdio`-over-SSH transport.
+It only surfaces after a Windsurf window reload, a long idle period, or a deploy that
+changes the server source. Always reload the Windsurf window after deploying the
+`mcp_server` role.
+
+---
+
 ## Practical Prompts
 
 Common natural-language prompts for each tool. The typical flow is: use
