@@ -201,6 +201,15 @@
     state: directory
     mode: "0755"
 
+- name: Ensure .well-known directory exists
+  file:
+    path: "{{ docker_dir }}/apache/webroot/.well-known"
+    state: directory
+    mode: "0755"
+  become: true
+  become_user: "{{ ansible_user }}"
+  tags: docker, compose, qr_code
+
 - name: Render Apple App Site Association (AASA) file from template
   ansible.builtin.template:
     src: apple-app-site-association.j2
