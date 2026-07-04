@@ -155,20 +155,6 @@
       - python3-venv
       - mysql-client
 
-- name: Add NodeSource LTS repository
-  ansible.builtin.shell:
-    cmd: curl -fsSL {{ nodesource_setup_url }} | bash -
-  args:
-    creates: /etc/apt/sources.list.d/nodesource.list
-  become: yes
-
-- name: Install Node.js (LTS) from NodeSource
-  ansible.builtin.apt:
-    name: nodejs
-    state: present
-    update_cache: yes
-  become: yes
-
 - name: Install Docker Engine & Compose V2 plugin (distro packages)
   ansible.builtin.apt:
     name: "{{ docker_packages }}"

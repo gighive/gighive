@@ -9,6 +9,22 @@
   delegate_to: localhost
   become: false
 
+- name: Add NodeSource LTS repository on controller
+  ansible.builtin.shell:
+    cmd: curl -fsSL {{ nodesource_setup_url }} | bash -
+  args:
+    creates: /etc/apt/sources.list.d/nodesource.list
+  delegate_to: localhost
+  become: true
+
+- name: Install Node.js (LTS) on controller
+  ansible.builtin.apt:
+    name: nodejs
+    state: present
+    update_cache: yes
+  delegate_to: localhost
+  become: true
+
 - name: Check Node version
   ansible.builtin.command:
     cmd: node --version
