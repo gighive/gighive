@@ -1,6 +1,10 @@
 # One true repo root
 repo_root: "{{ (playbook_dir | dirname | dirname) }}"
 
+# Node.js — NodeSource LTS setup script (installs current LTS; no version pinned)
+# Check https://github.com/nodesource/distributions for updates
+nodesource_setup_url: "https://deb.nodesource.com/setup_lts.x"
+
 gighive_home: "{{ '/root/gighive' if ansible_user == 'root' else '/home/' ~ ansible_user ~ '/gighive' }}"
 
 gighive_marker_author_name: "Gighive"
