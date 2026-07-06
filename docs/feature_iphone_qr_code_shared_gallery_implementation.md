@@ -5,15 +5,46 @@
 
 This plan is split into two sequential **coding phases**. Complete Phase 1 and deploy to dev/staging before beginning Phase 2.
 
+### Files Added / Modified
+
+**Added**
+1. [P1] `ansible/roles/docker/files/apache/webroot/api/guest-status.php`
+2. [P1] `ansible/roles/docker/files/apache/webroot/api/guest-gallery.php`
+3. [P1] `ansible/roles/docker/files/apache/webroot/api/guest-report.php`
+4. [P1] `ansible/roles/docker/files/apache/webroot/api/guest-stream.php` *(see Step 11a — iOS streaming proxy; supersedes the `/video/` Apache SetEnvIf path for iOS consumers)*
+5. [P1] `ansible/roles/docker/files/apache/webroot/guest_event_view.php`
+6. [P1] `ansible/roles/shared_gallery/tasks/main.yml`
+7. [P2] `GigHive/Models/GuestUploadRecord.swift`
+8. [P2] `GigHive/Views/GuestGalleryView.swift`
+
+**Modified**
+1. [P1] `ansible/inventories/group_vars/gighive/gighive.yml`
+2. [P1] `ansible/inventories/group_vars/gighive2/gighive2.yml`
+3. [P1] `ansible/inventories/group_vars/prod/prod.yml`
+4. [P1] `ansible/roles/docker/templates/.env.j2`
+5. [P1] `ansible/roles/docker/templates/default-ssl.conf.j2`
+6. [P1] `ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql`
+7. [P1] `ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php`
+8. [P1] `ansible/roles/docker/files/apache/webroot/admin/event_qr.php`
+9. [P1] `ansible/roles/docker/files/apache/webroot/db/upload_form_single.php`
+10. [P1] `ansible/playbooks/site.yml`
+11. [P2] `GigHive/Views/GuestUploadView.swift`
+12. [P2] `GigHive/Models/GuestUploadSession.swift`
+13. [P2] `GigHive/Extensions/UploadPayload+GuestUpload.swift`
+14. [P2] `GigHive/App/GigHiveApp.swift` or `GigHive/Views/SplashView.swift`
+15. [P2] `GigHive/Views/SplashView.swift`
+16. [P2] `GigHive/Views/GuestGalleryView.swift`
+
 > ⚠️ **Phase naming note:** the spec (`feature_iphone_qr_code_shared_gallery.md` § "Release Gating") also uses Phase 1/2/3 to describe *feature release gates* (MVP → beta promotion → scale). Those are distinct from the coding phases here. Coding Phase 1 + 2 together correspond to the spec's Release Gate Phase 1 (MVP launch).
 
 ### Phase 1 — Infrastructure / Ansible / PHP
 - **Step 1** — Ansible: add `QR_GALLERY_DEFAULT_LIFESPAN_DAYS` env var to all group_vars and `.env.j2`
 - **Step 2** — Apache: update `default-ssl.conf.j2` (three guest API endpoints exempted from Basic Auth; `/video/` opened to gallery-nonce authenticated requests)
-- **Step 3** — Schema: update `create_music_db.sql` with all 9 new columns across `anon_upload_attributions`, `events`, and `upload_jobs`; DDL applied to existing installs manually (see Database Migration section)
+- **Step 3** — Schema: update `create_media_db.sql` with all 9 new columns across `anon_upload_attributions`, `events`, and `upload_jobs`; DDL applied to existing installs manually (see Database Migration section)
 - **Step 4** — PHP: expand `UploadService::finalizeTusUpload` token-mode path (status_nonce, label, file_relpath, moderation_status, lastInsertId ordering, updated response)
 - **Step 5** — PHP: add `save_event_settings` POST handler to `admin/event_qr.php` (gallery lifespan + multi-day flag)
 - **Step 6** — PHP: add TTL vs. gallery lifespan mismatch warning to QR Generator card in `admin/event_qr.php`
+- **Step 6a** — PHP: add duplicate active-token guard to QR Generator card in `admin/event_qr.php` — after fetching `event_upload_tokens`, compute `$activeTokenCount` (tokens where `is_active = 1` and `expires_at > NOW()`), pre-render a `$activeTokenWarning` string via `htmlspecialchars()`, and attach it as a JS `confirm()` to the Generate QR button's `onclick` when non-empty. Admin can cancel or proceed — this is a guard, not a hard block.
 - **Step 7** — PHP: expand `$guestUploads` SELECT query in `admin/event_qr.php` (moderation_status, file_relpath, label, guest_flagged)
 - **Step 8** — PHP: add approve/reject POST handlers to `admin/event_qr.php` (multi-table UPDATE with cross-validation; sets approved_at)
 - **Step 9** — PHP: add moderation queue UI to `admin/event_qr.php` (new badge CSS, ▶ Preview link, ⚑ Guest report badge, Approve/Reject buttons)
@@ -27,22 +58,32 @@ This plan is split into two sequential **coding phases**. Complete Phase 1 and d
 ### Phase 2 — iPhone / Mac
 - **Step 1** — Swift: create `GuestUploadRecord` struct with UserDefaults persistence helpers
 - **Step 2** — Swift: update `GuestUploadView` / `GuestUploadSession` finalize handling (parse nonce + upload_job_id, persist record, show post-upload message; display_name required)
+- **Step 2a** — Swift: add optional **Clip label** field to the upload form
+  - `GuestUploadSession`: add `@Published var clipLabel: String = ""`; clear in `clear()`
+  - `GuestUploadView`: insert `NoAccessoryTextField` bound to `$guestSession.clipLabel` between the display name field and the ToS toggle; max 255 chars enforced via `.onChange`; helper text: *"Files are stored under a unique name for privacy. Your label helps you identify the clip in the gallery."*
+  - `UploadPayload+GuestUpload.swift`: `forGuestUpload(fileURL:eventDetails:displayName:clipLabel:)` — trim `clipLabel`; if blank fall back to `"Video \(labelFallbackFormatter.string(from: Date()))"` (medium date + short time, locale-aware); pass resolved string as `label` in `UploadPayload`. **Do not** use `fileURL.lastPathComponent` as the label — iOS exports produce UUID-named temp files which are meaningless to users.
 - **Step 3** — Swift: implement status polling on app open (concurrent per-record polls, update local records, show approval banner, "New videos added" detection)
 - **Step 4** — Swift: add approval banner + "Your Event Galleries" persistent section to `SplashView`
-- **Step 5** — Swift: create `GuestGalleryView.swift` (fetch gallery, AVPlayer playback, report flow, expired/empty states, days_remaining subtitle)
+  - **Gallery deduplication:** the `approvedRecords` list is filtered through a deduplication pass keyed on `record.baseURLString + "|" + record.eventName` before rendering. Only the first approved record per key is shown. All nonces for a given event continue to be polled in the background — deduplication is display-only. The "New videos" badge fires if `newVideoNonces` contains *any* nonce whose `baseURLString + eventName` matches the displayed record.
+  - **Guest-aware login prompt:** the *"Please login first"* block in `SplashView` has three branches: (1) authenticated → show login info; (2) unauthenticated but `uploadRecords.contains { $0.approvalStatus == "approved" }` → show softer footnote *"Login for full database and upload access"*; (3) no credentials and no approved records → show original *"Please login first"* bold prompt. This ensures gallery-only guests are not nagged to log in.
+- **Step 5** — Swift: create `GuestGalleryView.swift` (fetch gallery, AVPlayer playback, report flow, expired/empty states, days_remaining subtitle); add device-bound access warning footer below the video list
 - **Step 6** — iOS testing checklist (DB verification, admin approve/reject flow, report flag, expiry, web fallback, regression)
 
 ---
 
 ## Phase 1 — Infrastructure / Ansible / PHP
 
-### Step 1 — Ansible: add `QR_GALLERY_DEFAULT_LIFESPAN_DAYS` env var
+### Step 1 — Ansible: add shared gallery env vars (`QR_GALLERY_DEFAULT_LIFESPAN_DAYS`, `QR_GUEST_UPLOAD_TENANT_ID`)
 
-**Files:** `ansible/group_vars/gighive/vars.yml`, `ansible/group_vars/gighive2/vars.yml`, `ansible/group_vars/prod/vars.yml`, `ansible/roles/docker/templates/.env.j2`
+> ✅ **Already complete:** `QR_GALLERY_DEFAULT_LIFESPAN_DAYS` and `qr_gallery_default_lifespan_days` are already present in all group_vars and `.env.j2`. The `QR_GUEST_UPLOAD_TENANT_ID` addition is the remaining pending change.
 
-- Add `qr_gallery_default_lifespan_days: 90` to all three group_vars files
-- Add `QR_GALLERY_DEFAULT_LIFESPAN_DAYS={{ qr_gallery_default_lifespan_days }}` to `.env.j2`
-- This value pre-populates the gallery lifespan field in `admin/event_qr.php` and is used by the `save_event_settings` handler as the default
+**Files:** `ansible/inventories/group_vars/gighive/gighive.yml`, `ansible/inventories/group_vars/gighive2/gighive2.yml`, `ansible/inventories/group_vars/prod/prod.yml`, `ansible/roles/docker/templates/.env.j2`
+
+- `qr_gallery_default_lifespan_days: 90` — already in all three group_vars ✅
+- `QR_GALLERY_DEFAULT_LIFESPAN_DAYS={{ qr_gallery_default_lifespan_days | default(90) | int }}` — already in `.env.j2` ✅
+- Add `qr_guest_upload_tenant_id: 1` to all three group_vars files — single-tenant transitional bridge; change per-environment when SAAS multi-tenancy is activated ✅ Done
+- Add `QR_GUEST_UPLOAD_TENANT_ID={{ qr_guest_upload_tenant_id | default(1) | int }}` to `.env.j2` after `QR_GALLERY_DEFAULT_LIFESPAN_DAYS` ✅ Done
+- `QR_GUEST_UPLOAD_TENANT_ID` is consumed by `UploadService::finalizeTusUpload` token-mode path (Step 4) in place of the currently hardcoded `1`; full SAAS support will later require adding `tenantId` to `TokenValidationResult` (see Step 4 note)
 
 ---
 
@@ -81,6 +122,8 @@ SetEnvIf X-Gallery-Nonce .+ gallery_nonce_auth
 SetEnvIf Request_URI "[?&]nonce=[A-Za-z0-9_\-]{30,40}" gallery_nonce_auth
 ```
 
+> **Two-path streaming architecture (implemented):** The `/video/` `SetEnvIf` gate above serves **web browser consumers only** (`guest_event_view.php` renders `<video src="/video/...?nonce=...">` tags that pass through this Apache gate). **iOS AVPlayer** is served by a separate PHP streaming proxy — `/api/guest-stream.php` (Step 11a) — which DB-validates the nonce, verifies event scope, checks approval status and gallery expiry, and streams the file with full `Accept-Ranges` / `Content-Range` support. This is more secure than the Apache regex gate (which only checks nonce *presence*, not validity) and avoids the need to pass custom `X-Gallery-Nonce` headers via `AVURLAsset`. `guest-gallery.php` returns different `stream_url` formats per consumer type: `/api/guest-stream.php?nonce=…&job_id=…` for the iOS path (Step 11a) and `/video/…?nonce=…` for the web path (Step 13). The Apache `/video/` `RequireAny` gate is still required and deployed — it serves the web fallback and provides defense-in-depth.
+
 Replace the existing `<LocationMatch "^/video(?:/|$)">` staging-only conditional block with:
 
 ```apache
@@ -88,20 +131,24 @@ Replace the existing `<LocationMatch "^/video(?:/|$)">` staging-only conditional
 # Apache is a forward gate only; nonce validity was established in guest-gallery.php
 # or guest_event_view.php before stream_url was issued. SHA-256 filenames provide a
 # second layer — unguessable without possessing the original file.
+# The staging conditional is preserved so staging.gighive.app retains its existing
+# public /video/ access; only non-staging environments use the RequireAny gate.
 <LocationMatch "^/video(?:/|$)">
     AuthMerging Off
-    AuthType Basic
-    AuthName "GigHive Protected"
-    AuthBasicProvider file
-    AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
-    <RequireAny>
-        Require valid-user
-        Require env gallery_nonce_auth
-    </RequireAny>
+    <If "%{HTTP_HOST} == 'staging.gighive.app'">
+        Require all granted
+    <Else>
+        AuthType Basic
+        AuthName "GigHive Protected"
+        AuthBasicProvider file
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        <RequireAny>
+            Require valid-user
+            Require env gallery_nonce_auth
+        </RequireAny>
+    </Else>
 </LocationMatch>
 ```
-
-The staging-only exception is superseded — all environments share the same `RequireAny` rule.
 
 **`/video/podcasts/` note:** the outer catch-all `LocationMatch` (line 173 of the conf) already excludes `/video/podcasts/` from its Basic Auth block. However, this inner `^/video(?:/|$)` block still covers `/video/podcasts/` — meaning podcast files will now be accessible to gallery nonce holders. This is acceptable in practice (podcast filenames are not publicly enumerable), but if stricter isolation is required, change the pattern to `^/video/(?!podcasts(?:/|$))` and add a separate public `<Location "/video/podcasts/">` block.
 
@@ -111,9 +158,7 @@ The staging-only exception is superseded — all environments share the same `Re
 
 ### Step 3 — Schema: update DDL source file
 
-**File:** `ansible/roles/docker/files/mysql/externalConfigs/create_music_db.sql` — add the nine new columns so fresh installs include them automatically. For existing installs, the DDL is applied manually via the docker command in the Database Migration section below.
-
-> ⚠️ **Rename dependency:** `refactored_database_rename_music_db.md` renames `create_music_db.sql` → `create_media_db.sql` (status: not started). If that refactor ships first, the target file here is `create_media_db.sql`. Confirm which feature ships first before editing.
+**File:** `ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql` — add the nine new columns so fresh installs include them automatically. For existing installs, the DDL is applied manually via the docker command in the Database Migration section below.
 
 Run in this order — `moderation_status AFTER label` requires `label` to exist first:
 
@@ -121,7 +166,7 @@ Run in this order — `moderation_status AFTER label` requires `label` to exist 
 -- 1. anon_upload_attributions
 ALTER TABLE anon_upload_attributions
   ADD COLUMN status_nonce VARCHAR(40)  NOT NULL AFTER tos_accepted_at,
-  ADD COLUMN apns_token   VARCHAR(200) NULL     AFTER status_nonce,
+  ADD COLUMN apns_token   VARCHAR(200) NULL     AFTER status_nonce,  -- future-use: APNs push device token; MVP uses polling via guest-status.php
   ADD UNIQUE KEY uq_status_nonce (status_nonce);
 
 -- 2. events
@@ -153,6 +198,51 @@ ALTER TABLE upload_jobs
 
 **Verification:** after running, `DESCRIBE upload_jobs` and `DESCRIBE events` must show all new columns.
 
+**Database Migration (existing installs):**
+
+Run from the **docker host** for the target environment. Follow the full BABRR procedure in `docs/process_backup_alter_backup.md` — take a pre-migration backup first, apply the DDL below, then take a post-migration backup before rebuilding.
+
+```bash
+docker exec -i mysqlServer sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"' << 'MIGRATION'
+-- 1. anon_upload_attributions
+ALTER TABLE anon_upload_attributions
+  ADD COLUMN IF NOT EXISTS status_nonce VARCHAR(40)  NOT NULL AFTER tos_accepted_at,
+  ADD COLUMN IF NOT EXISTS apns_token   VARCHAR(200) NULL     AFTER status_nonce;
+ALTER TABLE anon_upload_attributions
+  DROP KEY IF EXISTS uq_status_nonce;
+ALTER TABLE anon_upload_attributions
+  ADD UNIQUE KEY uq_status_nonce (status_nonce);
+
+-- 2. events
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS gallery_expires_at DATETIME   NULL               AFTER event_type,
+  ADD COLUMN IF NOT EXISTS is_multi_day       TINYINT(1) NOT NULL DEFAULT 0 AFTER gallery_expires_at;
+
+-- 3. upload_jobs — label and file_relpath first (moderation columns reference AFTER label)
+ALTER TABLE upload_jobs
+  ADD COLUMN IF NOT EXISTS label        VARCHAR(255) NULL AFTER completed_at,
+  ADD COLUMN IF NOT EXISTS file_relpath VARCHAR(512) NULL AFTER label;
+
+-- 4. upload_jobs — moderation columns
+ALTER TABLE upload_jobs
+  ADD COLUMN IF NOT EXISTS moderation_status ENUM('pending','approved','rejected') NULL DEFAULT NULL AFTER file_relpath,
+  ADD COLUMN IF NOT EXISTS approved_at       DATETIME   NULL                            AFTER moderation_status,
+  ADD COLUMN IF NOT EXISTS guest_flagged     TINYINT(1) NOT NULL DEFAULT 0              AFTER approved_at,
+  ADD COLUMN IF NOT EXISTS guest_flagged_at  DATETIME   NULL                            AFTER guest_flagged;
+
+-- 5. Moderation index
+ALTER TABLE upload_jobs DROP INDEX IF EXISTS idx_upload_jobs_moderation;
+ALTER TABLE upload_jobs ADD INDEX idx_upload_jobs_moderation (moderation_status);
+MIGRATION
+```
+
+Verify all three tables:
+
+```bash
+docker exec mysqlServer sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" \
+  -e "SHOW CREATE TABLE anon_upload_attributions\G SHOW CREATE TABLE events\G SHOW CREATE TABLE upload_jobs\G"'
+```
+
 ---
 
 ### Step 4 — PHP: `UploadService::finalizeTusUpload` — expand token-mode path
@@ -169,16 +259,23 @@ In the `if ($tokenResult !== null)` block, after `handleUpload` returns `$result
    ```php
    $fileRelpath = $result['file_type'] . '/' . $result['file_name'];
    ```
-   `handleUpload()` always returns `'file_name'` as `{sha256}.{ext}` (see `UploadService.php` line 109 comment: *"Stored filename is always {sha256}.{ext}"*). `source_relpath` is a DB-only provenance column written to the `assets` table; it is **not** returned in the `$result` array.
-3. Expand the `upload_jobs` INSERT to include `label`, `file_relpath`, `moderation_status`:
+   `handleUpload()` always returns `'file_name'` as `{sha256}.{ext}` (see `UploadService.php` line 109 comment: *"Stored filename is always {sha256}.{ext}"*). `source_relpath` is a DB-only provenance column written to the `assets` table; it is **not** returned in the `$result` array. **`file_type` is always `'video'` for token-mode uploads** — enforced by the server-side `UPLOAD_ALLOWED_MIMES_JSON` constraint and `PHPickerViewController`'s `.videos` filter; no runtime assertion is needed here. Revisit `file_relpath` construction if audio upload support is added in a future phase.
+
+> **`apns_token` write path:** the `apns_token` column is intentionally not populated by the finalize INSERT below. The MVP notification mechanism is polling via `guest-status.php` (Phase 2 Step 3). APNs push support is deferred to a future phase and will require a separate device-token registration endpoint.
+
+3. Read `tenant_id` from the env var — `TokenValidationResult` does not carry `tenant_id` (it is not in the token validation query), so it cannot be sourced from `$tokenResult`. Never hardcode `1`:
+   ```php
+   $tenantId = (int)(getenv('QR_GUEST_UPLOAD_TENANT_ID') ?: 1);
+   ```
+   Expand the `upload_jobs` INSERT to include `label`, `file_relpath`, `moderation_status`:
    ```sql
    INSERT INTO upload_jobs
      (tenant_id, job_id, job_type, status, total_files, started_at,
       label, file_relpath, moderation_status)
    VALUES (?, ?, 'qr_guest_upload', 'completed', 1, NOW(), ?, ?, 'pending')
-   -- bind: $tokenResult['tenant_id'], $jobId (TUS UUID VARCHAR), $label, $fileRelpath
+   -- bind: $tenantId, $jobId (TUS UUID VARCHAR), $label, $fileRelpath
    ```
-   Do **not** hardcode `tenant_id = 1`; use the tenant from `$tokenResult`.
+   `QR_GUEST_UPLOAD_TENANT_ID` is set via `qr_guest_upload_tenant_id` in group_vars (Step 1). **Future SAAS path:** add `public int $tenantId` to `TokenValidationResult` and `t.tenant_id` to the `UploadTokenValidator` SELECT — the env var is the single-tenant transitional bridge until full multi-tenancy is activated.
 4. **Call `lastInsertId()` immediately** after this INSERT and store as `$uploadJobsRowId` — before the attribution INSERT.
 5. Expand `anon_upload_attributions` INSERT to include `status_nonce`:
    ```sql
@@ -203,7 +300,11 @@ In the `if ($tokenResult !== null)` block, after `handleUpload` returns `$result
 Add a new POST action `save_event_settings` (alongside existing `revoke` action):
 
 - Inputs: `event_id` (hidden field), `gallery_lifespan_days` (int), `is_multi_day` (checkbox → 0/1)
-- Validate `gallery_lifespan_days` is a non-negative integer; 0 means indefinite (`gallery_expires_at = NULL`)
+- Validate `gallery_lifespan_days` with `filter_var` — a raw `(int)` cast silently coerces `"abc"` to `0` and `"-5"` to `-5` without error (SonarQube RSPEC-2076 flags `$_POST` as tainted); 0 is a valid input meaning indefinite (`gallery_expires_at = NULL`):
+  ```php
+  $n = filter_var($_POST['gallery_lifespan_days'] ?? '', FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+  if ($n === false) { /* flash error and redirect — reject non-integer and negative inputs */ }
+  ```
 - Compute `gallery_expires_at` **inside the SQL expression**, not in PHP — use `DATE_ADD(event_date, INTERVAL ? DAY)` so the anchor is always `events.event_date`, not `NOW()`:
   ```sql
   UPDATE events
@@ -299,7 +400,7 @@ Extend the existing Guest Uploads table HTML:
 
 - Method: GET; parameter: `?nonce=`
 - No admin session required; nonce is the only credential
-- **First two lines:** `header('Cache-Control: no-store');` and `header('Content-Type: application/json');` — no-store prevents Cloudflare caching; explicit content-type prevents browsers treating JSON as HTML (SonarQube Security Hotspot)
+- **First two lines:** `header('Cache-Control: no-store');` and `header('Content-Type: application/json');` — no-store prevents Cloudflare caching; explicit content-type prevents browsers treating JSON as HTML (SonarQube Security Hotspot). These must appear before any `echo` or HTML output, including whitespace before `<?php` (SonarQube RSPEC-5724)
 - **Validate nonce before DB use:** `preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $_GET['nonce'] ?? '')` — SonarQube tracks `$_GET` as tainted input (RSPEC-2076); explicit format check resolves the hotspot even when prepared statements are in use; return `400` on mismatch
 - **Wrap all DB operations in `try { … } catch (PDOException $e) { http_response_code(500); exit; }`** — uncaught PDOException exposes stack traces and is flagged as RSPEC-2225
 - Query:
@@ -338,7 +439,7 @@ Extend the existing Guest Uploads table HTML:
 
 - Method: GET; parameter: `?nonce=`
 - No admin session required
-- **First two lines:** `header('Cache-Control: no-store');` and `header('Content-Type: application/json');` — same rationale as `guest-status.php`
+- **First two lines:** `header('Cache-Control: no-store');` and `header('Content-Type: application/json');` — same rationale as `guest-status.php`; must appear before any output (SonarQube RSPEC-5724)
 - **Validate nonce before DB use:** same `preg_match` pattern as `guest-status.php`; return `400` on mismatch
 - **Wrap all DB operations in try-catch** — same pattern as `guest-status.php`
 - Step 1 — verify nonce's own upload is approved and gallery is not expired:
@@ -361,15 +462,53 @@ Extend the existing Guest Uploads table HTML:
   WHERE t.event_id = ? AND j.moderation_status = 'approved'
   ORDER BY j.started_at ASC  -- chronological capture order; see spec § GuestGalleryView
   ```
-- Construct `stream_url = '/' . $row['file_relpath']` for each video
-- Response:
+- Construct `stream_url` for **two consumer paths** — iOS app and web browser use different endpoints (see Step 2 two-path note and Step 11a):
+  - **iOS AVPlayer** → PHP streaming proxy (DB-validates nonce + event scope on every request; full `Accept-Ranges` support):
+    ```php
+    $streamUrl = '/api/guest-stream.php?nonce=' . urlencode($nonce) . '&job_id=' . (int)$row['upload_job_id'];
+    ```
+  - **Web browser** (`guest_event_view.php`) → direct file path through Apache `SetEnvIf` nonce gate (Step 2B):
+    ```php
+    $streamUrl = '/' . $row['file_relpath'] . '?nonce=' . urlencode($nonce);
+    ```
+  The **implemented** path uses the iOS proxy URL above. `guest_event_view.php` (Step 13) builds its own `src` attribute independently using the direct `/video/` path — it does not consume `guest-gallery.php`'s `stream_url`.
+- Response (iOS path):
   ```json
   { "status": "approved",
     "days_remaining": 87,
-    "videos": [{ "upload_job_id": 1, "label": "my clip", "stream_url": "/video/a3f9bc2d4e1f8c7b5d0e2f9a6c3b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1.mp4",
+    "videos": [{ "upload_job_id": 5, "label": "my clip",
+                 "stream_url": "/api/guest-stream.php?nonce=abc123XYZ789abc123XYZ789abc12345&job_id=5",
                  "display_name": "Scott's iPhone", "approved_at": "2026-07-18T10:00:00Z" }] }
   ```
   `status` is always `"approved"` when this endpoint returns `200`. `approved_empty` is not a reachable state here — if Step 1 passes (nonce's own upload is approved), the nonce holder's own video is always included in Step 2's result, so `videos` always contains ≥ 1 entry. The client (`GuestGalleryView`) should still handle `videos: []` defensively as a no-op empty state, but no special status string is needed.
+
+---
+
+### Step 11a — PHP: new file `/api/guest-stream.php` *(iOS streaming proxy)*
+
+**File:** `ansible/roles/docker/files/apache/webroot/api/guest-stream.php`
+
+> **Rationale:** iOS `AVPlayer` receives a `401` when fetching `/video/…` directly because the dev/prod servers protect that directory with HTTP Basic Auth (Apache `LocationMatch`). The Apache `SetEnvIf` nonce gate (Step 2B) is the spec's original mechanism and remains deployed for the **web browser** path. For iOS, a PHP proxy is cleaner: it DB-validates the nonce on every request (not just regex-matches its presence), enforces event scope, checks gallery expiry, and handles `Accept-Ranges` / `Content-Range` for AVPlayer seeking — without requiring custom `X-Gallery-Nonce` headers via `AVURLAsset`.
+
+- Method: GET; parameters: `?nonce=` and `?job_id=` (INT `upload_jobs.id`)
+- No admin session required; Apache exemption block added to `default-ssl.conf.j2` (same `AuthMerging Off / Require all granted` pattern as the other three guest API endpoints)
+- **Input validation:** `preg_match` nonce pattern (same as all guest endpoints); `filter_var($jobId, FILTER_VALIDATE_INT)` for `job_id` — return `400` on failure
+- **Auth — Step 1:** validate nonce using the same query as `guest-gallery.php` Step 1 (nonce's own upload approved + gallery not expired) → `403` on failure or expiry
+- **Auth — Step 2:** verify the requested `job_id` belongs to the same `event_id` and is approved:
+  ```sql
+  SELECT j.file_relpath
+  FROM upload_jobs j
+  JOIN anon_upload_attributions a ON a.upload_job_id = j.job_id
+  JOIN event_upload_tokens t ON t.token_id = a.token_id
+  WHERE j.id = ? AND t.event_id = ? AND j.moderation_status = 'approved'
+  ```
+  → `404` if not found (wrong event, unapproved, or nonexistent job)
+- **Path traversal guard:** reject `file_relpath` containing `..`, leading `/`, or characters outside `[a-zA-Z0-9_/\-.]+`
+- **File streaming with Range support** (required by AVPlayer for seeking):
+  - Parse `HTTP_RANGE` header (`bytes=start-end`)
+  - `206 Partial Content` with `Content-Range` header for range requests
+  - `200 OK` with `readfile()` for full requests
+  - Always emit `Accept-Ranges: bytes`, `Content-Type: video/mp4`, `Content-Length`, `Cache-Control: no-store`
 
 ---
 
@@ -379,8 +518,16 @@ Extend the existing Guest Uploads table HTML:
 
 - Method: POST; JSON body: `{ "nonce": "...", "upload_job_id": 42 }` (INT `upload_jobs.id`)
 - No admin session required
-- **First two lines:** `header('Cache-Control: no-store');` and `header('Content-Type: application/json');` — POST responses are not typically cached, but `no-store` is added for consistency with the other guest endpoints and to ensure no intermediary caches a nonce-bound response
-- **Validate inputs from JSON body before DB use:** `preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $body->nonce ?? '')` for the nonce; `filter_var($body->upload_job_id ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])` for the integer ID — return `400` on either failure (RSPEC-2076)
+- **First two lines:** `header('Cache-Control: no-store');` and `header('Content-Type: application/json');` — POST responses are not typically cached, but `no-store` is added for consistency with the other guest endpoints and to ensure no intermediary caches a nonce-bound response; must appear before any output (SonarQube RSPEC-5724)
+- **Parse and validate JSON body before DB use:** `json_decode()` returns `null` on malformed or empty input; accessing `$body->nonce` when `$body` is null is a fatal error in PHP 8 — the `??` null-coalescing operator does not suppress property access on a null object (SonarQube RSPEC-2259). Decode and check first:
+  ```php
+  $body = json_decode(file_get_contents('php://input'));
+  if ($body === null) { http_response_code(400); echo json_encode(['error' => 'invalid request']); exit; }
+  if (preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $body->nonce ?? '') !== 1) { http_response_code(400); exit; }
+  $uploadJobId = filter_var($body->upload_job_id ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+  if ($uploadJobId === false) { http_response_code(400); exit; }
+  ```
+  (RSPEC-2076)
 - **Wrap all DB operations in try-catch** — same pattern as other endpoints (RSPEC-2225)
 - Step 1 — verify nonce is an approved contributor and get `event_id`:
   ```sql
@@ -412,7 +559,7 @@ Extend the existing Guest Uploads table HTML:
 - Parameter: `?nonce=` from `$_GET`
 - No admin session required
 - **First line:** `header('Cache-Control: no-store');` — page content is nonce-specific and must never be cached by Cloudflare
-- Share gallery data retrieval logic with `/api/guest-gallery.php` via a common `include` (e.g. `src/Helpers/GuestGalleryHelper.php`) to avoid duplication
+- Share gallery data retrieval logic with `/api/guest-gallery.php` via a common `include` (e.g. `src/Helpers/GuestGalleryHelper.php`) to avoid duplication. Verify that `src/Helpers/` is declared under the `Production\Api\` namespace in the project's `composer.json` `autoload.psr-4` map before using the class path
 - Render approved videos as `<video controls>` elements; construct each `src` as `'/' . htmlspecialchars($row['file_relpath'], ENT_QUOTES) . '?nonce=' . urlencode($nonce)` to pass through Apache's gallery-nonce gate (see Phase 1 Step 2)
 - If nonce invalid/not approved → render a plain HTML 403 error page
 - If `videos` result is empty (defensive check — this state is not reachable via normal flow since the nonce holder's own approved video is always in the result; see Step 11) → render "No videos have been approved yet — check back soon" message
@@ -436,15 +583,130 @@ Extend the existing Guest Uploads table HTML:
 
 **File:** `ansible/roles/shared_gallery/tasks/main.yml` (new dedicated role — do **not** add shared gallery smoke tests to the existing `qr_code` role)
 
-Add smoke tests (tags: `shared_gallery,smoke,api`):
+**`site.yml` wiring:** add the `shared_gallery` role immediately after `qr_code` in `ansible/playbooks/site.yml`, following the same `include_role` / tag pattern.
+
+**Host header:** `_qr_host_header` is set by `set_fact` inside the `qr_code` role. When running `--tags shared_gallery` standalone, that fact is undefined. This role sets its own `_shared_gallery_host_header` fact as its first task so it can run independently.
+
+Add the following tasks (full file — tags: `shared_gallery,smoke,env|db|api`):
 
 ```yaml
+- name: Build common Host header dict for shared gallery smoke tests
+  ansible.builtin.set_fact:
+    _shared_gallery_host_header: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {} }}"
+  changed_when: false
+  tags: [shared_gallery, smoke]
+
+# --- Env vars ---
+
+- name: Assert QR_GALLERY_DEFAULT_LIFESPAN_DAYS is set in Apache container environment
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: printenv QR_GALLERY_DEFAULT_LIFESPAN_DAYS
+  register: _sg_lifespan_env
+  changed_when: false
+  failed_when: (_sg_lifespan_env.rc | default(1)) != 0 or (_sg_lifespan_env.stdout | trim) == ''
+  tags: [shared_gallery, smoke, env]
+
+- name: Assert QR_GALLERY_DEFAULT_LIFESPAN_DAYS is a positive integer
+  ansible.builtin.assert:
+    that:
+      - (_sg_lifespan_env.stdout | trim) is match('^[0-9]+$')
+      - (_sg_lifespan_env.stdout | trim | int) > 0
+    fail_msg: >-
+      QR_GALLERY_DEFAULT_LIFESPAN_DAYS='{{ _sg_lifespan_env.stdout | trim }}' is not a positive integer.
+      Check qr_gallery_default_lifespan_days in group_vars and QR_GALLERY_DEFAULT_LIFESPAN_DAYS in .env.j2.
+  tags: [shared_gallery, smoke, env]
+
+- name: Assert QR_GUEST_UPLOAD_TENANT_ID is set in Apache container environment
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: printenv QR_GUEST_UPLOAD_TENANT_ID
+  register: _sg_tenant_env
+  changed_when: false
+  failed_when: (_sg_tenant_env.rc | default(1)) != 0 or (_sg_tenant_env.stdout | trim) == ''
+  tags: [shared_gallery, smoke, env]
+
+- name: Assert QR_GUEST_UPLOAD_TENANT_ID is a positive integer
+  ansible.builtin.assert:
+    that:
+      - (_sg_tenant_env.stdout | trim) is match('^[0-9]+$')
+      - (_sg_tenant_env.stdout | trim | int) > 0
+    fail_msg: >-
+      QR_GUEST_UPLOAD_TENANT_ID='{{ _sg_tenant_env.stdout | trim }}' is not a positive integer.
+      Check qr_guest_upload_tenant_id in group_vars and QR_GUEST_UPLOAD_TENANT_ID in .env.j2.
+  tags: [shared_gallery, smoke, env]
+
+# --- DB columns (SELECT LIMIT 0 validates column names without reading data) ---
+
+- name: Assert shared gallery columns exist in anon_upload_attributions
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
+      -e "SELECT status_nonce, apns_token FROM anon_upload_attributions LIMIT 0" > /dev/null 2>&1
+      && echo 1 || echo 0'
+  register: _sg_aua_cols
+  changed_when: false
+  tags: [shared_gallery, smoke, db]
+
+- name: Fail if shared gallery columns missing from anon_upload_attributions
+  ansible.builtin.assert:
+    that:
+      - (_sg_aua_cols.stdout | trim) == '1'
+    fail_msg: >-
+      status_nonce or apns_token column missing from anon_upload_attributions.
+      Run the shared gallery DDL migration (Phase 1 Step 3).
+  tags: [shared_gallery, smoke, db]
+
+- name: Assert shared gallery columns exist in events
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
+      -e "SELECT gallery_expires_at, is_multi_day FROM events LIMIT 0" > /dev/null 2>&1
+      && echo 1 || echo 0'
+  register: _sg_events_cols
+  changed_when: false
+  tags: [shared_gallery, smoke, db]
+
+- name: Fail if shared gallery columns missing from events
+  ansible.builtin.assert:
+    that:
+      - (_sg_events_cols.stdout | trim) == '1'
+    fail_msg: >-
+      gallery_expires_at or is_multi_day column missing from events.
+      Run the shared gallery DDL migration (Phase 1 Step 3).
+  tags: [shared_gallery, smoke, db]
+
+- name: Assert shared gallery columns exist in upload_jobs
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
+      -e "SELECT label, file_relpath, moderation_status, guest_flagged, approved_at FROM upload_jobs LIMIT 0"
+      > /dev/null 2>&1 && echo 1 || echo 0'
+  register: _sg_uj_cols
+  changed_when: false
+  tags: [shared_gallery, smoke, db]
+
+- name: Fail if shared gallery columns missing from upload_jobs
+  ansible.builtin.assert:
+    that:
+      - (_sg_uj_cols.stdout | trim) == '1'
+    fail_msg: >-
+      One or more shared gallery columns missing from upload_jobs
+      (label, file_relpath, moderation_status, guest_flagged, approved_at).
+      Run the shared gallery DDL migration (Phase 1 Step 3).
+  tags: [shared_gallery, smoke, db]
+
+# --- API smoke tests ---
+
 - name: guest-status — missing nonce returns 400
   ansible.builtin.uri:
     url: "{{ gighive_base_url }}/api/guest-status.php"
     method: GET
     validate_certs: "{{ gighive_validate_certs }}"
-    headers: "{{ _qr_host_header }}"
+    headers: "{{ _shared_gallery_host_header }}"
     status_code: 400
   changed_when: false
   tags: [shared_gallery, smoke, api]
@@ -454,7 +716,7 @@ Add smoke tests (tags: `shared_gallery,smoke,api`):
     url: "{{ gighive_base_url }}/api/guest-status.php?nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     method: GET
     validate_certs: "{{ gighive_validate_certs }}"
-    headers: "{{ _qr_host_header }}"
+    headers: "{{ _shared_gallery_host_header }}"
     status_code: 404
   changed_when: false
   tags: [shared_gallery, smoke, api]
@@ -464,7 +726,7 @@ Add smoke tests (tags: `shared_gallery,smoke,api`):
     url: "{{ gighive_base_url }}/api/guest-gallery.php"
     method: GET
     validate_certs: "{{ gighive_validate_certs }}"
-    headers: "{{ _qr_host_header }}"
+    headers: "{{ _shared_gallery_host_header }}"
     status_code: 400
   changed_when: false
   tags: [shared_gallery, smoke, api]
@@ -474,7 +736,7 @@ Add smoke tests (tags: `shared_gallery,smoke,api`):
     url: "{{ gighive_base_url }}/api/guest-gallery.php?nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     method: GET
     validate_certs: "{{ gighive_validate_certs }}"
-    headers: "{{ _qr_host_header }}"
+    headers: "{{ _shared_gallery_host_header }}"
     status_code: 403
   changed_when: false
   tags: [shared_gallery, smoke, api]
@@ -486,7 +748,7 @@ Add smoke tests (tags: `shared_gallery,smoke,api`):
     body: '{}'
     body_format: json
     validate_certs: "{{ gighive_validate_certs }}"
-    headers: "{{ _qr_host_header }}"
+    headers: "{{ _shared_gallery_host_header }}"
     status_code: 400
   changed_when: false
   tags: [shared_gallery, smoke, api]
@@ -498,7 +760,7 @@ Add smoke tests (tags: `shared_gallery,smoke,api`):
     body: '{"nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","upload_job_id":1}'
     body_format: json
     validate_certs: "{{ gighive_validate_certs }}"
-    headers: "{{ _qr_host_header }}"
+    headers: "{{ _shared_gallery_host_header }}"
     status_code: 403
   changed_when: false
   tags: [shared_gallery, smoke, api]
@@ -508,7 +770,7 @@ Add smoke tests (tags: `shared_gallery,smoke,api`):
     url: "{{ gighive_base_url }}/guest_event_view.php?nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     method: GET
     validate_certs: "{{ gighive_validate_certs }}"
-    headers: "{{ _qr_host_header }}"
+    headers: "{{ _shared_gallery_host_header }}"
     status_code: 403
   changed_when: false
   tags: [shared_gallery, smoke, api]
@@ -572,6 +834,16 @@ On `onAppear` (or scene-phase `.active`):
   - If status is `"rejected"`: show brief non-alarming message; no retry
   - If status is `"expired"`: update local record; stop polling
 
+**Stale record removal (implemented — do not use `try?` on `fetchStatus`):**
+
+> **Problem:** `GuestUploadRecord` entries are persisted in `UserDefaults` on the device. If the server database is rebuilt (e.g. `rebuild_mysql_data: true` during a dev/staging Ansible run), the nonce stored on-device no longer exists server-side. The poll calls `guest-status.php?nonce=<stale>`, which returns `404`. With a bare `try?`, the error is silently swallowed and the response is `nil` — indistinguishable from a transient network failure. The stale record stays in `UserDefaults` indefinitely and appears in "Your Event Galleries" as a phantom entry pointing to a dead nonce.
+
+> **Fix:** use `do/catch` in the `TaskGroup` task body to capture the thrown error alongside the response. After all tasks complete, differentiate by error type:
+> - `GuestGalleryError.badServer(404)` — nonce definitively not found; collect the nonce in `noncesToRemove`; after the loop call `records.removeAll { noncesToRemove.contains($0.statusNonce) }` before saving
+> - Any other error (`URLError`, `badServer` non-404, decode failure) — transient; leave the record untouched so it is retried on the next poll
+>
+> This means the `withTaskGroup(of:)` element type must be `(Int, GuestStatusResponse?, Error?)` rather than `(Int, GuestStatusResponse?)`, and the results array must store the error alongside the optional response. `403` (`accessDenied`) is treated as a permanent failure and should also be added to `noncesToRemove` (the token was revoked or the nonce was never valid).
+
 ---
 
 ### Step 4 — Swift: `SplashView` — approval banner + "Your Event Galleries" section
@@ -605,10 +877,11 @@ Two additions:
   - `status == "approved"` and `videos` array is empty → show "No videos approved yet — check back soon" (the API never returns a literal `"approved_empty"` status string; defend against empty `videos` array at the client level)
   - Success → populate video list; update `lastSeenVideoCount` in `GuestUploadRecord`
 - Video list: `List` of rows with `display_name`, `label`, tap → full-screen `AVPlayer` (reuse existing `MediaPlayerView`)
-- **Video playback:** load each `stream_url` via `AVURLAsset(url:options:)` with `[AVURLAssetHTTPHeaderFieldsKey: ["X-Gallery-Nonce": statusNonce]]`; do **not** use `AVPlayer(url:)` directly — it does not support custom request headers and will receive `401` from Apache's `/video/` gate (see Phase 1 Step 2)
+- **Video playback:** use `AVPlayer(url: URL(string: streamUrl)!)` directly — the nonce is already embedded in each `stream_url` as `?nonce=…` (see Phase 1 Step 11); Apache's `SetEnvIf Request_URI` gate matches the URL query parameter, no custom HTTP headers required
 - `days_remaining` shown as subtitle on the view (e.g. "Available for 87 more days"); omit if `null`
 - **Report button** per row: `confirmationDialog` → "Report this video" → `POST /api/guest-report.php { nonce, upload_job_id }` → show toast "Thank you — this video has been flagged for review" on `200`; silent on `403` (already flagged or cross-event mismatch)
 - Navigation title: event name from the first video's context or stored in `GuestUploadRecord.eventName`
+- **Device-bound warning footer:** below the video list, render an `HStack` (outside the `ScrollView`/video rows `VStack`) containing a `⚠️` triangle icon and the text: *"Your gallery access is stored on this device. Deleting the app will remove access."* styled `.caption2` / muted color. Shown on every gallery visit — not just on the one-time approval banner — so the limitation is always visible.
 
 ---
 
@@ -640,9 +913,11 @@ The following areas should be reviewed in a subsequent pass once this plan is ag
   - `guest-status.php` returns only the nonce's own upload status — no cross-event data path exists
   - Apache's `/video/` gate checks nonce presence only, not event scope; SHA-256 filenames are the second layer — never leaked by the API outside the `event_id` boundary, and unguessable without the original file
   - Multiple tokens for the same event intentionally share one gallery (query is event-scoped, not token-scoped — correct behaviour; see spec § Event and Org Isolation)
+- **Admin-side tenant isolation (Steps 7/8)** — the `$guestUploads` SELECT (Step 7) and approve/reject UPDATE (Step 8) filter by `event_id` only. Add `AND t.tenant_id = ?` (bound to the admin session's tenant) to both queries as a defense-in-depth layer against CSRF or logic bugs that could inject a valid `event_id` from another tenant
 - **SQL injection surface / tainted input (RSPEC-2076)** — all three new PHP API files are unauthenticated; every parameter must use prepared statements with bound values **and** be explicitly validated before DB use: `preg_match('/^[A-Za-z0-9_\-]{30,40}$/', ...)` for nonces, `filter_var(..., FILTER_VALIDATE_INT)` for integer IDs; return `400` on validation failure
 - **Unhandled DB exceptions (RSPEC-2225)** — wrap all PDO operations in `try { … } catch (PDOException $e) { http_response_code(500); exit; }`; never let stack traces reach the response
 - **`getenv()` return value unchecked (RSPEC-3516)** — `getenv()` returns `false` when the env var is absent; always use `(int)(getenv('KEY') ?: fallback)` pattern
+- **`json_decode()` null return (RSPEC-2259)** — accessing `$body->nonce` when `json_decode()` returns `null` is a fatal error in PHP 8; the `??` null-coalescing operator does not suppress property access on a null object; always check the return value before property access (see Step 12)
 - **Missing `Content-Type: application/json` (Security Hotspot)** — all three JSON API endpoints must emit this header; without it some browser contexts treat the response as HTML, enabling reflected XSS
 - **`UserDefaults` for nonce (RSPEC-5334 — iOS)** — intentional design choice for accountless model; mark as reviewed and accepted in SonarQube (rationale documented in iOS Step 1)
 - **Nonce entropy** — `random_bytes(24)` = 192 bits; stored in VARCHAR(40) as URL-safe base64 (32 chars); verify no truncation
@@ -657,12 +932,12 @@ The following areas should be reviewed in a subsequent pass once this plan is ag
 
 ## Database Migration (Existing Installations)
 
-The new columns must be added to `create_music_db.sql` so they are present on any fresh install. For an existing database already running in production, follow this process:
+The new columns must be added to `create_media_db.sql` so they are present on any fresh install. For an existing database already running in production, follow this process:
 
 1. **Pre-migration backup** — back up the live database before touching it
 2. **Apply DDL** — run the ALTER TABLE statements against the live database
 3. **Post-migration backup** — back up the patched database (data + new columns, before the wipe)
-4. **Ansible rebuild** — set `rebuild_mysql_data: true` in group_vars (do not commit), run the site playbook (wipes MySQL volume and reinitialises from the updated `create_music_db.sql`), revert the flag
+4. **Ansible rebuild** — set `rebuild_mysql_data: true` in group_vars (do not commit), run the site playbook (wipes MySQL volume and reinitialises from the updated `create_media_db.sql`), revert the flag
 5. **Restore** — restore the Step 3 post-migration backup into the fresh container via the Admin UI
 
 **Step 1 — Pre-migration backup (run from the docker host):**
@@ -682,7 +957,7 @@ ALTER TABLE anon_upload_attributions
   ADD COLUMN IF NOT EXISTS apns_token   VARCHAR(200) NULL AFTER status_nonce;
 -- NOTE: status_nonce is NULL (not NOT NULL) in this migration because MySQL cannot add a NOT NULL
 -- column without a DEFAULT when rows already exist. Legacy rows predate the feature and have no nonce;
--- NULL is the correct sentinel for them. The create_music_db.sql DDL (fresh installs, empty table)
+-- NULL is the correct sentinel for them. The create_media_db.sql DDL (fresh installs, empty table)
 -- keeps NOT NULL. MySQL UNIQUE indexes allow multiple NULLs, so the unique constraint still applies
 -- correctly to all new guest-upload rows.
 ALTER TABLE anon_upload_attributions
@@ -749,7 +1024,7 @@ rebuild_mysql_data: false
 
 ---
 
-**Step 5 — Restore** using the Step 3 post-migration backup into the fresh container via the Admin UI. The rebuilt container's fresh schema (from the updated `create_music_db.sql`) and the restored backup will both contain the nine new columns.
+**Step 5 — Restore** using the Step 3 post-migration backup into the fresh container via the Admin UI. The rebuilt container's fresh schema (from the updated `create_media_db.sql`) and the restored backup will both contain the nine new columns.
 
 ---
 
@@ -778,3 +1053,118 @@ ALTER TABLE upload_jobs
   DROP COLUMN IF EXISTS label;
 ROLLBACK
 ```
+
+---
+
+## Phase 3 — Production Universal Links Launch
+
+This phase activates Universal Links for real end-users on the App Store build. The `?mode=developer` entitlements used during development **do not apply** to App Store or TestFlight builds. A separate production path is required.
+
+> **Context:** During development, Universal Links were debugged and confirmed working on `dev.gighive.app` using `?mode=developer` entitlements + the device's **Settings → Developer → Associated Domains Development** toggle. See `docs/problem_iphone_qr_code_redirect.md` for the full root-cause log. Production users have none of these developer settings — they rely entirely on `applinks:*.gighive.app` (wildcard, no query parameter) and Apple's CDN cache seeded per org subdomain.
+
+---
+
+### URL pattern
+
+Production QR codes use org-specific subdomains:
+```
+https://<org-slug>.gighive.app/upload/<token>
+```
+e.g. `https://stormpigs.gighive.app/upload/js-abc123...`
+
+`applinks:gighive.app` does **not** cover subdomains. A wildcard entitlement is required.
+
+---
+
+### Step 1 — Deploy AASA to every org subdomain on `*.gighive.app`
+
+The AASA file content is identical for all org subdomains (same `appIDs`). The Ansible template and group_vars are already correct. Confirm the file is live and reachable on at least one org subdomain:
+
+```bash
+# Substitute an actual org slug
+curl -sI https://stormpigs.gighive.app/.well-known/apple-app-site-association
+# Must: HTTP/2 200, Content-Type: application/json, no redirect
+
+curl -s https://stormpigs.gighive.app/.well-known/apple-app-site-association
+# Expected: {"applinks":{"details":[{"appIDs":["WB7D4FC7XU.app.gighive.GigHive"],"components":[{"/":"/upload/*"}]}]}}
+```
+
+If missing, run the production Ansible playbook — the Apache vhost config serves the AASA for all subdomains from the same template.
+
+---
+
+### Step 2 — Understand the CDN warm-up model for wildcard subdomains
+
+Apple's CDN does **not** pre-crawl all possible `*.gighive.app` subdomains. It crawls a specific subdomain on-demand the first time a device with the installed app encounters a link to that subdomain.
+
+**Practical consequence:**
+- The first guest to tap a `stormpigs.gighive.app` QR link may land on the web fallback (CDN not yet seeded for that subdomain)
+- Subsequent guests will get the native app once the CDN has crawled `stormpigs.gighive.app`
+- CDN seeding typically completes within minutes to hours of first contact
+
+**To force CDN seeding before an event:**
+```bash
+# Trigger Apple's crawler by accessing the subdomain — or just check it directly:
+curl -s https://app-site-association.cdn-apple.com/a/v1/stormpigs.gighive.app
+# "Not Found" = not yet seeded. Check again after ~15–60 min.
+# Correct JSON = ready.
+```
+
+Consider adding a pre-event step to your runbook: generate the QR code a day before the event so the CDN has time to crawl the org subdomain.
+
+---
+
+### Step 3 — Add `applinks:*.gighive.app` to the entitlements
+
+Replace `applinks:gighive.app` with the wildcard in `GigHive/Configs/GigHive.entitlements`:
+
+```xml
+<key>com.apple.developer.associated-domains</key>
+<array>
+    <string>applinks:*.gighive.app</string>
+    <string>applinks:dev.gighive.app?mode=developer</string>
+    <string>applinks:gighive.internal?mode=developer</string>
+    <string>applinks:gighive2.gighive.internal?mode=developer</string>
+</array>
+```
+
+Notes:
+- `applinks:*.gighive.app` covers one level of subdomains — `stormpigs.gighive.app` ✅, `a.stormpigs.gighive.app` ✗
+- `dev.gighive.app` also matches the wildcard, but the explicit `?mode=developer` entry is kept to preserve direct-server fetch for development
+- The `?mode=developer` entries are silently ignored by swcd on production devices without Associated Domains Development enabled
+
+---
+
+### Step 4 — Build and distribute via App Store / TestFlight
+
+Submit a new build. After installation:
+
+- QR codes generated from `https://<org>.gighive.app/admin/event_qr.php` produce URLs like `https://<org>.gighive.app/upload/<token>`
+- When a guest scans the QR code with the iPhone Camera app (with Safari as default browser), the camera banner will read **GigHive** and tapping it will open `GuestUploadView` directly in the app with the correct event pre-loaded
+- Guests with Chrome as their default browser will land on the web fallback form — expected and acceptable per the spec
+
+---
+
+### Step 5 — Smoke test on a production (non-developer) device
+
+Use a device with no developer settings enabled to replicate the real guest experience:
+
+1. Install the App Store build
+2. Generate a QR code from `https://<org>.gighive.app/admin/event_qr.php`
+3. Scan with iPhone Camera — banner must read **GigHive** (not the URL)
+4. Tap the banner — `GuestUploadView` must open with the correct event pre-loaded
+5. Long-press a `<org>.gighive.app/upload/...` link in Notes or iMessage — **Open in GigHive** must appear as the first menu option
+
+---
+
+### Production readiness checklist
+
+| # | Check | Command / Location |
+|---|-------|--------------------|
+| 1 | AASA live on org subdomain with `Content-Type: application/json`, HTTP 200, no redirect | `curl -sI https://<org>.gighive.app/.well-known/apple-app-site-association` |
+| 2 | Apple CDN seeded for the org subdomain being tested | `curl -s https://app-site-association.cdn-apple.com/a/v1/<org>.gighive.app` |
+| 3 | `applinks:*.gighive.app` (no `?mode=developer`) in `GigHive.entitlements` | Read `Configs/GigHive.entitlements` |
+| 4 | App Store build signed with correct Team ID `WB7D4FC7XU` and bundle ID `app.gighive.GigHive` | `codesign -d --entitlements -` on the `.ipa` |
+| 5 | QR codes generated from production admin page use the org subdomain | Check generated URL shown under the QR image |
+| 6 | CDN pre-seeded for org subdomains before live events (generate QR day before) | `curl -s https://app-site-association.cdn-apple.com/a/v1/<org>.gighive.app` |
+| 7 | Smoke test on non-developer device passes (Camera banner reads GigHive, tap opens app) | Manual test |

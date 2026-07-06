@@ -95,8 +95,11 @@ if ($rawToken !== null) {
   <?php if ($tokenResult !== null): ?>
   <div class="user-indicator">Guest upload &mdash; <?= htmlspecialchars($tokenResult->orgName, ENT_QUOTES) ?></div>
   <h1>Upload Media</h1>
+  <div style="background:#fff8ed;border:1px solid #f59e0b;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#78350f;max-width:720px">
+    <strong>Honor system:</strong> By uploading, you certify that you are an attendee at this event, that you have the right to share this recording, and that it does not contain offensive, illegal, or harmful material. Violations may result in your submission being rejected by the organizer.
+  </div>
   <form id="uploadForm">
-    <label for="file">Media file (audio/video) *</label>
+    <label for="file">Media file (video) *</label>
     <input id="file" name="file" type="file" accept="<?= htmlspecialchars($accept, ENT_QUOTES) ?>" required />
 
     <label>Event date</label>
@@ -108,8 +111,8 @@ if ($rawToken !== null) {
     <label for="label">Song title or table identifier *</label>
     <input id="label" name="label" type="text" placeholder="Song title or wedding table label" required />
 
-    <label for="display_name">Your name (optional)</label>
-    <input id="display_name" name="display_name" type="text" maxlength="100" placeholder="Displayed with your upload" />
+    <label for="display_name">Your name *</label>
+    <input id="display_name" name="display_name" type="text" maxlength="100" placeholder="Displayed with your upload" required />
 
     <div class="row" style="margin-top:16px;">
       <input id="tos_checkbox" type="checkbox" />
@@ -289,12 +292,19 @@ if ($rawToken !== null) {
 
       const hasPersistentStorage = checkLocalStoragePersistence();
       if (UPLOAD_TOKEN !== null) {
-        const tosCheckbox = document.getElementById('tos_checkbox');
-        if (tosCheckbox) {
-          tosCheckbox.addEventListener('change', function() {
-            if (btn) btn.disabled = !this.checked;
-          });
+        const tosCheckbox     = document.getElementById('tos_checkbox');
+        const guestNameEl     = document.getElementById('display_name');
+        const guestFileEl     = document.getElementById('file');
+        function updateGuestBtn() {
+          const tosOk  = tosCheckbox ? tosCheckbox.checked : false;
+          const nameOk = guestNameEl ? (guestNameEl.value || '').trim().length > 0 : true;
+          const fileOk = guestFileEl ? (guestFileEl.files && guestFileEl.files.length > 0) : false;
+          if (btn) btn.disabled = !(tosOk && nameOk && fileOk);
         }
+        if (tosCheckbox) tosCheckbox.addEventListener('change', updateGuestBtn);
+        if (guestNameEl) guestNameEl.addEventListener('input', updateGuestBtn);
+        if (guestFileEl) guestFileEl.addEventListener('change', updateGuestBtn);
+        updateGuestBtn();
       } else if (!hasPersistentStorage && !IS_ADMIN) {
         if (btn) btn.disabled = true;
         if (statusEl) statusEl.textContent = 'Uploads disabled: this browser does not support persistent local storage (private browsing?).';
@@ -550,16 +560,23 @@ if ($rawToken !== null) {
                   finalChecksum = checksum;
                 }
 
-                if (statusEl) {
-                  const doneText = (finalStatusText && typeof finalStatusText === 'string') ? finalStatusText : 'Uploading… 100%';
-                  const withChecksum = finalChecksum ? (doneText + ' | sha256 ' + finalChecksum) : doneText;
-                  statusEl.textContent = withChecksum.replace(/^Uploading…/, 'Uploading Completed.');
-                }
-                clearBusy();
-                if (resultEl) {
-                  resultEl.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+                if (UPLOAD_TOKEN !== null) {
+                  if (form) {
+                    form.innerHTML = '<div style="background:#f0fdf4;border:1px solid #22c55e;border-radius:8px;padding:16px 18px;font-size:14px;color:#14532d;margin-top:8px">'
+                      + '<strong>Thank you!</strong> Your video has been submitted for review.'
+                      + '<p style="margin:.75rem 0 0">The event organizer will review your clip. Return to the GigHive app in 24\u201348\u00a0hours to check your approval status and, once approved, view the shared gallery with other contributors\u2019 clips from this event.</p>'
+                      + '</div>';
+                  }
+                } else {
+                  if (statusEl) {
+                    const doneText = (finalStatusText && typeof finalStatusText === 'string') ? finalStatusText : 'Uploading\u2026 100%';
+                    const withChecksum = finalChecksum ? (doneText + ' | sha256 ' + finalChecksum) : doneText;
+                    statusEl.textContent = withChecksum.replace(/^Uploading\u2026/, 'Uploading Completed.');
+                  }
+                  clearBusy();
+                  if (resultEl) {
+                    resultEl.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
 
-                  if (UPLOAD_TOKEN === null) {
                     const existingLink = document.getElementById('viewFileInDatabaseLink');
                     if (existingLink && existingLink.parentNode) {
                       existingLink.parentNode.removeChild(existingLink);

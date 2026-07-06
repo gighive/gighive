@@ -201,6 +201,13 @@ try {
             continue;
         }
 
+        // Reject any guest gallery entries that reference the same file so the
+        // video disappears from the iOS gallery immediately on next open.
+        $fileRelpath = $ext !== '' ? ($type . '/' . $sha . '.' . $ext) : ($type . '/' . $sha);
+        $pdo->prepare(
+            'UPDATE upload_jobs SET moderation_status = \'rejected\' WHERE file_relpath = ? AND moderation_status = \'approved\''
+        )->execute([$fileRelpath]);
+
         $results['deleted'][] = ['asset_id' => $id];
     }
 

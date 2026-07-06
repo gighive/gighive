@@ -120,6 +120,8 @@
       tags: [ post_build_checks ]
     - role: qr_code
       tags: [ qr_code ]
+    - role: shared_gallery
+      tags: [ shared_gallery ]
     - role: validate_app
       tags: [ validate_app ]
     - role: upload_tests

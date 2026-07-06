@@ -1,0 +1,192 @@
+---
+# Shared Gallery smoke tests
+# Run standalone:  ansible-playbook site.yml --tags shared_gallery
+# Requires: apache_container_name, mysql_container_name, gighive_base_url,
+#           gighive_validate_certs, gighive_hostname_for_host_header
+
+# --- Host header ---
+
+- name: Build common Host header dict for shared gallery smoke tests
+  ansible.builtin.set_fact:
+    _shared_gallery_host_header: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {} }}"
+  changed_when: false
+  tags: [shared_gallery, smoke]
+
+# --- Env vars ---
+
+- name: Assert QR_GALLERY_DEFAULT_LIFESPAN_DAYS is set in Apache container environment
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: printenv QR_GALLERY_DEFAULT_LIFESPAN_DAYS
+  register: _sg_lifespan_env
+  changed_when: false
+  failed_when: (_sg_lifespan_env.rc | default(1)) != 0 or (_sg_lifespan_env.stdout | trim) == ''
+  tags: [shared_gallery, smoke, env]
+
+- name: Assert QR_GALLERY_DEFAULT_LIFESPAN_DAYS is a positive integer
+  ansible.builtin.assert:
+    that:
+      - (_sg_lifespan_env.stdout | trim) is match('^[0-9]+$')
+      - (_sg_lifespan_env.stdout | trim | int) > 0
+    fail_msg: >-
+      QR_GALLERY_DEFAULT_LIFESPAN_DAYS='{{ _sg_lifespan_env.stdout | trim }}' is not a positive integer.
+      Check qr_gallery_default_lifespan_days in group_vars and QR_GALLERY_DEFAULT_LIFESPAN_DAYS in .env.j2.
+  tags: [shared_gallery, smoke, env]
+
+- name: Assert QR_GUEST_UPLOAD_TENANT_ID is set in Apache container environment
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: printenv QR_GUEST_UPLOAD_TENANT_ID
+  register: _sg_tenant_env
+  changed_when: false
+  failed_when: (_sg_tenant_env.rc | default(1)) != 0 or (_sg_tenant_env.stdout | trim) == ''
+  tags: [shared_gallery, smoke, env]
+
+- name: Assert QR_GUEST_UPLOAD_TENANT_ID is a positive integer
+  ansible.builtin.assert:
+    that:
+      - (_sg_tenant_env.stdout | trim) is match('^[0-9]+$')
+      - (_sg_tenant_env.stdout | trim | int) > 0
+    fail_msg: >-
+      QR_GUEST_UPLOAD_TENANT_ID='{{ _sg_tenant_env.stdout | trim }}' is not a positive integer.
+      Check qr_guest_upload_tenant_id in group_vars and QR_GUEST_UPLOAD_TENANT_ID in .env.j2.
+  tags: [shared_gallery, smoke, env]
+
+# --- DB columns ---
+
+- name: Assert shared gallery columns exist in anon_upload_attributions
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
+      -e "SELECT status_nonce, apns_token FROM anon_upload_attributions LIMIT 0" > /dev/null 2>&1
+      && echo 1 || echo 0'
+  register: _sg_aua_cols
+  changed_when: false
+  tags: [shared_gallery, smoke, db]
+
+- name: Fail if shared gallery columns missing from anon_upload_attributions
+  ansible.builtin.assert:
+    that:
+      - (_sg_aua_cols.stdout | trim) == '1'
+    fail_msg: >-
+      status_nonce or apns_token column missing from anon_upload_attributions.
+      Run the shared gallery DDL migration (Phase 1 Step 3).
+  tags: [shared_gallery, smoke, db]
+
+- name: Assert shared gallery columns exist in events
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
+      -e "SELECT gallery_expires_at, is_multi_day FROM events LIMIT 0" > /dev/null 2>&1
+      && echo 1 || echo 0'
+  register: _sg_events_cols
+  changed_when: false
+  tags: [shared_gallery, smoke, db]
+
+- name: Fail if shared gallery columns missing from events
+  ansible.builtin.assert:
+    that:
+      - (_sg_events_cols.stdout | trim) == '1'
+    fail_msg: >-
+      gallery_expires_at or is_multi_day column missing from events.
+      Run the shared gallery DDL migration (Phase 1 Step 3).
+  tags: [shared_gallery, smoke, db]
+
+- name: Assert shared gallery columns exist in upload_jobs
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
+      -e "SELECT label, file_relpath, moderation_status, guest_flagged, approved_at FROM upload_jobs LIMIT 0"
+      > /dev/null 2>&1 && echo 1 || echo 0'
+  register: _sg_uj_cols
+  changed_when: false
+  tags: [shared_gallery, smoke, db]
+
+- name: Fail if shared gallery columns missing from upload_jobs
+  ansible.builtin.assert:
+    that:
+      - (_sg_uj_cols.stdout | trim) == '1'
+    fail_msg: >-
+      One or more shared gallery columns missing from upload_jobs
+      (label, file_relpath, moderation_status, guest_flagged, approved_at).
+      Run the shared gallery DDL migration (Phase 1 Step 3).
+  tags: [shared_gallery, smoke, db]
+
+# --- API smoke tests ---
+
+- name: guest-status — missing nonce returns 400
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-status.php"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 400
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-status — unknown nonce returns 404
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-status.php?nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 404
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-gallery — missing nonce returns 400
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-gallery.php"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 400
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-gallery — unknown nonce returns 403
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-gallery.php?nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 403
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-report — missing body returns 400
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-report.php"
+    method: POST
+    body: '{}'
+    body_format: json
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 400
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-report — unknown nonce returns 403
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-report.php"
+    method: POST
+    body: '{"nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","upload_job_id":1}'
+    body_format: json
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 403
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest_event_view — unknown nonce returns 403
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/guest_event_view.php?nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 403
+  changed_when: false
+  tags: [shared_gallery, smoke, api]

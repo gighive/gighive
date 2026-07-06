@@ -32,7 +32,7 @@ Shared visibility creates a surface for abuse that a private-to-organizer-only u
 
 1. Guest scans QR code at venue with iPhone camera → Universal Link opens GigHive app
 2. `SplashView` detects token → navigates to `GuestUploadView`; token validation spinner shown
-3. On valid token: upload form renders with read-only event info (org, date, type), honor system warning, display name field (auto-filled from device name, editable), ToS checkbox, and **Select Video** button
+3. On valid token: upload form renders with read-only event info (org, date, type), honor system warning, display name field (auto-filled from device name, editable), optional **Clip label** field (user-friendly name shown in the gallery; if left blank the server stores a formatted upload timestamp as the label — e.g. *"Video Jul 5, 2026 3:21 PM"*; helper text reads *"Files are stored under a unique name for privacy. Your label helps you identify the clip in the gallery."*), ToS checkbox, and **Select Video** button
 4. Guest selects a video clip via `PHPickerViewController` (videos only — see Media Type note below)
 5. Guest checks ToS checkbox — **Upload** button enables only when **both** a video has been selected (step 4) **and** ToS is checked; either alone is insufficient
 6. Guest taps **Upload** → TUS chunked upload runs with progress indicator → finalize call sent
@@ -52,16 +52,20 @@ Shared visibility creates a surface for abuse that a private-to-organizer-only u
 
     > ⚠️ *"Important: your gallery access is stored on this device. If you delete the GigHive app, you will permanently lose access to this gallery and it cannot be recovered."*
 
+    This device-bound warning is also shown as a persistent footer on every `GuestGalleryView` visit (not just the one-time approval banner) so the guest is reminded on every session.
+
     After dismissing the banner, the gallery remains accessible via a persistent **"Your Event Galleries"** section on `SplashView` (see Phase 3).
 11. **Rejected:** brief non-alarming message shown; record marked resolved; polling stops for this record
 
 ### Guest — Phase 3: Ongoing Anonymous Gallery Access
 
-12. Approved `GuestUploadRecord` entries persist in `UserDefaults` and are surfaced as a dedicated **"Your Event Galleries"** section on `SplashView`, listing each event by name with a **"View Gallery"** button. This section is always visible when approved records exist — it is the primary persistent entry point after the one-time approval banner is dismissed. **Multiple uploads from the same guest** (e.g. scanning a valid token twice) each produce a separate `GuestUploadRecord` with their own `status_nonce` and appear as separate entries under the same event name in this section. Grouping multiple records per event into a single entry is deferred — separate records are acceptable for v1.
+12. Approved `GuestUploadRecord` entries persist in `UserDefaults` and are surfaced as a dedicated **"Your Event Galleries"** section on `SplashView`, listing each event by name with a **"View Gallery"** button. This section is always visible when approved records exist — it is the primary persistent entry point after the one-time approval banner is dismissed. **Multiple nonces for the same event** (e.g. scanning two different QR codes for the same event on the same device) are deduplicated in the UI — they collapse to a single row keyed by `baseURLString + eventName`. All nonces are still polled in the background and stale ones pruned; the deduplication is display-only. The "New videos" badge fires if *any* nonce for that event has unseen videos.
 13. Guest taps a gallery entry → app navigates to native `GuestGalleryView`, passing the `status_nonce`; gallery fetches the approved video list from `/api/guest-gallery.php?nonce=…` and renders each clip using `AVPlayer`; gallery may have grown since last visit as other attendees' videos are approved over time
 14. App can show a **"New videos added"** indicator if the gallery count has increased since last visit (requires the status endpoint to return a `video_count` alongside `status`)
 15. If the gallery has passed its lifespan: status endpoint returns `expired` → local record shows "This gallery is no longer available" state; no error, no crash
 16. If the guest's device is reset or the app is deleted, the `status_nonce` is lost — access cannot be recovered without the nonce; this is a known limitation of the accountless model
+17. **Stale record cleanup:** if the server returns `404` for a polled nonce (e.g. the database was rebuilt in a dev/staging environment), the `GuestUploadRecord` is automatically removed from `UserDefaults` on that poll. Network errors (transient) are distinguished from `404`/`403` (definitive) — only definitive failures trigger removal.
+18. **Guest-aware login prompt:** `SplashView` shows *"Please login first"* only to users with no credentials and no approved gallery records. Guests with at least one approved gallery record see a softer footnote instead: *"Login for full database and upload access"* — confirming they are legitimately using the app as a gallery-only user without pressuring them to log in.
 
 **How long should guests be able to access the gallery?**
 
@@ -84,7 +88,7 @@ There is no single right answer — it depends on event type and organizer inten
 1. Admin navigates to **Guest QR Upload** in the admin portal → `admin/event_qr.php`
 2. Enters org name + event date → clicks **Load Event** → event row created or resolved
 3. In the **Event** section (after Load Event): sets **Gallery lifespan** in days (pre-populated from `QR_GALLERY_DEFAULT_LIFESPAN_DAYS`; stored as `gallery_expires_at = event_date + N days` on the `events` row; applies to all QR codes for this event); checks **Multi-day event** checkbox if applicable (stored on `events`; applies to all tokens)
-4. In QR Generator section: selects TTL (4h / 24h / 7d / 14d). **Validation:** if the selected TTL exceeds the gallery lifespan (e.g. 14-day TTL on a 7-day gallery), the form should warn: *"Upload window extends beyond gallery expiry — guests who upload near the end of the window may be approved after the gallery has already closed."* This is a warning, not a hard block. → clicks **Generate QR**
+4. In QR Generator section: selects TTL (4h / 24h / 7d / 14d). **Validation:** if the selected TTL exceeds the gallery lifespan (e.g. 14-day TTL on a 7-day gallery), the form should warn: *"Upload window extends beyond gallery expiry — guests who upload near the end of the window may be approved after the gallery has already closed."* This is a warning, not a hard block. **Duplicate QR guard:** if at least one active (non-revoked, non-expired) token already exists for the event, clicking **Generate QR** triggers a browser `confirm()` dialog: *"⚠️ This event already has N active QR code(s). Generating a new one will create an additional upload link — the existing one(s) will remain active until revoked or expired. Continue anyway?"* Admin may cancel or proceed; this is a guard, not a hard block. → clicks **Generate QR**
 5. QR canvas renders → **Download PNG** for printing/display at venue
 6. Guests scan QR during event; uploads flow in
 
@@ -157,6 +161,7 @@ New functionality needed (~40–50 new PHP lines total) — see implementation p
 ```
 
 **Notes on the wireframe:**
+- The **Organization** field is a free-text `<input>` backed by a `<datalist>` populated from `SELECT DISTINCT org_name FROM events` — if the DB is empty the admin types freely (new org); if orgs already exist they appear as browser autocomplete suggestions; either way the value submitted is plain text (no separate organizations table)
 - Gallery lifespan and Multi-day checkbox live in the **Event Selector** card (event-level settings), not in the QR Generator card (token-level settings)
 - The TTL mismatch warning appears inline in the QR Generator card only when TTL > gallery lifespan
 - Approve/Reject buttons only appear on `pending` rows; already-decided rows show `—`

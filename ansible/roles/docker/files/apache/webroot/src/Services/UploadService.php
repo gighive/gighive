@@ -408,21 +408,30 @@ final class UploadService
 
         // Token-mode: atomic write of upload_jobs + anon_upload_attributions
         if ($tokenResult !== null) {
+            $statusNonce = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
+            $fileRelpath = $result['file_type'] . '/' . $result['file_name'];
+            $tenantId    = (int)(getenv('QR_GUEST_UPLOAD_TENANT_ID') ?: 1);
             $this->pdo->beginTransaction();
             try {
+                $jobStmt = $this->pdo->prepare(
+                    'INSERT INTO upload_jobs (tenant_id, job_id, job_type, status, total_files, started_at,
+                                              label, file_relpath, moderation_status)
+                     VALUES (?, ?, \'qr_guest_upload\', \'completed\', 1, NOW(), ?, ?, \'pending\')'
+                );
+                $jobStmt->execute([$tenantId, $uploadId, $tokenLabel, $fileRelpath]);
+                $uploadJobsRowId = (int)$this->pdo->lastInsertId();
                 $this->pdo->prepare(
-                    'INSERT INTO upload_jobs (tenant_id, job_id, job_type, status, total_files, started_at)
-                     VALUES (1, ?, \'qr_guest_upload\', \'completed\', 1, NOW())'
-                )->execute([$uploadId]);
-                $this->pdo->prepare(
-                    'INSERT INTO anon_upload_attributions (token_id, upload_job_id, display_name, tos_accepted_at)
-                     VALUES (?, ?, ?, NOW())'
-                )->execute([$tokenResult->tokenId, $uploadId, $tokenDisplayName]);
+                    'INSERT INTO anon_upload_attributions
+                       (token_id, upload_job_id, display_name, tos_accepted_at, status_nonce)
+                     VALUES (?, ?, ?, NOW(), ?)'
+                )->execute([$tokenResult->tokenId, $uploadId, $tokenDisplayName, $statusNonce]);
                 $this->pdo->commit();
             } catch (\Throwable $attrEx) {
                 $this->pdo->rollBack();
                 throw new \RuntimeException('Failed to record guest upload attribution: ' . $attrEx->getMessage());
             }
+            $result['status_nonce']  = $statusNonce;
+            $result['upload_job_id'] = $uploadJobsRowId;
         }
 
         $markerResult = $result;

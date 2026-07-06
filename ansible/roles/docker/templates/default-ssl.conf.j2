@@ -60,6 +60,10 @@
     # Guest QR upload token detection — allows bypassing Basic Auth on token-authenticated paths.
     # Apache only uses this as a forward gate; PHP and tusd are the authoritative token validators.
     SetEnvIf X-Upload-Token .+ upload_token_auth
+    # iOS AVPlayer sends X-Gallery-Nonce header via AVURLAsset HTTPHeaderFields
+    SetEnvIf X-Gallery-Nonce .+ gallery_nonce_auth
+    # Web browser <video src="/video/...?nonce=..."> — query-string detection
+    SetEnvIf Request_URI "[?&]nonce=[A-Za-z0-9_\-]{30,40}" gallery_nonce_auth
 
     # QR guest upload routing — /upload/<token> served by PHP handler (rewritten internally)
     RewriteRule ^/upload/([A-Za-z0-9_-]+)$ /db/upload_form_single.php?token=$1 [L,QSA]
@@ -153,7 +157,12 @@
         </Else>
     </LocationMatch>
 
-    # Request-time staging-only public access for /video
+    # --- VIDEO DIRECTORY: Basic Auth for all roles; gallery nonce for approved guests ---
+    # Apache is a forward gate only; nonce validity was established in guest-gallery.php
+    # or guest_event_view.php before stream_url was issued. SHA-256 filenames provide a
+    # second layer — unguessable without possessing the original file.
+    # The staging conditional is preserved so staging.gighive.app retains its existing
+    # public /video/ access; only non-staging environments use the RequireAny gate.
     <LocationMatch "^/video(?:/|$)">
         AuthMerging Off
         <If "%{HTTP_HOST} == 'staging.gighive.app'">
@@ -164,7 +173,10 @@
             AuthName "GigHive Protected"
             AuthBasicProvider file
             AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
-            Require valid-user
+            <RequireAny>
+                Require valid-user
+                Require env gallery_nonce_auth
+            </RequireAny>
         </Else>
     </LocationMatch>
 
@@ -264,6 +276,27 @@
 
     # --- QR TOKEN VALIDATION API: unauthenticated by design; PHP validates the raw token ---
     <Location "/api/upload-token.php">
+        AuthMerging Off
+        Require all granted
+    </Location>
+
+    # --- GUEST GALLERY APIs: unauthenticated by design; PHP validates the nonce ---
+    <Location "/api/guest-status.php">
+        AuthMerging Off
+        Require all granted
+    </Location>
+
+    <Location "/api/guest-gallery.php">
+        AuthMerging Off
+        Require all granted
+    </Location>
+
+    <Location "/api/guest-report.php">
+        AuthMerging Off
+        Require all granted
+    </Location>
+
+    <Location "/api/guest-stream.php">
         AuthMerging Off
         Require all granted
     </Location>

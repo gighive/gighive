@@ -120,7 +120,33 @@ response_status=404
 
 ---
 
-### 6 — Chrome as default browser prevents Universal Links in Camera
+### 6 — `Associated Domains Development` toggle off — swcd silently skips all `?mode=developer` domains
+
+**Settings → Developer → Associated Domains Development** is a separate toggle from the general **Settings → Privacy & Security → Developer Mode**. When this toggle is OFF, `swcd` silently discards every `applinks:` entitlement that has `?mode=developer` and logs:
+
+```
+swcd    Developer mode enabled: NO
+```
+
+This log message is misleading: "Developer Mode" in Privacy & Security can be ON while swcd still reports NO, because swcd is checking the *Associated Domains Development* toggle, not the general Developer Mode setting.
+
+**Evidence:** `dev.gighive.app` never appeared anywhere in the swcd AASA batch fetch log; after enabling the toggle, the log immediately showed:
+```
+swcd    Developer mode enabled: YES
+swcd    Beginning data task AASA-... { domain: de….gi….app?mode=developer, bytes: 0, route: .wk }
+```
+
+**Fix:** On device: Settings → Developer → Associated Domains Development → ON. Then delete and reinstall the app.
+
+---
+
+### 7 — `gighive.app` production CDN returns 404
+
+The production domain `gighive.app` has no AASA cached by Apple's CDN (`curl -s https://app-site-association.cdn-apple.com/a/v1/gighive.app` → `Not Found`). Having this domain in the entitlement without a matching CDN entry causes the entire entitlement set to fail validation silently on iOS 26. **Fix:** Remove `applinks:gighive.app` from the entitlements until the AASA is deployed to the production server and Apple's CDN has crawled it.
+
+---
+
+### 8 — Chrome as default browser prevents Universal Links in Camera
 
 When Chrome (or any non-Safari browser) is set as the iPhone's default browser, the Camera app routes QR code URLs directly to that browser without going through the iOS Universal Links subsystem. The Universal Link never fires regardless of how correctly the AASA and entitlements are configured.
 
@@ -128,7 +154,7 @@ When Chrome (or any non-Safari browser) is set as the iPhone's default browser, 
 
 ---
 
-### 7 — Admin page missing `Cache-Control: no-store` headers (Cloudflare caching risk)
+### 9 — Admin page missing `Cache-Control: no-store` headers (Cloudflare caching risk)
 
 `event_qr.php` emitted no cache headers. Cloudflare could cache the admin page, causing stale QR codes or frozen status messages (consistent with the behavior observed on other admin pages).
 
@@ -162,6 +188,8 @@ All of the following must be satisfied for Universal Links to fire and open the 
 | 14 | Device | App installed via Xcode debug build (not TestFlight/Ad-hoc) when using `?mode=developer` | Hit ▶ in Xcode with device selected; not distributed via other means |
 | 15 | Device | App fully deleted before reinstalling when changing entitlements or AASA | Long-press icon → Remove App → Delete App; then reinstall via Xcode |
 | 16 | Device | Safari is the default browser (Chrome as default bypasses Universal Links in Camera) | Settings → Apps → Default Apps → Browser → Safari |
+| 17 | Device | **Associated Domains Development** toggle enabled (separate from Developer Mode) | Settings → Developer → Associated Domains Development → ON. Without this, swcd logs `Developer mode enabled: NO` and silently skips all `?mode=developer` domains |
+| 18 | Server | Production domain AASA cached on Apple CDN if `applinks:<prod-domain>` (no `?mode=developer`) is in entitlements | `curl -s https://app-site-association.cdn-apple.com/a/v1/gighive.app` — must not return `Not Found`. Remove the entitlement entry until the CDN has it. |
 
 ---
 

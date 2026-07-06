@@ -17,6 +17,13 @@
   delegate_to: localhost
   become: true
 
+- name: Accept any repository label changes on controller (e.g. ondrej/php PPA)
+  ansible.builtin.command:
+    cmd: apt-get update --allow-releaseinfo-change
+  delegate_to: localhost
+  become: true
+  changed_when: false
+
 - name: Install Node.js (LTS) on controller
   ansible.builtin.apt:
     name: nodejs

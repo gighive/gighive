@@ -130,11 +130,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
                 $postOk  = false;
             }
         }
+
+    } elseif ($action === 'save_event_settings') {
+        $n = filter_var($_POST['gallery_lifespan_days'] ?? '', FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+        if ($n === false) {
+            $postMsg = 'Gallery lifespan must be a non-negative integer (0 = indefinite).';
+            $postOk  = false;
+        } else {
+            $isMultiDayPost = isset($_POST['is_multi_day']) ? 1 : 0;
+            $tenantIdSave   = (int)(getenv('QR_GUEST_UPLOAD_TENANT_ID') ?: 1);
+            try {
+                $stmt = $pdo->prepare(
+                    'UPDATE events
+                     SET gallery_expires_at = CASE WHEN ? > 0 THEN DATE_ADD(event_date, INTERVAL ? DAY) ELSE NULL END,
+                         is_multi_day = ?
+                     WHERE event_id = ? AND tenant_id = ?'
+                );
+                $stmt->execute([$n, $n, $isMultiDayPost, $eventId, $tenantIdSave]);
+                header('Location: /admin/event_qr.php?org_name=' . urlencode($orgName)
+                     . '&event_date=' . urlencode($eventDate));
+                exit;
+            } catch (\Throwable $e) {
+                $postMsg = 'Error saving event settings: ' . $e->getMessage();
+                $postOk  = false;
+            }
+        }
+
+    } elseif ($action === 'approve_upload' || $action === 'reject_upload') {
+        $jobId = trim((string)($_POST['job_id'] ?? ''));
+        if ($jobId === '' || preg_match('/^[A-Za-z0-9_-]+$/', $jobId) !== 1) {
+            $postMsg = 'Invalid job ID.';
+            $postOk  = false;
+        } else {
+            $moderationStatus = ($action === 'approve_upload') ? 'approved' : 'rejected';
+            try {
+                $stmt = $pdo->prepare(
+                    'UPDATE upload_jobs j
+                     JOIN anon_upload_attributions a ON a.upload_job_id = j.job_id
+                     JOIN event_upload_tokens t ON t.token_id = a.token_id
+                     SET j.moderation_status = ?,
+                         j.approved_at = CASE WHEN ? = \'approved\' THEN NOW() ELSE NULL END
+                     WHERE j.job_id = ? AND t.event_id = ?'
+                );
+                $stmt->execute([$moderationStatus, $moderationStatus, $jobId, $eventId]);
+                header('Location: /admin/event_qr.php?org_name=' . urlencode($orgName)
+                     . '&event_date=' . urlencode($eventDate));
+                exit;
+            } catch (\Throwable $e) {
+                $postMsg = 'Error moderating upload: ' . $e->getMessage();
+                $postOk  = false;
+            }
+        }
     }
 }
 
-$tokens       = [];
-$guestUploads = [];
+$tokens              = [];
+$guestUploads        = [];
+$galleryExpiresAt    = null;
+$isMultiDay          = 0;
+$galleryLifespanDays = null;
 if ($pdo && $eventId) {
     try {
         $stmt = $pdo->prepare(
@@ -147,10 +201,29 @@ if ($pdo && $eventId) {
         $tokens = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (\Throwable $e) { /* ignore */ }
 
+    // Detect whether any active (not revoked, not expired) token already exists
+    $activeTokenCount = 0;
+    foreach ($tokens as $t) {
+        if ((int)$t['is_active'] === 1 && new \DateTime($t['expires_at']) > $now) {
+            $activeTokenCount++;
+        }
+    }
+    $plural = $activeTokenCount > 1 ? 's' : '';
+    $activeTokenWarning = $activeTokenCount > 0
+        ? htmlspecialchars(
+            "\u{26A0}\u{FE0F} This event already has {$activeTokenCount} active QR code{$plural}. "
+            . "Generating a new one will create an additional upload link \u{2014} "
+            . "the existing one{$plural} will remain active until revoked or expired. Continue anyway?",
+            ENT_QUOTES)
+        : '';
+
     try {
         $stmt = $pdo->prepare(
             'SELECT a.display_name, a.tos_accepted_at, a.created_at,
-                    j.job_id,
+                    j.job_id, j.id AS upload_job_row_id,
+                    j.label, j.file_relpath,
+                    j.moderation_status, j.approved_at,
+                    j.guest_flagged, j.guest_flagged_at,
                     t.is_active AS token_active, t.expires_at
              FROM anon_upload_attributions a
              JOIN event_upload_tokens t ON t.token_id = a.token_id
@@ -161,13 +234,42 @@ if ($pdo && $eventId) {
         $stmt->execute([$eventId]);
         $guestUploads = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (\Throwable $e) { /* ignore */ }
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT gallery_expires_at, is_multi_day,
+                    DATEDIFF(gallery_expires_at, event_date) AS lifespan
+             FROM events WHERE event_id = ? LIMIT 1'
+        );
+        $stmt->execute([$eventId]);
+        $evtRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($evtRow) {
+            $galleryExpiresAt    = $evtRow['gallery_expires_at'];
+            $isMultiDay          = (int)$evtRow['is_multi_day'];
+            $galleryLifespanDays = $galleryExpiresAt !== null
+                ? max(0, (int)$evtRow['lifespan'])
+                : 0;
+        }
+    } catch (\Throwable $e) { /* ignore */ }
 }
 
 $defaultTtl = (int)(getenv('QR_TOKEN_DEFAULT_TTL_HOURS') ?: 168);
 if (!in_array($defaultTtl, [4, 24, 168, 336], true)) {
     $defaultTtl = 168;
 }
-$qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUOTES);
+$qrJsVersion            = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUOTES);
+$galleryDefaultLifespan = (int)(getenv('QR_GALLERY_DEFAULT_LIFESPAN_DAYS') ?: 90);
+$ttlWarningHours        = [];
+if ($galleryExpiresAt !== null) {
+    $galleryExpDt = new \DateTime($galleryExpiresAt);
+    $nowCheck     = new \DateTime('now');
+    foreach ([4, 24, 168, 336] as $h) {
+        $windowEnd = (clone $nowCheck)->modify("+{$h} hours");
+        if ($windowEnd > $galleryExpDt) {
+            $ttlWarningHours[] = $h;
+        }
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -202,6 +304,9 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
     .badge-active  { background:#1a3320; color:#4ade80; }
     .badge-expired { background:#3b2700; color:#fbbf24; }
     .badge-revoked { background:#3b1a1a; color:#f87171; }
+    .badge-mod-pending  { background:#3b2900; color:#fbbf24; }
+    .badge-mod-approved { background:#1a3320; color:#4ade80; }
+    .alert-warn { background:#3b2900; border:1px solid #f59e0b; padding:.75rem 1rem; border-radius:8px; color:#fbbf24; }
     .warn-row td { color:#fbbf24; }
     .form-row { display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.75rem; }
     .form-row .field { display:flex; flex-direction:column; gap:.3rem; }
@@ -250,6 +355,24 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
       <div class="alert-err"><?= htmlspecialchars($loadError, ENT_QUOTES) ?></div>
     <?php elseif ($eventId): ?>
       <div class="alert-ok">Event loaded: <strong><?= htmlspecialchars($orgName, ENT_QUOTES) ?></strong> &mdash; <?= htmlspecialchars($eventDate, ENT_QUOTES) ?></div>
+      <form method="POST" action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>" style="margin-top:.75rem">
+        <input type="hidden" name="action" value="save_event_settings">
+        <input type="hidden" name="event_id" value="<?= (int)$eventId ?>">
+        <div class="form-row" style="align-items:flex-end;gap:.75rem;flex-wrap:wrap">
+          <div class="field">
+            <label for="gallery_lifespan_days">Gallery lifespan (days; 0&nbsp;=&nbsp;indefinite)</label>
+            <input id="gallery_lifespan_days" name="gallery_lifespan_days" type="number" min="0"
+                   value="<?= (int)($galleryLifespanDays ?? $galleryDefaultLifespan) ?>"
+                   style="width:110px;padding:.5rem;border-radius:8px;border:1px solid #33427a;background:#0e1530;color:#e9eef7;font-size:.9rem">
+          </div>
+          <div class="field" style="flex-direction:row;align-items:center;gap:.4rem">
+            <input id="is_multi_day" name="is_multi_day" type="checkbox" value="1"
+                   <?= $isMultiDay ? 'checked' : '' ?>>
+            <label for="is_multi_day" style="font-weight:400;margin-bottom:0">Multi-day event</label>
+          </div>
+          <button type="submit" class="btn-sm">Save</button>
+        </div>
+      </form>
     <?php else: ?>
       <p class="muted">Enter a date and org name, then click Load Event.</p>
       <p class="muted">This is your starting point — no existing media required.</p>
@@ -280,8 +403,29 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
           </label>
         <?php endforeach; ?>
       </div>
-      <button type="submit">Generate QR</button>
+      <?php if (!empty($ttlWarningHours)): ?>
+      <div id="ttl-mismatch-warning" class="alert-warn" style="display:none;margin:.5rem 0 .75rem">
+        &#9888; Upload window extends beyond gallery expiry &mdash; guests who upload near the end of the window may be approved after the gallery has already closed.
+      </div>
+      <?php endif; ?>
+      <button type="submit"<?php if (!empty($activeTokenWarning)): ?> onclick="return confirm('<?= $activeTokenWarning ?>')"<?php endif; ?>>Generate QR</button>
     </form>
+    <?php if (!empty($ttlWarningHours)): ?>
+    <script>
+    (function() {
+      var warningTtls = <?= json_encode($ttlWarningHours) ?>;
+      var radios  = document.querySelectorAll('input[name="ttl_hours"]');
+      var warning = document.getElementById('ttl-mismatch-warning');
+      function update() {
+        var sel = document.querySelector('input[name="ttl_hours"]:checked');
+        var h   = sel ? parseInt(sel.value, 10) : null;
+        if (warning) warning.style.display = (h !== null && warningTtls.indexOf(h) !== -1) ? 'block' : 'none';
+      }
+      radios.forEach(function(r) { r.addEventListener('change', update); });
+      update();
+    })();
+    </script>
+    <?php endif; ?>
 
     <div id="qr-wrap">
       <div id="qr-inner" style="display:inline-block;margin:.5rem auto"></div>
@@ -344,16 +488,19 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
     <?php endif; ?>
   </div>
 
-  <!-- Section 3: Guest Uploads -->
+  <!-- Section 3: Guest Uploads — Moderation Queue -->
   <div class="card">
-    <h2>Guest Uploads (<?= htmlspecialchars($orgName, ENT_QUOTES) ?> &mdash; <?= htmlspecialchars($eventDate, ENT_QUOTES) ?>)</h2>
+    <h2>Guest Uploads &mdash; Moderation Queue (<?= htmlspecialchars($orgName, ENT_QUOTES) ?> &mdash; <?= htmlspecialchars($eventDate, ENT_QUOTES) ?>)</h2>
+    <?php if ($postMsg && $postOk !== null && ($action === 'approve_upload' || $action === 'reject_upload')): ?>
+      <div class="<?= $postOk ? 'alert-ok' : 'alert-err' ?>"><?= htmlspecialchars($postMsg, ENT_QUOTES) ?></div>
+    <?php endif; ?>
     <?php if (empty($guestUploads)): ?>
       <p class="muted">No guest uploads yet.</p>
     <?php else: ?>
       <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>Display name</th><th>ToS accepted</th><th>Uploaded</th><th>Job ID</th><th>Token status</th></tr>
+          <tr><th>Display name</th><th>Uploaded</th><th>Label</th><th>Token</th><th>Moderation</th><th>Preview</th><th>Action</th></tr>
         </thead>
         <tbody>
           <?php foreach ($guestUploads as $gu):
@@ -365,13 +512,50 @@ $qrJsVersion = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUO
             $displayName  = $gu['display_name'] !== null
                 ? htmlspecialchars($gu['display_name'], ENT_QUOTES)
                 : '<em>(anonymous)</em>';
+            $modStatus    = $gu['moderation_status'] ?? null;
+            $modClass     = $modStatus === 'approved' ? 'badge-mod-approved'
+                          : ($modStatus === 'rejected' ? 'badge-revoked' : 'badge-mod-pending');
+            $modLabel     = $modStatus !== null ? ucfirst($modStatus) : 'Pending';
+            $flagged      = !empty($gu['guest_flagged']);
+            $fileRelpath  = $gu['file_relpath'] !== null ? $gu['file_relpath'] : null;
           ?>
           <tr <?= $isWarnRow ? 'class="warn-row"' : '' ?>>
             <td><?= $displayName ?></td>
-            <td><?= htmlspecialchars((string)($gu['tos_accepted_at'] ?? ''), ENT_QUOTES) ?></td>
             <td><?= htmlspecialchars((string)($gu['created_at'] ?? ''), ENT_QUOTES) ?></td>
-            <td><code style="font-size:.78rem"><?= htmlspecialchars((string)($gu['job_id'] ?? ''), ENT_QUOTES) ?></code></td>
+            <td><?= $gu['label'] !== null ? htmlspecialchars((string)$gu['label'], ENT_QUOTES) : '<em class="muted">&mdash;</em>' ?></td>
             <td><span class="badge badge-<?= $tokenStatus ?>"><?= ucfirst($tokenStatus) ?></span></td>
+            <td>
+              <span class="badge <?= $modClass ?>"><?= $modLabel ?></span>
+              <?php if ($flagged): ?><br><span style="color:#f59e0b;font-size:.78rem">&#9873; Guest report</span><?php endif; ?>
+            </td>
+            <td>
+              <?php if ($fileRelpath !== null): ?>
+                <a href="/<?= htmlspecialchars($fileRelpath, ENT_QUOTES) ?>" target="_blank">&#9654; Preview</a>
+              <?php else: ?>
+                &mdash;
+              <?php endif; ?>
+            </td>
+            <td>
+              <?php if ($modStatus === 'pending' || $modStatus === null): ?>
+                <form method="POST"
+                      action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>"
+                      style="display:inline">
+                  <input type="hidden" name="action" value="approve_upload">
+                  <input type="hidden" name="job_id" value="<?= htmlspecialchars((string)($gu['job_id'] ?? ''), ENT_QUOTES) ?>">
+                  <button type="submit" class="btn-sm" style="border-color:#1f7a3b">Approve</button>
+                </form>
+                <form method="POST"
+                      action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>"
+                      style="display:inline;margin-left:.25rem">
+                  <input type="hidden" name="action" value="reject_upload">
+                  <input type="hidden" name="job_id" value="<?= htmlspecialchars((string)($gu['job_id'] ?? ''), ENT_QUOTES) ?>">
+                  <button type="submit" class="btn-sm btn-danger"
+                          onclick="return confirm('Reject this upload?')">Reject</button>
+                </form>
+              <?php else: ?>
+                &mdash;
+              <?php endif; ?>
+            </td>
           </tr>
           <?php endforeach; ?>
         </tbody>

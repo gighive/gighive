@@ -61,7 +61,7 @@ ga4_measurement_id_gighive: "G-6NH4RPQB76"
 
 # Docker container rebuild control
 rebuild_mysql: false # Rebuild MySQL container (preserve data)
-rebuild_mysql_data: false # Rebuild MySQL container + wipe database (nuclear)
+rebuild_mysql_data: true # Rebuild MySQL container + wipe database (nuclear)
 
 # these vars control full/reduced set of media
 sync_video: true
@@ -487,6 +487,7 @@ mcp_docs_path: "{{ gighive_home }}/docs"
 # --------------------------------------------------------------------
 qr_token_default_ttl_hours: 168
 qr_gallery_default_lifespan_days: 90
+qr_guest_upload_tenant_id: 1
 saas_mode: false
 qr_guest_upload_prefix: "/upload"
 qr_token_api_path: "/api/upload-token.php"
