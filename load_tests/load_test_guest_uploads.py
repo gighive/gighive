@@ -17,6 +17,7 @@ Usage:
         [--no-ssl-verify] \
         [--timeout 130] \
         [--stagger 0.0] \
+        [--chunk-size-mb 5] \
         [--log-dir load_test_runs]
 
     Run with increasing --concurrency (5, 10, 20, 30, 50) to find saturation.
@@ -96,6 +97,7 @@ async def do_upload(
     tus_only: bool = False,
     finalize_retries: int = 6,
     stagger: float = 0.0,
+    chunk_size: int = 5 * 1024 * 1024,
 ) -> UploadResult:
     if stagger > 0.0:
         await asyncio.sleep(index * stagger)
@@ -162,31 +164,42 @@ async def do_upload(
         upload_id = upload_url.rstrip("/").split("/")[-1]
 
         patch_t = time.perf_counter()
-        print(f"[{index:04d}] {_ts()} PATCH   start  upload_id={upload_id}  size={len(file_data)}", file=sys.stderr, flush=True)
-        # ── Step 2: TUS PATCH (single chunk) ───────────────────────────────
-        patch_hdrs = {
-            **tus_hdrs,
-            "Content-Type": "application/offset+octet-stream",
-            "Upload-Offset": "0",
-            "Content-Length": str(len(file_data)),
-        }
+        file_size = len(file_data)
+        n_chunks = max(1, (file_size + chunk_size - 1) // chunk_size)
+        print(f"[{index:04d}] {_ts()} PATCH   start  upload_id={upload_id}  size={file_size}  chunks={n_chunks}", file=sys.stderr, flush=True)
+        # ── Step 2: TUS PATCH (chunked) ────────────────────────────────────
+        offset = 0
+        tus_s = 0.0
         try:
-            async with session.patch(
-                upload_url,
-                headers=patch_hdrs,
-                data=file_data,
-            ) as r:
-                tus_s = time.perf_counter() - tus_t
-                if r.status != 204:
-                    body = await r.text()
-                    err = f"TUS-PATCH {r.status}: {body[:200]}"
-                    print(f"[{index:04d}] {_ts()} FAIL   {err}  tus_s={tus_s:.2f}s", file=sys.stderr, flush=True)
-                    return UploadResult(
-                        index, False, time.perf_counter() - t0,
-                        tus_s=tus_s,
-                        error=err
-                    )
-                print(f"[{index:04d}] {_ts()} PATCH   done   tus_s={tus_s:.2f}s", file=sys.stderr, flush=True)
+            while offset < file_size:
+                chunk = file_data[offset:offset + chunk_size]
+                chunk_hdrs = {
+                    **tus_hdrs,
+                    "Content-Type": "application/offset+octet-stream",
+                    "Upload-Offset": str(offset),
+                    "Content-Length": str(len(chunk)),
+                }
+                if n_chunks > 1:
+                    chunk_num = offset // chunk_size + 1
+                    print(f"[{index:04d}] {_ts()} PATCH   chunk {chunk_num}/{n_chunks}  offset={offset}", file=sys.stderr, flush=True)
+                async with session.patch(
+                    upload_url,
+                    headers=chunk_hdrs,
+                    data=chunk,
+                ) as r:
+                    tus_s = time.perf_counter() - tus_t
+                    if r.status != 204:
+                        body = await r.text()
+                        err = f"TUS-PATCH {r.status}: {body[:200]}"
+                        print(f"[{index:04d}] {_ts()} FAIL   {err}  tus_s={tus_s:.2f}s", file=sys.stderr, flush=True)
+                        return UploadResult(
+                            index, False, time.perf_counter() - t0,
+                            tus_s=tus_s,
+                            error=err
+                        )
+                    new_offset = int(r.headers.get("Upload-Offset", offset + len(chunk)))
+                    offset = new_offset
+            print(f"[{index:04d}] {_ts()} PATCH   done   tus_s={tus_s:.2f}s", file=sys.stderr, flush=True)
         except Exception as e:
             err = f"TUS-PATCH exception: {e}"
             patch_elapsed = time.perf_counter() - patch_t
@@ -258,6 +271,7 @@ async def run(
     timeout_s: int = 130,
     log_dir: str = "load_test_runs",
     stagger: float = 0.0,
+    chunk_size: int = 5 * 1024 * 1024,
 ) -> None:
     if real_file:
         file_data = load_real_file(real_file)
@@ -268,7 +282,8 @@ async def run(
 
     print(f"\nFile      : {file_label}")
     print(f"Concurrency: {concurrency}   Total uploads: {count}")
-    print(f"TUS-only  : {tus_only}   SSL verify: {ssl_verify}   Stagger: {stagger}s")
+    chunk_mb = chunk_size // (1024 * 1024)
+    print(f"TUS-only  : {tus_only}   SSL verify: {ssl_verify}   Stagger: {stagger}s   Chunk: {chunk_mb} MB")
     print(f"Endpoint  : {base_url}")
     print("─" * 60)
 
@@ -283,7 +298,8 @@ async def run(
         t_wall = time.perf_counter()
         tasks = [
             do_upload(session, base_url.rstrip("/"), token, i,
-                      file_data, sem, tus_only, stagger=stagger)
+                      file_data, sem, tus_only, stagger=stagger,
+                      chunk_size=chunk_size)
             for i in range(count)
         ]
         results: list[UploadResult] = await asyncio.gather(*tasks)
@@ -386,6 +402,7 @@ Examples:
     p.add_argument("--no-ssl-verify", action="store_true",  help="Disable SSL certificate verification (needed for local self-signed cert)")
     p.add_argument("--timeout",       type=int, default=130, help="Per-request timeout in seconds; 130 covers CF's 100s upstream limit plus headroom (default: 130)")
     p.add_argument("--stagger",       type=float, default=0.0,  help="Seconds to wait between launching each upload (upload N waits N*stagger before starting; default: 0)")
+    p.add_argument("--chunk-size-mb", type=int,   default=5,    help="TUS PATCH chunk size in MB (default: 5 — matches iOS TUSKit default; web forms use 8 MB via TUS_CLIENT_CHUNK_SIZE_BYTES)")
     p.add_argument("--log-dir",       default="load_test_runs", help="Directory to write per-run result logs (default: load_test_runs/)")
     args = p.parse_args()
 
@@ -404,6 +421,7 @@ Examples:
         timeout_s=args.timeout,
         log_dir=args.log_dir,
         stagger=args.stagger,
+        chunk_size=args.chunk_size_mb * 1024 * 1024,
     ))
 
 

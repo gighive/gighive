@@ -16,6 +16,7 @@ class UploadTokenValidator {
 
     public function validate(string $rawToken): ?TokenValidationResult {
         $hash = hash('sha256', $rawToken);
+        error_log('[UPLOAD_TOKEN_DEBUG] validate() rawToken len=' . strlen($rawToken) . ' prefix=' . substr($rawToken, 0, 8) . ' hash_prefix=' . substr($hash, 0, 16));
         $stmt = $this->pdo->prepare(
             'SELECT t.token_id, e.event_id, e.event_date, e.org_name,
                     COALESCE(e.event_type, \'\') AS event_type
@@ -25,7 +26,10 @@ class UploadTokenValidator {
         );
         $stmt->execute([$hash]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        if (!$row) return null;
+        if (!$row) {
+            error_log('[UPLOAD_TOKEN_DEBUG] validate() NO ROW — hash_prefix=' . substr($hash, 0, 16) . ' (hash mismatch, revoked, or expired)');
+            return null;
+        }
         return new TokenValidationResult(
             tokenId:   (int)$row['token_id'],
             eventId:   (int)$row['event_id'],

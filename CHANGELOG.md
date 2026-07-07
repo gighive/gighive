@@ -1,5 +1,21 @@
 *** 
 releaseNotes20260707.txt
+Changes: Fix and debug code in load tests 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadTokenValidator.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/index.php
+	modified:   docs/testing_concurrent_tus_uploads_results.md
+	modified:   load_tests/load_test_guest_uploads.py
+
+*** 
+releaseNotes20260707.txt
 Changes: QR code event list add, md fix for pages error
 
 sodo@pop-os:~/gighive$ git status

@@ -19,10 +19,12 @@ try {
     
     // Debug: Log incoming request
     debug_log("Incoming request: $method $requestUri");
+    $rawTok = $_SERVER['HTTP_X_UPLOAD_TOKEN'] ?? null;
     debug_log("SERVER vars: " . json_encode([
         'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? 'null',
         'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'] ?? 'null',
-        'PATH_INFO' => $_SERVER['PATH_INFO'] ?? 'null'
+        'PATH_INFO' => $_SERVER['PATH_INFO'] ?? 'null',
+        'HTTP_X_UPLOAD_TOKEN' => $rawTok === null ? 'ABSENT' : ('present, len=' . strlen($rawTok) . ', prefix=' . substr($rawTok, 0, 8)),
     ]));
     
     // Remove /src or /api prefix and any query string
