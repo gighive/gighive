@@ -39,9 +39,9 @@ After any Ansible rebuild of the Apache container:
 
 ```bash
 # On gighive2
-docker cp apacheWebServer:/etc/ssl/certs/origin_cert.pem ~/gighive2_cert.pem
-scp ~/gighive2_cert.pem sodo@macbook2025:/Users/sodo/Downloads/gighive2_cert.pem
-mv /Users/sodo/Downloads/gighive2_cert.pem /Users/sodo/Downloads/gighive2_cert.crt
+docker cp apacheWebServer:/etc/ssl/certs/origin_cert.pem ~/gighive2_cert.pem && \
+mv ~/gighive2_cert.pem ~/gighive2_cert.crt && \
+scp ~/gighive2_cert.crt sodo@macbook2025:/Users/sodo/Downloads
 ```
 
 Then on iPhone: remove old profile → AirDrop new `.crt` → install → Certificate Trust Settings → toggle ON.

@@ -74,6 +74,24 @@ if ($orgName !== '' || $eventDate !== '') {
     }
 }
 
+$recentEvents = [];
+if ($pdo && $orgName === '' && $eventDate === '') {
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT e.org_name, e.event_date,
+                    COUNT(t.token_id) AS token_count
+             FROM events e
+             JOIN event_upload_tokens t ON t.event_id = e.event_id
+             WHERE e.tenant_id = 1
+             GROUP BY e.event_id, e.org_name, e.event_date
+             ORDER BY e.event_date DESC
+             LIMIT 20'
+        );
+        $stmt->execute([]);
+        $recentEvents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $e) { /* ignore */ }
+}
+
 $postMsg    = (string)($_SESSION['flash_msg'] ?? '');
 $postOk     = isset($_SESSION['flash_ok'])  ? (bool)$_SESSION['flash_ok']  : null;
 $newQrUrl   = ($_SESSION['flash_url'] ?? '') ?: null;
@@ -429,8 +447,22 @@ if ($galleryExpiresAt !== null) {
         </div>
       </form>
     <?php else: ?>
-      <p class="muted">Enter a date and org name, then click Load Event.</p>
-      <p class="muted">This is your starting point — no existing media required.</p>
+      <?php if (!empty($recentEvents)): ?>
+        <p class="muted" style="margin:.5rem 0 .4rem">Recent events with QR codes &mdash; click to load:</p>
+        <ul style="margin:.25rem 0 0;padding-left:1.25rem">
+          <?php foreach ($recentEvents as $re): ?>
+            <li style="margin:.25rem 0">
+              <a href="/admin/event_qr.php?org_name=<?= urlencode($re['org_name']) ?>&event_date=<?= urlencode($re['event_date']) ?>">
+                <?= htmlspecialchars($re['org_name'], ENT_QUOTES) ?> &mdash; <?= htmlspecialchars($re['event_date'], ENT_QUOTES) ?>
+              </a>
+              <span class="muted">(<?= (int)$re['token_count'] ?> token<?= (int)$re['token_count'] !== 1 ? 's' : '' ?>)</span>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      <?php else: ?>
+        <p class="muted">Enter a date and org name, then click Load Event.</p>
+        <p class="muted">This is your starting point &mdash; no existing media required.</p>
+      <?php endif; ?>
     <?php endif; ?>
   </div>
 

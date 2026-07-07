@@ -1,5 +1,20 @@
 *** 
 releaseNotes20260707.txt
+Changes: QR code event list add, md fix for pages error
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/event_qr.php
+	modified:   docs/feature_iphone_qr_code_shared_gallery_implementation.md
+	modified:   docs/refactor_security_ssl_cert_lifetime.md
+
+*** 
+releaseNotes20260707.txt
 Changes: Updates for Fixes for qr code, added info to admin_system, new load testing code, swagger update, cert CA_TRUE
 Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
 

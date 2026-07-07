@@ -592,7 +592,7 @@ Add the following tasks (full file — tags: `shared_gallery,smoke,env|db|api`):
 ```yaml
 - name: Build common Host header dict for shared gallery smoke tests
   ansible.builtin.set_fact:
-    _shared_gallery_host_header: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {} }}"
+    _shared_gallery_host_header: "{% raw %}{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {} }}{% endraw %}"
   changed_when: false
   tags: [shared_gallery, smoke]
 
