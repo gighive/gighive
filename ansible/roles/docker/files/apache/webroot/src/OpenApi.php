@@ -6,7 +6,7 @@ use OpenApi\Attributes as OA;
 #[OA\Info(
     title: 'GigHive API',
     version: '1.0.0',
-    description: 'GigHive media management API for uploading and retrieving audio/video files with session metadata.'
+    description: 'GigHive media management API for uploading and retrieving audio/video files with event and asset metadata.'
 )]
 #[OA\Server(url: '/api', description: 'Upload API endpoints')]
 #[OA\Server(url: '/db', description: 'Database and media listing endpoints')]
@@ -22,8 +22,9 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'mime_type', type: 'string'),
         new OA\Property(property: 'size_bytes', type: 'integer', format: 'int64', nullable: true),
         new OA\Property(property: 'checksum_sha256', type: 'string', nullable: true),
-        new OA\Property(property: 'session_id', type: 'integer', format: 'int64', nullable: true),
-        new OA\Property(property: 'seq', type: 'integer', nullable: true),
+        new OA\Property(property: 'asset_id', type: 'integer', format: 'int64', nullable: true),
+        new OA\Property(property: 'event_id', type: 'integer', format: 'int64', nullable: true),
+        new OA\Property(property: 'source_relpath', type: 'string', nullable: true),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
     ]
 )]
@@ -269,6 +270,309 @@ use OpenApi\Attributes as OA;
         new OA\Response(response: 403, description: 'Forbidden — admin access required'),
         new OA\Response(response: 404, description: 'Job not found'),
         new OA\Response(response: 405, description: 'Method not allowed'),
+    ]
+)]
+#[OA\Schema(
+    schema: 'AiJob',
+    type: 'object',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', format: 'int64'),
+        new OA\Property(property: 'job_type', type: 'string', example: 'categorize_video'),
+        new OA\Property(property: 'target_type', type: 'string', example: 'asset'),
+        new OA\Property(property: 'target_id', type: 'integer', format: 'int64'),
+        new OA\Property(property: 'status', type: 'string', enum: ['queued', 'running', 'done', 'failed']),
+        new OA\Property(property: 'error_message', type: 'string', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ]
+)]
+#[OA\Schema(
+    schema: 'Tag',
+    type: 'object',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', format: 'int64'),
+        new OA\Property(property: 'namespace', type: 'string'),
+        new OA\Property(property: 'name', type: 'string'),
+        new OA\Property(property: 'usage_count', type: 'integer'),
+    ]
+)]
+#[OA\Schema(
+    schema: 'Tagging',
+    type: 'object',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', format: 'int64'),
+        new OA\Property(property: 'namespace', type: 'string'),
+        new OA\Property(property: 'name', type: 'string'),
+        new OA\Property(property: 'confidence', type: 'number', format: 'float'),
+        new OA\Property(property: 'source', type: 'string', enum: ['ai', 'human']),
+        new OA\Property(property: 'start_seconds', type: 'number', nullable: true),
+        new OA\Property(property: 'end_seconds', type: 'number', nullable: true),
+        new OA\Property(property: 'run_id', type: 'integer', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+    ]
+)]
+#[OA\Schema(
+    schema: 'UploadToken',
+    type: 'object',
+    properties: [
+        new OA\Property(property: 'event_id', type: 'integer', format: 'int64'),
+        new OA\Property(property: 'event_date', type: 'string', format: 'date'),
+        new OA\Property(property: 'org_name', type: 'string'),
+        new OA\Property(property: 'event_type', type: 'string', enum: ['band', 'wedding']),
+    ]
+)]
+#[OA\Schema(
+    schema: 'GuestVideo',
+    type: 'object',
+    properties: [
+        new OA\Property(property: 'upload_job_id', type: 'integer', format: 'int64'),
+        new OA\Property(property: 'label', type: 'string'),
+        new OA\Property(property: 'stream_url', type: 'string'),
+        new OA\Property(property: 'display_name', type: 'string', nullable: true),
+        new OA\Property(property: 'approved_at', type: 'string', format: 'date-time'),
+    ]
+)]
+#[OA\Get(
+    path: '/ai_jobs.php',
+    operationId: 'getAiJobs',
+    summary: 'List AI jobs, get a single job, or get status counts',
+    description: 'Variants: no params → paginated list (?status, ?limit); ?id=N → single job; ?action=status_counts → aggregate counts by status (?job_ids=1,2,3 scopes to those jobs; omit for global). Admin required for status_counts.',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['ai'],
+    parameters: [
+        new OA\Parameter(name: 'id', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+        new OA\Parameter(name: 'action', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['status_counts'])),
+        new OA\Parameter(name: 'status', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['queued', 'running', 'done', 'failed'])),
+        new OA\Parameter(name: 'limit', in: 'query', required: false, schema: new OA\Schema(type: 'integer', maximum: 500, default: 100)),
+        new OA\Parameter(name: 'job_ids', in: 'query', required: false, description: 'Comma-separated job IDs (for action=status_counts)', schema: new OA\Schema(type: 'string')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'OK'),
+        new OA\Response(response: 403, description: 'Forbidden — admin required'),
+        new OA\Response(response: 404, description: 'Job not found'),
+    ]
+)]
+#[OA\Post(
+    path: '/ai_jobs.php',
+    operationId: 'postAiJobs',
+    summary: 'Enqueue or cancel AI jobs (admin)',
+    description: 'action omitted → enqueue single job (body: job_type, target_type, target_id); action=enqueue_all_untagged → bulk enqueue all untagged videos; action=retag_all → re-enqueue all videos including already-tagged; action=cancel_jobs → cancel queued jobs by ID (body: job_ids[]).',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['ai'],
+    parameters: [
+        new OA\Parameter(name: 'action', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['enqueue_all_untagged', 'retag_all', 'cancel_jobs'])),
+    ],
+    requestBody: new OA\RequestBody(
+        required: false,
+        content: [
+            new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    properties: [
+                        new OA\Property(property: 'job_type', type: 'string', example: 'categorize_video'),
+                        new OA\Property(property: 'target_type', type: 'string', example: 'asset'),
+                        new OA\Property(property: 'target_id', type: 'integer', description: 'Required when action is omitted'),
+                        new OA\Property(property: 'job_ids', type: 'array', items: new OA\Items(type: 'integer'), description: 'Required for action=cancel_jobs'),
+                    ]
+                )
+            ),
+        ]
+    ),
+    responses: [
+        new OA\Response(response: 200, description: 'Already queued (single enqueue) or cancel result'),
+        new OA\Response(response: 201, description: 'Job enqueued'),
+        new OA\Response(response: 400, description: 'Bad request or AI_WORKER_ENABLED=false'),
+        new OA\Response(response: 403, description: 'Admin required'),
+    ]
+)]
+#[OA\Get(
+    path: '/tags.php',
+    operationId: 'getTags',
+    summary: 'List tags or fetch taggings for a target',
+    description: 'No target params → tag list (optionally ?namespace=X with usage counts); ?target_type=asset&target_id=N → taggings for one asset; ?target_type=asset&asset_ids=1,2,3 → batch taggings map keyed by asset ID.',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['tags'],
+    parameters: [
+        new OA\Parameter(name: 'namespace', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+        new OA\Parameter(name: 'target_type', in: 'query', required: false, schema: new OA\Schema(type: 'string', example: 'asset')),
+        new OA\Parameter(name: 'target_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+        new OA\Parameter(name: 'asset_ids', in: 'query', required: false, description: 'Comma-separated asset IDs for batch tagging fetch', schema: new OA\Schema(type: 'string')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'OK'),
+        new OA\Response(response: 405, description: 'Method not allowed'),
+    ]
+)]
+#[OA\Patch(
+    path: '/taggings.php',
+    operationId: 'patchTagging',
+    summary: 'Confirm or edit a tagging (admin)',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['tags'],
+    parameters: [
+        new OA\Parameter(name: 'id', in: 'query', required: true, schema: new OA\Schema(type: 'integer')),
+    ],
+    requestBody: new OA\RequestBody(
+        required: true,
+        content: [
+            new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    properties: [
+                        new OA\Property(property: 'source', type: 'string', enum: ['ai', 'human']),
+                        new OA\Property(property: 'confidence', type: 'number', minimum: 0.0, maximum: 1.0),
+                        new OA\Property(property: 'namespace', type: 'string'),
+                        new OA\Property(property: 'name', type: 'string'),
+                    ]
+                )
+            ),
+        ]
+    ),
+    responses: [
+        new OA\Response(response: 200, description: 'Updated'),
+        new OA\Response(response: 400, description: 'id required'),
+        new OA\Response(response: 403, description: 'Admin required'),
+        new OA\Response(response: 404, description: 'Tagging not found'),
+    ]
+)]
+#[OA\Post(
+    path: '/taggings.php',
+    operationId: 'createTagging',
+    summary: 'Create a manual tagging (admin)',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['tags'],
+    requestBody: new OA\RequestBody(
+        required: true,
+        content: [
+            new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    required: ['target_type', 'target_id', 'namespace', 'name'],
+                    properties: [
+                        new OA\Property(property: 'target_type', type: 'string', enum: ['asset', 'event', 'event_item', 'segment']),
+                        new OA\Property(property: 'target_id', type: 'integer'),
+                        new OA\Property(property: 'namespace', type: 'string'),
+                        new OA\Property(property: 'name', type: 'string'),
+                        new OA\Property(property: 'confidence', type: 'number', minimum: 0.0, maximum: 1.0, default: 1.0),
+                    ]
+                )
+            ),
+        ]
+    ),
+    responses: [
+        new OA\Response(response: 201, description: 'Created'),
+        new OA\Response(response: 400, description: 'Validation error'),
+        new OA\Response(response: 403, description: 'Admin required'),
+    ]
+)]
+#[OA\Delete(
+    path: '/taggings.php',
+    operationId: 'deleteTagging',
+    summary: 'Remove a tagging (admin)',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['tags'],
+    parameters: [
+        new OA\Parameter(name: 'id', in: 'query', required: true, schema: new OA\Schema(type: 'integer')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'Deleted'),
+        new OA\Response(response: 400, description: 'id required'),
+        new OA\Response(response: 403, description: 'Admin required'),
+    ]
+)]
+#[OA\Get(
+    path: '/upload-token.php',
+    operationId: 'validateUploadToken',
+    summary: 'Validate an event upload token',
+    description: 'Returns event context for a valid token. Used by guest upload clients to resolve event metadata before uploading.',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['uploads'],
+    parameters: [
+        new OA\Parameter(name: 'token', in: 'query', required: true, schema: new OA\Schema(type: 'string', maxLength: 128)),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'Valid token', content: new OA\JsonContent(ref: '#/components/schemas/UploadToken')),
+        new OA\Response(response: 400, description: 'Missing or oversized token'),
+        new OA\Response(response: 404, description: 'Invalid or expired token'),
+    ]
+)]
+#[OA\Get(
+    path: '/guest-status.php',
+    operationId: 'getGuestStatus',
+    summary: 'Check moderation status for a guest upload',
+    description: 'Returns the moderation status of the upload identified by the nonce, plus event name, approved video count, and gallery days remaining.',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['guest'],
+    parameters: [
+        new OA\Parameter(name: 'nonce', in: 'query', required: true, schema: new OA\Schema(type: 'string', minLength: 30, maxLength: 40, pattern: '^[A-Za-z0-9_\-]+$')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'OK'),
+        new OA\Response(response: 400, description: 'Invalid nonce format'),
+        new OA\Response(response: 404, description: 'Nonce not found'),
+    ]
+)]
+#[OA\Get(
+    path: '/guest-gallery.php',
+    operationId: 'getGuestGallery',
+    summary: 'List approved gallery videos for a guest',
+    description: 'Returns all approved videos for the event associated with the nonce. Requires the nonce owner to also be approved. Returns expired status with empty video list if gallery has expired.',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['guest'],
+    parameters: [
+        new OA\Parameter(name: 'nonce', in: 'query', required: true, schema: new OA\Schema(type: 'string', minLength: 30, maxLength: 40, pattern: '^[A-Za-z0-9_\-]+$')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'OK — includes status, days_remaining, and videos array of GuestVideo'),
+        new OA\Response(response: 400, description: 'Invalid nonce format'),
+        new OA\Response(response: 403, description: 'Forbidden — nonce not approved'),
+    ]
+)]
+#[OA\Get(
+    path: '/guest-stream.php',
+    operationId: 'streamGuestVideo',
+    summary: 'Stream an approved video for a guest (supports HTTP range requests)',
+    description: 'Streams video/mp4. Requires the nonce owner to be approved and the requested job_id to belong to the same event. Supports Range header for seeking.',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['guest'],
+    parameters: [
+        new OA\Parameter(name: 'nonce', in: 'query', required: true, schema: new OA\Schema(type: 'string', minLength: 30, maxLength: 40)),
+        new OA\Parameter(name: 'job_id', in: 'query', required: true, schema: new OA\Schema(type: 'integer', minimum: 1)),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'Full video stream (video/mp4)'),
+        new OA\Response(response: 206, description: 'Partial content (range request)'),
+        new OA\Response(response: 400, description: 'Invalid nonce or job_id'),
+        new OA\Response(response: 403, description: 'Forbidden or gallery expired'),
+        new OA\Response(response: 404, description: 'Video not found'),
+    ]
+)]
+#[OA\Post(
+    path: '/guest-report.php',
+    operationId: 'reportGuestVideo',
+    summary: 'Flag a video for moderation review',
+    description: 'Allows an approved guest to flag another approved video in the same event. Sets guest_flagged=1 on the upload_jobs row. Idempotent — repeat calls update guest_flagged_at.',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['guest'],
+    requestBody: new OA\RequestBody(
+        required: true,
+        content: [
+            new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    required: ['nonce', 'upload_job_id'],
+                    properties: [
+                        new OA\Property(property: 'nonce', type: 'string'),
+                        new OA\Property(property: 'upload_job_id', type: 'integer', minimum: 1),
+                    ]
+                )
+            ),
+        ]
+    ),
+    responses: [
+        new OA\Response(response: 200, description: 'Flagged successfully'),
+        new OA\Response(response: 400, description: 'Invalid request body'),
+        new OA\Response(response: 403, description: 'Forbidden — nonce not approved or video not in same event'),
     ]
 )]
 class OpenApi {}

@@ -11,7 +11,8 @@ CN = {{ gighive_cert_cn | default(gighive_server_name | default('gighive')) }}
 
 [ v3_req ]
 subjectAltName = @alt_names
-keyUsage = critical, digitalSignature, keyEncipherment
+basicConstraints = critical, CA:TRUE, pathlen:0
+keyUsage = critical, digitalSignature, keyEncipherment, keyCertSign
 extendedKeyUsage = serverAuth
 
 [ alt_names ]

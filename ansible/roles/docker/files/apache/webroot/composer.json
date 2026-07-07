@@ -20,7 +20,7 @@
     }
   },
   "scripts": {
-    "openapi": "vendor/bin/openapi src/ --output docs/openapi.yaml --format yaml"
+    "openapi": "vendor/bin/openapi src/ --output docs/openapi.yaml --format yaml --exclude src/Services/UploadTokenValidator.php"
   },
   "minimum-stability": "stable",
   "license": "MIT"

@@ -67,6 +67,80 @@ function __format_backup_size(int $bytes): string {
     $val = $bytes / (1024 ** $i);
     return ($i === 0 ? (string)$bytes : number_format($val, 1)) . ' ' . $units[$i];
 }
+
+function __stats_mb(int $bytes): string {
+    if ($bytes <= 0) return '0.0 MB';
+    return number_format($bytes / (1024 ** 2), 1) . ' MB';
+}
+function __stats_gb(int $bytes): string {
+    if ($bytes <= 0) return '0.00 GB';
+    return number_format($bytes / (1024 ** 3), 2) . ' GB';
+}
+function __stats_n(int $n): string { return number_format($n); }
+
+$__db_stats = null;
+try {
+    $__dsn = sprintf(
+        'mysql:host=%s;dbname=%s;charset=utf8mb4',
+        getenv('DB_HOST') ?: 'localhost',
+        getenv('MYSQL_DATABASE') ?: 'media_db'
+    );
+    $__spdo = new PDO($__dsn, getenv('MYSQL_USER') ?: 'appuser', getenv('MYSQL_PASSWORD') ?: '', [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ]);
+    $__dbName  = getenv('MYSQL_DATABASE') ?: 'media_db';
+    $__ver     = (string) $__spdo->query('SELECT VERSION()')->fetchColumn();
+    $__szStmt  = $__spdo->prepare(
+        'SELECT COALESCE(SUM(data_length + index_length), 0) FROM information_schema.tables WHERE table_schema = ?'
+    );
+    $__szStmt->execute([$__dbName]);
+    $__dbBytes = (int) $__szStmt->fetchColumn();
+    $__counts  = [];
+    foreach (['events', 'assets', 'event_items', 'participants', 'tags', 'taggings'] as $__tbl) {
+        try {
+            $__counts[$__tbl] = (int) $__spdo->query("SELECT COUNT(*) FROM `{$__tbl}`")->fetchColumn();
+        } catch (Throwable $__ignored) {
+            $__counts[$__tbl] = 0;
+        }
+    }
+    $__db_stats = ['version' => $__ver, 'db_name' => $__dbName, 'size' => $__dbBytes, 'counts' => $__counts];
+    unset($__spdo, $__dsn, $__szStmt, $__tbl, $__ignored, $__ver, $__dbName, $__dbBytes, $__counts);
+} catch (Throwable $__ignored) { unset($__ignored); }
+
+$__media_stats = null;
+$__mdirsEnv = getenv('MEDIA_SEARCH_DIRS');
+if (is_string($__mdirsEnv) && $__mdirsEnv !== '') {
+    $__mdirs  = array_filter(array_map('trim', explode(':', $__mdirsEnv)));
+    $__audioD = null;
+    $__videoD = null;
+    foreach ($__mdirs as $__d) {
+        $__d = rtrim($__d, '/');
+        if ($__audioD === null && str_ends_with($__d, '/audio'))     { $__audioD = $__d; }
+        elseif ($__videoD === null && str_ends_with($__d, '/video')) { $__videoD = $__d; }
+    }
+    $__mscan = [
+        'audio'      => $__audioD,
+        'video'      => $__videoD,
+        'thumbnails' => $__videoD !== null ? $__videoD . '/thumbnails' : null,
+    ];
+    $__media_stats = [];
+    foreach ($__mscan as $__mlbl => $__mpath) {
+        $__mc = 0; $__mb = 0;
+        if ($__mpath !== null && is_dir($__mpath) && is_readable($__mpath)) {
+            foreach (glob($__mpath . '/*') ?: [] as $__mf) {
+                if (is_file($__mf)) { $__mc++; $__mb += (int) (@filesize($__mf) ?: 0); }
+            }
+        }
+        $__media_stats[$__mlbl] = ['count' => $__mc, 'bytes' => $__mb];
+    }
+    $__media_stats['total'] = [
+        'count' => array_sum(array_column($__media_stats, 'count')),
+        'bytes' => array_sum(array_column($__media_stats, 'bytes')),
+    ];
+    unset($__mdirs, $__d, $__audioD, $__videoD, $__mscan, $__mlbl, $__mpath, $__mc, $__mb, $__mf);
+}
+unset($__mdirsEnv);
 ?>
 <!doctype html>
 <html lang="en">
@@ -93,6 +167,12 @@ function __format_backup_size(int $bytes): string {
     .alert-ok { background:#11331a; border:1px solid #1f7a3b; padding:.8rem 1rem; border-radius:10px; margin-bottom:1rem; }
     .alert-err { background:#3b0d14; border:1px solid #b4232a; padding:.8rem 1rem; border-radius:10px; margin-bottom:1rem; }
     .muted { color:#a8b3cf; font-size:.95rem; }
+    .stats-block { font-size:.85rem; color:#a8b3cf; padding-bottom:.25rem; }
+    .stats-row { display:flex; gap:1rem; margin-bottom:.5rem; }
+    .stats-lbl { font-weight:600; color:#e9eef7; min-width:4rem; flex-shrink:0; }
+    .stats-media-grid { display:grid; grid-template-columns:8rem 6rem 6rem; row-gap:.2rem; }
+    .stats-media-grid .snum { text-align:right; font-variant-numeric:tabular-nums; }
+    .stats-media-sep { grid-column:1/-1; border:none; border-top:1px solid #1d2a55; margin:.25rem 0; padding:0; height:0; }
   </style>
   <link rel="stylesheet" href="/admin/assets/import_progress.css" />
   <script src="/admin/assets/import_progress.js"></script>
@@ -109,6 +189,48 @@ function __format_backup_size(int $bytes): string {
       </div>
       <h1 style="padding-right:210px">Admin: System & Recovery</h1>
       <p class="muted">Signed in as <code><?= htmlspecialchars($user) ?></code>.</p>
+
+      <div class="section-divider stats-block">
+        <div class="stats-row">
+          <span class="stats-lbl">DB</span>
+          <div>
+            <?php if ($__db_stats !== null): ?>
+              MySQL <?= htmlspecialchars($__db_stats['version']) ?> &nbsp;&middot;&nbsp; <?= htmlspecialchars($__db_stats['db_name']) ?> &nbsp;&middot;&nbsp; <?= htmlspecialchars(__stats_mb($__db_stats['size'])) ?> on disk<br>
+              <?php
+                $__cp = [];
+                foreach ($__db_stats['counts'] as $__ct => $__cn) {
+                    $__cp[] = '<strong>' . __stats_n($__cn) . '</strong> ' . htmlspecialchars(str_replace('_', ' ', $__ct));
+                }
+                echo implode(' &nbsp;&middot;&nbsp; ', $__cp);
+                unset($__cp, $__ct, $__cn);
+              ?>
+            <?php else: ?>
+              <span style="font-style:italic">unavailable</span>
+            <?php endif; ?>
+          </div>
+        </div>
+        <div class="stats-row">
+          <span class="stats-lbl">Media</span>
+          <div>
+            <?php if ($__media_stats !== null): ?>
+              <div class="stats-media-grid">
+                <?php foreach (['audio', 'video', 'thumbnails'] as $__ml): ?>
+                  <?php $__ms = $__media_stats[$__ml]; ?>
+                  <span><?= htmlspecialchars($__ml) ?></span>
+                  <span class="snum"><?= __stats_n($__ms['count']) ?> files</span>
+                  <span class="snum"><?= __stats_gb($__ms['bytes']) ?></span>
+                <?php endforeach; unset($__ml, $__ms); ?>
+                <div class="stats-media-sep"></div>
+                <span>total</span>
+                <span class="snum"><?= __stats_n($__media_stats['total']['count']) ?> files</span>
+                <span class="snum"><?= __stats_gb($__media_stats['total']['bytes']) ?></span>
+              </div>
+            <?php else: ?>
+              <span style="font-style:italic">unavailable</span>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
 
       <div class="section-divider">
         <h2>Section A: Clear Database</h2>

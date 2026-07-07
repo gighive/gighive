@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: 'GigHive API'
-  description: 'GigHive media management API for uploading and retrieving audio/video files with session metadata.'
+  description: 'GigHive media management API for uploading and retrieving audio/video files with event and asset metadata.'
   version: 1.0.0
 paths:
   /uploads:
@@ -402,6 +402,512 @@ paths:
         -
           url: /admin
           description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /ai_jobs.php:
+    get:
+      tags:
+        - ai
+      summary: 'List AI jobs, get a single job, or get status counts'
+      description: 'Variants: no params → paginated list (?status, ?limit); ?id=N → single job; ?action=status_counts → aggregate counts by status (?job_ids=1,2,3 scopes to those jobs; omit for global). Admin required for status_counts.'
+      operationId: getAiJobs
+      parameters:
+        -
+          name: id
+          in: query
+          required: false
+          schema:
+            type: integer
+        -
+          name: action
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - status_counts
+        -
+          name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - queued
+              - running
+              - done
+              - failed
+        -
+          name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+        -
+          name: job_ids
+          in: query
+          description: 'Comma-separated job IDs (for action=status_counts)'
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: 'Forbidden — admin required'
+        '404':
+          description: 'Job not found'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+    post:
+      tags:
+        - ai
+      summary: 'Enqueue or cancel AI jobs (admin)'
+      description: 'action omitted → enqueue single job (body: job_type, target_type, target_id); action=enqueue_all_untagged → bulk enqueue all untagged videos; action=retag_all → re-enqueue all videos including already-tagged; action=cancel_jobs → cancel queued jobs by ID (body: job_ids[]).'
+      operationId: postAiJobs
+      parameters:
+        -
+          name: action
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - enqueue_all_untagged
+              - retag_all
+              - cancel_jobs
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              properties:
+                job_type:
+                  type: string
+                  example: categorize_video
+                target_type:
+                  type: string
+                  example: asset
+                target_id:
+                  description: 'Required when action is omitted'
+                  type: integer
+                job_ids:
+                  description: 'Required for action=cancel_jobs'
+                  type: array
+                  items: { type: integer }
+              type: object
+      responses:
+        '200':
+          description: 'Already queued (single enqueue) or cancel result'
+        '201':
+          description: 'Job enqueued'
+        '400':
+          description: 'Bad request or AI_WORKER_ENABLED=false'
+        '403':
+          description: 'Admin required'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /tags.php:
+    get:
+      tags:
+        - tags
+      summary: 'List tags or fetch taggings for a target'
+      description: 'No target params → tag list (optionally ?namespace=X with usage counts); ?target_type=asset&target_id=N → taggings for one asset; ?target_type=asset&asset_ids=1,2,3 → batch taggings map keyed by asset ID.'
+      operationId: getTags
+      parameters:
+        -
+          name: namespace
+          in: query
+          required: false
+          schema:
+            type: string
+        -
+          name: target_type
+          in: query
+          required: false
+          schema:
+            type: string
+            example: asset
+        -
+          name: target_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        -
+          name: asset_ids
+          in: query
+          description: 'Comma-separated asset IDs for batch tagging fetch'
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '405':
+          description: 'Method not allowed'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /taggings.php:
+    post:
+      tags:
+        - tags
+      summary: 'Create a manual tagging (admin)'
+      operationId: createTagging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - target_type
+                - target_id
+                - namespace
+                - name
+              properties:
+                target_type:
+                  type: string
+                  enum: [asset, event, event_item, segment]
+                target_id:
+                  type: integer
+                namespace:
+                  type: string
+                name:
+                  type: string
+                confidence:
+                  type: number
+                  default: 1
+                  maximum: 1
+                  minimum: 0
+              type: object
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: 'Validation error'
+        '403':
+          description: 'Admin required'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+    delete:
+      tags:
+        - tags
+      summary: 'Remove a tagging (admin)'
+      operationId: deleteTagging
+      parameters:
+        -
+          name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
+        '400':
+          description: 'id required'
+        '403':
+          description: 'Admin required'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+    patch:
+      tags:
+        - tags
+      summary: 'Confirm or edit a tagging (admin)'
+      operationId: patchTagging
+      parameters:
+        -
+          name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                source:
+                  type: string
+                  enum: [ai, human]
+                confidence:
+                  type: number
+                  maximum: 1
+                  minimum: 0
+                namespace:
+                  type: string
+                name:
+                  type: string
+              type: object
+      responses:
+        '200':
+          description: Updated
+        '400':
+          description: 'id required'
+        '403':
+          description: 'Admin required'
+        '404':
+          description: 'Tagging not found'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /upload-token.php:
+    get:
+      tags:
+        - uploads
+      summary: 'Validate an event upload token'
+      description: 'Returns event context for a valid token. Used by guest upload clients to resolve event metadata before uploading.'
+      operationId: validateUploadToken
+      parameters:
+        -
+          name: token
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 128
+      responses:
+        '200':
+          description: 'Valid token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadToken'
+        '400':
+          description: 'Missing or oversized token'
+        '404':
+          description: 'Invalid or expired token'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /guest-status.php:
+    get:
+      tags:
+        - guest
+      summary: 'Check moderation status for a guest upload'
+      description: 'Returns the moderation status of the upload identified by the nonce, plus event name, approved video count, and gallery days remaining.'
+      operationId: getGuestStatus
+      parameters:
+        -
+          name: nonce
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 40
+            minLength: 30
+            pattern: '^[A-Za-z0-9_\-]+$'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: 'Invalid nonce format'
+        '404':
+          description: 'Nonce not found'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /guest-gallery.php:
+    get:
+      tags:
+        - guest
+      summary: 'List approved gallery videos for a guest'
+      description: 'Returns all approved videos for the event associated with the nonce. Requires the nonce owner to also be approved. Returns expired status with empty video list if gallery has expired.'
+      operationId: getGuestGallery
+      parameters:
+        -
+          name: nonce
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 40
+            minLength: 30
+            pattern: '^[A-Za-z0-9_\-]+$'
+      responses:
+        '200':
+          description: 'OK — includes status, days_remaining, and videos array of GuestVideo'
+        '400':
+          description: 'Invalid nonce format'
+        '403':
+          description: 'Forbidden — nonce not approved'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /guest-stream.php:
+    get:
+      tags:
+        - guest
+      summary: 'Stream an approved video for a guest (supports HTTP range requests)'
+      description: 'Streams video/mp4. Requires the nonce owner to be approved and the requested job_id to belong to the same event. Supports Range header for seeking.'
+      operationId: streamGuestVideo
+      parameters:
+        -
+          name: nonce
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 40
+            minLength: 30
+        -
+          name: job_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: 'Full video stream (video/mp4)'
+        '206':
+          description: 'Partial content (range request)'
+        '400':
+          description: 'Invalid nonce or job_id'
+        '403':
+          description: 'Forbidden or gallery expired'
+        '404':
+          description: 'Video not found'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /guest-report.php:
+    post:
+      tags:
+        - guest
+      summary: 'Flag a video for moderation review'
+      description: 'Allows an approved guest to flag another approved video in the same event. Sets guest_flagged=1 on the upload_jobs row. Idempotent — repeat calls update guest_flagged_at.'
+      operationId: reportGuestVideo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - nonce
+                - upload_job_id
+              properties:
+                nonce:
+                  type: string
+                upload_job_id:
+                  type: integer
+                  minimum: 1
+              type: object
+      responses:
+        '200':
+          description: 'Flagged successfully'
+        '400':
+          description: 'Invalid request body'
+        '403':
+          description: 'Forbidden — nonce not approved or video not in same event'
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
 components:
   schemas:
     File:
@@ -428,12 +934,16 @@ components:
         checksum_sha256:
           type: string
           nullable: true
-        session_id:
+        asset_id:
           type: integer
           format: int64
           nullable: true
-        seq:
+        event_id:
           type: integer
+          format: int64
+          nullable: true
+        source_relpath:
+          type: string
           nullable: true
         created_at:
           type: string
@@ -609,6 +1119,112 @@ components:
           items:
             type: object
       type: object
+    AiJob:
+      properties:
+        id:
+          type: integer
+          format: int64
+        job_type:
+          type: string
+          example: categorize_video
+        target_type:
+          type: string
+          example: asset
+        target_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - queued
+            - running
+            - done
+            - failed
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      type: object
+    Tag:
+      properties:
+        id:
+          type: integer
+          format: int64
+        namespace:
+          type: string
+        name:
+          type: string
+        usage_count:
+          type: integer
+      type: object
+    Tagging:
+      properties:
+        id:
+          type: integer
+          format: int64
+        namespace:
+          type: string
+        name:
+          type: string
+        confidence:
+          type: number
+          format: float
+        source:
+          type: string
+          enum:
+            - ai
+            - human
+        start_seconds:
+          type: number
+          nullable: true
+        end_seconds:
+          type: number
+          nullable: true
+        run_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      type: object
+    UploadToken:
+      properties:
+        event_id:
+          type: integer
+          format: int64
+        event_date:
+          type: string
+          format: date
+        org_name:
+          type: string
+        event_type:
+          type: string
+          enum:
+            - band
+            - wedding
+      type: object
+    GuestVideo:
+      properties:
+        upload_job_id:
+          type: integer
+          format: int64
+        label:
+          type: string
+        stream_url:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+      type: object
 tags:
   -
     name: uploads
@@ -619,3 +1235,12 @@ tags:
   -
     name: admin
     description: admin
+  -
+    name: ai
+    description: ai
+  -
+    name: tags
+    description: tags
+  -
+    name: guest
+    description: guest

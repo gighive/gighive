@@ -166,6 +166,35 @@ header('Pragma: no-cache');
 
 ---
 
+### 10 — Internal server TLS certificate lacks `CA:TRUE` — swcd rejects with `TrustResultType=5`
+
+When using `?mode=developer` against an internal server (e.g. `gighive2.gighive.internal`), `swcd` fetches the AASA directly from the server and validates its TLS certificate using `SWCSecurityGuard`. Even if the server's self-signed certificate is installed on the device and toggled ON in **Certificate Trust Settings**, swcd will still fail if the certificate does not have `basicConstraints = CA:TRUE`.
+
+**Symptom in Console.app swcd logs:**
+```
+Trust evaluate failure: [leaf AnchorTrusted]
+Failed to verify server trust for task AASA-... { domain: gi….gi….internal?mode=developer }: 
+  Error Domain=SWCErrorDomain Code=100 "Disallowed trust result type."
+  UserInfo={Function=-[SWCSecurityGuard verifyTrust:allowInstalledRootCertificates:error:], TrustResultType=5}
+```
+
+`TrustResultType=5` is `kSecTrustResultRecoverableTrustFailure` — the cert is present and installed but trustd cannot verify a chain to a CA anchor. `SWCSecurityGuard.allowInstalledRootCertificates:` rejects this result type unconditionally.
+
+**Fix:** The internal server's TLS certificate must be generated with `basicConstraints = critical, CA:TRUE, pathlen:0` so that iOS/trustd treats it as a root CA anchor and returns `kSecTrustResultUnspecified` or `kSecTrustResultProceed` — both of which swcd accepts. In the GigHive Ansible setup, add to `openssl_san.cnf.j2`:
+```
+basicConstraints = critical, CA:TRUE, pathlen:0
+keyUsage = critical, digitalSignature, keyEncipherment, keyCertSign
+```
+Then redeploy (Ansible playbook regenerates the cert via the container entrypoint). Remove the old profile from the device, install the new `.crt`, enable full trust, and do a clean reinstall of the app.
+
+**Verify the deployed cert has CA:TRUE:**
+```bash
+echo | openssl s_client -connect gighive2.gighive.internal:443 2>/dev/null | openssl x509 -noout -text | grep -A2 "Basic Constraints"
+# Must show: CA:TRUE, pathlen:0
+```
+
+---
+
 ## Full Configuration Checklist
 
 All of the following must be satisfied for Universal Links to fire and open the app.
@@ -190,6 +219,7 @@ All of the following must be satisfied for Universal Links to fire and open the 
 | 16 | Device | Safari is the default browser (Chrome as default bypasses Universal Links in Camera) | Settings → Apps → Default Apps → Browser → Safari |
 | 17 | Device | **Associated Domains Development** toggle enabled (separate from Developer Mode) | Settings → Developer → Associated Domains Development → ON. Without this, swcd logs `Developer mode enabled: NO` and silently skips all `?mode=developer` domains |
 | 18 | Server | Production domain AASA cached on Apple CDN if `applinks:<prod-domain>` (no `?mode=developer`) is in entitlements | `curl -s https://app-site-association.cdn-apple.com/a/v1/gighive.app` — must not return `Not Found`. Remove the entitlement entry until the CDN has it. |
+| 19 | Device / Server | Internal server TLS cert has `CA:TRUE` — required for swcd to trust it as a root anchor | `echo \| openssl s_client -connect <host>:443 2>/dev/null \| openssl x509 -noout -text \| grep -A2 "Basic Constraints"` — must show `CA:TRUE`. Without this, swcd logs `TrustResultType=5` and rejects the AASA fetch even if the cert is installed and enabled in Certificate Trust Settings. |
 
 ---
 

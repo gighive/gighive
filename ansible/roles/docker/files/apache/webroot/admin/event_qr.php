@@ -78,6 +78,9 @@ $postMsg    = (string)($_SESSION['flash_msg'] ?? '');
 $postOk     = isset($_SESSION['flash_ok'])  ? (bool)$_SESSION['flash_ok']  : null;
 $newQrUrl   = ($_SESSION['flash_url'] ?? '') ?: null;
 unset($_SESSION['flash_msg'], $_SESSION['flash_ok'], $_SESSION['flash_url']);
+$modBulkMsg = (string)($_SESSION['flash_mod_msg'] ?? '');
+$modBulkOk  = isset($_SESSION['flash_mod_ok']) ? (bool)$_SESSION['flash_mod_ok'] : null;
+unset($_SESSION['flash_mod_msg'], $_SESSION['flash_mod_ok']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
     $action = $_POST['action'] ?? '';
@@ -181,11 +184,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
                 $postOk  = false;
             }
         }
+
+    } elseif ($action === 'approve_all_pending') {
+        try {
+            $stmt = $pdo->prepare(
+                'UPDATE upload_jobs j
+                 JOIN anon_upload_attributions a ON a.upload_job_id = j.job_id
+                 JOIN event_upload_tokens t ON t.token_id = a.token_id
+                 SET j.moderation_status = \'approved\',
+                     j.approved_at = NOW()
+                 WHERE t.event_id = ?
+                   AND (j.moderation_status = \'pending\' OR j.moderation_status IS NULL)'
+            );
+            $stmt->execute([$eventId]);
+            $count = $stmt->rowCount();
+            $_SESSION['flash_mod_msg'] = 'Approved ' . $count . ' upload' . ($count !== 1 ? 's' : '') . '.';
+            $_SESSION['flash_mod_ok']  = true;
+            header('Location: /admin/event_qr.php?org_name=' . urlencode($orgName)
+                 . '&event_date=' . urlencode($eventDate));
+            exit;
+        } catch (\Throwable $e) {
+            $postMsg = 'Error bulk approving: ' . $e->getMessage();
+            $postOk  = false;
+        }
+
+    } elseif ($action === 'reject_all_pending') {
+        try {
+            $stmt = $pdo->prepare(
+                'UPDATE upload_jobs j
+                 JOIN anon_upload_attributions a ON a.upload_job_id = j.job_id
+                 JOIN event_upload_tokens t ON t.token_id = a.token_id
+                 SET j.moderation_status = \'rejected\',
+                     j.approved_at = NULL
+                 WHERE t.event_id = ?
+                   AND (j.moderation_status = \'pending\' OR j.moderation_status IS NULL)'
+            );
+            $stmt->execute([$eventId]);
+            $count = $stmt->rowCount();
+            $_SESSION['flash_mod_msg'] = 'Rejected ' . $count . ' upload' . ($count !== 1 ? 's' : '') . '.';
+            $_SESSION['flash_mod_ok']  = true;
+            header('Location: /admin/event_qr.php?org_name=' . urlencode($orgName)
+                 . '&event_date=' . urlencode($eventDate));
+            exit;
+        } catch (\Throwable $e) {
+            $postMsg = 'Error bulk rejecting: ' . $e->getMessage();
+            $postOk  = false;
+        }
     }
 }
 
 $tokens              = [];
 $guestUploads        = [];
+$pendingCount        = 0;
 $galleryExpiresAt    = null;
 $isMultiDay          = 0;
 $galleryLifespanDays = null;
@@ -234,6 +284,11 @@ if ($pdo && $eventId) {
         $stmt->execute([$eventId]);
         $guestUploads = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (\Throwable $e) { /* ignore */ }
+    foreach ($guestUploads as $gu) {
+        if (($gu['moderation_status'] ?? null) === 'pending' || ($gu['moderation_status'] ?? null) === null) {
+            $pendingCount++;
+        }
+    }
 
     try {
         $stmt = $pdo->prepare(
@@ -494,9 +549,28 @@ if ($galleryExpiresAt !== null) {
     <?php if ($postMsg && $postOk !== null && ($action === 'approve_upload' || $action === 'reject_upload')): ?>
       <div class="<?= $postOk ? 'alert-ok' : 'alert-err' ?>"><?= htmlspecialchars($postMsg, ENT_QUOTES) ?></div>
     <?php endif; ?>
+    <?php if ($modBulkMsg !== '' && $modBulkOk !== null): ?>
+      <div class="<?= $modBulkOk ? 'alert-ok' : 'alert-err' ?>"><?= htmlspecialchars($modBulkMsg, ENT_QUOTES) ?></div>
+    <?php endif; ?>
     <?php if (empty($guestUploads)): ?>
       <p class="muted">No guest uploads yet.</p>
     <?php else: ?>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
+        <span class="muted"><?= count($guestUploads) ?> upload<?= count($guestUploads) !== 1 ? 's' : '' ?> &middot; <?= $pendingCount ?> pending</span>
+        <?php if ($pendingCount > 0): ?>
+        <div style="display:flex;gap:.5rem">
+          <form method="POST" action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>" style="display:inline">
+            <input type="hidden" name="action" value="approve_all_pending">
+            <button type="submit" class="btn-sm" style="border-color:#1f7a3b">Approve All Pending</button>
+          </form>
+          <form method="POST" action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>" style="display:inline">
+            <input type="hidden" name="action" value="reject_all_pending">
+            <button type="submit" class="btn-sm btn-danger"
+                    onclick="return confirm('Reject all <?= $pendingCount ?> pending upload<?= $pendingCount !== 1 ? 's' : '' ?>? This cannot be undone.')">Reject All Pending</button>
+          </form>
+        </div>
+        <?php endif; ?>
+      </div>
       <div class="table-scroll">
       <table>
         <thead>

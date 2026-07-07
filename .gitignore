@@ -62,6 +62,10 @@ GigHive-iPhone
 **/backup/
 **/_archive/
 
+# Load test runs
+load_tests/load_test_runs/*
+!load_tests/load_test_runs/.gitkeep
+
 # Log files
 *.log
 
