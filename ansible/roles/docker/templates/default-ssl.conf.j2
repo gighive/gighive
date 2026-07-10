@@ -301,6 +301,11 @@
         Require all granted
     </Location>
 
+    <Location "/api/guest-delete.php">
+        AuthMerging Off
+        Require all granted
+    </Location>
+
     ProxyPreserveHost On
     RequestHeader set X-Forwarded-Proto "https"
     ProxyPass "/files/" "http://{{ apache_container_name }}_tusd:8080{{ tusd_base_path | default('/files') }}/" nocanon

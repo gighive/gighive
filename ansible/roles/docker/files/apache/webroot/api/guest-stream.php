@@ -71,7 +71,7 @@ try {
          FROM upload_jobs j
          JOIN anon_upload_attributions a ON a.upload_job_id = j.job_id
          JOIN event_upload_tokens t ON t.token_id = a.token_id
-         WHERE j.id = ? AND t.event_id = ? AND j.moderation_status = \'approved\''
+         WHERE j.id = ? AND t.event_id = ? AND j.moderation_status = \'approved\' AND j.guest_deleted = 0'
     );
     $stmt->execute([$jobId, $eventId]);
     $videoRow = $stmt->fetch(\PDO::FETCH_ASSOC);

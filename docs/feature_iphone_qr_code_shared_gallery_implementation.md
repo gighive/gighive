@@ -361,7 +361,9 @@ ORDER BY a.created_at DESC
 
 **File:** `ansible/roles/docker/files/apache/webroot/admin/event_qr.php`
 
-Add `approve_upload` and `reject_upload` actions. Cross-validation UPDATE (upload_jobs has no event_id — must JOIN through attributions → tokens):
+Add four POST action handlers:
+
+**`approve_upload` / `reject_upload`** — per-row moderation. Cross-validation UPDATE (upload_jobs has no event_id — must JOIN through attributions → tokens):
 
 ```sql
 UPDATE upload_jobs j
@@ -374,7 +376,22 @@ WHERE j.job_id = ? AND t.event_id = ?
 
 - `job_id` (VARCHAR TUS UUID) is used here (not the INT `id`) because it's what's available from the form row
 - **Bind `$moderationStatus` twice** — once for `SET j.moderation_status = ?` and once for `CASE WHEN ? = 'approved'`; PDO/mysqli requires the value bound to each `?` position separately
-- Flash success/error message; redirect back to same page (POST–Redirect–GET)
+
+**`approve_all_pending` / `reject_all_pending`** — bulk moderation. Same JOIN pattern but no `job_id` filter; restricts to `pending OR NULL` rows:
+
+```sql
+UPDATE upload_jobs j
+JOIN anon_upload_attributions a ON a.upload_job_id = j.job_id
+JOIN event_upload_tokens t ON t.token_id = a.token_id
+SET j.moderation_status = 'approved',  -- or 'rejected'
+    j.approved_at = NOW()               -- or NULL for reject
+WHERE t.event_id = ?
+  AND (j.moderation_status = 'pending' OR j.moderation_status IS NULL)
+```
+
+- Reject All requires a browser `confirm()` dialog (`onclick="return confirm('...')"`) — non-reversible
+- Returns affected row count in the flash message (e.g. "Approved 5 uploads.")
+- Flash success/error message; redirect back to same page (POST–Redirect–GET) for all four actions
 
 ---
 
@@ -388,9 +405,10 @@ Extend the existing Guest Uploads table HTML:
    - `.badge-mod-pending` — amber background
    - `.badge-mod-approved` — green background
    - `.badge-mod-rejected` — reuse existing `.badge-revoked` (red); no new class needed
-2. For each row, add a **Moderation** column showing the badge; if `guest_flagged = 1` append **⚑ Guest report** in amber text
-3. Add a **Preview** column: check `$gu['file_relpath'] !== null` first — if null output `—`; otherwise render `<a href="/<?= htmlspecialchars($gu['file_relpath'], ENT_QUOTES) ?>" target="_blank">▶ Preview</a>`. Do **not** pass null directly to `htmlspecialchars` — PHP 8.1+ raises a deprecation and silently outputs `href="/"` (a link to the webroot)
-4. Add **[Approve]** / **[Reject]** buttons only on `pending` rows (POST forms with `action=approve_upload` / `action=reject_upload`); already-decided rows show `—`
+2. Above the table, when `$pendingCount > 0`, render a flex row with **Approve All Pending** (green border) and **Reject All Pending** (red, `btn-danger`) buttons as inline POST forms (actions `approve_all_pending` / `reject_all_pending`). Reject All requires `onclick="return confirm('Reject all N pending uploads?')"`. Show upload count + pending count as muted text on the left of this row.
+3. For each row, add a **Moderation** column showing the badge; if `guest_flagged = 1` append **⚑ Guest report** in amber text
+4. Add a **Preview** column: check `$gu['file_relpath'] !== null` first — if null output `—`; otherwise render `<a href="/<?= htmlspecialchars($gu['file_relpath'], ENT_QUOTES) ?>" target="_blank">▶ Preview</a>`. Do **not** pass null directly to `htmlspecialchars` — PHP 8.1+ raises a deprecation and silently outputs `href="/"` (a link to the webroot)
+5. Add **[Approve]** / **[Reject]** buttons only on `pending` rows (POST forms with `action=approve_upload` / `action=reject_upload`); already-decided rows show `—`
 
 ---
 
@@ -792,16 +810,22 @@ struct GuestUploadRecord: Codable {
     let uploadJobId: Int        // upload_jobs.id (INT auto-increment)
     let eventName: String       // e.g. "StormPigs — 2026-07-17"
     let submittedAt: Date
+    let baseURLString: String   // server origin used for polling and gallery navigation
     var approvalStatus: String  // "pending" | "approved" | "rejected" | "expired"
     var lastSeenVideoCount: Int
+    var viewedUploadJobIds: [Int]  // IDs tapped in GuestGalleryView; drives per-video "New" badge
     var daysRemaining: Int?     // nil = indefinite
+
+    // Custom init(from:) so records persisted before viewedUploadJobIds was added decode successfully.
+    init(from decoder: Decoder) throws { … }
+    init(statusNonce:uploadJobId:eventName:submittedAt:baseURLString:approvalStatus:lastSeenVideoCount:viewedUploadJobIds:daysRemaining:) { … }
 }
 ```
 
 - Persisted as a JSON-encoded array under `UserDefaults` key `"guestUploadHistory"` — SonarQube iOS rule RSPEC-5334 flags `UserDefaults` for security tokens and prefers Keychain; for this feature the `UserDefaults` choice is intentional: the nonce is device-bound by design, the model is accountless with no recovery path, and the threat model (device theft) is already out-of-scope for this feature. Mark this hotspot as **reviewed and accepted** in SonarQube with this rationale.
-- Provide static helpers: `load() -> [GuestUploadRecord]`, `save(_ records: [GuestUploadRecord])`, `upsert(_ record: GuestUploadRecord)`
+- Provide static helpers: `load() -> [GuestUploadRecord]`, `save(_ records: [GuestUploadRecord])`, `upsert(_ record: GuestUploadRecord)`, `loadDismissedBanners() -> Set<String>`, `dismissBanner(nonce:)`
 - Terminal statuses (`rejected`, `expired`) are never polled again; skip in polling loop
-- A guest who uploads multiple clips (e.g. scans a still-valid token twice) gets a separate `GuestUploadRecord` per upload, each with its own nonce. Multiple records for the same event appear as separate entries in "Your Event Galleries" — grouping is deferred to a future iteration.
+- A guest who uploads multiple clips (e.g. scans a still-valid token twice) gets a separate `GuestUploadRecord` per upload, each with its own nonce. **`SplashView` deduplicates the "Your Event Galleries" list** by `baseURLString + "|" + eventName`, showing one entry per event (preferring records already tracked, sorted by submission order) — the raw array may contain multiple records for the same event, but the UI collapses them.
 
 ---
 
@@ -852,17 +876,20 @@ On `onAppear` (or scene-phase `.active`):
 
 Two additions:
 
-**A. One-time approval banner** (shown on transition from pending → approved):
+**A. One-time approval banner** (shown for any approved record whose nonce hasn't been dismissed):
 - Full-width card with approval message from spec
-- "View Event Gallery" `Button` → navigate to `GuestGalleryView(statusNonce: record.statusNonce)`
+- "View Event Gallery" `Button` → navigate to `GuestGalleryView(record: record)` (passes the full `GuestUploadRecord`)
 - Device-bound warning in smaller text below
-- Dismissed by tapping Done; dismissal state persisted in **`UserDefaults`** (e.g. a `Set<String>` of nonces whose banners have been dismissed) — `@State` alone is ephemeral and the banner would reappear on every app relaunch
+- Dismissed by tapping Done or "View Event Gallery"; dismissal nonces stored in **`UserDefaults`** key `"dismissedApprovalBanners"` (`Set<String>` JSON-encoded) — `@State` alone is ephemeral and the banner would reappear on every app relaunch
+- Banner re-appears on every app open until dismissed — it is not a one-shot transition detector; any approved-and-undismissed record triggers it
 
 **B. Persistent "Your Event Galleries" section** (shown whenever any record has `approvalStatus == "approved"`):
 - Section header: "Your Event Galleries"
-- `ForEach` over approved records; each row shows `eventName`, `daysRemaining` subtitle
-- "New videos added" badge if `video_count` increased since last visit
-- "View Gallery" button → `NavigationLink` to `GuestGalleryView(statusNonce: record.statusNonce)`
+- **Deduplicate by event:** `SplashView` collapses the raw `uploadRecords` array to one entry per `baseURLString + "|" + eventName` (first-seen wins among approved records). This means multiple uploads to the same event appear as a single gallery row.
+- Each row shows `eventName`, optional `daysRemaining` subtitle ("Available for N more days"), a "New videos" badge if `newVideoNonces.contains(record.statusNonce)`, and a chevron
+- `NavigationLink(destination: GuestGalleryView(record: record))` — full record is passed, not just the nonce
+- Footer line below the gallery list: *"To add more videos to an event, scan the event QR code again."*
+- **`newVideoNonces` re-filter on `.onAppear`:** after loading fresh records on each Splash appear, `newVideoNonces` is pruned by removing any nonce where `viewedUploadJobIds.count >= lastSeenVideoCount` (badge already cleared by the user having opened the gallery). The set is then repopulated from the async poll result.
 
 ---
 
@@ -870,17 +897,18 @@ Two additions:
 
 **File:** `GigHive/Views/GuestGalleryView.swift` (new file)
 
-- Input: `statusNonce: String`
-- On `.onAppear` (iOS 14 compat — do not use `.task` which requires iOS 15+): `Task { GET /api/guest-gallery.php?nonce=<statusNonce> }`
+- Input: `record: GuestUploadRecord` — provides `statusNonce`, `uploadJobId` (own video ID), `eventName`, `baseURLString`, and `viewedUploadJobIds`
+- On `.onAppear` (iOS 14 compat — do not use `.task` which requires iOS 15+): `Task { GET /api/guest-gallery.php?nonce=<record.statusNonce> }`
   - `403` → show "Access unavailable" error state
   - `status == "expired"` → show "This gallery is no longer available" single row
   - `status == "approved"` and `videos` array is empty → show "No videos approved yet — check back soon" (the API never returns a literal `"approved_empty"` status string; defend against empty `videos` array at the client level)
   - Success → populate video list; update `lastSeenVideoCount` in `GuestUploadRecord`
-- Video list: `List` of rows with `display_name`, `label`, tap → full-screen `AVPlayer` (reuse existing `MediaPlayerView`)
-- **Video playback:** use `AVPlayer(url: URL(string: streamUrl)!)` directly — the nonce is already embedded in each `stream_url` as `?nonce=…` (see Phase 1 Step 11); Apache's `SetEnvIf Request_URI` gate matches the URL query parameter, no custom HTTP headers required
+- **`@State private var viewedIds: Set<Int>`** — populated from `record.viewedUploadJobIds` on appear; updated via `markViewed(uploadJobId:)` when the user taps a video. `markViewed` persists to `UserDefaults` via `GuestUploadRecord.upsert` so `viewedUploadJobIds` stays in sync.
+- Video list: `List` of rows with `display_name`, `label`, per-video "New" badge (show if `!viewedIds.contains(video.uploadJobId)`), tap → full-screen `AVPlayer`
+- **Video playback:** `buildStreamURL(video:)` constructs the absolute URL from `URL(string: video.streamUrl, relativeTo: URL(string: record.baseURLString))?.absoluteURL`. The `stream_url` from the API is a relative path (`/api/guest-stream.php?nonce=…&job_id=…`); the base URL comes from `record.baseURLString`. `AVPlayer(url:)` is used directly — no `AVURLAsset` with custom headers required. See Phase 1 Step 11a for why the proxy is used.
 - `days_remaining` shown as subtitle on the view (e.g. "Available for 87 more days"); omit if `null`
-- **Report button** per row: `confirmationDialog` → "Report this video" → `POST /api/guest-report.php { nonce, upload_job_id }` → show toast "Thank you — this video has been flagged for review" on `200`; silent on `403` (already flagged or cross-event mismatch)
-- Navigation title: event name from the first video's context or stored in `GuestUploadRecord.eventName`
+- **Report button** per row: **`.alert` confirmation** (not `.confirmationDialog` — requires iOS 15+) → "Report this video" → `POST /api/guest-report.php { nonce, upload_job_id }` → show feedback `.alert` "Thank you — this video has been flagged for review" on `200`; silent on `403` (already flagged or cross-event mismatch). Implement via a single `Optional<GalleryAlert>` `@State` with a `GalleryAlert` enum (`case reportConfirm(GuestGalleryVideo)`, `case reportFeedback(String)`, `case error(String)`) and an `activeAlert: Binding<Bool>` derived from the optional.
+- Navigation title: `record.eventName`
 - **Device-bound warning footer:** below the video list, render an `HStack` (outside the `ScrollView`/video rows `VStack`) containing a `⚠️` triangle icon and the text: *"Your gallery access is stored on this device. Deleting the app will remove access."* styled `.caption2` / muted color. Shown on every gallery visit — not just on the one-time approval banner — so the limitation is always visible.
 
 ---
@@ -1168,3 +1196,430 @@ Use a device with no developer settings enabled to replicate the real guest expe
 | 5 | QR codes generated from production admin page use the org subdomain | Check generated URL shown under the QR image |
 | 6 | CDN pre-seeded for org subdomains before live events (generate QR day before) | `curl -s https://app-site-association.cdn-apple.com/a/v1/<org>.gighive.app` |
 | 7 | Smoke test on non-developer device passes (Camera banner reads GigHive, tap opens app) | Manual test |
+
+---
+
+---
+
+## Phase 4 — Guest Self-Delete
+
+> **Infrastructure (Steps 1–5) complete and deployed to dev — 2026-07-08. iOS (Step 6) pending.**
+
+**Prerequisite:** Phase 1 and Phase 2 complete and deployed.
+
+**Files added/modified:**
+
+| File | Change |
+|---|---|
+| `db/create_media_db.sql` | Add `guest_deleted`, `guest_deleted_at` to `upload_jobs` | ✅ |
+| `ansible/roles/docker/files/apache/webroot/api/guest-delete.php` | New endpoint | ✅ |
+| `ansible/roles/docker/files/apache/webroot/api/guest-gallery.php` | Add `AND j.guest_deleted = 0` to Step 2 WHERE | ✅ |
+| `ansible/roles/docker/files/apache/webroot/api/guest-stream.php` | Add `AND j.guest_deleted = 0` to Step 2 WHERE | ✅ |
+| `ansible/roles/docker/files/apache/webroot/api/guest-status.php` | Add `AND j2.guest_deleted = 0` to `video_count` subquery | ✅ |
+| `ansible/roles/docker/files/apache/webroot/admin/event_qr.php` | Add `guest_deleted`, `guest_deleted_at` to SELECT; add badge in UI | ✅ |
+| `ansible/roles/docker/templates/default-ssl.conf.j2` | Add Apache exemption for `/api/guest-delete.php` | ✅ |
+| `GigHive/Sources/App/GuestGalleryAPIClient.swift` | Add `deleteVideo()` method | ⏳ pending |
+| `GigHive/Sources/App/GuestGalleryView.swift` | Add `deletedIds` state, `xmark` button, `deleteConfirm`/`deleteFeedback` alert cases, `performDelete()` | ⏳ pending |
+| `ansible/roles/docker/files/apache/webroot/docs/openapi.yaml` | Add `POST /guest-delete.php` entry to `guest` tag group | ✅ |
+
+---
+
+### Step 1 — Schema migration ✅
+
+**File:** `ansible/roles/docker/files/mysql/create_media_db.sql`
+
+Add immediately after the existing `guest_flagged_at` column:
+
+```sql
+guest_deleted     TINYINT(1)  NOT NULL DEFAULT 0
+    COMMENT 'Guest self-delete flag; moderation_status unchanged; physical file retained on disk',
+guest_deleted_at  DATETIME    NULL,
+```
+
+**Migration script** (same Ansible task pattern as existing migrations):
+
+```sql
+ALTER TABLE upload_jobs
+  ADD COLUMN IF NOT EXISTS guest_deleted    TINYINT(1) NOT NULL DEFAULT 0
+      COMMENT 'Guest self-delete flag; moderation_status unchanged; physical file retained on disk',
+  ADD COLUMN IF NOT EXISTS guest_deleted_at DATETIME NULL;
+```
+
+**Rollback:**
+
+```sql
+ALTER TABLE upload_jobs
+  DROP COLUMN IF EXISTS guest_deleted,
+  DROP COLUMN IF EXISTS guest_deleted_at;
+```
+
+No new index needed. `guest_deleted` is a low-cardinality flag (`0`/`1`) and queries filtering it are already constrained by `idx_upload_jobs_moderation` on `moderation_status`.
+
+---
+
+### Step 2 — Apache configuration ✅
+
+**File:** `ansible/roles/docker/templates/default-ssl.conf.j2`
+
+Add immediately after the existing `guest-report.php` exemption block:
+
+```apache
+<Location "/api/guest-delete.php">
+    AuthMerging Off
+    Require all granted
+</Location>
+```
+
+---
+
+### Step 3 — PHP: update three existing query WHERE clauses ✅
+
+**`api/guest-gallery.php` — Step 2 result query:**
+
+```sql
+-- Before:
+WHERE t.event_id = ? AND j.moderation_status = 'approved'
+-- After:
+WHERE t.event_id = ? AND j.moderation_status = 'approved' AND j.guest_deleted = 0
+```
+
+> **Do NOT add `guest_deleted = 0` to Step 1** (the access gate). Step 1 verifies the nonce holder's own upload is approved to grant gallery entry. Since `moderation_status` stays `'approved'` after deletion, a guest who deleted their video must still pass Step 1 and retain gallery access. See spec for rationale.
+
+**`api/guest-stream.php` — Step 2 validation query:**
+
+```sql
+-- Before:
+WHERE j.id = ? AND t.event_id = ? AND j.moderation_status = 'approved'
+-- After:
+WHERE j.id = ? AND t.event_id = ? AND j.moderation_status = 'approved' AND j.guest_deleted = 0
+```
+
+Streaming a guest-deleted video returns `403`. In normal flow the iOS client removes the row from the local list immediately on delete, so this is a defence-in-depth guard.
+
+**`api/guest-status.php` — `video_count` subquery:**
+
+```sql
+-- Before:
+WHERE t2.event_id = t.event_id AND j2.moderation_status = 'approved'
+-- After:
+WHERE t2.event_id = t.event_id AND j2.moderation_status = 'approved' AND j2.guest_deleted = 0
+```
+
+The "New videos" badge count on `SplashView` excludes guest-deleted videos.
+
+---
+
+### Step 4 — PHP: new file `/api/guest-delete.php` ✅
+
+**File:** `ansible/roles/docker/files/apache/webroot/api/guest-delete.php`
+
+- Method: `POST`; JSON body: `{ "nonce": "…", "upload_job_id": <int> }`
+- Apache exempt (Step 2 above); no admin session required
+
+```php
+<?php
+header('Cache-Control: no-store');
+header('Content-Type: application/json');
+
+$body        = json_decode(file_get_contents('php://input'), true) ?? [];
+$nonce       = (string)($body['nonce']         ?? '');
+$uploadJobId = (int)   ($body['upload_job_id'] ?? 0);
+
+if (!preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $nonce) || $uploadJobId <= 0) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Bad Request']);
+    exit;
+}
+
+// Step 1: validate nonce (own upload approved) — same access gate as guest-gallery.php Step 1
+// Gallery expiry intentionally NOT checked: guests may delete their own video at any time.
+$stmt = $pdo->prepare(
+    'SELECT t.event_id
+     FROM anon_upload_attributions a
+     JOIN upload_jobs j ON j.job_id = a.upload_job_id
+     JOIN event_upload_tokens t ON t.token_id = a.token_id
+     WHERE a.status_nonce = ? AND j.moderation_status = \'approved\''
+);
+$stmt->execute([$nonce]);
+if (!$stmt->fetch()) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
+    exit;
+}
+
+// Step 2: soft-delete — nonce must own the target upload_job_id (upload_jobs.id INT)
+// guest_deleted_at = NOW() unconditionally (updates on repeat calls, like guest_flagged_at).
+// This ensures rowCount() = 1 whenever the nonce owns the row, making the endpoint idempotent.
+$stmt = $pdo->prepare(
+    'UPDATE upload_jobs j
+     JOIN anon_upload_attributions a ON a.upload_job_id = j.job_id
+     SET j.guest_deleted = 1, j.guest_deleted_at = NOW()
+     WHERE j.id = ? AND a.status_nonce = ?'
+);
+$stmt->execute([$uploadJobId, $nonce]);
+if ($stmt->rowCount() === 0) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
+    exit;
+}
+
+echo json_encode(['status' => 'deleted']);
+```
+
+**Response contract:**
+
+| Status | Body |
+|---|---|
+| `200` | `{ "status": "deleted" }` |
+| `400` | `{ "error": "Bad Request" }` — missing/malformed nonce or non-positive job ID |
+| `403` | `{ "error": "Forbidden" }` — unknown nonce, nonce not approved, or nonce trying to delete another guest's video |
+
+---
+
+### Step 4b — OpenAPI: add `POST /guest-delete.php` to Swagger doc ✅
+
+**File:** `ansible/roles/docker/files/apache/webroot/docs/openapi.yaml`
+
+Add a new path entry in the `guest` tag group, immediately after `/guest-report.php`:
+
+```yaml
+/guest-delete.php:
+  post:
+    tags:
+      - guest
+    summary: 'Soft-delete the current guest''s own uploaded video'
+    description: 'Sets guest_deleted=1; moderation_status unchanged so gallery access is preserved. Idempotent.'
+    operationId: deleteGuestVideo
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            required: [nonce, upload_job_id]
+            properties:
+              nonce:
+                type: string
+                minLength: 30
+                maxLength: 40
+                pattern: '^[A-Za-z0-9_\-]+$'
+              upload_job_id:
+                description: 'upload_jobs.id (integer PK) of the guest''s own upload'
+                type: integer
+                minimum: 1
+            type: object
+    responses:
+      '200':
+        description: 'Soft-deleted successfully'
+        content:
+          application/json:
+            schema:
+              properties:
+                status: { type: string, enum: [deleted] }
+              type: object
+      '400':
+        description: 'Invalid request body'
+      '403':
+        description: 'Forbidden — nonce not approved or attempting to delete another guest''s video'
+    servers:
+      - url: /api
+```
+
+---
+
+### Step 5 — PHP: `admin/event_qr.php` — show deleted badge ✅
+
+**File:** `ansible/roles/docker/files/apache/webroot/admin/event_qr.php`
+
+**In the `$guestUploads` SELECT**, add two columns to the existing column list:
+
+```sql
+j.guest_deleted, j.guest_deleted_at,
+```
+
+**In the moderation queue HTML**, after the existing `guest_flagged` badge logic, add:
+
+```php
+<?php if (!empty($gu['guest_deleted'])): ?>
+  <br><span style="color:#9ca3af;font-size:.78rem">🗑 Deleted by guest
+    (<?= htmlspecialchars(
+        $gu['guest_deleted_at']
+          ? date('M j g:ia', strtotime($gu['guest_deleted_at']))
+          : '—',
+        ENT_QUOTES
+    ) ?>)
+  </span>
+<?php endif; ?>
+```
+
+No admin un-delete button in MVP. The physical file remains on disk; restoring requires a direct DB update.
+
+---
+
+### Step 6 — iOS: `GuestGalleryView` and `GuestGalleryAPIClient` ⏳ pending
+
+#### 6a — `GuestGalleryAPIClient.swift`: add `deleteVideo`
+
+**File:** `GigHive/Sources/App/GuestGalleryAPIClient.swift`
+
+Add after `reportVideo`:
+
+```swift
+func deleteVideo(nonce: String, uploadJobId: Int) async throws {
+    let url = baseURL
+        .appendingPathComponent("api")
+        .appendingPathComponent("guest-delete.php")
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.timeoutInterval = 10
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = try JSONSerialization.data(withJSONObject: [
+        "nonce": nonce,
+        "upload_job_id": uploadJobId
+    ])
+    let (_, response) = try await URLSession.shared.data(for: request)
+    let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+    if code == 403 { throw GuestGalleryError.accessDenied }
+    guard code == 200 else { throw GuestGalleryError.badServer(code) }
+}
+```
+
+#### 6b — `GuestGalleryView.swift`: `GalleryAlert` enum
+
+Add two new cases:
+
+```swift
+private enum GalleryAlert {
+    case reportConfirm(GuestGalleryVideo)
+    case reportFeedback(String)
+    case deleteConfirm(GuestGalleryVideo)   // NEW
+    case deleteFeedback(String)             // NEW
+    case error(String)
+}
+```
+
+#### 6c — `GuestGalleryView.swift`: `deletedIds` state
+
+Add after `reportedIds`:
+
+```swift
+@State private var deletedIds: Set<Int> = []
+```
+
+#### 6d — `GuestGalleryView.swift`: `xmark` delete button in `ForEach` row
+
+Insert immediately after the closing `}` of the existing `flag` `Button` (line 144), still inside the row `HStack`:
+
+```swift
+if video.uploadJobId == record.uploadJobId {
+    Button {
+        activeAlert = .deleteConfirm(video)
+    } label: {
+        Image(systemName: "xmark")
+            .font(.title3)
+            .foregroundColor(.red)
+    }
+}
+```
+
+**Update the `ForEach` to filter deleted rows:**
+
+```swift
+// Before:
+ForEach(resp.videos) { video in
+// After:
+ForEach(resp.videos.filter { !deletedIds.contains($0.uploadJobId) }) { video in
+```
+
+`GuestGalleryVideo` is `Identifiable` via `var id: Int { uploadJobId }` — the filtered array works with `ForEach` without a key path.
+
+#### 6e — `GuestGalleryView.swift`: `makeAlert()` new cases
+
+Add to the `switch activeAlert` in `makeAlert()`:
+
+```swift
+case .deleteConfirm(let video):
+    return Alert(
+        title: Text("Delete your video?"),
+        message: Text("This removes your clip from the gallery. You'll still have access to view other videos."),
+        primaryButton: .destructive(Text("Delete")) {
+            Task { await performDelete(video: video) }
+        },
+        secondaryButton: .cancel()
+    )
+case .deleteFeedback(let msg):
+    return Alert(
+        title: Text("Video removed"),
+        message: Text(msg),
+        dismissButton: .default(Text("OK"))
+    )
+```
+
+#### 6f — `GuestGalleryView.swift`: `performDelete` function
+
+Add after `submitReport`:
+
+```swift
+@MainActor
+private func performDelete(video: GuestGalleryVideo) async {
+    guard let baseURL = URL(string: record.baseURLString) else { return }
+    do {
+        try await GuestGalleryAPIClient(baseURL: baseURL).deleteVideo(
+            nonce: record.statusNonce,
+            uploadJobId: video.uploadJobId
+        )
+        deletedIds.insert(video.uploadJobId)
+        activeAlert = .deleteFeedback("Your video has been removed from the gallery.")
+    } catch {
+        activeAlert = .error(error.localizedDescription)
+    }
+}
+```
+
+---
+
+### Step 7 — Smoke tests ⏳ pending
+
+```bash
+# 1. Missing body / malformed nonce → 400
+curl -s -o /dev/null -w "%{http_code}" -X POST \
+  https://devvm.gighive.internal/api/guest-delete.php \
+  -H 'Content-Type: application/json' -d '{}'
+# expect: 400
+
+# 2. Unknown nonce → 403
+curl -s -o /dev/null -w "%{http_code}" -X POST \
+  https://devvm.gighive.internal/api/guest-delete.php \
+  -H 'Content-Type: application/json' \
+  -d '{"nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","upload_job_id":1}'
+# expect: 403
+
+# 3. Nonce trying to delete someone else's upload_job_id → 403
+# (use real nonce from guest A; pass upload_job_id of guest B's row)
+# expect: 403
+
+# 4. Valid nonce + own upload_job_id → 200; guest_deleted = 1 in DB
+curl -s -X POST https://devvm.gighive.internal/api/guest-delete.php \
+  -H 'Content-Type: application/json' \
+  -d '{"nonce":"<validNonce>","upload_job_id":<ownId>}'
+# expect: {"status":"deleted"}
+# verify: SELECT guest_deleted, guest_deleted_at FROM upload_jobs WHERE id = <ownId>
+# expect: guest_deleted=1, guest_deleted_at IS NOT NULL
+
+# 5. Repeat call (idempotency) → 200
+# same request as above
+# expect: {"status":"deleted"}  (guest_deleted_at timestamp updated)
+
+# 6. guest-gallery — deleted video excluded from results
+curl -s "https://devvm.gighive.internal/api/guest-gallery.php?nonce=<validNonce>"
+# expect: videos array does NOT contain the deleted upload_job_id
+# expect: status = "approved" (gallery access retained)
+
+# 7. guest-status — video_count excludes deleted video
+curl -s "https://devvm.gighive.internal/api/guest-status.php?nonce=<validNonce>"
+# expect: video_count decremented by 1
+
+# 8. guest-stream — streaming deleted video → 403
+curl -s -o /dev/null -w "%{http_code}" \
+  "https://devvm.gighive.internal/api/guest-stream.php?nonce=<validNonce>&job_id=<deletedId>"
+# expect: 403
+```

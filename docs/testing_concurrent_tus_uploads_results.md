@@ -20,6 +20,18 @@
 
 ---
 
+## Executive Summary — VM vs Bare-Metal Performance (368 MB MP4)
+
+- **TUS throughput is 2.1× faster on bare-metal** — p50 drops from ~102s to ~47s at c=20. The VirtualBox NIC was the ceiling on devvm; bare-metal 2.5 GbE sustains ~155 MB/s total across all concurrent streams.
+- **Bare-metal safe limit is at least c=35** — 35/35 success with zero failures. FPM queue peaked at 10 but drained cleanly. devvm failed at c=25 (broken pipe); the application was never the constraint.
+- **Finalize is slower on bare-metal when the AI worker is active** — p50 of 23–43s vs 7.84s on devvm. CPU contention from the AI worker's ffmpeg/ffprobe processing inflates PHP finalize time. Without the AI worker, bare-metal finalize is expected to match or beat devvm.
+- **FPM graceful degradation confirmed on bare-metal** — at c=35, 10–14 requests queue behind 20 workers and drain in ~15s with no errors. No error budget impact at any tested concurrency.
+- **Memory is not a constraint on bare-metal** — ~1.16 GB consumed at c=35 peak with 7+ GB remaining. The earlier OOM was caused by a co-resident VirtualBox VM competing for RAM, not the application itself.
+
+> **Legend:** `c=N` — number of concurrent uploads running simultaneously. `p50/p90/p99` — percentile latency (e.g. p50 = median, p90 = 90% of requests completed within this time).
+
+---
+
 ## Summary
 
 The pipeline handles concurrent TUS uploads gracefully across all tested conditions.

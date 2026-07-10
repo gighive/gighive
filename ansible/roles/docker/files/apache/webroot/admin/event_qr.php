@@ -292,6 +292,7 @@ if ($pdo && $eventId) {
                     j.label, j.file_relpath,
                     j.moderation_status, j.approved_at,
                     j.guest_flagged, j.guest_flagged_at,
+                    j.guest_deleted, j.guest_deleted_at,
                     t.is_active AS token_active, t.expires_at
              FROM anon_upload_attributions a
              JOIN event_upload_tokens t ON t.token_id = a.token_id
@@ -623,6 +624,7 @@ if ($galleryExpiresAt !== null) {
                           : ($modStatus === 'rejected' ? 'badge-revoked' : 'badge-mod-pending');
             $modLabel     = $modStatus !== null ? ucfirst($modStatus) : 'Pending';
             $flagged      = !empty($gu['guest_flagged']);
+            $deleted      = !empty($gu['guest_deleted']);
             $fileRelpath  = $gu['file_relpath'] !== null ? $gu['file_relpath'] : null;
           ?>
           <tr <?= $isWarnRow ? 'class="warn-row"' : '' ?>>
@@ -633,6 +635,13 @@ if ($galleryExpiresAt !== null) {
             <td>
               <span class="badge <?= $modClass ?>"><?= $modLabel ?></span>
               <?php if ($flagged): ?><br><span style="color:#f59e0b;font-size:.78rem">&#9873; Guest report</span><?php endif; ?>
+              <?php if ($deleted): ?><br><span style="color:#9ca3af;font-size:.78rem">&#128465; Deleted by guest
+                (<?= htmlspecialchars(
+                    $gu['guest_deleted_at']
+                      ? date('M j g:ia', strtotime($gu['guest_deleted_at']))
+                      : '&mdash;',
+                    ENT_QUOTES
+                ) ?>)</span><?php endif; ?>
             </td>
             <td>
               <?php if ($fileRelpath !== null): ?>

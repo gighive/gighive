@@ -575,4 +575,32 @@ use OpenApi\Attributes as OA;
         new OA\Response(response: 403, description: 'Forbidden — nonce not approved or video not in same event'),
     ]
 )]
+#[OA\Post(
+    path: '/guest-delete.php',
+    operationId: 'deleteGuestVideo',
+    summary: 'Soft-delete the current guest\'s own uploaded video',
+    description: 'Sets guest_deleted=1; moderation_status unchanged so gallery access is preserved. Idempotent — repeat calls update guest_deleted_at. Pre-approval uploads (pending/rejected) cannot be deleted via this endpoint.',
+    servers: [new OA\Server(url: '/api')],
+    tags: ['guest'],
+    requestBody: new OA\RequestBody(
+        required: true,
+        content: [
+            new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    required: ['nonce', 'upload_job_id'],
+                    properties: [
+                        new OA\Property(property: 'nonce', type: 'string', minLength: 30, maxLength: 40, pattern: '^[A-Za-z0-9_\-]+$'),
+                        new OA\Property(property: 'upload_job_id', description: 'upload_jobs.id (integer PK) of the guest\'s own upload', type: 'integer', minimum: 1),
+                    ]
+                )
+            ),
+        ]
+    ),
+    responses: [
+        new OA\Response(response: 200, description: 'Soft-deleted successfully'),
+        new OA\Response(response: 400, description: 'Invalid request body — malformed nonce or non-positive upload_job_id'),
+        new OA\Response(response: 403, description: 'Forbidden — nonce not approved, nonce not found, or attempting to delete another guest\'s video'),
+    ]
+)]
 class OpenApi {}

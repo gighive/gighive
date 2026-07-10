@@ -118,3 +118,12 @@ Both paths are behind `valid-user` auth (see `default-ssl.conf.j2`).
 | `GET` | `/media-files` | `/api` | — (501 Not Implemented) |
 | `GET` | `/database.php` | `/db` | `valid-user` |
 | `POST` | `/import_manifest_upload_finalize.php` | `/admin` | `admin` only |
+| `GET` | `/upload-token.php` | `/api` | `valid-user` |
+| `GET`, `POST` | `/ai_jobs.php` | `/admin` | `admin` only |
+| `GET` | `/tags.php` | `/admin` | `admin` only |
+| `POST`, `PATCH`, `DELETE` | `/taggings.php` | `/admin` | `admin` only |
+| `GET` | `/guest-status.php` | `/api` | none (nonce-validated) |
+| `GET` | `/guest-gallery.php` | `/api` | none (nonce-validated) |
+| `GET` | `/guest-stream.php` | `/api` | none (nonce-validated) |
+| `POST` | `/guest-report.php` | `/api` | none (nonce-validated) |
+| `POST` | `/guest-delete.php` | `/api` | none (nonce-validated) |

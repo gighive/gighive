@@ -27,7 +27,7 @@ try {
                 (SELECT COUNT(*) FROM upload_jobs j2
                  JOIN anon_upload_attributions a2 ON a2.upload_job_id = j2.job_id
                  JOIN event_upload_tokens t2 ON t2.token_id = a2.token_id
-                 WHERE t2.event_id = t.event_id AND j2.moderation_status = \'approved\'
+                 WHERE t2.event_id = t.event_id AND j2.moderation_status = \'approved\' AND j2.guest_deleted = 0
                 ) AS video_count
          FROM anon_upload_attributions a
          JOIN upload_jobs j ON j.job_id = a.upload_job_id

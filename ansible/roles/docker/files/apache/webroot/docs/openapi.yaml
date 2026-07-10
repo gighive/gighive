@@ -908,6 +908,51 @@ paths:
         -
           url: /admin
           description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
+  /guest-delete.php:
+    post:
+      tags:
+        - guest
+      summary: "Soft-delete the current guest's own uploaded video"
+      description: 'Sets guest_deleted=1; moderation_status unchanged so gallery access is preserved. Idempotent — repeat calls update guest_deleted_at. Pre-approval uploads (pending/rejected) cannot be deleted via this endpoint.'
+      operationId: deleteGuestVideo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - nonce
+                - upload_job_id
+              properties:
+                nonce:
+                  type: string
+                  maxLength: 40
+                  minLength: 30
+                  pattern: '^[A-Za-z0-9_\-]+$'
+                upload_job_id:
+                  description: "upload_jobs.id (integer PK) of the guest's own upload"
+                  type: integer
+                  minimum: 1
+              type: object
+      responses:
+        '200':
+          description: 'Soft-deleted successfully'
+        '400':
+          description: 'Invalid request body — malformed nonce or non-positive upload_job_id'
+        '403':
+          description: "Forbidden — nonce not approved, nonce not found, or attempting to delete another guest's video"
+      servers:
+        -
+          url: /api
+        -
+          url: /api
+          description: 'Upload API endpoints'
+        -
+          url: /db
+          description: 'Database and media listing endpoints'
+        -
+          url: /admin
+          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
 components:
   schemas:
     File:

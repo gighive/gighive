@@ -239,13 +239,13 @@ The in-app gallery is a native SwiftUI view (`GuestGalleryView.swift`), not a we
 - **No browser chrome.** `SFSafariViewController` shows an address bar and Safari controls that break the app's UI consistency.
 - **Native video playback.** The app already has `AVPlayer` / `MediaPlayerView` infrastructure; the gallery reuses it.
 - **"New videos added" badge.** Communicating last-seen count between a web page and the app's polling state is fragile; native is straightforward.
-- **Report flow.** A native action sheet (`confirmationDialog`) is cleaner than a web button.
+- **Report flow.** A native `.alert` confirmation is cleaner than a web button. (`confirmationDialog` requires iOS 15+; the implementation uses `.alert` for iOS 14 compat.)
 - **Navigation.** `SplashView` → `NavigationLink` → `GuestGalleryView` is natural; launching a browser is jarring.
 
 ### `GuestGalleryView` responsibilities
 
-- Accepts `statusNonce: String` as input
-- On appear: calls `GET /api/guest-gallery.php?nonce=<statusNonce>`; server returns `403` for pending or rejected nonces — access is only granted once the nonce's own upload is approved. See implementation plan Step 11 for the full response contract.
+- Accepts `record: GuestUploadRecord` as input (provides `statusNonce`, `uploadJobId`, `eventName`, `baseURLString` — all needed within the view)
+- On appear: calls `GET /api/guest-gallery.php?nonce=<record.statusNonce>`; server returns `403` for pending or rejected nonces — access is only granted once the nonce's own upload is approved. See implementation plan Step 11 for the full response contract.
 - Renders each approved clip as a tappable thumbnail row; tapping opens full-screen `AVPlayer`. Videos are ordered by `upload_jobs.started_at ASC` — chronological capture order, giving the gallery a natural event-timeline feel.
 - **Report button** per clip — guest can flag any approved video at the same event (not only their own); `POST /api/guest-report.php`; shows confirmation toast on `200`. See implementation plan Step 12 for the two-step cross-event validation.
 - Shows `days_remaining` subtitle (e.g. "Available for 87 more days"); omit if indefinite
@@ -260,7 +260,9 @@ Moderation stays in `event_qr.php` as the existing **Guest Uploads** section. No
 - Event context (org name, event date) is already visible on the page.
 - Avoids unnecessary navigation and page proliferation.
 
-A dedicated `admin/event_qr_moderation.php` page is a future option if upload volumes grow large enough to make the combined page unwieldy (e.g. 50+ pending clips), or if batch actions (approve all / reject all flagged) are added.
+**Bulk actions are implemented:** an **Approve All Pending** / **Reject All Pending** button pair appears above the queue table whenever `pending_count > 0`. Reject All requires a browser confirm dialog. Both are POST forms (actions `approve_all_pending` / `reject_all_pending`) that UPDATE all pending rows for the event in a single query.
+
+A dedicated `admin/event_qr_moderation.php` page is a future option if upload volumes grow large enough to make the combined page unwieldy (e.g. 50+ pending clips).
 
 **Future feature — native iOS moderation:** the organizer should eventually be able to approve or reject pending clips from within the GigHive app without opening a browser. This would be a separate `OrganizerModerationView.swift` (not a repurposed `GuestGalleryView`) — different auth model (admin session vs guest nonce), different data scope (pending clips vs approved clips), and different actions (approve/reject vs report). Deferred; web portal is the moderator interface until event volume or organizer UX demands warrant it.
 
@@ -293,12 +295,14 @@ The shared gallery should **not** be publicly accessible to anyone with the QR c
 
 All TUS-ingested video files are stored as `/var/www/html/video/<sha256>.<ext>` — the SHA-256 content hash is the filename for every upload. The `/video/` directory is protected by Basic Auth for admin, uploader, and viewer roles and is not publicly accessible.
 
-Guest access to approved gallery videos uses the same Apache forward-gate pattern already in place for the QR upload token (`X-Upload-Token`):
+Guest access to approved gallery videos uses **two separate paths** depending on the client:
 
-- **iOS (`AVPlayer`):** the app sends an `X-Gallery-Nonce: <statusNonce>` HTTP header via `AVURLAsset(url:options:)` with `AVURLAssetHTTPHeaderFieldsKey`. Apache detects the header via `SetEnvIf` and passes the request through a `RequireAny` block without touching Basic Auth for other roles.
-- **Web browser (`guest_event_view.php`):** browsers cannot add custom headers to `<video src>` media requests. The nonce is instead appended as a query parameter: `<video src="/video/<sha256>.mp4?nonce=<statusNonce>">`. Apache detects it via a `SetEnvIf Request_URI` rule.
+- **iOS (`AVPlayer`):** the app fetches video through `/api/guest-stream.php?nonce=<statusNonce>&job_id=<id>` — a PHP streaming proxy. The proxy DB-validates the nonce on every request (nonce's own upload approved + gallery not expired + requested `job_id` belongs to the same event), then streams the file directly from disk with full `Accept-Ranges` / `Content-Range` support for AVPlayer seeking. The `/video/` Basic Auth layer is bypassed because the proxy itself sits in `/api/` (Apache-exempted). No custom HTTP headers are required from the iOS client.
+- **Web browser (`guest_event_view.php`):** browsers cannot add custom headers to `<video src>` media requests. The nonce is appended as a query parameter: `<video src="/video/<sha256>.mp4?nonce=<statusNonce>">`. Apache detects it via a `SetEnvIf Request_URI` rule and passes the request through a `RequireAny` block (`Require valid-user OR env gallery_nonce_auth`) without requiring Basic Auth credentials.
 
-Apache is a **forward gate only** — it checks for the presence of the nonce signal, not its validity. Actual validation occurred earlier: in `guest-gallery.php` before `stream_url` was issued (iOS path), or in `guest_event_view.php` before the page was rendered (web path). The SHA-256 filename is a second layer — computationally unguessable without possessing the original file.
+The Apache `SetEnvIf X-Gallery-Nonce .+ gallery_nonce_auth` rule remains deployed and provides a path for any future client that sends the nonce as a header; it is not the iOS path in the current implementation.
+
+Apache is a **forward gate only** for the web browser path — it checks for the presence of the nonce in the URL, not its validity. Actual validation for the web path occurred in `guest_event_view.php` before the page was rendered. The PHP proxy (`guest-stream.php`) is the iOS path's own validation gate. The SHA-256 filename is a second defence layer — computationally unguessable without possessing the original file.
 
 Only `/video/` is affected. Guest uploads are **video only** (see Media Type Note above); `/audio/` requires no change and is not modified.
 
@@ -367,9 +371,52 @@ Nine new columns across three tables. Full DDL with ordering constraints and rat
 |---|---|
 | `anon_upload_attributions` | `status_nonce` (UNIQUE NOT NULL), `apns_token` |
 | `events` | `gallery_expires_at`, `is_multi_day` |
-| `upload_jobs` | `label`, `file_relpath`, `moderation_status`, `approved_at`, `guest_flagged`, `guest_flagged_at` |
+| `upload_jobs` | `label`, `file_relpath`, `moderation_status`, `approved_at`, `guest_flagged`, `guest_flagged_at`, `guest_deleted`, `guest_deleted_at` |
 
-`moderation_status = NULL` means not a guest upload (manifest imports). `moderation_status = 'pending'` is set at INSERT time in `finalizeTusUpload`. `approved_at` is set by the admin approve handler and returned in the gallery API response.
+`moderation_status = NULL` means not a guest upload (manifest imports). `moderation_status = 'pending'` is set at INSERT time in `finalizeTusUpload`. `approved_at` is set by the admin approve handler and returned in the gallery API response. `guest_deleted = 1` is set by the guest self-delete endpoint; `moderation_status` is never changed by deletion — this is intentional to preserve gallery access (see Guest Self-Delete below).
+
+---
+
+## Guest Self-Delete
+
+> **Infrastructure complete and deployed to dev — 2026-07-08.** iOS UI (Step 6) pending.
+
+A guest who uploaded a video should be able to remove their own clip from the event gallery — for example, if they captured something they later decided they didn't want visible. Deleting a video must not revoke the guest's privilege to view the gallery for that event.
+
+### Design principle
+
+**Soft delete only.** `upload_jobs.guest_deleted` is set to `1`; the physical file (`/video/<sha256>.<ext>`) is never removed from disk. `moderation_status` remains `'approved'` — this is the key to preserving gallery access.
+
+**Why `moderation_status` must not change:** `guest-gallery.php` grants gallery access in a two-step query:
+
+- **Step 1 (access gate):** verifies the nonce's own upload has `moderation_status = 'approved'`. This step intentionally does **not** check `guest_deleted`, so a guest who deleted their video still passes the gate and retains full gallery viewing access.
+- **Step 2 (results):** fetches approved videos with `AND j.guest_deleted = 0`, hiding the deleted clip from the result set.
+
+The same `AND j.guest_deleted = 0` filter is applied to `guest-stream.php` (streaming a deleted video returns `403`) and the `video_count` subquery in `guest-status.php` (the badge count excludes deleted videos).
+
+**Ownership enforcement.** Only the uploader can delete their own video. `POST /api/guest-delete.php` joins `upload_jobs` with `anon_upload_attributions` and requires both `j.id = <upload_job_id>` (from the iOS client) and `a.status_nonce = <nonce>` to match the same row. Any attempt to delete another guest's video returns `403`.
+
+**Pre-approval deletion is not supported.** The delete endpoint requires `moderation_status = 'approved'` — the same access gate as `guest-gallery.php`. A guest with a `pending` or `rejected` upload cannot delete via this endpoint in MVP.
+
+### iOS UI
+
+In `GuestGalleryView`, each video row's button order is:
+
+```
+[content] — Spacer — [▶ play.circle.fill] — [🚩 flag] — [✕ xmark]
+```
+
+The `xmark` button (red) is only rendered on the row where `video.uploadJobId == record.uploadJobId` (the guest's own upload). Tapping shows a confirmation `.alert` (iOS 14 compat — not `confirmationDialog`):
+
+> **Delete your video?**
+> This removes your clip from the gallery. You'll still have access to view other videos.
+> [Cancel] [Delete]
+
+On confirmation, the row disappears from the local list immediately (client-side `deletedIds` filter); no gallery reload is required. The "Your Event Galleries" entry on `SplashView` continues to show because the guest retains access.
+
+### Admin visibility
+
+Deleted videos remain visible in the admin moderation queue in `admin/event_qr.php` with a muted "🗑 Deleted by guest" badge. The physical file is retained on disk. No admin un-delete button exists in MVP; restoring a guest-deleted video requires a direct database update (`UPDATE upload_jobs SET guest_deleted = 0 WHERE id = ?`).
 
 ---
 
@@ -381,7 +428,7 @@ Nine new columns across three tables. Full DDL with ordering constraints and rat
 
 **New external software required: none.** The entire Phase 1 implementation is pure PHP, MySQL schema additions, and Swift — all within the existing Docker/Ansible stack.
 
-See `docs/feature_iphone_qr_code_shared_gallery_implementation.md` for the full sequenced 21-step plan (15 infrastructure/PHP + 6 iOS).
+See `docs/feature_iphone_qr_code_shared_gallery_implementation.md` for the full sequenced implementation plan (Phase 1: infrastructure/PHP; Phase 2: iOS; Phase 3: production Universal Links launch).
 
 ### Phase 2 — Beta promotion (before sharing beyond low-risk / known-audience events)
 

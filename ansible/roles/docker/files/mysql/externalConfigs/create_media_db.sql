@@ -241,6 +241,9 @@ CREATE TABLE IF NOT EXISTS upload_jobs (
     approved_at       DATETIME NULL,
     guest_flagged     TINYINT(1) NOT NULL DEFAULT 0,
     guest_flagged_at  DATETIME NULL,
+    guest_deleted     TINYINT(1) NOT NULL DEFAULT 0
+        COMMENT 'Guest self-delete flag; moderation_status unchanged; physical file retained on disk',
+    guest_deleted_at  DATETIME NULL,
     UNIQUE KEY uq_upload_jobs_job_id (job_id),
     INDEX        idx_upload_jobs_started    (started_at),
     INDEX        idx_upload_jobs_status     (status),
