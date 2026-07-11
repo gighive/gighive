@@ -47,14 +47,19 @@ docker exec -i mysqlServer sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PAS
 -- Example (loosen NOT NULL constraint):
 --   ALTER TABLE assets MODIFY checksum_sha256 CHAR(64) NULL;
 -- Example (add column):
---   ALTER TABLE events ADD COLUMN IF NOT EXISTS my_col TINYINT(1) NOT NULL DEFAULT 0 AFTER event_type;
+--   ALTER TABLE events ADD COLUMN my_col TINYINT(1) NOT NULL DEFAULT 0 AFTER event_type;
 MIGRATION
 ```
 
 ### Tips
 
-- Use `ADD COLUMN IF NOT EXISTS` / `MODIFY` / `DROP COLUMN IF EXISTS` for idempotency where
-  possible (requires MySQL 8.0+).
+- **`ADD COLUMN IF NOT EXISTS` and `DROP COLUMN IF EXISTS` are MariaDB-only syntax** — they
+  cause a `1064` syntax error in MySQL 8. Use plain `ADD COLUMN` / `DROP COLUMN` instead.
+  Since BABRR verifies schema state upfront (via MCP or `SHOW CREATE TABLE`), idempotency
+  guards are not needed — confirm the target columns/indexes are absent before running.
+- `DROP INDEX IF EXISTS idx_name ON tbl_name` (standalone statement) is supported in MySQL 8.0+;
+  `ALTER TABLE t DROP INDEX IF EXISTS idx_name` is not — use the standalone form when a
+  conditional drop is needed.
 - Drop indexes/keys before dropping their columns.
 - Add indexes/keys after adding their columns.
 
