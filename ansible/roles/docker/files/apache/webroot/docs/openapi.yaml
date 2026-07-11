@@ -205,15 +205,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
     post:
       tags:
         - uploads
@@ -288,15 +279,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /database.php:
     get:
       tags:
@@ -332,15 +314,6 @@ paths:
       servers:
         -
           url: /db
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /import_manifest_upload_finalize.php:
     post:
       tags:
@@ -393,15 +366,6 @@ paths:
       servers:
         -
           url: /admin
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /ai_jobs.php:
     get:
       tags:
@@ -460,15 +424,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
     post:
       tags:
         - ai
@@ -518,15 +473,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /tags.php:
     get:
       tags:
@@ -569,15 +515,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /taggings.php:
     post:
       tags:
@@ -620,15 +557,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
     delete:
       tags:
         - tags
@@ -651,15 +579,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
     patch:
       tags:
         - tags
@@ -702,15 +621,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /upload-token.php:
     get:
       tags:
@@ -740,15 +650,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /guest-status.php:
     get:
       tags:
@@ -776,15 +677,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /guest-gallery.php:
     get:
       tags:
@@ -812,15 +704,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /guest-stream.php:
     get:
       tags:
@@ -858,15 +741,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /guest-report.php:
     post:
       tags:
@@ -899,15 +773,6 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
-        -
-          url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
   /guest-delete.php:
     post:
       tags:
@@ -944,15 +809,33 @@ paths:
       servers:
         -
           url: /api
-        -
-          url: /api
-          description: 'Upload API endpoints'
-        -
-          url: /db
-          description: 'Database and media listing endpoints'
+  /admin_system_stats.php:
+    get:
+      tags:
+        - admin
+      summary: 'Get live system stats (admin)'
+      description: 'Returns DB counts, media file stats, host disk/memory, and apache container network I/O. Used by the Live mode toggle on the admin system page. Note: incurs a ~1-second server-side delay for the network sample.'
+      operationId: getSystemStats
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStats'
+        '403':
+          description: 'Forbidden — admin access required'
+        '405':
+          description: 'Method not allowed'
+        '500':
+          description: 'Server error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
         -
           url: /admin
-          description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)'
 components:
   schemas:
     File:
@@ -1269,6 +1152,100 @@ components:
         approved_at:
           type: string
           format: date-time
+      type: object
+    SystemStats:
+      properties:
+        success:
+          type: boolean
+        db:
+          description: 'Database summary. Null if DB is unreachable.'
+          properties:
+            version:
+              type: string
+            db_name:
+              type: string
+            size_bytes:
+              type: integer
+              format: int64
+            counts:
+              description: 'Row count per table (events, assets, event_items, participants, tags, taggings)'
+              type: object
+          type: object
+          nullable: true
+        media:
+          description: 'File counts and byte totals per media type. Null if MEDIA_SEARCH_DIRS is unset.'
+          properties:
+            audio:
+              properties:
+                count:
+                  type: integer
+                bytes:
+                  type: integer
+                  format: int64
+              type: object
+            video:
+              properties:
+                count:
+                  type: integer
+                bytes:
+                  type: integer
+                  format: int64
+              type: object
+            thumbnails:
+              properties:
+                count:
+                  type: integer
+                bytes:
+                  type: integer
+                  format: int64
+              type: object
+            total:
+              properties:
+                count:
+                  type: integer
+                bytes:
+                  type: integer
+                  format: int64
+              type: object
+          type: object
+          nullable: true
+        disk:
+          description: 'Host filesystem free/total via bind-mounted media paths (deduplicated by device ID).'
+          type: array
+          items:
+            properties:
+              free_bytes:
+                type: integer
+                format: int64
+              total_bytes:
+                type: integer
+                format: int64
+            type: object
+          nullable: true
+        memory:
+          description: 'Host RAM via /proc/meminfo.'
+          properties:
+            total_bytes:
+              type: integer
+              format: int64
+            available_bytes:
+              type: integer
+              format: int64
+          type: object
+          nullable: true
+        network:
+          description: 'Per-interface rx/tx bytes/sec for the apache container (1-second sample).'
+          type: array
+          items:
+            properties:
+              iface:
+                type: string
+              rx_bps:
+                type: integer
+              tx_bps:
+                type: integer
+            type: object
+          nullable: true
       type: object
 tags:
   -

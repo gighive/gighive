@@ -375,6 +375,7 @@ gighive_htpasswd_marker_path: "{{ gighive_htpasswd_host_path }}.seeded"
 # --- Apache container ---
 apache_container_name: apacheWebServer
 apache_docker_image: "ubuntu-apache-img:1.00"
+tusd_container_name: "{{ apache_container_name }}_tusd"
 
 # --- MySQL db/user ---
 mysql_database: media_db

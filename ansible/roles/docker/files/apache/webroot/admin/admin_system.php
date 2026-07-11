@@ -12,6 +12,7 @@ if ($user !== 'admin') {
 
 $__install_channel = getenv('GIGHIVE_INSTALL_CHANNEL') ?: 'full';
 $__show_disk_resize = ($__install_channel === 'full');
+$__apache_container_name = getenv('GIGHIVE_APACHE_CONTAINER_NAME') ?: '';
 
 $__restore_backup_dir = getenv('GIGHIVE_MYSQL_BACKUPS_DIR') ?: '';
 $__restore_db_name = getenv('MYSQL_DATABASE') ?: '';
@@ -77,6 +78,11 @@ function __stats_gb(int $bytes): string {
     return number_format($bytes / (1024 ** 3), 2) . ' GB';
 }
 function __stats_n(int $n): string { return number_format($n); }
+function __stats_bps(int $bps): string {
+    if ($bps < 1024)       return $bps . ' B/s';
+    if ($bps < 1048576)    return number_format($bps / 1024, 1) . ' KB/s';
+    return number_format($bps / 1048576, 1) . ' MB/s';
+}
 
 $__db_stats = null;
 try {
@@ -109,6 +115,7 @@ try {
 } catch (Throwable $__ignored) { unset($__ignored); }
 
 $__media_stats = null;
+$__media_disk = null;
 $__mdirsEnv = getenv('MEDIA_SEARCH_DIRS');
 if (is_string($__mdirsEnv) && $__mdirsEnv !== '') {
     $__mdirs  = array_filter(array_map('trim', explode(':', $__mdirsEnv)));
@@ -138,9 +145,82 @@ if (is_string($__mdirsEnv) && $__mdirsEnv !== '') {
         'count' => array_sum(array_column($__media_stats, 'count')),
         'bytes' => array_sum(array_column($__media_stats, 'bytes')),
     ];
+    $__disk_paths = array_filter([$__audioD, $__videoD], fn($p) => $p !== null && is_dir($p));
+    if (!empty($__disk_paths)) {
+        $__disk_seen = [];
+        foreach ($__disk_paths as $__dp) {
+            $__st    = @stat($__dp);
+            $__dev   = ($__st !== false && isset($__st['dev'])) ? (int)$__st['dev'] : null;
+            $__dfree = @disk_free_space($__dp);
+            $__dtot  = @disk_total_space($__dp);
+            if ($__dfree === false || $__dtot === false || (int)$__dtot <= 0) continue;
+            $__dkey = $__dev !== null ? $__dev : $__dp;
+            if (!isset($__disk_seen[$__dkey])) {
+                $__disk_seen[$__dkey] = ['free' => (int)$__dfree, 'total' => (int)$__dtot];
+            }
+        }
+        if (!empty($__disk_seen)) {
+            $__media_disk = array_values($__disk_seen);
+        }
+        unset($__disk_paths, $__dp, $__st, $__dev, $__dfree, $__dtot, $__dkey, $__disk_seen);
+    } else {
+        unset($__disk_paths);
+    }
     unset($__mdirs, $__d, $__audioD, $__videoD, $__mscan, $__mlbl, $__mpath, $__mc, $__mb, $__mf);
 }
 unset($__mdirsEnv);
+
+$__os_mem = null;
+$__meminfo_raw = @file_get_contents('/proc/meminfo');
+if (is_string($__meminfo_raw)) {
+    $__mvals = [];
+    foreach (explode("\n", $__meminfo_raw) as $__mline) {
+        if (preg_match('/^(\w+):\s+(\d+)\s+kB/', $__mline, $__mm)) {
+            $__mvals[$__mm[1]] = (int)$__mm[2] * 1024;
+        }
+    }
+    if (isset($__mvals['MemTotal'], $__mvals['MemAvailable'])) {
+        $__os_mem = ['total' => $__mvals['MemTotal'], 'avail' => $__mvals['MemAvailable']];
+    }
+    unset($__meminfo_raw, $__mvals, $__mline, $__mm);
+}
+
+$__os_net = null;
+$__net_raw1 = @file_get_contents('/proc/net/dev');
+if (is_string($__net_raw1)) {
+    sleep(1);
+    $__net_raw2 = @file_get_contents('/proc/net/dev');
+    if (is_string($__net_raw2)) {
+        $__net_parse = function(string $raw): array {
+            $out = [];
+            foreach (explode("\n", $raw) as $line) {
+                $line = trim($line);
+                if (!str_contains($line, ':')) continue;
+                [$iface, $data] = explode(':', $line, 2);
+                $iface = trim($iface);
+                if ($iface === '' || $iface === 'lo') continue;
+                $fields = preg_split('/\s+/', trim($data));
+                if (count($fields) < 9) continue;
+                $out[$iface] = ['rx' => (int)$fields[0], 'tx' => (int)$fields[8]];
+            }
+            return $out;
+        };
+        $__nd1 = $__net_parse($__net_raw1);
+        $__nd2 = $__net_parse($__net_raw2);
+        $__os_net = [];
+        foreach ($__nd1 as $__niface => $__nv1) {
+            if (!isset($__nd2[$__niface])) continue;
+            $__os_net[] = [
+                'iface'  => $__niface,
+                'rx_bps' => max(0, $__nd2[$__niface]['rx'] - $__nv1['rx']),
+                'tx_bps' => max(0, $__nd2[$__niface]['tx'] - $__nv1['tx']),
+            ];
+        }
+        if (empty($__os_net)) $__os_net = null;
+        unset($__net_raw2, $__net_parse, $__nd1, $__nd2, $__niface, $__nv1);
+    }
+    unset($__net_raw1);
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -167,12 +247,14 @@ unset($__mdirsEnv);
     .alert-ok { background:#11331a; border:1px solid #1f7a3b; padding:.8rem 1rem; border-radius:10px; margin-bottom:1rem; }
     .alert-err { background:#3b0d14; border:1px solid #b4232a; padding:.8rem 1rem; border-radius:10px; margin-bottom:1rem; }
     .muted { color:#a8b3cf; font-size:.95rem; }
-    .stats-block { font-size:.85rem; color:#a8b3cf; padding-bottom:.25rem; }
-    .stats-row { display:flex; gap:1rem; margin-bottom:.5rem; }
-    .stats-lbl { font-weight:600; color:#e9eef7; min-width:4rem; flex-shrink:0; }
-    .stats-media-grid { display:grid; grid-template-columns:8rem 6rem 6rem; row-gap:.2rem; }
-    .stats-media-grid .snum { text-align:right; font-variant-numeric:tabular-nums; }
-    .stats-media-sep { grid-column:1/-1; border:none; border-top:1px solid #1d2a55; margin:.25rem 0; padding:0; height:0; }
+    .stats-block { position:relative; font-size:.85rem; color:#a8b3cf; padding-bottom:.25rem; }
+    .stats-grid { display:grid; grid-template-columns:5.5rem 9rem 8rem 12rem; row-gap:.25rem; align-items:start; }
+    .sg-lbl { font-weight:600; color:#e9eef7; }
+    .sg-sub { display:block; font-size:.75rem; font-weight:normal; color:#a8b3cf; }
+    .sg-span { grid-column:2/-1; }
+    .stats-grid .snum { text-align:right; font-variant-numeric:tabular-nums; }
+    .sg-sep { grid-column:2/-1; border:none; border-top:1px solid #1d2a55; margin:.1rem 0; height:0; padding:0; }
+    .stats-grid > span:not(.sg-lbl) { font-size:.75rem; }
   </style>
   <link rel="stylesheet" href="/admin/assets/import_progress.css" />
   <script src="/admin/assets/import_progress.js"></script>
@@ -191,44 +273,74 @@ unset($__mdirsEnv);
       <p class="muted">Signed in as <code><?= htmlspecialchars($user) ?></code>.</p>
 
       <div class="section-divider stats-block">
-        <div class="stats-row">
-          <span class="stats-lbl">DB</span>
-          <div>
-            <?php if ($__db_stats !== null): ?>
-              MySQL <?= htmlspecialchars($__db_stats['version']) ?> &nbsp;&middot;&nbsp; <?= htmlspecialchars($__db_stats['db_name']) ?> &nbsp;&middot;&nbsp; <?= htmlspecialchars(__stats_mb($__db_stats['size'])) ?> on disk<br>
-              <?php
-                $__cp = [];
-                foreach ($__db_stats['counts'] as $__ct => $__cn) {
-                    $__cp[] = '<strong>' . __stats_n($__cn) . '</strong> ' . htmlspecialchars(str_replace('_', ' ', $__ct));
-                }
-                echo implode(' &nbsp;&middot;&nbsp; ', $__cp);
-                unset($__cp, $__ct, $__cn);
-              ?>
+        <div class="stats-grid">
+
+          <span class="sg-lbl">DB</span>
+          <div class="sg-span" id="stat-db"><?php if ($__db_stats !== null): ?>MySQL <?= htmlspecialchars($__db_stats['version']) ?> &nbsp;&middot;&nbsp; <?= htmlspecialchars($__db_stats['db_name']) ?> &nbsp;&middot;&nbsp; <?= htmlspecialchars(__stats_mb($__db_stats['size'])) ?> on disk<br><?php
+            $__cp1 = []; $__cp2 = [];
+            foreach ($__db_stats['counts'] as $__ct => $__cn) {
+                $__item = '<strong>' . __stats_n($__cn) . '</strong> ' . htmlspecialchars(str_replace('_', ' ', $__ct));
+                if ($__ct === 'tags' || $__ct === 'taggings') { $__cp2[] = $__item; } else { $__cp1[] = $__item; }
+            }
+            echo implode(' &nbsp;&middot;&nbsp; ', $__cp1);
+            if (!empty($__cp2)) { echo '<br>' . implode(' &nbsp;&middot;&nbsp; ', $__cp2); }
+            unset($__cp1, $__cp2, $__ct, $__cn, $__item);
+          ?><?php else: ?><span style="font-style:italic">unavailable</span><?php endif; ?></div>
+
+          <div style="grid-column:1/-1;height:.5rem"></div>
+
+          <?php if ($__media_stats !== null): ?>
+            <span class="sg-lbl">Media</span><span>audio</span><span class="snum" data-stat="m-audio-count"><?= __stats_n($__media_stats['audio']['count']) ?> files</span><span class="snum" data-stat="m-audio-bytes"><?= __stats_gb($__media_stats['audio']['bytes']) ?></span>
+            <span></span><span>video</span><span class="snum" data-stat="m-video-count"><?= __stats_n($__media_stats['video']['count']) ?> files</span><span class="snum" data-stat="m-video-bytes"><?= __stats_gb($__media_stats['video']['bytes']) ?></span>
+            <span></span><span>thumbnails</span><span class="snum" data-stat="m-thumb-count"><?= __stats_n($__media_stats['thumbnails']['count']) ?> files</span><span class="snum" data-stat="m-thumb-bytes"><?= __stats_gb($__media_stats['thumbnails']['bytes']) ?></span>
+            <span></span><hr class="sg-sep">
+            <span></span><span>total</span><span class="snum" data-stat="m-total-count"><?= __stats_n($__media_stats['total']['count']) ?> files</span><span class="snum" data-stat="m-total-bytes"><?= __stats_gb($__media_stats['total']['bytes']) ?></span>
+          <?php else: ?>
+            <span class="sg-lbl">Media</span><span class="sg-span" style="font-style:italic">unavailable</span>
+          <?php endif; ?>
+
+          <div style="grid-column:1/-1;height:.5rem"></div>
+
+          <?php
+            $__os_net_any  = !empty($__os_net);
+            $__os_host_any = !empty($__media_disk) || $__os_mem !== null;
+            $__os_any      = $__os_net_any || $__os_host_any;
+          ?>
+          <?php if ($__os_any): ?>
+            <span class="sg-lbl">OS</span><span class="sg-span"></span>
+            <span class="sg-sub">docker host</span><span class="sg-span"></span>
+            <?php if ($__os_host_any): ?>
+              <?php if (!empty($__media_disk)): ?>
+                <?php foreach ($__media_disk as $__disk): ?>
+                  <span></span><span>disk free</span><span class="snum" data-stat="disk-0-free"><?= __stats_gb($__disk['free']) ?></span><span class="snum" data-stat="disk-0-total">of <?= __stats_gb($__disk['total']) ?></span>
+                <?php endforeach; unset($__disk); ?>
+              <?php endif; ?>
+              <?php if ($__os_mem !== null): ?>
+                <?php if (!empty($__media_disk)): ?><span></span><hr class="sg-sep"><?php endif; ?>
+                <span></span><span>mem free</span><span class="snum" data-stat="mem-avail"><?= __stats_gb($__os_mem['avail']) ?></span><span class="snum" data-stat="mem-total">of <?= __stats_gb($__os_mem['total']) ?></span>
+              <?php endif; ?>
             <?php else: ?>
-              <span style="font-style:italic">unavailable</span>
+              <span></span><span class="sg-span" style="font-style:italic">unavailable</span>
             <?php endif; ?>
-          </div>
-        </div>
-        <div class="stats-row">
-          <span class="stats-lbl">Media</span>
-          <div>
-            <?php if ($__media_stats !== null): ?>
-              <div class="stats-media-grid">
-                <?php foreach (['audio', 'video', 'thumbnails'] as $__ml): ?>
-                  <?php $__ms = $__media_stats[$__ml]; ?>
-                  <span><?= htmlspecialchars($__ml) ?></span>
-                  <span class="snum"><?= __stats_n($__ms['count']) ?> files</span>
-                  <span class="snum"><?= __stats_gb($__ms['bytes']) ?></span>
-                <?php endforeach; unset($__ml, $__ms); ?>
-                <div class="stats-media-sep"></div>
-                <span>total</span>
-                <span class="snum"><?= __stats_n($__media_stats['total']['count']) ?> files</span>
-                <span class="snum"><?= __stats_gb($__media_stats['total']['bytes']) ?></span>
-              </div>
+            <div style="grid-column:1/-1;height:.35rem"></div>
+            <span class="sg-sub"><?= $__apache_container_name !== '' ? htmlspecialchars($__apache_container_name) : 'apacheWebServer' ?></span><span class="sg-span"></span>
+            <?php if ($__os_net_any): ?>
+              <?php foreach ($__os_net as $__net_idx => $__net): ?>
+                <span></span><span><?= htmlspecialchars($__net['iface']) ?></span><span class="snum" data-stat="net-<?= $__net_idx ?>-rx"><?= __stats_bps($__net['rx_bps']) ?> rx</span><span class="snum" data-stat="net-<?= $__net_idx ?>-tx"><?= __stats_bps($__net['tx_bps']) ?> tx</span>
+              <?php endforeach; unset($__net, $__net_idx); ?>
             <?php else: ?>
-              <span style="font-style:italic">unavailable</span>
+              <span></span><span class="sg-span" style="font-style:italic">unavailable</span>
             <?php endif; ?>
+          <?php else: ?>
+            <span class="sg-lbl">OS</span><span class="sg-span" style="font-style:italic">unavailable</span>
+          <?php endif; ?>
+          <?php unset($__os_any, $__os_net_any, $__os_host_any); ?>
+          <div style="grid-column:1/-1;height:.35rem"></div>
+          <div style="grid-column:1/-1;display:flex;align-items:center;gap:.6rem">
+            <button id="live-btn" type="button" onclick="toggleLive()" style="font-size:.7rem;padding:.2rem .55rem;border-color:#ef4444">Live</button>
+            <span id="live-countdown" style="font-size:.7rem;color:#a8b3cf"></span>
           </div>
+
         </div>
       </div>
 
@@ -1235,6 +1347,128 @@ unset($__mdirsEnv);
       btn.textContent = 'Import ZIP';
     });
   }
+  </script>
+  <script>
+  /* ── Live stats refresh ─────────────────────────────────────────────────── */
+  (function () {
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function fmtGB(b)  { return (b/1073741824).toFixed(2)+' GB'; }
+    function fmtMB(b)  { return (b/1048576).toFixed(1)+' MB'; }
+    function fmtN(n)   { return Number(n).toLocaleString(); }
+    function fmtBps(b) {
+      if (b < 1024)    return b+' B/s';
+      if (b < 1048576) return (b/1024).toFixed(1)+' KB/s';
+      return (b/1048576).toFixed(1)+' MB/s';
+    }
+    function setStat(key, val) {
+      var el = document.querySelector('[data-stat="'+key+'"]');
+      if (el) el.textContent = val;
+    }
+    function applyStats(d) {
+      if (d.db) {
+        var el = document.getElementById('stat-db');
+        if (el) {
+          var h = 'MySQL '+escHtml(d.db.version)
+              +' &nbsp;&middot;&nbsp; '+escHtml(d.db.db_name)
+              +' &nbsp;&middot;&nbsp; '+fmtMB(d.db.size_bytes)+' on disk<br>';
+          var l1=[], l2=[];
+          Object.entries(d.db.counts).forEach(function(e) {
+            var item = '<strong>'+fmtN(e[1])+'</strong> '+e[0].replace(/_/g,' ');
+            if (e[0]==='tags'||e[0]==='taggings') l2.push(item); else l1.push(item);
+          });
+          h += l1.join(' &nbsp;&middot;&nbsp; ');
+          if (l2.length) h += '<br>'+l2.join(' &nbsp;&middot;&nbsp; ');
+          el.innerHTML = h;
+        }
+      }
+      if (d.media) {
+        ['audio','video','thumbnails','total'].forEach(function(k) {
+          var v = d.media[k]; if (!v) return;
+          var p = k==='thumbnails' ? 'm-thumb' : ('m-'+k);
+          setStat(p+'-count', fmtN(v.count)+' files');
+          setStat(p+'-bytes', fmtGB(v.bytes));
+        });
+      }
+      if (d.disk && d.disk.length) {
+        setStat('disk-0-free',  fmtGB(d.disk[0].free_bytes));
+        setStat('disk-0-total', 'of '+fmtGB(d.disk[0].total_bytes));
+      }
+      if (d.memory) {
+        setStat('mem-avail', fmtGB(d.memory.available_bytes));
+        setStat('mem-total', 'of '+fmtGB(d.memory.total_bytes));
+      }
+      if (d.network) {
+        d.network.forEach(function(n, i) {
+          setStat('net-'+i+'-rx', fmtBps(n.rx_bps)+' rx');
+          setStat('net-'+i+'-tx', fmtBps(n.tx_bps)+' tx');
+        });
+      }
+    }
+    var liveTimer = null;
+    var countdownTimer = null;
+    var countdownSecs = 0;
+    function setCountdown(n) {
+      countdownSecs = n;
+      var el = document.getElementById('live-countdown');
+      if (!el) return;
+      el.textContent = n > 0 ? 'Stats will be refreshed in ' + n + 's' : '';
+    }
+    function startCountdown() {
+      setCountdown(5);
+      if (countdownTimer) clearInterval(countdownTimer);
+      countdownTimer = setInterval(function() {
+        countdownSecs--;
+        if (countdownSecs <= 0) { setCountdown(0); } else { setCountdown(countdownSecs); }
+      }, 1000);
+    }
+    function stopCountdown() {
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      var el = document.getElementById('live-countdown');
+      if (el) el.textContent = '';
+    }
+    var LS_KEY = 'admin_system_live';
+    function enableLive() {
+      var btn = document.getElementById('live-btn');
+      if (!btn) return;
+      btn.textContent = 'Live Mode Enabled';
+      btn.style.borderColor = '#22c55e';
+      btn.style.color = '#22c55e';
+      try { localStorage.setItem(LS_KEY, 'on'); } catch(e) {}
+      if (liveTimer) { clearInterval(liveTimer); }
+      pollStats();
+      startCountdown();
+      liveTimer = setInterval(function() { pollStats(); startCountdown(); }, 5000);
+    }
+    function disableLive(text) {
+      if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+      stopCountdown();
+      var btn = document.getElementById('live-btn');
+      if (!btn) return;
+      btn.textContent = text || 'Live Mode Disabled';
+      btn.style.borderColor = '#ef4444';
+      btn.style.color = '';
+      try { localStorage.setItem(LS_KEY, 'off'); } catch(e) {}
+    }
+    window.toggleLive = function () {
+      if (liveTimer) { disableLive('Live Mode Disabled'); } else { enableLive(); }
+    };
+    function pollStats() {
+      fetch('/admin/admin_system_stats.php')
+        .then(function(r) { return r.json(); })
+        .then(function(d) { if (d.success) applyStats(d); })
+        .catch(function() { /* silent — do not change button state on transient errors */ });
+    }
+    try {
+      var __ls = localStorage.getItem(LS_KEY);
+      if (__ls === 'on') { enableLive(); }
+      else if (__ls === 'off') {
+        var __b = document.getElementById('live-btn');
+        if (__b) { __b.textContent = 'Live Mode Disabled'; __b.style.borderColor = '#ef4444'; }
+      }
+    } catch(e) {}
+  })();
   </script>
 </body>
 </html>

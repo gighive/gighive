@@ -52,9 +52,9 @@ services:
       - "{{ docker_dir }}/apache/externalConfigs/security2.conf:/etc/apache2/mods-available/security2.conf:ro"
     entrypoint: ["/entrypointapache.sh"]
 
-  tusd:
+  {{ tusd_container_name }}:
     image: tusproject/tusd:latest
-    container_name: "{{ apache_container_name }}_tusd"
+    container_name: "{{ tusd_container_name }}"
     restart: unless-stopped
     user: "{{ tusd_user_uid | default(33) }}:{{ tusd_user_gid | default(33) }}"
     environment:

@@ -25,12 +25,12 @@ Protecting the Apache `/docs/` path has **no effect** on `gighive.app` — that 
 
 ---
 
-## Tooling: `zircote/swagger-php` v4
+## Tooling: `zircote/swagger-php` v5
 
 Already a declared dependency in `ansible/roles/docker/files/apache/webroot/composer.json`:
 
 ```json
-"zircote/swagger-php": "^4.0"
+"zircote/swagger-php": "^5.7"
 ```
 
 Binary available at `vendor/zircote/swagger-php/bin/openapi`.
@@ -43,10 +43,10 @@ PHP 8 `#[OA\...]` attributes are added at the **HTTP boundary** only (controller
 
 | File | Annotations |
 |---|---|
-| `src/OpenApi.php` *(new)* | `#[OA\Info]`, `#[OA\Server]` × 3, all `#[OA\Schema]` components, plus phantom route classes for `/media-files`, `/database.php`, and `/import_manifest_upload_finalize.php` |
+| `src/OpenApi.php` | `#[OA\Info]`, all `#[OA\Schema]` components, plus phantom route annotations for all endpoints not defined in `UploadController.php` |
 | `src/Controllers/UploadController.php` | `#[OA\Post]` on `post()` and `finalize()`, `#[OA\Get]` on `get()` |
 
-Note: `/media-files`, `/database.php`, and the admin endpoint are documented via phantom classes in `src/OpenApi.php` rather than inline in their respective PHP scripts. This keeps the procedural scripts clean and the generator command simple.
+Note: all endpoints not in `UploadController.php` are documented via phantom route annotations on the `OpenApi` class in `src/OpenApi.php` rather than inline in their respective PHP scripts. This keeps the procedural scripts clean and the generator command simple. Phantom routes covered: `/media-files`, `/database.php`, `/import_manifest_upload_finalize.php`, `/ai_jobs.php`, `/tags.php`, `/taggings.php`, `/upload-token.php`, `/guest-status.php`, `/guest-gallery.php`, `/guest-stream.php`, `/guest-report.php`, `/guest-delete.php`, `/admin_system_stats.php`.
 
 Schema components defined in `src/OpenApi.php`:
 - `File` — base file record
@@ -56,6 +56,12 @@ Schema components defined in `src/OpenApi.php`:
 - `DuplicateError` — 409 duplicate checksum response
 - `ManifestFinalizeResult` — 200 response from admin manifest finalize
 - `ManifestFinalizeError` — 400 response from admin manifest finalize (includes `failure_code`, `retryable`, `diagnostics`)
+- `AiJob` — AI job queue record
+- `Tag` — tag with namespace, name, and usage count
+- `Tagging` — tagging record (confidence, source, timestamps)
+- `UploadToken` — event context returned by `GET /upload-token.php`
+- `GuestVideo` — approved video entry in guest gallery
+- `SystemStats` — system stats response from `GET /admin_system_stats.php`
 
 ---
 
@@ -67,7 +73,7 @@ Add a `composer` script to `composer.json`:
 
 ```json
 "scripts": {
-    "openapi": "vendor/bin/openapi src/ --output docs/openapi.yaml --format yaml"
+    "openapi": "vendor/bin/openapi src/ --output docs/openapi.yaml --format yaml --exclude src/Services/UploadTokenValidator.php"
 }
 ```
 
@@ -91,6 +97,16 @@ Regenerate any time you change:
 - Error shapes or new error types
 - New endpoints or removed endpoints
 - Component schema definitions
+
+---
+
+## Known pitfall: duplicate server entries
+
+swagger-php merges global servers with per-operation server overrides rather than replacing them. If a `#[OA\Server]` attribute is placed at the class/file level in `src/OpenApi.php` (alongside `#[OA\Info]`), swagger-php registers it as a global top-level server list. Any path annotation on that same class that also specifies `servers: [...]` ends up with the per-path server **plus** all global servers in the generated YAML — producing 4 server entries per path instead of 1.
+
+**Rule:** do **not** add any `#[OA\Server]` attributes at the class level in `src/OpenApi.php`. Every path annotation must specify its own `servers:` array, and no global server list should be defined. Operations in `UploadController.php` are unaffected because that class carries no class-level `#[OA\Server]` attributes.
+
+**Symptom to watch for:** after regenerating, if any path in `openapi.yaml` shows more than one entry under its `servers:` block, a global `#[OA\Server]` was accidentally re-added to the class.
 
 ---
 
@@ -119,11 +135,12 @@ Both paths are behind `valid-user` auth (see `default-ssl.conf.j2`).
 | `GET` | `/database.php` | `/db` | `valid-user` |
 | `POST` | `/import_manifest_upload_finalize.php` | `/admin` | `admin` only |
 | `GET` | `/upload-token.php` | `/api` | `valid-user` |
-| `GET`, `POST` | `/ai_jobs.php` | `/admin` | `admin` only |
-| `GET` | `/tags.php` | `/admin` | `admin` only |
-| `POST`, `PATCH`, `DELETE` | `/taggings.php` | `/admin` | `admin` only |
+| `GET`, `POST` | `/ai_jobs.php` | `/api` | `admin` only |
+| `GET` | `/tags.php` | `/api` | `admin` only |
+| `POST`, `PATCH`, `DELETE` | `/taggings.php` | `/api` | `admin` only |
 | `GET` | `/guest-status.php` | `/api` | none (nonce-validated) |
 | `GET` | `/guest-gallery.php` | `/api` | none (nonce-validated) |
 | `GET` | `/guest-stream.php` | `/api` | none (nonce-validated) |
 | `POST` | `/guest-report.php` | `/api` | none (nonce-validated) |
 | `POST` | `/guest-delete.php` | `/api` | none (nonce-validated) |
+| `GET` | `/admin_system_stats.php` | `/admin` | `admin` only |

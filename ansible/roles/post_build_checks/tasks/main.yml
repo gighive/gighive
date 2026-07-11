@@ -280,7 +280,7 @@
 
 - name: Verify tusd container is running
   community.docker.docker_container_info:
-    name: "{{ apache_container_name }}_tusd"
+    name: "{{ tusd_container_name }}"
   register: tusd_container
   failed_when:
     - not tusd_container.exists
@@ -291,7 +291,7 @@
 
 - name: Build internal tusd probe URL
   ansible.builtin.set_fact:
-    tusd_internal_probe_url: "http://{{ apache_container_name }}_tusd:{{ tusd_port | default(8080) }}{{ tusd_base_path | default('/files') }}/"
+    tusd_internal_probe_url: "http://{{ tusd_container_name }}:{{ tusd_port | default(8080) }}{{ tusd_base_path | default('/files') }}/"
   changed_when: false
   tags: [tus]
 
@@ -642,7 +642,7 @@
   tags: [stack_versions]
 
 - name: Get tusd version from tusd container
-  ansible.builtin.command: docker exec {{ apache_container_name }}_tusd tusd --version
+  ansible.builtin.command: docker exec {{ tusd_container_name }} tusd --version
   register: stack_tusd_raw
   changed_when: false
   failed_when: false

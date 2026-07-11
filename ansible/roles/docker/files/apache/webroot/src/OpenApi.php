@@ -8,9 +8,6 @@ use OpenApi\Attributes as OA;
     version: '1.0.0',
     description: 'GigHive media management API for uploading and retrieving audio/video files with event and asset metadata.'
 )]
-#[OA\Server(url: '/api', description: 'Upload API endpoints')]
-#[OA\Server(url: '/db', description: 'Database and media listing endpoints')]
-#[OA\Server(url: '/admin', description: 'Admin-only endpoints (requires HTTP Basic auth with admin user)')]
 #[OA\Schema(
     schema: 'File',
     type: 'object',
@@ -601,6 +598,82 @@ use OpenApi\Attributes as OA;
         new OA\Response(response: 200, description: 'Soft-deleted successfully'),
         new OA\Response(response: 400, description: 'Invalid request body — malformed nonce or non-positive upload_job_id'),
         new OA\Response(response: 403, description: 'Forbidden — nonce not approved, nonce not found, or attempting to delete another guest\'s video'),
+    ]
+)]
+#[OA\Schema(
+    schema: 'SystemStats',
+    type: 'object',
+    properties: [
+        new OA\Property(property: 'success', type: 'boolean'),
+        new OA\Property(
+            property: 'db',
+            type: 'object',
+            nullable: true,
+            description: 'Database summary. Null if DB is unreachable.',
+            properties: [
+                new OA\Property(property: 'version',    type: 'string'),
+                new OA\Property(property: 'db_name',    type: 'string'),
+                new OA\Property(property: 'size_bytes', type: 'integer', format: 'int64'),
+                new OA\Property(property: 'counts',     type: 'object',  description: 'Row count per table (events, assets, event_items, participants, tags, taggings)'),
+            ]
+        ),
+        new OA\Property(
+            property: 'media',
+            type: 'object',
+            nullable: true,
+            description: 'File counts and byte totals per media type. Null if MEDIA_SEARCH_DIRS is unset.',
+            properties: [
+                new OA\Property(property: 'audio',      type: 'object', properties: [new OA\Property(property: 'count', type: 'integer'), new OA\Property(property: 'bytes', type: 'integer', format: 'int64')]),
+                new OA\Property(property: 'video',      type: 'object', properties: [new OA\Property(property: 'count', type: 'integer'), new OA\Property(property: 'bytes', type: 'integer', format: 'int64')]),
+                new OA\Property(property: 'thumbnails', type: 'object', properties: [new OA\Property(property: 'count', type: 'integer'), new OA\Property(property: 'bytes', type: 'integer', format: 'int64')]),
+                new OA\Property(property: 'total',      type: 'object', properties: [new OA\Property(property: 'count', type: 'integer'), new OA\Property(property: 'bytes', type: 'integer', format: 'int64')]),
+            ]
+        ),
+        new OA\Property(
+            property: 'disk',
+            type: 'array',
+            nullable: true,
+            description: 'Host filesystem free/total via bind-mounted media paths (deduplicated by device ID).',
+            items: new OA\Items(properties: [
+                new OA\Property(property: 'free_bytes',  type: 'integer', format: 'int64'),
+                new OA\Property(property: 'total_bytes', type: 'integer', format: 'int64'),
+            ])
+        ),
+        new OA\Property(
+            property: 'memory',
+            type: 'object',
+            nullable: true,
+            description: 'Host RAM via /proc/meminfo.',
+            properties: [
+                new OA\Property(property: 'total_bytes',     type: 'integer', format: 'int64'),
+                new OA\Property(property: 'available_bytes', type: 'integer', format: 'int64'),
+            ]
+        ),
+        new OA\Property(
+            property: 'network',
+            type: 'array',
+            nullable: true,
+            description: 'Per-interface rx/tx bytes/sec for the apache container (1-second sample).',
+            items: new OA\Items(properties: [
+                new OA\Property(property: 'iface',  type: 'string'),
+                new OA\Property(property: 'rx_bps', type: 'integer'),
+                new OA\Property(property: 'tx_bps', type: 'integer'),
+            ])
+        ),
+    ]
+)]
+#[OA\Get(
+    path: '/admin_system_stats.php',
+    operationId: 'getSystemStats',
+    summary: 'Get live system stats (admin)',
+    description: 'Returns DB counts, media file stats, host disk/memory, and apache container network I/O. Used by the Live mode toggle on the admin system page. Note: incurs a ~1-second server-side delay for the network sample.',
+    servers: [new OA\Server(url: '/admin')],
+    tags: ['admin'],
+    responses: [
+        new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(ref: '#/components/schemas/SystemStats')),
+        new OA\Response(response: 403, description: 'Forbidden — admin access required'),
+        new OA\Response(response: 405, description: 'Method not allowed'),
+        new OA\Response(response: 500, description: 'Server error', content: new OA\JsonContent(ref: '#/components/schemas/Error')),
     ]
 )]
 class OpenApi {}

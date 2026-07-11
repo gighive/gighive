@@ -253,7 +253,7 @@
 
 - name: Stop tusd container for rebuild
   community.docker.docker_container:
-    name: "{{ apache_container_name }}_tusd"
+    name: "{{ tusd_container_name }}"
     state: absent
   ignore_errors: true
   tags: docker, compose
