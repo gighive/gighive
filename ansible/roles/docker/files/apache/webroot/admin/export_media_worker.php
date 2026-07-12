@@ -19,17 +19,16 @@ if ($jobId === '' || !preg_match('/^[a-f0-9]{16}$/', $jobId)) {
 $jobDir       = sys_get_temp_dir() . '/gighive_export_' . $jobId . '/';
 $filelistPath = $jobDir . 'filelist.json';
 $jsonPath     = $jobDir . 'status.json';
-$zipPath      = $jobDir . 'archive.zip';
+$archivePath   = $jobDir . 'archive.tar.gz';
+$audioListPath = $jobDir . 'audio_files.txt';
+$videoListPath = $jobDir . 'video_files.txt';
 
 if (!is_dir($jobDir)) {
     fwrite(STDERR, "export_media_worker: job directory not found: $jobDir\n");
     exit(1);
 }
 
-$writeStatus = function (array $payload) use ($jsonPath): void {
-    $payload['updated_at'] = date('c');
-    @file_put_contents($jsonPath, json_encode($payload, JSON_UNESCAPED_SLASHES) . "\n", LOCK_EX);
-};
+require_once __DIR__ . '/admin_media_lib.php';
 
 $audioDir = '/var/www/html/audio';
 $videoDir = '/var/www/html/video';
@@ -47,18 +46,15 @@ try {
         throw new RuntimeException('Invalid filelist.json content');
     }
 
-    $total      = count($rows);
-    $processed  = 0;
-    $added      = 0;
     $skipped    = 0;
     $bytesAdded = 0;
+    $audioFiles = [];
+    $videoFiles = [];
 
     foreach ($rows as $row) {
         $type = (string)($row['file_type']       ?? '');
         $sha  = trim((string)($row['checksum_sha256'] ?? ''));
         $ext  = strtolower(trim((string)($row['file_ext'] ?? '')));
-
-        $processed++;
 
         if ($sha === '' || preg_match('/^[a-f0-9]{64}$/i', $sha) !== 1) {
             $skipped++;
@@ -75,53 +71,27 @@ try {
             continue;
         }
 
-        $served   = $ext !== '' ? ($sha . '.' . $ext) : $sha;
-        $filePath = $dir . '/' . $served;
+        $filename = $ext !== '' ? ($sha . '.' . $ext) : $sha;
+        $filePath = $dir . '/' . $filename;
 
         if (!is_file($filePath)) {
             $skipped++;
             continue;
         }
 
-        $entryName = $served; // {sha256}.{ext} — hash-based, Phase 2 import-compatible
-
-        $zip = new ZipArchive();
-        $rc  = $zip->open($zipPath, ZipArchive::CREATE);
-        if ($rc !== true) {
-            throw new RuntimeException("ZipArchive::open failed (code $rc)");
+        if ($type === 'audio') {
+            $audioFiles[] = $filename;
+        } else {
+            $videoFiles[] = $filename;
         }
-        if (!$zip->addFile($filePath, $entryName)) {
-            $zip->close();
-            throw new RuntimeException("ZipArchive::addFile failed for entry: $entryName");
-        }
-        if (!$zip->close()) {
-            throw new RuntimeException("ZipArchive::close failed (disk full or I/O error) for entry: $entryName");
-        }
-
-        $added++;
         $bytesAdded += (int)filesize($filePath);
-
-        if ($processed % 10 === 0) {
-            $writeStatus([
-                'success'     => true,
-                'job_id'      => $jobId,
-                'state'       => 'running',
-                'processed'   => $processed,
-                'total'       => $total,
-                'added'       => $added,
-                'skipped'     => $skipped,
-                'bytes_added' => $bytesAdded,
-                'steps'       => [
-                    ['name' => 'Build archive', 'status' => 'running',
-                     'message'  => $processed . ' / ' . $total . ' written',
-                     'progress' => ['processed' => $processed, 'total' => $total]],
-                ],
-            ]);
-        }
     }
 
-    if ($added === 0 && !is_file($zipPath)) {
-        $writeStatus([
+    $added = count($audioFiles) + count($videoFiles);
+
+    // Zero-file guard — must check before calling tar
+    if ($added === 0) {
+        writeJobStatus($jsonPath, [
             'success'       => true,
             'job_id'        => $jobId,
             'state'         => 'error',
@@ -134,25 +104,79 @@ try {
         exit(1);
     }
 
-    $writeStatus([
-        'success'      => true,
-        'job_id'       => $jobId,
-        'state'        => 'done',
-        'processed'    => $processed,
-        'total'        => $total,
-        'added'        => $added,
-        'skipped'      => $skipped,
-        'bytes_added'  => $bytesAdded,
-        'completed_at' => date('c'),
-        'steps'        => [
+    // Write flat filelists (bare filenames, one per line)
+    if ($audioFiles !== []) {
+        file_put_contents($audioListPath, implode("\n", $audioFiles) . "\n");
+    }
+    if ($videoFiles !== []) {
+        file_put_contents($videoListPath, implode("\n", $videoFiles) . "\n");
+    }
+
+    // Build tar command — omit -C pair for any empty list
+    $tarArgs = ['tar', '-czvf', $archivePath];
+    if ($audioFiles !== []) {
+        array_push($tarArgs, '-C', $audioDir, '--files-from', $audioListPath);
+    }
+    if ($videoFiles !== []) {
+        array_push($tarArgs, '-C', $videoDir, '--files-from', $videoListPath);
+    }
+
+    // Option A progress: verbose stdout line = one file added; update status.json every 10
+    $verboseCount = 0;
+    $result = runTar($tarArgs, null, [], static function (string $line) use (&$verboseCount, $added, $skipped, $jsonPath, $jobId): void {
+        if ($line === '') return;
+        $verboseCount++;
+        if ($verboseCount % 10 === 0) {
+            writeJobStatus($jsonPath, [
+                'success'     => true,
+                'job_id'      => $jobId,
+                'state'       => 'running',
+                'processed'   => $verboseCount,
+                'total'       => $added,
+                'added'       => $verboseCount,
+                'skipped'     => $skipped,
+                'bytes_added' => 0,
+                'steps'       => [
+                    ['name' => 'Build archive', 'status' => 'running',
+                     'message'  => $verboseCount . ' / ' . $added . ' written',
+                     'progress' => ['processed' => $verboseCount, 'total' => $added]],
+                ],
+            ]);
+        }
+    });
+
+    // Cleanup filelists regardless of tar outcome
+    @unlink($audioListPath);
+    @unlink($videoListPath);
+
+    if ($result['exit_code'] !== 0) {
+        @unlink($archivePath);
+        throw new RuntimeException('tar failed (exit ' . $result['exit_code'] . '): ' . trim($result['stderr']));
+    }
+
+    writeJobStatus($jsonPath, [
+        'success'       => true,
+        'job_id'        => $jobId,
+        'state'         => 'done',
+        'processed'     => $added,
+        'total'         => $added,
+        'added'         => $added,
+        'skipped'       => $skipped,
+        'bytes_added'   => $bytesAdded,
+        'archive_bytes' => (int)filesize($archivePath),
+        'completed_at'  => date('c'),
+        'steps'         => [
             ['name' => 'Build archive', 'status' => 'ok',
              'message'  => $added . ' file(s) written (' . $skipped . ' skipped)',
-             'progress' => ['processed' => $total, 'total' => $total]],
+             'progress' => ['processed' => $added, 'total' => $added]],
         ],
     ]);
 
 } catch (Throwable $e) {
-    $writeStatus([
+    @unlink($archivePath);
+    @unlink($audioListPath);
+    @unlink($videoListPath);
+    writeJobStatus($jsonPath, [
         'success'       => true,
         'job_id'        => $jobId,
         'state'         => 'error',

@@ -91,6 +91,7 @@ Phase 0 = #1; Phase 1 = #2–5; Phase 2 = #6; Phase 3 = #7–9; Phase 4 = #10–
 - Replace per-file `ZipArchive` open/close loop with single `runTar()` invocation
 - Build `audio_files.txt` / `video_files.txt` filelists; omit empty lists; zero-file pre-tar guard
 - Verbose-pipe progress tracking (Option A via callback or inline); partial archive unlink on error/catch
+- Write `archive_bytes` (compressed `.tar.gz` size via `filesize()`) to the `done` status JSON — used by the JS as a `Content-Length` fallback when the proxy strips that header
 - `require_once admin_media_lib.php`
 
 **#3 — `admin/export_media.php`** ✏️ Modified *(Phase 1)*
@@ -105,14 +106,18 @@ Phase 0 = #1; Phase 1 = #2–5; Phase 2 = #6; Phase 3 = #7–9; Phase 4 = #10–
 **#5 — `admin/export_media_status.php`** ✏️ Modified *(Phase 1 — cosmetic)*
 - Update hardcoded step-name fallback strings (lines 56, 77) to match worker step name
 
-**#6 — `admin/admin_system.php` — Section E** ✏️ Modified *(Phase 2)*
-- Heading, description, button text, in-progress label → "Archive" / tar.gz
+**#6 — `admin/admin_system.php` — Section E** ✏️ Modified *(Phase 1 + Phase 2)*
+- **Phase 1**: JS Content-Type gate in `doExportMedia()` changed from `application/zip` → `application/gzip` (line 1286); without this the download step shows ERROR even though the server returns HTTP 200
+- **Phase 1**: Download streaming progress — Apache/mod_proxy_fcgi rewrites the response as chunked transfer, stripping `Content-Length`; `contentLength` is therefore 0 and the original `if (contentLength > 0)` guard prevents all mid-stream updates, leaving the UI at a static "Receiving…". Fix: read `archive_bytes` from the done status JSON (written by the worker) as `archiveBytes`; set `effectiveLength = contentLength || archiveBytes`; streaming loop always updates — shows `X / Y` with a real progress bar when size is known, `X received…` every 5 MB when neither source is available
+- **Phase 2**: Heading `Export Media to ZIP` → `Export Media Archive`; description "Download a ZIP" → "Download a tar.gz archive" and "the ZIP and DB backup" → "the archive and DB backup"; button `Download ZIP` → `Download Archive`; JS in-progress `'Building ZIP…'` → `'Building archive…'`; `finally` reset `'Download ZIP'` → `'Download Archive'`
 
 **#7 — `admin/import_media_zip.php`** ✏️ Modified *(Phase 3)*
 - Replace `pathinfo()` extension check with `str_ends_with()` to correctly handle `.tar.gz`
 - Format-aware prepare-token temp path (`.zip` vs `.tar.gz`); try both extensions in `mode=start`
 - Write `format.txt` to job dir (start mode only — job dir does not exist in prepare mode)
-- `tar tzvf` prepare-mode entry scan via `runTar()` for tar.gz uploads
+- `tar tzvf` prepare-mode entry scan via `runTar()` for tar.gz uploads; 50,000 entry cap applied to both paths
+- `proc_open` availability guard before the tar.gz prepare branch (ZIP path uses `ZipArchive` which is always available)
+- `mode=start` uses `copy() + @unlink()` instead of `rename()` for safety (tmpfs → job dir are same FS, but cross-device safety is consistent with worker pattern)
 - `require_once admin_media_lib.php`
 
 **#8 — `admin/import_media_zip_status.php`** ➡️ No change *(Phase 3)*
@@ -120,15 +125,64 @@ Phase 0 = #1; Phase 1 = #2–5; Phase 2 = #6; Phase 3 = #7–9; Phase 4 = #10–
 
 **#9 — `admin/import_media_zip_worker.php`** ✏️ Modified *(Phase 3)*
 - Read + strictly validate `format.txt` (allowlist: `zip` or `tar.gz`)
-- tar.gz branch: array-form `runTar()` with `--directory`; `realpath()` containment check; extraction subdir cleanup in `try/finally`
+- tar.gz branch: pre-scan with `tar -tzvf` to get `$total` denominator; **rejects entire archive** if any entry name contains `..` (`throw RuntimeException`) — defence-in-depth before extraction; array-form `runTar()` with `--directory`; `realpath()` containment check on every extracted file; extraction subdir cleanup in `try/finally`
+- Known limitation: `$unsupportedCount` is incremented in both the pre-scan and the post-extraction glob, so non-media entries are counted twice in the summary message for tar.gz imports. Informational only — no functional impact.
+- Disk space check (present in ZIP branch via `ZipArchive::statIndex` sizes) is absent from the tar.gz branch; Apache `upload_max_filesize` acts as the upload gate
 - ZIP branch unchanged (backward compatibility)
 - `require_once admin_media_lib.php`
 
-**#10 — `admin/admin_system.php` — Section F** ✏️ Modified *(Phase 4)*
-- Heading, description, button text; `accept=".zip,.tar.gz,.tgz"`
+**#10 — `admin/admin_system.php` — Section F** ✏️ Modified *(Phase 3 partial + Phase 4)*
+- **Phase 3 (pre-fix)**: `accept=".zip,.tar.gz,.tgz"` on file input; label text `ZIP file` → `Archive file (.zip or .tar.gz)`; no-file guard message updated
+- **Phase 4**: Heading `Import Media from ZIP` → `Import Media Archive`; description "GigHive export ZIP" → "GigHive export archive (.tar.gz or .zip)"; button `Import ZIP` → `Import Archive`; JS in-progress `'Uploading ZIP…'` → `'Uploading…'`; step names `'Upload ZIP'`/`'Inspect ZIP'` → `'Upload archive'`/`'Inspect archive'`; `finally` reset `'Import ZIP'` → `'Import Archive'`
 
 **#11 — `ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts`** 🧪 Test *(Phase 4)*
 - Line 71 comment: "Section E: Export Media to ZIP" → "Section E: Export Media Archive"
+
+## Implementation Plan Summary
+
+What we are doing to move from ZIP to tar.gz, in order:
+
+**Phase 0 — Shared library (no behaviour change)**
+- Create `admin/admin_media_lib.php` with four shared functions: `loadMediaExtensions()`, `isValidMediaEntry()`, `runTar()`, `writeJobStatus()`
+- Wire `require_once` into `import_media_zip.php` and `import_media_zip_worker.php`, replacing their inline copies
+- Replace the `$writeStatus` closure in `import_media_zip_worker.php` with `writeJobStatus()`
+- Decide Option A (stdout-pipe progress callback) vs Option B (file-size polling) before coding — choice determines `runTar()` signature
+- ✅ Gate: full Playwright suite + existing ZIP import passes with no visible change
+
+**Phase 1 — Export side: produce tar.gz instead of ZIP**
+- `export_media_worker.php`: replace `ZipArchive` per-file loop with a single `runTar()` call; build `audio_files.txt` / `video_files.txt` filelists; add zero-file guard; add partial-archive unlink on error; replace `$writeStatus` closure with `writeJobStatus()`
+- `export_media.php`: change output filename to `.tar.gz`; add `proc_open` availability check; delete 110 lines of unreachable dead code (`mode=build`)
+- `export_media_download.php`: point at `archive.tar.gz`; change `Content-Type` to `application/gzip`
+- `admin_system.php`: fix JS Content-Type gate in `doExportMedia()` — `startsWith('application/zip')` → `startsWith('application/gzip')` (download step shows ERROR without this even when server returns HTTP 200); add `archive_bytes`-based `effectiveLength` fallback for streaming progress (proxy strips `Content-Length`)
+- `export_media_status.php`: update two hardcoded step-name fallback strings
+- ✅ Gate: export downloads as tar.gz; flat `<sha256>.<ext>` entries confirmed; progress updates mid-build; >4 GB file exports without truncation; worker failure leaves no partial archive
+- ✅ Download streaming progress: live `X / Y` progress bar confirmed working via `archive_bytes` fallback
+- ⚠️ Deploy Phase 1 and Phase 3 together — a tar.gz export cannot be re-imported until Phase 3 is live
+
+**Phase 2 — UI text: Section E (export side)**
+- `admin_system.php` Section E: update heading, description, button text, and in-progress label from "ZIP" → "Archive"
+- ✅ Gate: admin page shows updated labels; Playwright suite passes
+
+**Phase 3 — Import side: accept tar.gz in addition to ZIP**
+- `import_media_zip.php`: `str_ends_with()` extension detection; format-aware temp path; write `format.txt` (always `tar.gz`, never `tgz`); `tar -tzvf` pre-scan via `runTar()`; 50k entry cap; `proc_open` guard; `copy()+@unlink()` in `mode=start`
+- `import_media_zip_worker.php`: strict `format.txt` validation; tar.gz branch — pre-scan rejects `..` entries; `runTar(['tar','-xzvf',...,'--directory',...])` extraction; `realpath()` containment check; `try/finally` extraction subdir cleanup; `copy()+unlink()` cross-device move; ZIP branch unchanged
+- `import_media_zip_status.php`: no changes needed
+- `admin_system.php` Section F: `accept=".zip,.tar.gz,.tgz"` added as immediate Phase 3 unblock (file picker defaulted to `.zip` only, making tar.gz exports unselectable)
+- ✅ Gate confirmed: tar.gz import of 15 files (10 audio + 5 video, 451.5 MB); idempotent re-import skips duplicates; legacy ZIP import unchanged
+
+**Phase 4 — UI text: Section F (import side) + test comment**
+- `admin_system.php` Section F: heading, description, button, JS step names, in-progress text (see #10 above); `accept` already done in Phase 3
+- Playwright spec line 71: comment updated
+- ✅ Gate: full Playwright end-to-end suite passes with all updated labels
+
+> **Where to find the detail:**
+> - **Per-file change specs** → [Migration Plan: ZIP → tar.gz](#migration-plan-zip--targz) → Touch Points #1–9
+> - **Files changed, with change summaries** → [Files Touched](#files-touched) (#1–11, numbered to match touch points)
+> - **Test gates per phase** → [Implementation Phases](#implementation-phases)
+> - **Security / SonarQube requirements** → [Coding Best Practices and SonarQube Considerations](#coding-best-practices-and-sonarqube-considerations)
+> - **Full test checklist** → [Testing Checklist](#testing-checklist)
+
+---
 
 ## High-Level Flow (Current — Async Worker)
 
@@ -170,7 +224,7 @@ Action button:
 
 - `exportMediaBtn`
   - disabled during the operation
-  - restored to `Download ZIP` when finished or failed
+  - restored to `Download ZIP` when finished or failed *(current — changes to `Download Archive` in Phase 2)*
 
 Status container:
 
@@ -290,8 +344,8 @@ GET /admin/export_media_download.php?job_id=<id>
 The download endpoint:
 
 - validates the job is `done`
-- sets `Content-Type: application/zip`, `Content-Length`, `Content-Disposition`
-- streams `archive.zip` in 256 KB chunks
+- sets `Content-Type: application/zip` *(current — changes to `application/gzip` in Phase 1)*, `Content-Length`, `Content-Disposition`
+- streams `archive.zip` *(current — changes to `archive.tar.gz` in Phase 1)* in 256 KB chunks
 - cleans up the entire job directory after streaming
 
 Because the archive is pre-built, `Content-Length` is available and accurate.
@@ -368,7 +422,7 @@ Stale detection at 3600 s with automatic job directory cleanup.
 
 GET endpoint. Admin-only.
 
-Streams the pre-built `archive.zip` to the browser in 256 KB chunks with `Content-Length` set.
+Streams the pre-built `archive.zip` *(current — changes to `archive.tar.gz` in Phase 1)* to the browser in 256 KB chunks with `Content-Length` set.
 Cleans up the entire job directory after streaming completes.
 
 ## Section F — Import Media from ZIP
@@ -404,6 +458,7 @@ Files already present on disk are skipped (idempotent).
 - no matching DB rows (404)
 - no exportable files on disk (404)
 - `exec()` disabled (500)
+- `proc_open()` disabled (500) *(added by Phase 1 — guards worker dependency)*
 - job directory creation failure (500)
 - `filelist.json` write failure (500)
 - worker: archive open/write failure (error state in status.json)
@@ -411,15 +466,24 @@ Files already present on disk are skipped (idempotent).
 
 ## Permissions and Runtime Requirements
 
-For export to work, the web process must be able to:
+For **export** to work, the web process must be able to:
 
 - read files under `/var/www/html/audio` and `/var/www/html/video`
 - create and write to directories under `sys_get_temp_dir()`
 - call `exec()` to spawn the PHP CLI worker
+- call `proc_open()` (added by Phase 1)
 
-The feature does **not** require write access to the media directories themselves.
+Export does **not** require write access to the media directories themselves.
 
-In containerized deployments, runtime media files must be readable by the web process (`www-data`).
+For **import** to work, the worker process must be able to:
+
+- write files to `/var/www/html/audio` and `/var/www/html/video` (existing requirement, unchanged)
+- create a temp extraction subdir inside the import job dir under `sys_get_temp_dir()`
+- call `proc_open()` for `tar xzf` extraction (tar.gz path only)
+
+In containerized deployments, both media directories must be read **and write** accessible by
+`www-data`. In production (Orange Pi), media volumes are typically bind-mounted; confirm
+`www-data` has write permission on the mount point.
 
 ## Operational Notes
 
@@ -456,11 +520,11 @@ migrating to tar.gz.
 | **Per-file size limit** | 4 GB without ZIP64 (ZIP64 not currently enabled) | No per-file limit |
 | **Archive construction speed** | Very slow due to per-file open/close bug (see above) | Single `tar` invocation — no repeated central-directory writes |
 | **Temp space needed** | Full staged archive in `sys_get_temp_dir()` | Same (must stage for async model); no difference |
-| **Compression CPU** | Per-entry; media files already compressed — wasted CPU | `tar cf -` (no compression) or `tar czf` (single gzip pass) |
+| **Compression CPU** | Per-entry; media files already compressed — wasted CPU | `tar cf archive.tar` (no compression) or `tar czf archive.tar.gz` (single gzip pass) |
 | **Connection timeout risk** | Solved by async model | Solved equally by async model |
 | **Resumability** | None | None (same) |
 | **Corruption on truncation** | Unusable (central directory at end) | Unusable |
-| **Import tooling** | PHP `ZipArchive` | PHP `PharData` or shell `tar` |
+| **Import tooling** | PHP `ZipArchive` | shell `tar` (array-form `proc_open`) — `PharData` is not used |
 | **Standard Unix interop** | Requires unzip | Requires tar (universal) |
 
 ### Why tar.gz is preferred
@@ -468,7 +532,7 @@ migrating to tar.gz.
 - Eliminates the 4 GB per-file ZIP limit without needing to explicitly enable ZIP64.
 - Replaces the per-file open/close `ZipArchive` loop with a single `tar` invocation — dramatically faster for large corpora.
 - Standard Unix format; no specialist tool needed on the receiving end.
-- Compression can be disabled (`tar cf -`) for media-heavy exports since audio/video files are already compressed, saving CPU with no size penalty.
+- Compression can be disabled (omit the `z` flag: `tar cf archive.tar --files-from=...`) for media-heavy exports since audio/video files are already compressed, saving CPU with no size penalty.
 
 ### What tar.gz does NOT solve
 
@@ -523,6 +587,8 @@ flat naming that the import worker expects.
 - Build two plaintext filelists in the job directory: `audio_files.txt` and `video_files.txt`,
   each containing bare filenames (`<sha256>.<ext>`, one per line) from the filtered row set.
   These are not mappings — just bare filenames relative to their respective `-C` base dirs.
+  **Source**: the worker reads `filelist.json` (written by `mode=start`) to get the file rows;
+  `audio_files.txt` / `video_files.txt` are derived from it inside the worker.
 - Run tar as:
   ```
   tar -czf /tmp/.../archive.tar.gz \
@@ -542,6 +608,10 @@ flat naming that the import worker expects.
   After this migration, a failed `proc_open`/tar run may leave a partial `archive.tar.gz` in
   the job dir. The catch block and any early `exit(1)` after archive creation begins must
   call `@unlink($archivePath)` to avoid wasting disk until the 1-hour stale cleanup fires.
+- **Filelist cleanup**: `audio_files.txt` and `video_files.txt` contain bare server-side
+  filenames and should not persist indefinitely. `@unlink()` both files inside the same
+  `try/finally` as the archive, immediately after the tar call returns (success or failure).
+  The job dir stale cleanup would eventually remove them, but explicit unlink is cleaner.
 - **Zero-file guard before tar invocation**: If both `audio_files.txt` and `video_files.txt`
   are empty (zero exportable rows), no `-C` pairs would be added and tar would be called with
   no files. Detect this before calling tar and exit with `'No exportable files found on disk'`
@@ -553,9 +623,14 @@ Replacing the per-file loop with a single `tar` call makes per-file progress tra
 Two options:
 
 **Option A — `--verbose` pipe parsing (more granular)**: Open `proc_open` with `tar --verbose`
-writing to a stderr pipe. Read lines from the pipe in a loop; each line is a filename just
-added. Increment a counter per line and write `status.json` every 10 lines. This gives the
-same per-file progress as the current ZIP implementation.
+and read from the **stdout pipe** (`$pipes[1]`). When the archive is written to a file
+(`-czf archive.tar.gz`), GNU tar sends the verbose filename listing to **stdout**. Stderr
+(`$pipes[2]`) carries only error messages. Each stdout line is a filename just added;
+increment a counter per line and write `status.json` every 10 lines. This gives the same
+per-file progress as the current ZIP implementation.
+
+> Note: if the archive were written to stdout (`-czf -`), verbose output would move to
+> stderr instead. This migration always writes to a file, so stdout is the correct pipe.
 
 **Option B — archive size polling (simpler)**: Write the filelist, launch `tar` as a
 background process, then poll the growing `archive.tar.gz` file size against the expected
@@ -564,11 +639,11 @@ This gives approximate byte-level progress with no pipe parsing.
 
 **Compatibility note**: `runTar()` as designed in `admin_media_lib.php` buffers all output
 and only returns after `proc_close()`. This is incompatible with Option A, which requires
-reading stderr line-by-line *in real time while tar is running*.
+reading stdout line-by-line *in real time while tar is running*.
 
 Two ways to resolve:
-- **Extend `runTar()`**: add an optional `callable $onStderrLine = null` parameter. The
-  wrapper calls the closure for each line read from the stderr pipe before `proc_close()`.
+- **Extend `runTar()`**: add an optional `callable $onStdoutLine = null` parameter. The
+  wrapper calls the closure for each line read from the stdout pipe before `proc_close()`.
   This keeps all proc_open boilerplate centralised and is the preferred approach.
 - **Inline proc_open in the worker**: skip `runTar()` for the export case and open proc_open
   directly with a progress-reading loop. `runTar()` is still used for import (where real-time
@@ -596,9 +671,10 @@ If the callback extension is too complex, prefer Option B — it uses `runTar()`
 
 #### 4. `export_media_status.php`
 
-- Minor update required: lines 56 and 77 hardcode step name `'Build archive'` in the
-  stale-job synthesiser and fallback path. Update these strings to match whatever step name
-  the migrated worker uses. Low risk, same commit as the worker change.
+- **Keep step name as `'Build archive'`** (unchanged). The migrated worker must continue to
+  write `'Build archive'` as the step name in `status.json` — do not change it. This avoids
+  any frontend JS impact (the UI reads step names for display) and means lines 56 and 77 in
+  `export_media_status.php` require no update at all.
 
 #### 5. `admin_system.php` — Section E (Export)
 
@@ -648,6 +724,10 @@ Several hardcoded assumptions must change:
   extension. **Apply the same `MAX_ZIP_ENTRIES` (or equivalent) entry count cap to tar.gz** —
   the guard exists in the ZIP path to prevent exhausting resources on malicious archives and
   must carry over.
+- **`proc_open` availability check (tar.gz path only)**: The prepare-mode entry scan for tar.gz
+  calls `runTar()`, which uses `proc_open`. Add `function_exists('proc_open')` guard before
+  the tar.gz branch: if disabled, return an error response rather than a fatal. ZIP uploads are
+  unaffected — they use `ZipArchive` which is always available.
 
 #### 7. `import_media_zip_status.php`
 
@@ -675,6 +755,11 @@ Several hardcoded assumptions must change:
   proxy (since media is already compressed, compressed ≈ uncompressed). Or run `tar tzvf`
   first and sum sizes. Align approach with whatever is done in the prepare step.
 - **Idempotency**: Unchanged — check `is_file($dest)` before copying.
+- **Cross-device move**: Do **not** use `rename()` to move extracted files to the audio/video
+  destination. If `sys_get_temp_dir()` (`/tmp`) and `/var/www/html/audio` (or `/video`) are on
+  different filesystem mounts — as is likely when media lives on a separate Docker volume or
+  bind-mount from a large storage volume — `rename()` fails with EXDEV (cross-device link)
+  and returns `false` silently. Always use `copy($src, $dest) + unlink($src)` for the move.
 - **ZIP backward compatibility**: ZIP import path stays entirely intact. The branch on `format.txt`
   (or equivalent) selects which code path runs.
 - **Temp extraction subdir cleanup**: After file validation and moves (success or failure), the
@@ -774,6 +859,11 @@ try {
 }
 ```
 
+For stdin (`$pipes[0]`): use `0 => ['file', '/dev/null', 'r']` in the descriptor array rather
+than `['pipe', 'r']`. This means tar never gets a piped stdin (it reads from files), and
+`$pipes[0]` is not created — eliminating one resource to track. If stdin is piped for any
+reason, add `if (is_resource($pipes[0])) fclose($pipes[0]);` before `proc_close()`.
+
 Failing to close pipes causes file descriptor exhaustion under concurrent exports and is
 flagged as a resource leak.
 
@@ -792,10 +882,13 @@ against a strict allowlist before branching:
 ```php
 $format = trim((string)@file_get_contents($jobDir . 'format.txt'));
 if ($format !== 'zip' && $format !== 'tar.gz') {
-    $writeStatus([..., 'state' => 'error', 'error_message' => 'Unknown archive format']);
+    writeJobStatus($statusPath, ['state' => 'error', 'error_message' => 'Unknown archive format']);
     exit(1);
 }
 ```
+
+*(Uses `writeJobStatus()` from `admin_media_lib.php` — the inline `$writeStatus` closure is
+removed in Phase 0.)*
 
 Without this, an unexpected value (corrupt file, empty write, unexpected newline) causes a
 silent fallthrough where neither branch executes, leaving `state=running` indefinitely.
@@ -845,8 +938,8 @@ calls with `writeJobStatus()`**. Leave the other 3 existing files (`catalog_scan
 `iphone_import_status.php`, `iphone_import_worker.php`) for a separate cleanup pass.
 
 **Decision required before coding Phase 0:** choose Option A or Option B for export progress
-tracking (see Touch Point #2 / Progress Tracking section). If Option A (callback-extended
-`runTar()`), the `runTar()` signature in Phase 0 must include `?callable $onStderrLine = null`.
+tracking (see Touch Point #1 / Progress Tracking section). If Option A (callback-extended
+`runTar()`), the `runTar()` signature in Phase 0 must include `?callable $onStdoutLine = null`.
 If Option B (archive size polling), `runTar()` is built without a callback. **This decision
 must be made before Phase 0 is coded** — changing the signature after Phase 1 wires callers
 requires revisiting all call sites.
@@ -857,11 +950,14 @@ requires revisiting all call sites.
 
 #### Phase 1 — Export side: tar.gz output
 
-**Files:** `export_media_worker.php`, `export_media.php`, `export_media_download.php`, `export_media_status.php`
+**Files:** `export_media_worker.php`, `export_media.php`, `export_media_download.php`, `admin_system.php` (JS only), `export_media_status.php`
 
 - `export_media_worker.php`: replace ZipArchive loop with `runTar()` invocation; two plaintext filelists (`audio_files.txt`, `video_files.txt`); zero-file pre-tar guard; verbose-pipe progress (Option A or B per decision made in Phase 0); partial archive unlink on error/catch; `require_once admin_media_lib.php`; **delete inline `$writeStatus` closure and replace all calls with `writeJobStatus()`**
 - `export_media.php`: change filename extension to `.tar.gz`; add `proc_open` availability check; delete dead code lines 200–309
 - `export_media_download.php`: `$archivePath = $jobDir . 'archive.tar.gz'`; `Content-Type: application/gzip`
+- `admin_system.php` (JS, `doExportMedia()`): change Content-Type gate from `startsWith('application/zip')` → `startsWith('application/gzip')` — this is a Phase 1 **functional** requirement, not a Phase 2 cosmetic change; without it the download step reports ERROR on HTTP 200
+- `admin_system.php` (JS, download streaming): add `archive_bytes`-based `effectiveLength` fallback; streaming loop always updates progress — real `X / Y` bar when size is known, `X received…` every 5 MB otherwise (root cause: Apache/mod_proxy_fcgi strips `Content-Length`, leaving `contentLength === 0`)
+- `export_media_worker.php`: write `archive_bytes` (compressed size) to `done` status JSON — feeds the JS `effectiveLength` fallback
 - `export_media_status.php`: update step-name fallback strings (lines 56, 77) for consistency
 
 **✅ Test gate:**
@@ -870,6 +966,9 @@ requires revisiting all call sites.
 - `tar tzf archive.tar.gz` shows flat `<sha256>.<ext>` entries, no path prefixes
 - **Progress reporting works**: poll `export_media_status.php` during a mid-size export and
   confirm `status.json` updates (count/percentage advances) before the download link appears
+- **Download streaming progress works**: the Download step shows a live `X / Y` progress bar
+  (not a static "Receiving…") throughout the file transfer; confirm `archive_bytes` is present
+  in the done `status.json`
 - Export with audio-only and video-only filters (no empty `--files-from` error)
 - Export corpus with a file >4 GB (no truncation)
 - Simulate worker failure → status returns error, no partial archive left on disk
@@ -895,8 +994,9 @@ Update heading, description, button text, and in-progress label from ZIP → Arc
 
 **Files:** `import_media_zip.php`, `import_media_zip_worker.php`
 
-- `import_media_zip.php`: `str_ends_with()` extension detection; format-aware temp path (`upload.zip` vs `upload.tar.gz`); write `format.txt` to job dir; `tar tzvf` prepare-mode scan via `runTar()`; Apache-limit-only zip bomb guard for tar.gz
-- `import_media_zip_worker.php`: read and strictly validate `format.txt`; tar.gz branch — `runTar(['tar', 'xzf', ..., '--directory', $extractDir])`; `realpath()` containment check; extraction subdir cleanup in `try/finally`; ZIP path unchanged
+- `import_media_zip.php`: `str_ends_with()` extension detection; format-aware temp path (`upload.zip` vs `upload.tar.gz`); write `format.txt` to job dir; `tar -tzvf` prepare-mode scan via `runTar()`; Apache-limit-only zip bomb guard for tar.gz; `proc_open` check before tar.gz prepare branch; `copy() + @unlink()` in `mode=start` (consistent cross-device pattern)
+- `import_media_zip_worker.php`: read and strictly validate `format.txt`; tar.gz branch — pre-scan rejects `..` entries before extraction; `runTar(['tar', '-xzvf', ..., '--directory', $extractDir])`; `realpath()` containment check; extraction subdir cleanup in `try/finally`; ZIP path unchanged
+- Known limitation: `$unsupportedCount` double-counted for tar.gz (pre-scan + glob); informational only
 
 **✅ Test gate:**
 - Import a tar.gz produced by Phase 1 → files land in correct audio/video dirs
@@ -954,7 +1054,7 @@ Export Media is an async admin workflow:
 - `prepare` discovers what can be exported and how large it is
 - `start` spawns a background PHP CLI worker that builds the archive
 - polling provides per-file build progress
-- `download` serves the pre-built archive with a known `Content-Length`
+- `download` serves the pre-built archive; `Content-Length` may be stripped by the Apache/mod_proxy_fcgi proxy, so `archive_bytes` from the worker status JSON is used as a fallback to drive the streaming progress bar in the browser
 
 The current implementation (ZIP) has a known performance bug (per-file ZipArchive open/close)
 and a 4 GB per-file limit. The planned migration to tar.gz addresses both issues while

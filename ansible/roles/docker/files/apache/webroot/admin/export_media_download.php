@@ -28,7 +28,7 @@ if ($jobId === '' || !preg_match('/^[a-f0-9]{16}$/', $jobId)) {
 
 $jobDir   = sys_get_temp_dir() . '/gighive_export_' . basename($jobId) . '/';
 $jsonPath = $jobDir . 'status.json';
-$zipPath  = $jobDir . 'archive.zip';
+$archivePath = $jobDir . 'archive.tar.gz';
 
 if (!is_file($jsonPath)) {
     http_response_code(404);
@@ -48,7 +48,7 @@ if ($state !== 'done') {
     exit;
 }
 
-if (!is_file($zipPath)) {
+if (!is_file($archivePath)) {
     http_response_code(410);
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'error' => 'Archive no longer available']);
@@ -57,10 +57,10 @@ if (!is_file($zipPath)) {
 
 $filename = (is_array($data) && !empty($data['filename']))
     ? (string)$data['filename']
-    : ('gighive_export_' . $jobId . '.zip');
-$size = (int)filesize($zipPath);
+    : ('gighive_export_' . $jobId . '.tar.gz');
+$size = (int)filesize($archivePath);
 
-header('Content-Type: application/zip');
+header('Content-Type: application/gzip');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Content-Length: ' . $size);
 header('Cache-Control: no-cache, no-store, must-revalidate');
@@ -70,7 +70,7 @@ header('Expires: 0');
 @ini_set('zlib.output_compression', 'off');
 while (ob_get_level() > 0) { ob_end_clean(); }
 
-$handle = @fopen($zipPath, 'rb');
+$handle = @fopen($archivePath, 'rb');
 if ($handle !== false) {
     while (!feof($handle) && !connection_aborted()) {
         $chunk = fread($handle, 262144);

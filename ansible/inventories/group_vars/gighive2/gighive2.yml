@@ -85,7 +85,7 @@ upload_tests_csv_dir: "{{ repo_root }}/ansible/fixtures/upload_tests/csv"
 # --------------------------------------------------------------------
 # playwright_admin_tests role
 # --------------------------------------------------------------------
-run_playwright_admin_tests: false
+run_playwright_admin_tests: true
 playwright_work_dir: /tmp/gighive-playwright
 playwright_media_folder: /tmp/gighive-media
 

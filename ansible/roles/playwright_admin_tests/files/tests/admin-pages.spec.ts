@@ -68,7 +68,7 @@ test('Admin pages full regression — all 13 steps', async ({ page }) => {
   ).toString('base64');
   await page.setExtraHTTPHeaders({ 'Authorization': `Basic ${newB64}` });
 
-  // ── Step 2: admin_system.php — Section E: Export Media to ZIP ──────────────
+  // ── Step 2: admin_system.php — Section E: Export Media Archive ──────────────
   await page.goto('/admin/admin_system.php');
   await page.fill('#export_org_name', '');           // blank = export all
   await page.selectOption('#export_file_type', 'all');

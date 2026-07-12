@@ -463,13 +463,13 @@ if (is_string($__net_raw1)) {
       </div>
 
       <div class="section-divider">
-        <h2>Section E: Export Media to ZIP</h2>
+        <h2>Section E: Export Media Archive</h2>
         <p class="muted">
-          Download a ZIP of media files currently on disk, filtered by band/event name and/or file type.
+          Download a tar.gz archive of media files currently on disk, filtered by band/event name and/or file type.
           Use this to preserve custom files (e.g. tutorial videos) before a database reset, then
           re-import via <a href="/admin/admin_database_load_import_media_from_folder.php" style="color:#60a5fa">Import Media (folder)</a> after rebuilding.
           This tool is designed for full-corpus backup and restore of small-to-medium libraries (guideline: under 20 GB).
-          Always create a database backup (Section C) at the same time &mdash; the ZIP and DB backup form a matched restore pair.
+          Always create a database backup (Section C) at the same time &mdash; the archive and DB backup form a matched restore pair.
           For libraries larger than 20 GB, rsync or direct volume backup is recommended.
         </p>
         <div class="row">
@@ -485,13 +485,13 @@ if (is_string($__net_raw1)) {
           </select>
         </div>
         <div id="exportMediaStatus"></div>
-        <button type="button" id="exportMediaBtn" onclick="doExportMedia()">Download ZIP</button>
+        <button type="button" id="exportMediaBtn" onclick="doExportMedia()">Download Archive</button>
       </div>
 
       <div class="section-divider">
-        <h2>Section F: Import Media from ZIP</h2>
+        <h2>Section F: Import Media Archive</h2>
         <p class="muted">
-          Import audio and video files from a GigHive export ZIP back onto this server's media volumes.
+          Import audio and video files from a GigHive export archive back onto this server's media volumes.
           Only files with SHA-256 hash names and supported extensions are imported; all others are skipped safely.
           Files already present on disk are skipped (idempotent &mdash; safe to re-run).
         </p>
@@ -500,11 +500,11 @@ if (is_string($__net_raw1)) {
           (Section C) must also be restored separately to reconstruct the full catalogue.
         </div>
         <div class="row">
-          <label for="import_zip_file">ZIP file</label>
-          <input type="file" id="import_zip_file" name="zip_file" accept=".zip" />
+          <label for="import_zip_file">Archive file</label>
+          <input type="file" id="import_zip_file" name="zip_file" accept=".zip,.tar.gz,.tgz" />
         </div>
         <div id="importZipStatus"></div>
-        <button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import ZIP</button>
+        <button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import Archive</button>
       </div>
 
       <?php if ($__show_disk_resize): ?>
@@ -1156,7 +1156,7 @@ if (is_string($__net_raw1)) {
     const statusEl = document.getElementById('exportMediaStatus');
 
     btn.disabled = true;
-    btn.textContent = 'Building ZIP\u2026';
+    btn.textContent = 'Building archive\u2026';
 
     if (typeof resetProgressLatch === 'function') resetProgressLatch();
 
@@ -1271,6 +1271,11 @@ if (is_string($__net_raw1)) {
       if (buildResult.data && Array.isArray(buildResult.data.steps) && buildResult.data.steps.length > 0) {
         steps[1] = buildResult.data.steps[0];
       }
+      // archive_bytes from the worker status — used as Content-Length fallback when the
+      // proxy strips that header (e.g. mod_proxy_fcgi chunked-transfer rewrites)
+      const archiveBytes = (buildResult.data && Number(buildResult.data.archive_bytes) > 0)
+        ? Number(buildResult.data.archive_bytes) : 0;
+
       steps[2] = { name: 'Download', status: 'running', message: 'Requesting archive\u2026', progress: null };
       render();
 
@@ -1283,7 +1288,7 @@ if (is_string($__net_raw1)) {
         render();
         return;
       }
-      if (!dlResp.ok || !(dlResp.headers.get('Content-Type') || '').startsWith('application/zip')) {
+      if (!dlResp.ok || !(dlResp.headers.get('Content-Type') || '').startsWith('application/gzip')) {
         const errData = await dlResp.json().catch(() => null);
         const msg = (errData && (errData.error || errData.message)) ? String(errData.error || errData.message) : 'HTTP ' + dlResp.status;
         steps[2] = { name: 'Download', status: 'error', message: msg };
@@ -1291,13 +1296,15 @@ if (is_string($__net_raw1)) {
         return;
       }
       const contentLength = parseInt(dlResp.headers.get('Content-Length') || '0', 10) || 0;
+      // Fall back to archive_bytes from the worker status when the proxy strips Content-Length
+      const effectiveLength = contentLength || archiveBytes;
       const cd    = dlResp.headers.get('Content-Disposition') || '';
       const match = cd.match(/filename="([^"]+)"/);
-      const fname = match ? match[1] : 'gighive_export.zip';
+      const fname = match ? match[1] : 'gighive_export.tar.gz';
 
       steps[2] = { name: 'Download', status: 'running',
-                   message: contentLength > 0 ? '0 B / ' + fmtBytes(contentLength) : 'Receiving\u2026',
-                   progress: contentLength > 0 ? { processed: 0, total: contentLength } : null };
+                   message: effectiveLength > 0 ? '0 B / ' + fmtBytes(effectiveLength) : 'Receiving\u2026',
+                   progress: effectiveLength > 0 ? { processed: 0, total: effectiveLength } : null };
       render();
 
       // Yield one frame so the browser paints the initial state before the loop starts
@@ -1305,22 +1312,33 @@ if (is_string($__net_raw1)) {
 
       const reader = dlResp.body.getReader();
       const chunks = [];
-      let received     = 0;
-      let lastYieldPct = -1;
+      let received       = 0;
+      let lastYieldPct   = -1;
+      let lastYieldBytes = 0;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value);
         received += value.length;
-        if (contentLength > 0) {
-          const pct = received / contentLength;
+        if (effectiveLength > 0) {
+          const pct = received / effectiveLength;
           // Yield to the browser every 1% so the progress bar repaints
           if (pct - lastYieldPct >= 0.01) {
             lastYieldPct = pct;
             steps[2] = { name: 'Download', status: 'running',
-                         message: fmtBytes(received) + ' / ' + fmtBytes(contentLength),
-                         progress: { processed: received, total: contentLength } };
+                         message: fmtBytes(received) + ' / ' + fmtBytes(effectiveLength),
+                         progress: { processed: received, total: effectiveLength } };
+            render();
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        } else {
+          // Total size unknown — update message every 5 MB so the user sees bytes arriving
+          if (received - lastYieldBytes >= 5 * 1048576) {
+            lastYieldBytes = received;
+            steps[2] = { name: 'Download', status: 'running',
+                         message: fmtBytes(received) + ' received\u2026',
+                         progress: null };
             render();
             await new Promise(resolve => setTimeout(resolve, 0));
           }
@@ -1337,13 +1355,13 @@ if (is_string($__net_raw1)) {
 
       steps[2] = { name: 'Download', status: 'ok',
                    message: fname + ' (' + fmtBytes(received) + ')',
-                   progress: { processed: received || contentLength, total: contentLength || received } };
+                   progress: { processed: received || effectiveLength, total: effectiveLength || received } };
       render();
     }
 
     exportRun().finally(() => {
       btn.disabled = false;
-      btn.textContent = 'Download ZIP';
+      btn.textContent = 'Download Archive';
     });
   }
 
@@ -1354,12 +1372,12 @@ if (is_string($__net_raw1)) {
 
     // no-file guard
     if (!fileInput.files || !fileInput.files[0]) {
-      statusEl.innerHTML = '<div class="alert-error">Please select a ZIP file first.</div>';
+      statusEl.innerHTML = '<div class="alert-error">Please select an archive file first.</div>';
       return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Uploading ZIP\u2026';
+    btn.textContent = 'Uploading\u2026';
 
     function fmtBytes(n) {
       if (n < 1024)        return n + ' B';
@@ -1371,9 +1389,9 @@ if (is_string($__net_raw1)) {
     const fileSize = fileInput.files[0].size;
 
     const steps = [
-      { name: 'Upload ZIP',   status: 'running', message: 'Uploading\u2026',
+      { name: 'Upload archive',   status: 'running', message: 'Uploading\u2026',
         progress: { processed: 0, total: fileSize || 1 } },
-      { name: 'Inspect ZIP',  status: 'pending', message: '', progress: null },
+      { name: 'Inspect archive',  status: 'pending', message: '', progress: null },
       { name: 'Import files', status: 'pending', message: '', progress: null },
     ];
 
@@ -1514,7 +1532,7 @@ if (is_string($__net_raw1)) {
 
     importRun().finally(() => {
       btn.disabled = false;
-      btn.textContent = 'Import ZIP';
+      btn.textContent = 'Import Archive';
     });
   }
   </script>

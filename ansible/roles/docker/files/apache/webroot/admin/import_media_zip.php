@@ -35,22 +35,10 @@ $iniToBytes = static function (string $val): int {
     };
 };
 
-// Load supported extensions from env (same pattern as catalog_scan_start.php)
-$jsonEnvArray = static function (string $key): array {
-    $raw = getenv($key);
-    if (!is_string($raw) || trim($raw) === '') return [];
-    $decoded = json_decode($raw, true);
-    if (!is_array($decoded)) return [];
-    $out = [];
-    foreach ($decoded as $x) {
-        if (is_string($x) && trim($x) !== '') $out[] = strtolower(trim($x));
-    }
-    return array_values(array_unique($out));
-};
-$audioExts    = $jsonEnvArray('UPLOAD_AUDIO_EXTS_JSON') ?: ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
-$videoExts    = $jsonEnvArray('UPLOAD_VIDEO_EXTS_JSON') ?: ['mp4', 'mov', 'mkv', 'avi', 'webm', 'm4v'];
-$audioExtsSet = array_flip($audioExts);
-$videoExtsSet = array_flip($videoExts);
+require_once __DIR__ . '/admin_media_lib.php';
+$exts         = loadMediaExtensions();
+$audioExtsSet = $exts['audioSet'];
+$videoExtsSet = $exts['videoSet'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // mode=prepare — inspect ZIP, no writes to audio/video dirs
@@ -70,83 +58,119 @@ if ($mode === 'prepare') {
         exit;
     }
 
-    $origName = (string)($_FILES['zip_file']['name'] ?? '');
-    if (strtolower(pathinfo($origName, PATHINFO_EXTENSION)) !== 'zip') {
+    $origName  = (string)($_FILES['zip_file']['name'] ?? '');
+    $lowerName = strtolower($origName);
+    $isTarGz   = str_ends_with($lowerName, '.tar.gz') || str_ends_with($lowerName, '.tgz');
+    $isZip     = str_ends_with($lowerName, '.zip');
+    if (!$isZip && !$isTarGz) {
         http_response_code(400);
         header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'error' => 'File must have a .zip extension']);
+        echo json_encode(['success' => false, 'error' => 'File must have a .zip, .tar.gz, or .tgz extension']);
         exit;
     }
-
-    $zip = new ZipArchive();
-    $rc  = $zip->open((string)$_FILES['zip_file']['tmp_name'], ZipArchive::RDONLY);
-    if ($rc !== true) {
-        http_response_code(400);
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'error' => 'Invalid or corrupt ZIP file (code ' . $rc . ')']);
-        exit;
-    }
-
-    if ($zip->numFiles > 50000) {
-        $zip->close();
-        http_response_code(400);
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'error' => 'ZIP contains too many entries (limit: 50,000)']);
-        exit;
-    }
-
-    $uploadMaxBytes   = $iniToBytes((string)ini_get('upload_max_filesize'));
-    $uncompressedCap  = $uploadMaxBytes * 2;
 
     $audioCount       = 0;
     $videoCount       = 0;
     $unsupportedCount = 0;
-    $totalBytes       = 0;  // audio+video only — for disk space estimation
-    $uncompressedTotal = 0; // all entries — for zip bomb check
+    $totalBytes       = 0;
 
-    for ($i = 0; $i < $zip->numFiles; $i++) {
-        $stat = $zip->statIndex($i);
-        if ($stat === false) { $unsupportedCount++; continue; }
-
-        $entrySize          = (int)($stat['size'] ?? 0);
-        $uncompressedTotal += $entrySize;
-
-        if ($uncompressedTotal > $uncompressedCap) {
-            $zip->close();
+    if ($isZip) {
+        $zip = new ZipArchive();
+        $rc  = $zip->open((string)$_FILES['zip_file']['tmp_name'], ZipArchive::RDONLY);
+        if ($rc !== true) {
             http_response_code(400);
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Uncompressed ZIP content exceeds safety limit (2× upload_max_filesize)']);
+            echo json_encode(['success' => false, 'error' => 'Invalid or corrupt ZIP file (code ' . $rc . ')']);
             exit;
         }
 
-        $name = (string)($stat['name'] ?? '');
-        $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        $hash = pathinfo($name, PATHINFO_FILENAME);
+        if ($zip->numFiles > 50000) {
+            $zip->close();
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'ZIP contains too many entries (limit: 50,000)']);
+            exit;
+        }
 
-        // Valid GigHive entry: {sha256}.{ext} at root level (no path separator)
-        if (strpos($name, '/') === false
-            && preg_match('/^[a-f0-9]{64}$/', $hash)
-            && (isset($audioExtsSet[$ext]) || isset($videoExtsSet[$ext]))
-        ) {
-            if (isset($audioExtsSet[$ext])) {
-                $audioCount++;
-            } else {
-                $videoCount++;
+        $uploadMaxBytes  = $iniToBytes((string)ini_get('upload_max_filesize'));
+        $uncompressedCap = $uploadMaxBytes * 2;
+        $uncompressedTotal = 0;
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $stat = $zip->statIndex($i);
+            if ($stat === false) { $unsupportedCount++; continue; }
+
+            $entrySize          = (int)($stat['size'] ?? 0);
+            $uncompressedTotal += $entrySize;
+
+            if ($uncompressedTotal > $uncompressedCap) {
+                $zip->close();
+                http_response_code(400);
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Uncompressed ZIP content exceeds safety limit (2× upload_max_filesize)']);
+                exit;
             }
-            $totalBytes += $entrySize;
-        } else {
-            $unsupportedCount++;
+
+            $name = (string)($stat['name'] ?? '');
+            $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
+            if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
+                $audioCount += (int)isset($audioExtsSet[$ext]);
+                $videoCount += (int)isset($videoExtsSet[$ext]);
+                $totalBytes += $entrySize;
+            } else {
+                $unsupportedCount++;
+            }
+        }
+        $zip->close();
+    } else {
+        // tar.gz: list entries via runTar -tzvf
+        if (!function_exists('proc_open')) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'proc_open() is disabled; tar.gz inspection cannot run']);
+            exit;
+        }
+        $result = runTar(['tar', '-tzvf', (string)$_FILES['zip_file']['tmp_name']]);
+        if ($result['exit_code'] !== 0) {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Invalid or corrupt tar.gz archive']);
+            exit;
+        }
+        $lineCount = 0;
+        foreach (explode("\n", trim($result['stdout'])) as $line) {
+            $line = trim($line);
+            if ($line === '') continue;
+            $lineCount++;
+            if ($lineCount > 50000) {
+                http_response_code(400);
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Archive contains too many entries (limit: 50,000)']);
+                exit;
+            }
+            // verbose line: <perms> <user>/<group> <size> <date> <time> <name>
+            $parts = preg_split('/\s+/', $line, 6);
+            $name  = isset($parts[5]) ? trim($parts[5]) : '';
+            $size  = isset($parts[2]) ? (int)$parts[2] : 0;
+            $ext   = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
+                $audioCount += (int)isset($audioExtsSet[$ext]);
+                $videoCount += (int)isset($videoExtsSet[$ext]);
+                $totalBytes += $size;
+            } else {
+                $unsupportedCount++;
+            }
         }
     }
 
-    $zip->close();
-
     $prepareToken = bin2hex(random_bytes(8));
-    $prepPath     = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.zip';
+    $ext          = $isTarGz ? '.tar.gz' : '.zip';
+    $prepPath     = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . $ext;
     if (!move_uploaded_file((string)$_FILES['zip_file']['tmp_name'], $prepPath)) {
         http_response_code(500);
         header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'error' => 'Failed to save uploaded ZIP']);
+        echo json_encode(['success' => false, 'error' => 'Failed to save uploaded archive']);
         exit;
     }
 
@@ -175,11 +199,21 @@ if ($mode === 'start') {
         exit;
     }
 
-    $prepPath = sys_get_temp_dir() . '/gighive_zip_prepare_' . basename($prepareToken) . '.zip';
-    if (!is_file($prepPath) || filemtime($prepPath) < time() - 1800) {
+    // Try .tar.gz first, then .zip (token carries no format hint)
+    $prepPathTarGz = sys_get_temp_dir() . '/gighive_zip_prepare_' . basename($prepareToken) . '.tar.gz';
+    $prepPathZip   = sys_get_temp_dir() . '/gighive_zip_prepare_' . basename($prepareToken) . '.zip';
+    if (is_file($prepPathTarGz) && filemtime($prepPathTarGz) >= time() - 1800) {
+        $prepPath   = $prepPathTarGz;
+        $uploadName = 'upload.tar.gz';
+        $format     = 'tar.gz';
+    } elseif (is_file($prepPathZip) && filemtime($prepPathZip) >= time() - 1800) {
+        $prepPath   = $prepPathZip;
+        $uploadName = 'upload.zip';
+        $format     = 'zip';
+    } else {
         http_response_code(410);
         header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'error' => 'Prepare token expired or not found — please re-upload the ZIP']);
+        echo json_encode(['success' => false, 'error' => 'Prepare token expired or not found — please re-upload the archive']);
         exit;
     }
 
@@ -200,13 +234,25 @@ if ($mode === 'start') {
         exit;
     }
 
-    if (!rename($prepPath, $jobDir . 'upload.zip')) {
+    // Write format.txt so worker knows which branch to take
+    if (file_put_contents($jobDir . 'format.txt', $format) === false) {
         @rmdir($jobDir);
         http_response_code(500);
         header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'error' => 'Failed to move ZIP into job directory']);
+        echo json_encode(['success' => false, 'error' => 'Failed to write format.txt']);
         exit;
     }
+
+    // Cross-device safe: copy then unlink (rename() fails across filesystem boundaries)
+    if (!copy($prepPath, $jobDir . $uploadName)) {
+        @unlink($jobDir . 'format.txt');
+        @rmdir($jobDir);
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Failed to move archive into job directory']);
+        exit;
+    }
+    @unlink($prepPath);
 
     $initialStatus = json_encode([
         'success'       => true,

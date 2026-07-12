@@ -134,12 +134,19 @@ if ($mode === 'start') {
         ? preg_replace('/[^a-zA-Z0-9_\-]/', '_', $orgFilter)
         : 'all';
     $typePart = $typeFilter !== 'all' ? '_' . $typeFilter : '';
-    $filename = 'gighive_export_' . $labelPart . $typePart . '_' . date('Ymd_His') . '.zip';
+    $filename = 'gighive_export_' . $labelPart . $typePart . '_' . date('Ymd_His') . '.tar.gz';
 
     if (!function_exists('exec')) {
         http_response_code(500);
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'exec() is disabled; background worker cannot be spawned']);
+        exit;
+    }
+
+    if (!function_exists('proc_open')) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'proc_open() is disabled; archive worker cannot run']);
         exit;
     }
 
@@ -196,114 +203,4 @@ if ($mode === 'start') {
 http_response_code(410);
 header('Content-Type: application/json');
 echo json_encode(['success' => false, 'error' => 'build mode is deprecated; use mode=start']);
-exit;
-
-$tmpFile = tempnam(sys_get_temp_dir(), 'gighive_export_');
-if ($tmpFile === false) {
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'Failed to create temp file']);
-    exit;
-}
-
-$zip = new ZipArchive();
-if ($zip->open($tmpFile, ZipArchive::OVERWRITE) !== true) {
-    @unlink($tmpFile);
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'Failed to create ZIP archive']);
-    exit;
-}
-
-$added    = 0;
-$skipped  = 0;
-$seen     = [];
-
-foreach ($rows as $row) {
-    $type = (string)($row['file_type'] ?? '');
-    $sha  = trim((string)($row['checksum_sha256'] ?? ''));
-    $ext  = strtolower(trim((string)($row['file_ext'] ?? '')));
-    $src  = (string)($row['source_relpath'] ?? '');
-
-    if ($sha === '' || preg_match('/^[a-f0-9]{64}$/i', $sha) !== 1) {
-        $skipped++;
-        continue;
-    }
-
-    $dir = match($type) {
-        'audio' => $audioDir,
-        'video' => $videoDir,
-        default => null,
-    };
-    if ($dir === null) {
-        $skipped++;
-        continue;
-    }
-
-    $served   = $ext !== '' ? ($sha . '.' . $ext) : $sha;
-    $filePath = $dir . '/' . $served;
-    if (!is_file($filePath)) {
-        $skipped++;
-        continue;
-    }
-
-    $base      = $src !== '' ? basename($src) : $served;
-    $entryName = str_replace(['/', '\\', "\0"], '_', $base);
-    if ($entryName === '') {
-        $entryName = $served;
-    }
-
-    if (isset($seen[$entryName])) {
-        $entryName = pathinfo($entryName, PATHINFO_FILENAME)
-            . '_' . substr($sha, 0, 8)
-            . '.' . pathinfo($entryName, PATHINFO_EXTENSION);
-    }
-    $seen[$entryName] = true;
-
-    $zip->addFile($filePath, $entryName);
-    $added++;
-}
-
-$zip->close();
-
-if ($added === 0) {
-    @unlink($tmpFile);
-    http_response_code(404);
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'No media files found on disk for the matching records (skipped: ' . $skipped . ')']);
-    exit;
-}
-
-$labelPart = $orgFilter !== ''
-    ? preg_replace('/[^a-zA-Z0-9_\-]/', '_', $orgFilter)
-    : 'all';
-$typePart  = $typeFilter !== 'all' ? '_' . $typeFilter : '';
-$filename  = 'gighive_export_' . $labelPart . $typePart . '_' . date('Ymd_His') . '.zip';
-$size      = (int)filesize($tmpFile);
-
-header('Content-Type: application/zip');
-header('Content-Disposition: attachment; filename="' . $filename . '"');
-// Intentionally omitting Content-Length so Apache mod_proxy_fcgi streams
-// the response incrementally rather than buffering the full FCGI body first
-header('Cache-Control: no-cache, no-store, must-revalidate');
-header('Pragma: no-cache');
-header('Expires: 0');
-
-// Disable any remaining output buffering / compression so chunks reach the browser incrementally
-@ini_set('zlib.output_compression', 'off');
-while (ob_get_level() > 0) { ob_end_clean(); }
-
-// Stream in 256 KB chunks so the browser ReadableStream sees incremental data
-$handle = @fopen($tmpFile, 'rb');
-if ($handle !== false) {
-    while (!feof($handle) && !connection_aborted()) {
-        $data = fread($handle, 262144);
-        if ($data === false || $data === '') break;
-        echo $data;
-        if (ob_get_level() > 0) ob_flush();
-        flush();
-    }
-    fclose($handle);
-}
-@unlink($tmpFile);
 exit;
