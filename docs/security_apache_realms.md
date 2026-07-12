@@ -67,8 +67,8 @@ Protects admin-only endpoints.
 
 - `/admin.php`
 - `/db/upload_form_admin.php`
-- `/db/restore_database.php`
-- `/db/restore_database_status.php`
+- `/admin/restore_database.php`
+- `/admin/restore_database_status.php`
 
 **Authorization**
 

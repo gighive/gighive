@@ -57,7 +57,7 @@ Phase 4 is the hard cutover and should be its own deliberate release window afte
 #### Persona 1 — Admin (event organizer, band manager, wedding coordinator)
 
 - **Matrix recommendation:** Token (OAuth2/JWT) as primary; SAML as secondary for enterprise
-- **Current:** Basic Auth — admin realm on `/admin.php`, `/db/upload_form_admin.php`, `/db/restore_database.php`
+- **Current:** Basic Auth — admin realm on `/admin.php`, `/db/upload_form_admin.php`, `/admin/restore_database.php`
 - **Next target:** JWT with `admin` role stored in `users` table; retain Apache-level deny for `/src`, `/vendor`, `/app`, `/app/cache` as defense-in-depth
 - **Longer-term:** Optional OIDC (Google/Keycloak) for organizations running GigHive for recurring events
 

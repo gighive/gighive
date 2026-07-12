@@ -132,8 +132,8 @@ Phase 0 = #1; Phase 1 = #2–5; Phase 2 = #6; Phase 3 = #7–9; Phase 4 = #10–
 - `require_once admin_media_lib.php`
 
 **#10 — `admin/admin_system.php` — Section F** ✏️ Modified *(Phase 3 partial + Phase 4)*
-- **Phase 3 (pre-fix)**: `accept=".zip,.tar.gz,.tgz"` on file input; label text `ZIP file` → `Archive file (.zip or .tar.gz)`; no-file guard message updated
-- **Phase 4**: Heading `Import Media from ZIP` → `Import Media Archive`; description "GigHive export ZIP" → "GigHive export archive (.tar.gz or .zip)"; button `Import ZIP` → `Import Archive`; JS in-progress `'Uploading ZIP…'` → `'Uploading…'`; step names `'Upload ZIP'`/`'Inspect ZIP'` → `'Upload archive'`/`'Inspect archive'`; `finally` reset `'Import ZIP'` → `'Import Archive'`
+- **Phase 3 (pre-fix)**: `accept=".zip,.tar.gz,.tgz"` on file input; label text `ZIP file` → `Archive file`; no-file guard message updated
+- **Phase 4**: Heading `Import Media from ZIP` → `Import Media Archive`; description "GigHive export ZIP" → "GigHive export archive"; button `Import ZIP` → `Import Archive`; JS in-progress `'Uploading ZIP…'` → `'Uploading…'`; step names `'Upload ZIP'`/`'Inspect ZIP'` → `'Upload archive'`/`'Inspect archive'`; `finally` reset `'Import ZIP'` → `'Import Archive'`
 
 **#11 — `ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts`** 🧪 Test *(Phase 4)*
 - Line 71 comment: "Section E: Export Media to ZIP" → "Section E: Export Media Archive"
@@ -344,8 +344,8 @@ GET /admin/export_media_download.php?job_id=<id>
 The download endpoint:
 
 - validates the job is `done`
-- sets `Content-Type: application/zip` *(current — changes to `application/gzip` in Phase 1)*, `Content-Length`, `Content-Disposition`
-- streams `archive.zip` *(current — changes to `archive.tar.gz` in Phase 1)* in 256 KB chunks
+- sets `Content-Type: application/gzip`, `Content-Length`, `Content-Disposition`
+- streams `archive.tar.gz` in 256 KB chunks
 - cleans up the entire job directory after streaming
 
 Because the archive is pre-built, `Content-Length` is available and accurate.
@@ -422,16 +422,16 @@ Stale detection at 3600 s with automatic job directory cleanup.
 
 GET endpoint. Admin-only.
 
-Streams the pre-built `archive.zip` *(current — changes to `archive.tar.gz` in Phase 1)* to the browser in 256 KB chunks with `Content-Length` set.
+Streams the pre-built `archive.tar.gz` to the browser in 256 KB chunks with `Content-Length` set.
 Cleans up the entire job directory after streaming completes.
 
-## Section F — Import Media from ZIP
+## Section F — Import Media Archive
 
-The paired import feature in `admin_system.php` (Section F) accepts a `.zip` upload and extracts
+The paired import feature in `admin_system.php` (Section F) accepts a `.zip` or `.tar.gz` upload and extracts
 it back onto the server media volumes.
 
 Flow is also async:
-1. **Upload ZIP** — XHR with upload progress
+1. **Upload archive** — XHR with upload progress
 2. **Prepare** — server validates the uploaded archive
 3. **Start** — spawns `import_media_zip_worker.php`
 4. **Poll** — browser polls `import_media_zip_status.php`

@@ -720,7 +720,7 @@ if (is_string($__net_raw1)) {
       __backupPollTimer = null;
     }
 
-    fetch('/db/run_backup.php', {
+    fetch('/admin/run_backup.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
@@ -758,7 +758,7 @@ if (is_string($__net_raw1)) {
     let offset = 0;
 
     const tick = () => {
-      fetch('/db/run_backup_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
+      fetch('/admin/run_backup_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
         method: 'GET'
       })
       .then(async response => {
@@ -802,7 +802,7 @@ if (is_string($__net_raw1)) {
           btn.style.color = 'white';
 
           if (saveLocal && data.filename) {
-            const dlUrl = '/db/download_backup.php?filename=' + encodeURIComponent(data.filename);
+            const dlUrl = '/admin/download_backup.php?filename=' + encodeURIComponent(data.filename);
             const saveBtn = document.getElementById('__saveBkpBtn');
             if (saveBtn) {
               saveBtn.addEventListener('click', async function() {
@@ -986,7 +986,7 @@ if (is_string($__net_raw1)) {
       btn.textContent = 'Uploading backup…';
       status.innerHTML = '<div class="muted">Uploading backup file…</div>';
       try {
-        const uploadResp = await fetch('/db/upload_restore_backup.php?filename=' + encodeURIComponent(__restoreLocalFile.name), {
+        const uploadResp = await fetch('/admin/upload_restore_backup.php?filename=' + encodeURIComponent(__restoreLocalFile.name), {
           method: 'POST',
           body: __restoreLocalFile,
           headers: { 'Content-Type': 'application/octet-stream' }
@@ -1012,7 +1012,7 @@ if (is_string($__net_raw1)) {
 
     btn.textContent = 'Starting restore…';
 
-    fetch('/db/restore_database.php', {
+    fetch('/admin/restore_database.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename, confirm: confirmText })
@@ -1056,7 +1056,7 @@ if (is_string($__net_raw1)) {
     let offset = 0;
 
     const tick = () => {
-      fetch('/db/restore_database_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
+      fetch('/admin/restore_database_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
         method: 'GET'
       })
       .then(async response => {

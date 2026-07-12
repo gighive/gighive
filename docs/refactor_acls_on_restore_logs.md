@@ -6,7 +6,7 @@ The one-shot bundle binds a host directory into the Apache/PHP container for res
 - Host: `./apache/externalConfigs/restorelogs`
 - Container: `/var/www/private/restorelogs`
 
-The restore endpoint (`apache/webroot/db/restore_database.php`) requires that the directory exists and is writable by the PHP-FPM worker user (`www-data`).
+The restore endpoint (`apache/webroot/admin/restore_database.php`) requires that the directory exists and is writable by the PHP-FPM worker user (`www-data`).
 
 In typical deployments the bundle is extracted by a host user (e.g. `ubuntu`, UID 1000). The bind-mounted directory then appears inside the container owned by the host UID/GID (e.g. `1000:1000`) and may not be writable by `www-data` (typically UID/GID `33:33`).
 

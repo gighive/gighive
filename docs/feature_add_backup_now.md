@@ -40,8 +40,8 @@ create a backup on demand — neither from the UI nor from any API endpoint.
 
 | File | Function |
 |------|----------|
-| `ansible/roles/docker/files/apache/webroot/db/run_backup.php` | POST endpoint — triggers an async `mysqldump \| gzip` job inside the container; returns `{success, job_id}` |
-| `ansible/roles/docker/files/apache/webroot/db/run_backup_status.php` | GET endpoint — polls log/rc/pid files for a running backup job; returns `{success, state, exit_code, offset, log_chunk, filename, size_bytes}` |
+| `ansible/roles/docker/files/apache/webroot/admin/run_backup.php` | POST endpoint — triggers an async `mysqldump \| gzip` job inside the container; returns `{success, job_id}` |
+| `ansible/roles/docker/files/apache/webroot/admin/run_backup_status.php` | GET endpoint — polls log/rc/pid files for a running backup job; returns `{success, state, exit_code, offset, log_chunk, filename, size_bytes}` |
 
 ### Existing files changed
 
@@ -75,7 +75,7 @@ Deploy and manually verify Steps 1–3 before moving to Phase 2.  At the end of 
 can click **Create Backup Now** in the browser, watch the log panel, and see the
 `#restore_backup_file` dropdown populate with the new file.
 
-### Step 1 — `db/run_backup.php` (new)
+### Step 1 — `admin/run_backup.php` (new)
 
 Implement as a close mirror of `restore_database.php`:
 
@@ -96,7 +96,7 @@ Implement as a close mirror of `restore_database.php`:
 - Run via `proc_open` background (stdout/stderr → logFile); write pid to `backup-{jobId}.pid`
 - Return `{success: true, job_id: $jobId, message: "Backup started."}`
 
-### Step 2 — `db/run_backup_status.php` (new)
+### Step 2 — `admin/run_backup_status.php` (new)
 
 Implement as a close mirror of `restore_database_status.php`:
 
@@ -142,8 +142,8 @@ Section C: Create Database Backup
 - `doCreateBackup()` — entry sequence (mirrors `confirmRestoreDatabase()`):
   1. `if (!window.confirm('Create a new database backup now?')) return;` — safety gate; keeps the smoke test's `page.on('dialog', dialog => dialog.accept())` handler necessary and consistent
   2. `document.getElementById('createBackupBtn').disabled = true;` — prevents double-submission, same pattern as every other action button on the page
-  3. POSTs to `/db/run_backup.php`; on success calls `pollBackupLog(jobId)`
-- `pollBackupLog(jobId)` — `setInterval` polling `/db/run_backup_status.php?job_id=…&offset=…`;
+  3. POSTs to `/admin/run_backup.php`; on success calls `pollBackupLog(jobId)`
+- `pollBackupLog(jobId)` — `setInterval` polling `/admin/run_backup_status.php?job_id=…&offset=…`;
   on `state: 'ok'`:
   - Renders `.alert-ok` banner in `#createBackupStatus`
   - **Guard**: only proceed with DOM update if `data.filename` is present in the response (if the OK-line regex failed to parse, `filename` is absent — skip the select update rather than inserting `<option value="undefined">`)

@@ -144,4 +144,4 @@ Both paths are behind `valid-user` auth (see `default-ssl.conf.j2`).
 | `POST` | `/guest-report.php` | `/api` | none (nonce-validated) |
 | `POST` | `/guest-delete.php` | `/api` | none (nonce-validated) |
 | `GET` | `/admin_system_stats.php` | `/admin` | `admin` only |
-| `GET` | `/download_backup.php` | `/db` | `admin` only |
+| `GET` | `/download_backup.php` | `/admin` | `admin` only |

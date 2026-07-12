@@ -840,7 +840,7 @@ paths:
           description: 'Backup directory not configured'
       servers:
         -
-          url: /db
+          url: /admin
   /upload_restore_backup.php:
     post:
       summary: 'Upload a local backup file for restore (admin)'
@@ -877,7 +877,7 @@ paths:
           basicAuth: []
       servers:
         -
-          url: /db
+          url: /admin
   /admin_system_stats.php:
     get:
       tags:

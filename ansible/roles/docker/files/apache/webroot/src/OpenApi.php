@@ -667,7 +667,7 @@ use OpenApi\Attributes as OA;
     operationId: 'downloadBackup',
     summary: 'Download a database backup file (admin)',
     description: 'Streams a previously created mysqldump .sql.gz backup file as a browser download. The filename must be a bare basename matching the pattern created by run_backup.php (e.g. media_db_2026-07-12_120000.sql.gz). Used by the Save Backup to Folder option in Section C of the admin system page.',
-    servers: [new OA\Server(url: '/db')],
+    servers: [new OA\Server(url: '/admin')],
     tags: ['admin'],
     parameters: [
         new OA\Parameter(
@@ -692,7 +692,7 @@ use OpenApi\Attributes as OA;
     operationId: 'uploadRestoreBackup',
     summary: 'Upload a local backup file for restore (admin)',
     description: 'Accepts a raw .sql.gz gzip stream as the POST body (Content-Type: application/octet-stream). Filename is passed as the `filename` query parameter and must end with .sql.gz. Validates the gzip magic bytes before saving. Used by the Accept backup from a local folder option in Section B of the admin system page.',
-    servers: [new OA\Server(url: '/db')],
+    servers: [new OA\Server(url: '/admin')],
     security: [['basicAuth' => []]],
     parameters: [
         new OA\Parameter(name: 'filename', in: 'query', required: true, schema: new OA\Schema(type: 'string'), description: 'Original filename; must end with .sql.gz'),
