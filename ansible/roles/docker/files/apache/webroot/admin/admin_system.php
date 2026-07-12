@@ -501,7 +501,7 @@ if (is_string($__net_raw1)) {
         </div>
         <div class="row">
           <label for="import_zip_file">Archive file</label>
-          <input type="file" id="import_zip_file" name="zip_file" accept=".zip,.tar.gz,.tgz" />
+          <input type="file" id="import_zip_file" name="zip_file" accept=".tar.gz,.tgz" />
         </div>
         <div id="importZipStatus"></div>
         <button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import Archive</button>

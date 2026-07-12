@@ -133,6 +133,7 @@ Phase 0 = #1; Phase 1 = #2–5; Phase 2 = #6; Phase 3 = #7–9; Phase 4 = #10–
 
 **#10 — `admin/admin_system.php` — Section F** ✏️ Modified *(Phase 3 partial + Phase 4)*
 - **Phase 3 (pre-fix)**: `accept=".zip,.tar.gz,.tgz"` on file input; label text `ZIP file` → `Archive file`; no-file guard message updated
+- **Post-Phase 4 cleanup**: `accept` narrowed to `".tar.gz,.tgz"` — file picker now shows only gzipped archives (ZIP backend support retained for legacy compatibility)
 - **Phase 4**: Heading `Import Media from ZIP` → `Import Media Archive`; description "GigHive export ZIP" → "GigHive export archive"; button `Import ZIP` → `Import Archive`; JS in-progress `'Uploading ZIP…'` → `'Uploading…'`; step names `'Upload ZIP'`/`'Inspect ZIP'` → `'Upload archive'`/`'Inspect archive'`; `finally` reset `'Import ZIP'` → `'Import Archive'`
 
 **#11 — `ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts`** 🧪 Test *(Phase 4)*
@@ -167,7 +168,7 @@ What we are doing to move from ZIP to tar.gz, in order:
 - `import_media_zip.php`: `str_ends_with()` extension detection; format-aware temp path; write `format.txt` (always `tar.gz`, never `tgz`); `tar -tzvf` pre-scan via `runTar()`; 50k entry cap; `proc_open` guard; `copy()+@unlink()` in `mode=start`
 - `import_media_zip_worker.php`: strict `format.txt` validation; tar.gz branch — pre-scan rejects `..` entries; `runTar(['tar','-xzvf',...,'--directory',...])` extraction; `realpath()` containment check; `try/finally` extraction subdir cleanup; `copy()+unlink()` cross-device move; ZIP branch unchanged
 - `import_media_zip_status.php`: no changes needed
-- `admin_system.php` Section F: `accept=".zip,.tar.gz,.tgz"` added as immediate Phase 3 unblock (file picker defaulted to `.zip` only, making tar.gz exports unselectable)
+- `admin_system.php` Section F: `accept=".zip,.tar.gz,.tgz"` added as immediate Phase 3 unblock (file picker defaulted to `.zip` only, making tar.gz exports unselectable); later narrowed to `".tar.gz,.tgz"` so picker shows only gzipped archives
 - ✅ Gate confirmed: tar.gz import of 15 files (10 audio + 5 video, 451.5 MB); idempotent re-import skips duplicates; legacy ZIP import unchanged
 
 **Phase 4 — UI text: Section F (import side) + test comment**
@@ -427,7 +428,7 @@ Cleans up the entire job directory after streaming completes.
 
 ## Section F — Import Media Archive
 
-The paired import feature in `admin_system.php` (Section F) accepts a `.zip` or `.tar.gz` upload and extracts
+The paired import feature in `admin_system.php` (Section F) accepts a `.tar.gz` upload and extracts
 it back onto the server media volumes.
 
 Flow is also async:

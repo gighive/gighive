@@ -44,11 +44,13 @@ ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/
 # VULN testing
 	~/scripts/vulnerabilityScanUsingZap.sh
 
+sodo@pop-os:~/gighive$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
 	modified:   CHANGELOG.md
 	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
 	renamed:    ansible/roles/docker/files/apache/webroot/db/download_backup.php -> ansible/roles/docker/files/apache/webroot/admin/download_backup.php
