@@ -38,6 +38,7 @@ chmod 775 /var/www/private/import_jobs || true
 
 # Ensure backup dir is writable by www-data for on-demand backups (full channel)
 if [ -d /var/www/private/mysql_backups ]; then
+  chown -R www-data:www-data /var/www/private/mysql_backups || true
   chmod g+w /var/www/private/mysql_backups || true
 fi
 

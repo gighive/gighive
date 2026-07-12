@@ -46,7 +46,7 @@ PHP 8 `#[OA\...]` attributes are added at the **HTTP boundary** only (controller
 | `src/OpenApi.php` | `#[OA\Info]`, all `#[OA\Schema]` components, plus phantom route annotations for all endpoints not defined in `UploadController.php` |
 | `src/Controllers/UploadController.php` | `#[OA\Post]` on `post()` and `finalize()`, `#[OA\Get]` on `get()` |
 
-Note: all endpoints not in `UploadController.php` are documented via phantom route annotations on the `OpenApi` class in `src/OpenApi.php` rather than inline in their respective PHP scripts. This keeps the procedural scripts clean and the generator command simple. Phantom routes covered: `/media-files`, `/database.php`, `/import_manifest_upload_finalize.php`, `/ai_jobs.php`, `/tags.php`, `/taggings.php`, `/upload-token.php`, `/guest-status.php`, `/guest-gallery.php`, `/guest-stream.php`, `/guest-report.php`, `/guest-delete.php`, `/admin_system_stats.php`.
+Note: all endpoints not in `UploadController.php` are documented via phantom route annotations on the `OpenApi` class in `src/OpenApi.php` rather than inline in their respective PHP scripts. This keeps the procedural scripts clean and the generator command simple. Phantom routes covered: `/media-files`, `/database.php`, `/import_manifest_upload_finalize.php`, `/ai_jobs.php`, `/tags.php`, `/taggings.php`, `/upload-token.php`, `/guest-status.php`, `/guest-gallery.php`, `/guest-stream.php`, `/guest-report.php`, `/guest-delete.php`, `/admin_system_stats.php`, `/download_backup.php`.
 
 Schema components defined in `src/OpenApi.php`:
 - `File` — base file record
@@ -144,3 +144,4 @@ Both paths are behind `valid-user` auth (see `default-ssl.conf.j2`).
 | `POST` | `/guest-report.php` | `/api` | none (nonce-validated) |
 | `POST` | `/guest-delete.php` | `/api` | none (nonce-validated) |
 | `GET` | `/admin_system_stats.php` | `/admin` | `admin` only |
+| `GET` | `/download_backup.php` | `/db` | `admin` only |

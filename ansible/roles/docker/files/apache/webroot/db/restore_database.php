@@ -11,7 +11,6 @@ if ($user !== 'admin') {
     echo json_encode([
         'success' => false,
         'error' => 'Forbidden',
-        'message' => 'Admin access required',
     ]);
     exit;
 }
@@ -23,7 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
         'success' => false,
         'error' => 'Method Not Allowed',
-        'message' => 'Only POST requests are accepted',
     ]);
     exit;
 }
@@ -35,8 +33,7 @@ if (!is_array($data)) {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'error' => 'Bad Request',
-        'message' => 'Invalid JSON body',
+        'error' => 'Invalid JSON body',
     ]);
     exit;
 }
@@ -49,8 +46,7 @@ if ($confirm !== 'RESTORE') {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'error' => 'Bad Request',
-        'message' => 'Confirmation phrase mismatch (type RESTORE).',
+        'error' => 'Confirmation phrase mismatch (type RESTORE).',
     ]);
     exit;
 }
@@ -63,8 +59,7 @@ if ($backupDir === '' || $logDir === '') {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'error' => 'Server Error',
-        'message' => 'Restore paths not configured (missing env vars).',
+        'error' => 'Restore paths not configured (missing env vars).',
     ]);
     exit;
 }
@@ -182,7 +177,6 @@ try {
     echo json_encode([
         'success' => true,
         'job_id' => $jobId,
-        'message' => 'Restore started. Monitor logs for progress.',
     ]);
 
 } catch (Throwable $e) {
@@ -190,7 +184,6 @@ try {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'error' => 'Server Error',
-        'message' => $e->getMessage(),
+        'error' => $e->getMessage(),
     ]);
 }

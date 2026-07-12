@@ -809,6 +809,75 @@ paths:
       servers:
         -
           url: /api
+  /download_backup.php:
+    get:
+      tags:
+        - admin
+      summary: 'Download a database backup file (admin)'
+      description: 'Streams a previously created mysqldump .sql.gz backup file as a browser download. The filename must be a bare basename matching the pattern created by run_backup.php (e.g. media_db_2026-07-12_120000.sql.gz). Used by the Save Backup to Folder option in Section C of the admin system page.'
+      operationId: downloadBackup
+      parameters:
+        -
+          name: filename
+          in: query
+          description: 'Bare filename of the backup (no path components)'
+          required: true
+          schema:
+            type: string
+            pattern: '^[\w\-.]+\.sql\.gz$'
+      responses:
+        '200':
+          description: 'OK — backup file streamed as application/gzip attachment'
+        '400':
+          description: 'Missing or invalid filename parameter'
+        '403':
+          description: 'Forbidden — admin access required'
+        '404':
+          description: 'Backup file not found'
+        '405':
+          description: 'Method not allowed — GET only'
+        '500':
+          description: 'Backup directory not configured'
+      servers:
+        -
+          url: /db
+  /upload_restore_backup.php:
+    post:
+      summary: 'Upload a local backup file for restore (admin)'
+      description: 'Accepts a raw .sql.gz gzip stream as the POST body (Content-Type: application/octet-stream). Filename is passed as the `filename` query parameter and must end with .sql.gz. Validates the gzip magic bytes before saving. Used by the Accept backup from a local folder option in Section B of the admin system page.'
+      operationId: uploadRestoreBackup
+      parameters:
+        -
+          name: filename
+          in: query
+          description: 'Original filename; must end with .sql.gz'
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: 'File saved — returns {success, filename, bytes}'
+        '400':
+          description: 'Invalid filename, not a gzip file, or no data received'
+        '403':
+          description: 'Admin required'
+        '405':
+          description: 'Method not allowed — POST only'
+        '500':
+          description: 'Backup directory not writable or stream error'
+      security:
+        -
+          basicAuth: []
+      servers:
+        -
+          url: /db
   /admin_system_stats.php:
     get:
       tags:
@@ -1168,7 +1237,7 @@ components:
               type: integer
               format: int64
             counts:
-              description: 'Row count per table (events, assets, event_items, participants, tags, taggings)'
+              description: 'Row count per table (catalog_scans, catalog_entries, events, assets, event_items, participants, tags, taggings, ai_jobs)'
               type: object
           type: object
           nullable: true

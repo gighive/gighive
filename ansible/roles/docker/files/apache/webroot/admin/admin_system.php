@@ -103,7 +103,9 @@ try {
     $__szStmt->execute([$__dbName]);
     $__dbBytes = (int) $__szStmt->fetchColumn();
     $__counts  = [];
-    foreach (['events', 'assets', 'event_items', 'participants', 'tags', 'taggings'] as $__tbl) {
+    $__tbls = ['catalog_scans', 'catalog_entries', 'events', 'assets', 'event_items', 'participants', 'tags', 'taggings'];
+    if (filter_var(getenv('AI_WORKER_ENABLED'), FILTER_VALIDATE_BOOLEAN)) { $__tbls[] = 'ai_jobs'; }
+    foreach ($__tbls as $__tbl) {
         try {
             $__counts[$__tbl] = (int) $__spdo->query("SELECT COUNT(*) FROM `{$__tbl}`")->fetchColumn();
         } catch (Throwable $__ignored) {
@@ -111,7 +113,7 @@ try {
         }
     }
     $__db_stats = ['version' => $__ver, 'db_name' => $__dbName, 'size' => $__dbBytes, 'counts' => $__counts];
-    unset($__spdo, $__dsn, $__szStmt, $__tbl, $__ignored, $__ver, $__dbName, $__dbBytes, $__counts);
+    unset($__spdo, $__dsn, $__szStmt, $__tbl, $__tbls, $__ignored, $__ver, $__dbName, $__dbBytes, $__counts);
 } catch (Throwable $__ignored) { unset($__ignored); }
 
 $__media_stats = null;
@@ -251,7 +253,7 @@ if (is_string($__net_raw1)) {
     .stats-grid { display:grid; grid-template-columns:5.5rem 9rem 8rem 12rem; row-gap:.25rem; align-items:start; }
     .sg-lbl { font-weight:600; color:#e9eef7; }
     .sg-sub { display:block; font-size:.75rem; font-weight:normal; color:#a8b3cf; }
-    .sg-span { grid-column:2/-1; }
+    .sg-span { grid-column:2/-1; font-size:.75rem; }
     .stats-grid .snum { text-align:right; font-variant-numeric:tabular-nums; }
     .sg-sep { grid-column:2/-1; border:none; border-top:1px solid #1d2a55; margin:.1rem 0; height:0; padding:0; }
     .stats-grid > span:not(.sg-lbl) { font-size:.75rem; }
@@ -281,14 +283,17 @@ if (is_string($__net_raw1)) {
 
           <span class="sg-lbl">DB</span>
           <div class="sg-span" id="stat-db"><?php if ($__db_stats !== null): ?>MySQL <?= htmlspecialchars($__db_stats['version']) ?> &nbsp;&middot;&nbsp; <?= htmlspecialchars($__db_stats['db_name']) ?> &nbsp;&middot;&nbsp; <?= htmlspecialchars(__stats_mb($__db_stats['size'])) ?> on disk<br><?php
-            $__cp1 = []; $__cp2 = [];
+            $__cp1 = []; $__cp2 = []; $__cp3 = [];
             foreach ($__db_stats['counts'] as $__ct => $__cn) {
                 $__item = '<strong>' . __stats_n($__cn) . '</strong> ' . htmlspecialchars(str_replace('_', ' ', $__ct));
-                if ($__ct === 'tags' || $__ct === 'taggings') { $__cp2[] = $__item; } else { $__cp1[] = $__item; }
+                if ($__ct === 'catalog_scans' || $__ct === 'catalog_entries') { $__cp1[] = $__item; }
+                elseif ($__ct === 'tags' || $__ct === 'taggings' || $__ct === 'ai_jobs') { $__cp3[] = $__item; }
+                else { $__cp2[] = $__item; }
             }
             echo implode(' &nbsp;&middot;&nbsp; ', $__cp1);
             if (!empty($__cp2)) { echo '<br>' . implode(' &nbsp;&middot;&nbsp; ', $__cp2); }
-            unset($__cp1, $__cp2, $__ct, $__cn, $__item);
+            if (!empty($__cp3)) { echo '<br>' . implode(' &nbsp;&middot;&nbsp; ', $__cp3); }
+            unset($__cp1, $__cp2, $__cp3, $__ct, $__cn, $__item);
           ?><?php else: ?><span style="font-style:italic">unavailable</span><?php endif; ?></div>
 
           <div style="grid-column:1/-1;height:.5rem"></div>
@@ -369,6 +374,11 @@ if (is_string($__net_raw1)) {
           A full database backup is created daily by the server. Use this section to restore the entire database if something goes wrong.
           Note that the backup only applies to the database in the container.  The backup does not backup the media files stored on the filesystem.
         </p>
+        <p class="muted">
+          You also have the ability to upload a locally saved database backup. To do this, toggle
+          &ldquo;Accept backup from a local folder&rdquo;, choose your file, type <code>RESTORE</code>
+          in the text field and then click Restore Database.
+        </p>
         <div class="warning-box">
           <strong>⚠️ Warning:</strong> This will overwrite the current database with the selected backup.
         </div>
@@ -388,6 +398,19 @@ if (is_string($__net_raw1)) {
           </select>
         </div>
 
+        <div style="margin:.6rem 0">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;color:#a8b3cf">
+            <input type="checkbox" id="restoreFromLocal">
+            Accept backup from a local folder
+          </label>
+        </div>
+        <div id="restoreLocalPickerRow" style="display:none;margin:.5rem 0">
+          <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+            <button type="button" id="restorePickFileBtn" onclick="pickRestoreFile()">Choose Backup File…</button>
+            <span id="restoreLocalFilename" class="muted" style="font-size:.9em"></span>
+          </div>
+        </div>
+
         <div class="row">
           <label for="restore_confirm">Type <code>RESTORE</code> to confirm</label>
           <input type="text" id="restore_confirm" name="restore_confirm" value="" />
@@ -400,18 +423,28 @@ if (is_string($__net_raw1)) {
       </div>
 
       <div class="section-divider">
-        <h2>Section C: Create Backup Now</h2>
+        <h2>Section C: Create Database Backup Now</h2>
         <p class="muted">
           Create an immediate <code>mysqldump | gzip</code> backup of the database. The backup is written to
           the configured backups directory and the <code>_latest.sql.gz</code> symlink is updated.
           Use this before running a restore test on a fresh install where the daily cron has not yet run.
+        </p>
+        <p class="muted">
+          You also have the option to save the backup to a second, separate folder if you are migrating from
+          one instance of GigHive to another. Toggle the checkbox below if you want to do that.
         </p>
         <div class="warning-box">
           <strong>⚠️ Warning:</strong> This will overwrite the <code>_latest.sql.gz</code> symlink to point to the new backup.
         </div>
         <div id="createBackupStatus"></div>
         <div id="createBackupLog" style="display:none;margin-top:.75rem;background:#0e1530;border:1px solid #33427a;border-radius:10px;padding:.75rem;max-height:280px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:.85rem;"></div>
-        <button type="button" id="createBackupBtn" onclick="doCreateBackup()">Create Backup Now</button>
+        <div style="margin:.75rem 0">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;color:#a8b3cf">
+            <input type="checkbox" id="saveBackupLocal">
+            Save Backup to Folder
+          </label>
+        </div>
+        <button type="button" id="createBackupBtn" onclick="doCreateBackup()">Create Database Backup Now</button>
       </div>
 
       <div class="section-divider">
@@ -655,6 +688,7 @@ if (is_string($__net_raw1)) {
 
   let __restorePollTimer = null;
   let __restorePollTick = null;
+  let __restoreLocalFile = null;
 
   let __backupPollTimer = null;
 
@@ -666,7 +700,7 @@ if (is_string($__net_raw1)) {
   }
 
   function doCreateBackup() {
-    if (!confirm('Create a new database backup now?\n\nThis will overwrite the _latest.sql.gz symlink.')) {
+    if (!confirm('Create a new database backup now?\n\nThis will overwrite the _latest.sql.gz symlink.' + (document.getElementById('saveBackupLocal')?.checked ? '\n\nThe backup will also be downloaded to your local folder.' : ''))) {
       return;
     }
 
@@ -675,6 +709,7 @@ if (is_string($__net_raw1)) {
     const logEl  = document.getElementById('createBackupLog');
 
     btn.disabled = true;
+    const saveLocal = document.getElementById('saveBackupLocal')?.checked === true;
     btn.textContent = 'Starting backup…';
     status.innerHTML = '<div class="muted">Starting backup job...</div>';
     logEl.style.display = 'block';
@@ -699,23 +734,23 @@ if (is_string($__net_raw1)) {
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
         status.innerHTML = '<div class="alert-err">Error: ' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
         btn.disabled = false;
-        btn.textContent = 'Create Backup Now';
+        btn.textContent = 'Create Database Backup Now';
         return;
       }
 
       const jobId = String(data.job_id);
       status.innerHTML = '<div class="muted">Backup started. Job: <code>' + jobId.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</code></div>';
       btn.textContent = 'Backup Running…';
-      pollBackupLog(jobId);
+      pollBackupLog(jobId, saveLocal);
     })
     .catch(error => {
       status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
       btn.disabled = false;
-      btn.textContent = 'Create Backup Now';
+      btn.textContent = 'Create Database Backup Now';
     });
   }
 
-  function pollBackupLog(jobId) {
+  function pollBackupLog(jobId, saveLocal) {
     const btn    = document.getElementById('createBackupBtn');
     const status = document.getElementById('createBackupStatus');
     const logEl  = document.getElementById('createBackupLog');
@@ -739,7 +774,7 @@ if (is_string($__net_raw1)) {
             __backupPollTimer = null;
           }
           btn.disabled = false;
-          btn.textContent = 'Create Backup Now';
+          btn.textContent = 'Create Database Backup Now';
           return;
         }
 
@@ -757,11 +792,53 @@ if (is_string($__net_raw1)) {
             clearInterval(__backupPollTimer);
             __backupPollTimer = null;
           }
-          status.innerHTML = '<div class="alert-ok">Backup completed successfully.</div>';
+          const _saveBtnHtml = (saveLocal && data.filename)
+            ? ' <button id="__saveBkpBtn" type="button" style="margin-left:.5rem;padding:.3rem .7rem;font-size:.85rem;border-radius:7px;border:1px solid #3b82f6;background:transparent;color:#e9eef7;cursor:pointer">Save to Folder…</button>'
+            : '';
+          status.innerHTML = '<div class="alert-ok">Backup completed successfully.' + _saveBtnHtml + '</div>';
           btn.textContent = 'Backup Created!';
           btn.style.background = '#28a745';
           btn.style.borderColor = '#28a745';
           btn.style.color = 'white';
+
+          if (saveLocal && data.filename) {
+            const dlUrl = '/db/download_backup.php?filename=' + encodeURIComponent(data.filename);
+            const saveBtn = document.getElementById('__saveBkpBtn');
+            if (saveBtn) {
+              saveBtn.addEventListener('click', async function() {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving…';
+                if ('showSaveFilePicker' in window) {
+                  try {
+                    const fileHandle = await window.showSaveFilePicker({
+                      suggestedName: data.filename,
+                      types: [{ description: 'Gzip archive', accept: { 'application/gzip': ['.gz'] } }]
+                    });
+                    const response = await fetch(dlUrl);
+                    if (!response.ok) throw new Error('Download failed: ' + response.status);
+                    const writable = await fileHandle.createWritable();
+                    await response.body.pipeTo(writable);
+                    status.innerHTML = '<div class="alert-ok">Backup saved successfully.</div>';
+                  } catch (err) {
+                    if (err.name !== 'AbortError') {
+                      status.innerHTML = '<div class="alert-err">Save failed: ' + String(err.message || err).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+                    } else {
+                      status.innerHTML = '<div class="alert-ok">Backup completed successfully.</div>';
+                    }
+                  }
+                } else {
+                  const a = document.createElement('a');
+                  a.href = dlUrl;
+                  a.download = data.filename;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  saveBtn.disabled = false;
+                  saveBtn.textContent = 'Save to Folder…';
+                }
+              });
+            }
+          }
 
           if (data.filename) {
             const selectEl = document.getElementById('restore_backup_file');
@@ -790,7 +867,7 @@ if (is_string($__net_raw1)) {
           const code = (data.exit_code !== null && data.exit_code !== undefined) ? String(data.exit_code) : '?';
           status.innerHTML = '<div class="alert-err">Backup failed. Exit code: ' + code.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
           btn.disabled = false;
-          btn.textContent = 'Create Backup Now';
+          btn.textContent = 'Create Database Backup Now';
         }
       })
       .catch(err => {
@@ -800,7 +877,7 @@ if (is_string($__net_raw1)) {
           __backupPollTimer = null;
         }
         btn.disabled = false;
-        btn.textContent = 'Create Backup Now';
+        btn.textContent = 'Create Database Backup Now';
       });
     };
 
@@ -808,19 +885,78 @@ if (is_string($__net_raw1)) {
     __backupPollTimer = setInterval(tick, 1500);
   }
 
-  function confirmRestoreDatabase() {
+  function pickRestoreFile() {
+    const status = document.getElementById('restoreDbStatus');
+    const filenameEl = document.getElementById('restoreLocalFilename');
+    const btn = document.getElementById('restoreDbBtn');
+    if ('showOpenFilePicker' in window) {
+      window.showOpenFilePicker({
+        multiple: false,
+        types: [{ description: 'Database backup (.sql.gz)', accept: { 'application/gzip': ['.gz'], 'application/octet-stream': ['.gz'] } }]
+      }).then(async ([fileHandle]) => {
+        __restoreLocalFile = await fileHandle.getFile();
+        filenameEl.textContent = __restoreLocalFile.name + ' (' + __fmtBytes(__restoreLocalFile.size) + ')';
+        btn.disabled = false;
+      }).catch(err => {
+        if (err.name !== 'AbortError') {
+          status.innerHTML = '<div class="alert-err">File picker error: ' + String(err.message || err).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+        }
+      });
+    } else {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = '.gz';
+      inp.onchange = () => {
+        if (inp.files && inp.files[0]) {
+          __restoreLocalFile = inp.files[0];
+          filenameEl.textContent = __restoreLocalFile.name + ' (' + __fmtBytes(__restoreLocalFile.size) + ')';
+          btn.disabled = false;
+        }
+      };
+      inp.click();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggle = document.getElementById('restoreFromLocal');
+    if (!toggle) return;
+    toggle.addEventListener('change', function () {
+      const local = this.checked;
+      const sel = document.getElementById('restore_backup_file');
+      const pickerRow = document.getElementById('restoreLocalPickerRow');
+      const btn = document.getElementById('restoreDbBtn');
+      sel.disabled = local;
+      pickerRow.style.display = local ? '' : 'none';
+      if (!local) {
+        __restoreLocalFile = null;
+        document.getElementById('restoreLocalFilename').textContent = '';
+        btn.disabled = !sel.value;
+      } else {
+        btn.disabled = true;
+      }
+    });
+  });
+
+  async function confirmRestoreDatabase() {
+    const localMode = document.getElementById('restoreFromLocal')?.checked === true;
     const sel = document.getElementById('restore_backup_file');
     const confirmEl = document.getElementById('restore_confirm');
     const btn = document.getElementById('restoreDbBtn');
     const status = document.getElementById('restoreDbStatus');
     const logEl = document.getElementById('restoreDbLog');
 
-    const filename = sel && sel.value ? String(sel.value).trim() : '';
     const confirmText = confirmEl && typeof confirmEl.value === 'string' ? String(confirmEl.value).trim() : '';
 
-    if (!filename) {
-      status.innerHTML = '<div class="alert-err">Please select a backup file.</div>';
-      return;
+    if (localMode) {
+      if (!__restoreLocalFile) {
+        status.innerHTML = '<div class="alert-err">Please choose a backup file.</div>';
+        return;
+      }
+    } else {
+      const filename = sel && sel.value ? String(sel.value).trim() : '';
+      if (!filename) {
+        status.innerHTML = '<div class="alert-err">Please select a backup file.</div>';
+        return;
+      }
     }
 
     if (confirmText !== 'RESTORE') {
@@ -828,7 +964,8 @@ if (is_string($__net_raw1)) {
       return;
     }
 
-    if (!confirm('Restore the database from:\n\n' + filename + '\n\nThis will OVERWRITE the current database. Continue?')) {
+    const filenameForConfirm = localMode ? __restoreLocalFile.name : (sel && sel.value ? String(sel.value).trim() : '');
+    if (!confirm('Restore the database from:\n\n' + filenameForConfirm + '\n\nThis will OVERWRITE the current database. Continue?')) {
       return;
     }
 
@@ -841,10 +978,39 @@ if (is_string($__net_raw1)) {
     btn.style.background = '';
     btn.style.borderColor = '';
     btn.style.color = '';
-    btn.textContent = 'Starting restore…';
-    status.innerHTML = '<div class="muted">Starting restore job...</div>';
     logEl.style.display = 'block';
     logEl.textContent = '';
+
+    let filename;
+    if (localMode) {
+      btn.textContent = 'Uploading backup…';
+      status.innerHTML = '<div class="muted">Uploading backup file…</div>';
+      try {
+        const uploadResp = await fetch('/db/upload_restore_backup.php?filename=' + encodeURIComponent(__restoreLocalFile.name), {
+          method: 'POST',
+          body: __restoreLocalFile,
+          headers: { 'Content-Type': 'application/octet-stream' }
+        });
+        const uploadData = await uploadResp.json().catch(() => null);
+        if (!uploadResp.ok || !uploadData?.success) {
+          const msg = (uploadData && uploadData.error) ? uploadData.error : 'Upload failed';
+          status.innerHTML = '<div class="alert-err">Upload error: ' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+          btn.disabled = false; btn.textContent = 'Restore Database';
+          return;
+        }
+        filename = uploadData.filename;
+        status.innerHTML = '<div class="muted">Upload complete. Starting restore job…</div>';
+      } catch (err) {
+        status.innerHTML = '<div class="alert-err">Upload error: ' + String(err.message || err).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</div>';
+        btn.disabled = false; btn.textContent = 'Restore Database';
+        return;
+      }
+    } else {
+      filename = sel && sel.value ? String(sel.value).trim() : '';
+      status.innerHTML = '<div class="muted">Starting restore job...</div>';
+    }
+
+    btn.textContent = 'Starting restore…';
 
     fetch('/db/restore_database.php', {
       method: 'POST',
@@ -1377,13 +1543,16 @@ if (is_string($__net_raw1)) {
           var h = 'MySQL '+escHtml(d.db.version)
               +' &nbsp;&middot;&nbsp; '+escHtml(d.db.db_name)
               +' &nbsp;&middot;&nbsp; '+fmtMB(d.db.size_bytes)+' on disk<br>';
-          var l1=[], l2=[];
+          var l1=[], l2=[], l3=[];
           Object.entries(d.db.counts).forEach(function(e) {
             var item = '<strong>'+fmtN(e[1])+'</strong> '+e[0].replace(/_/g,' ');
-            if (e[0]==='tags'||e[0]==='taggings') l2.push(item); else l1.push(item);
+            if (e[0]==='catalog_scans'||e[0]==='catalog_entries') l1.push(item);
+            else if (e[0]==='tags'||e[0]==='taggings'||e[0]==='ai_jobs') l3.push(item);
+            else l2.push(item);
           });
           h += l1.join(' &nbsp;&middot;&nbsp; ');
           if (l2.length) h += '<br>'+l2.join(' &nbsp;&middot;&nbsp; ');
+          if (l3.length) h += '<br>'+l3.join(' &nbsp;&middot;&nbsp; ');
           el.innerHTML = h;
         }
       }

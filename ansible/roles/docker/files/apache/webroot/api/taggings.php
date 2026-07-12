@@ -21,19 +21,7 @@ $user    = $_SERVER['PHP_AUTH_USER']
         ?? null;
 $isAdmin = ($user === 'admin');
 
-function json_ok(array $body, int $code = 200): void
-{
-    http_response_code($code);
-    echo json_encode($body);
-    exit;
-}
-
-function json_err(string $msg, int $code = 400): void
-{
-    http_response_code($code);
-    echo json_encode(['error' => $msg]);
-    exit;
-}
+require_once __DIR__ . '/../includes/api_helpers.php';
 
 if (!$isAdmin) {
     json_err('Admin required', 403);

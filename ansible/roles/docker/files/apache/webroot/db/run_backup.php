@@ -11,7 +11,6 @@ if ($user !== 'admin') {
     echo json_encode([
         'success' => false,
         'error'   => 'Forbidden',
-        'message' => 'Admin access required',
     ]);
     exit;
 }
@@ -23,7 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
         'success' => false,
         'error'   => 'Method Not Allowed',
-        'message' => 'Only POST requests are accepted',
     ]);
     exit;
 }
@@ -36,8 +34,7 @@ if ($backupDir === '' || $logDir === '') {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'error'   => 'Server Error',
-        'message' => 'Backup paths not configured (missing env vars).',
+        'error'   => 'Backup paths not configured (missing env vars).',
     ]);
     exit;
 }
@@ -146,7 +143,6 @@ try {
     echo json_encode([
         'success' => true,
         'job_id'  => $jobId,
-        'message' => 'Backup started. Monitor logs for progress.',
     ]);
 
 } catch (Throwable $e) {
@@ -154,7 +150,6 @@ try {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'error'   => 'Server Error',
-        'message' => $e->getMessage(),
+        'error'   => $e->getMessage(),
     ]);
 }

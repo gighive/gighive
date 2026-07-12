@@ -13,19 +13,7 @@ use Production\Api\Infrastructure\Database;
 
 header('Content-Type: application/json; charset=utf-8');
 
-function json_ok(mixed $body, int $code = 200): void
-{
-    http_response_code($code);
-    echo json_encode($body);
-    exit;
-}
-
-function json_err(string $msg, int $code = 400): void
-{
-    http_response_code($code);
-    echo json_encode(['error' => $msg]);
-    exit;
-}
+require_once __DIR__ . '/../includes/api_helpers.php';
 
 try {
     $pdo = Database::createFromEnv();

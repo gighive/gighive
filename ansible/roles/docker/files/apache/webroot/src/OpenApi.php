@@ -614,7 +614,7 @@ use OpenApi\Attributes as OA;
                 new OA\Property(property: 'version',    type: 'string'),
                 new OA\Property(property: 'db_name',    type: 'string'),
                 new OA\Property(property: 'size_bytes', type: 'integer', format: 'int64'),
-                new OA\Property(property: 'counts',     type: 'object',  description: 'Row count per table (events, assets, event_items, participants, tags, taggings)'),
+                new OA\Property(property: 'counts',     type: 'object',  description: 'Row count per table (catalog_scans, catalog_entries, events, assets, event_items, participants, tags, taggings, ai_jobs)'),
             ]
         ),
         new OA\Property(
@@ -660,6 +660,53 @@ use OpenApi\Attributes as OA;
                 new OA\Property(property: 'tx_bps', type: 'integer'),
             ])
         ),
+    ]
+)]
+#[OA\Get(
+    path: '/download_backup.php',
+    operationId: 'downloadBackup',
+    summary: 'Download a database backup file (admin)',
+    description: 'Streams a previously created mysqldump .sql.gz backup file as a browser download. The filename must be a bare basename matching the pattern created by run_backup.php (e.g. media_db_2026-07-12_120000.sql.gz). Used by the Save Backup to Folder option in Section C of the admin system page.',
+    servers: [new OA\Server(url: '/db')],
+    tags: ['admin'],
+    parameters: [
+        new OA\Parameter(
+            name: 'filename',
+            in: 'query',
+            required: true,
+            schema: new OA\Schema(type: 'string', pattern: '^[\\w\\-.]+\\.sql\\.gz$'),
+            description: 'Bare filename of the backup (no path components)'
+        ),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'OK — backup file streamed as application/gzip attachment'),
+        new OA\Response(response: 400, description: 'Missing or invalid filename parameter'),
+        new OA\Response(response: 403, description: 'Forbidden — admin access required'),
+        new OA\Response(response: 404, description: 'Backup file not found'),
+        new OA\Response(response: 405, description: 'Method not allowed — GET only'),
+        new OA\Response(response: 500, description: 'Backup directory not configured'),
+    ]
+)]
+#[OA\Post(
+    path: '/upload_restore_backup.php',
+    operationId: 'uploadRestoreBackup',
+    summary: 'Upload a local backup file for restore (admin)',
+    description: 'Accepts a raw .sql.gz gzip stream as the POST body (Content-Type: application/octet-stream). Filename is passed as the `filename` query parameter and must end with .sql.gz. Validates the gzip magic bytes before saving. Used by the Accept backup from a local folder option in Section B of the admin system page.',
+    servers: [new OA\Server(url: '/db')],
+    security: [['basicAuth' => []]],
+    parameters: [
+        new OA\Parameter(name: 'filename', in: 'query', required: true, schema: new OA\Schema(type: 'string'), description: 'Original filename; must end with .sql.gz'),
+    ],
+    requestBody: new OA\RequestBody(
+        required: true,
+        content: [new OA\MediaType(mediaType: 'application/octet-stream', schema: new OA\Schema(type: 'string', format: 'binary'))]
+    ),
+    responses: [
+        new OA\Response(response: 200, description: 'File saved — returns {success, filename, bytes}'),
+        new OA\Response(response: 400, description: 'Invalid filename, not a gzip file, or no data received'),
+        new OA\Response(response: 403, description: 'Admin required'),
+        new OA\Response(response: 405, description: 'Method not allowed — POST only'),
+        new OA\Response(response: 500, description: 'Backup directory not writable or stream error'),
     ]
 )]
 #[OA\Get(

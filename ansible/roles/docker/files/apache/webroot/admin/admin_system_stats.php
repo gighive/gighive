@@ -39,7 +39,9 @@ try {
         $szStmt->execute([$dbName]);
         $sizeBytes = (int) $szStmt->fetchColumn();
         $counts    = [];
-        foreach (['events', 'assets', 'event_items', 'participants', 'tags', 'taggings'] as $tbl) {
+        $tbls = ['catalog_scans', 'catalog_entries', 'events', 'assets', 'event_items', 'participants', 'tags', 'taggings'];
+        if (filter_var(getenv('AI_WORKER_ENABLED'), FILTER_VALIDATE_BOOLEAN)) { $tbls[] = 'ai_jobs'; }
+        foreach ($tbls as $tbl) {
             try { $counts[$tbl] = (int) $pdo->query("SELECT COUNT(*) FROM `{$tbl}`")->fetchColumn(); }
             catch (Throwable) { $counts[$tbl] = 0; }
         }
