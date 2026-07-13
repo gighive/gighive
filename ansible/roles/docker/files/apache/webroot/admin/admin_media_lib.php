@@ -50,6 +50,23 @@ function isValidMediaEntry(string $name, array $audioExtsSet, array $videoExtsSe
 }
 
 /**
+ * Return true if $name is a valid GigHive thumbnail entry:
+ * - exactly one directory level: thumbnails/{sha256}.png
+ * - no '..' traversal
+ * - 64-char lowercase hex stem, .png extension
+ */
+function isValidThumbnailEntry(string $name): bool
+{
+    if (str_contains($name, '..')) return false;
+    if (!str_starts_with($name, 'thumbnails/')) return false;
+    $base = substr($name, strlen('thumbnails/'));
+    if (str_contains($base, '/')) return false;
+    $hash = pathinfo($base, PATHINFO_FILENAME);
+    $ext  = strtolower(pathinfo($base, PATHINFO_EXTENSION));
+    return preg_match('/^[a-f0-9]{64}$/', $hash) === 1 && $ext === 'png';
+}
+
+/**
  * Execute a tar command via array-form proc_open.
  * Returns ['exit_code' => int, 'stdout' => string, 'stderr' => string].
  * Always injects LC_ALL=C for consistent verbose output parsing.

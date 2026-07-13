@@ -234,6 +234,8 @@ try {
                 }
                 if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
                     $total++;
+                } elseif (isValidThumbnailEntry($name)) {
+                    $total++;
                 } else {
                     $unsupportedCount++;
                 }
@@ -326,10 +328,66 @@ try {
                 }
             }
 
+            // Second pass: thumbnail files in thumbnails/ subdir
+            $thumbDestDir = '/var/www/html/video/thumbnails';
+            @mkdir($thumbDestDir, 0775, true);
+            $realThumbExtractDir = is_dir($extractDir . 'thumbnails') ? realpath($extractDir . 'thumbnails') : false;
+            foreach (glob($extractDir . 'thumbnails/*.png') ?: [] as $thumbFilePath) {
+                $thumbName = basename($thumbFilePath);
+                if (!isValidThumbnailEntry('thumbnails/' . $thumbName)) {
+                    $unsupportedCount++;
+                    @unlink($thumbFilePath);
+                    continue;
+                }
+                $realThumb = realpath($thumbFilePath);
+                if ($realThumb === false || $realThumbExtractDir === false ||
+                    strncmp($realThumb, $realThumbExtractDir . DIRECTORY_SEPARATOR,
+                             strlen($realThumbExtractDir) + 1) !== 0) {
+                    $unsupportedCount++;
+                    continue;
+                }
+                $processed++;
+                $dest = $thumbDestDir . '/' . $thumbName;
+                if (is_file($dest)) {
+                    $alreadyExists++;
+                    @unlink($thumbFilePath);
+                } else {
+                    $fileBytes = (int)filesize($thumbFilePath);
+                    if (!copy($thumbFilePath, $dest)) {
+                        $errors[] = 'thumbnail copy failed: ' . $thumbName;
+                        @unlink($thumbFilePath);
+                        continue;
+                    }
+                    @unlink($thumbFilePath);
+                    $added++;
+                    $bytesAdded += $fileBytes;
+                }
+                if ($processed % 10 === 0) {
+                    writeJobStatus($jsonPath, [
+                        'success'        => true,
+                        'job_id'         => $jobId,
+                        'state'          => 'running',
+                        'processed'      => $processed,
+                        'total'          => $total,
+                        'added'          => $added,
+                        'already_exists' => $alreadyExists,
+                        'bytes_added'    => $bytesAdded,
+                        'steps'          => [
+                            ['name' => 'Import files', 'status' => 'running',
+                             'message'  => $processed . ' / ' . $total . ' files imported',
+                             'progress' => ['processed' => $processed, 'total' => $total]],
+                        ],
+                    ]);
+                }
+            }
+            @rmdir($extractDir . 'thumbnails/');
+
             @unlink($archivePath);
 
         } finally {
-            // Always remove the extraction subdir
+            // Always remove the extraction subdir (thumbnails/ first, then flat files)
+            foreach (glob($extractDir . 'thumbnails/*.png') ?: [] as $f) { @unlink($f); }
+            @rmdir($extractDir . 'thumbnails/');
             foreach (glob($extractDir . '*') ?: [] as $f) { @unlink($f); }
             @rmdir($extractDir);
         }

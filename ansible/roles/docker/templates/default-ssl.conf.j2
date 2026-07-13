@@ -305,6 +305,7 @@
         AuthName "GigHive Admin"
         AuthBasicProvider file
         AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
+        LimitRequestBody {{ limit_request_body }}
         Require user admin
     </Location>
 

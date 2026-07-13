@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/admin_sys_stats_lib.php';
+
 $user = $_SERVER['PHP_AUTH_USER']
     ?? $_SERVER['REMOTE_USER']
     ?? $_SERVER['REDIRECT_REMOTE_USER']
@@ -78,12 +80,12 @@ function __stats_gb(int $bytes): string {
     return number_format($bytes / (1024 ** 3), 2) . ' GB';
 }
 function __stats_n(int $n): string { return number_format($n); }
+function __stats_pct(float $pct): string { return number_format($pct, 1) . '%'; }
 function __stats_bps(int $bps): string {
     if ($bps < 1024)       return $bps . ' B/s';
     if ($bps < 1048576)    return number_format($bps / 1024, 1) . ' KB/s';
     return number_format($bps / 1048576, 1) . ' MB/s';
 }
-
 $__db_stats = null;
 try {
     $__dsn = sprintf(
@@ -172,6 +174,8 @@ if (is_string($__mdirsEnv) && $__mdirsEnv !== '') {
 }
 unset($__mdirsEnv);
 
+$__os_cpu = null;
+$__container_cpu = null;
 $__os_mem = null;
 $__meminfo_raw = @file_get_contents('/proc/meminfo');
 if (is_string($__meminfo_raw)) {
@@ -187,12 +191,34 @@ if (is_string($__meminfo_raw)) {
     unset($__meminfo_raw, $__mvals, $__mline, $__mm);
 }
 
+$__cpu_sample1 = readProcCpuSample();
+$__cgroup_usage1 = readCgroupCpuUsageUsec();
+$__sample_started_at = microtime(true);
 $__os_net = null;
 $__net_raw1 = @file_get_contents('/proc/net/dev');
-if (is_string($__net_raw1)) {
+if ($__cpu_sample1 !== null || $__cgroup_usage1 !== null || is_string($__net_raw1)) {
     sleep(1);
+    $__sample_elapsed_usec = max(1.0, (microtime(true) - $__sample_started_at) * 1000000);
+    $__cpu_sample2 = readProcCpuSample();
+    if ($__cpu_sample1 !== null && $__cpu_sample2 !== null) {
+        $__total_delta = (int) ($__cpu_sample2['total'] - $__cpu_sample1['total']);
+        $__idle_delta = (int) ($__cpu_sample2['idle'] - $__cpu_sample1['idle']);
+        if ($__total_delta > 0) {
+            $__os_cpu = [
+                'pct' => max(0.0, min(100.0, (($__total_delta - $__idle_delta) / $__total_delta) * 100.0)),
+            ];
+        }
+    }
+    $__cgroup_usage2 = readCgroupCpuUsageUsec();
+    if ($__cgroup_usage1 !== null && $__cgroup_usage2 !== null) {
+        $__cpu_count = ($__cpu_sample2['cpu_count'] ?? $__cpu_sample1['cpu_count'] ?? 1);
+        $__usage_delta_usec = max(0, (int) ($__cgroup_usage2 - $__cgroup_usage1));
+        $__container_cpu = [
+            'pct' => max(0.0, min(100.0, ($__usage_delta_usec / ($__sample_elapsed_usec * max(1, $__cpu_count))) * 100.0)),
+        ];
+    }
     $__net_raw2 = @file_get_contents('/proc/net/dev');
-    if (is_string($__net_raw2)) {
+    if (is_string($__net_raw1) && is_string($__net_raw2)) {
         $__net_parse = function(string $raw): array {
             $out = [];
             foreach (explode("\n", $raw) as $line) {
@@ -221,8 +247,9 @@ if (is_string($__net_raw1)) {
         if (empty($__os_net)) $__os_net = null;
         unset($__net_raw2, $__net_parse, $__nd1, $__nd2, $__niface, $__nv1);
     }
-    unset($__net_raw1);
+    unset($__sample_elapsed_usec, $__cpu_sample2, $__cgroup_usage2, $__total_delta, $__idle_delta, $__cpu_count, $__usage_delta_usec);
 }
+unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
 ?>
 <!doctype html>
 <html lang="en">
@@ -250,10 +277,12 @@ if (is_string($__net_raw1)) {
     .alert-err { background:#3b0d14; border:1px solid #b4232a; padding:.8rem 1rem; border-radius:10px; margin-bottom:1rem; }
     .muted { color:#a8b3cf; font-size:.95rem; }
     .stats-block { position:relative; font-size:.85rem; color:#a8b3cf; padding-bottom:.25rem; }
+    .stats-block.section-divider { margin-top:.35rem; }
     .stats-grid { display:grid; grid-template-columns:5.5rem 9rem 8rem 12rem; row-gap:.25rem; align-items:start; }
     .sg-lbl { font-weight:600; color:#e9eef7; }
     .sg-sub { display:block; font-size:.75rem; font-weight:normal; color:#a8b3cf; }
     .sg-span { grid-column:2/-1; font-size:.75rem; }
+    .sg-metric { font-size:.75rem; line-height:1.2; }
     .stats-grid .snum { text-align:right; font-variant-numeric:tabular-nums; }
     .sg-sep { grid-column:2/-1; border:none; border-top:1px solid #1d2a55; margin:.1rem 0; height:0; padding:0; }
     .stats-grid > span:not(.sg-lbl) { font-size:.75rem; }
@@ -277,6 +306,8 @@ if (is_string($__net_raw1)) {
           <a href="/admin/event_qr.php"><button type="button" style="border-color:#22c55e;font-size:.8rem;padding:.4rem .8rem">Guest QR Upload</button></a>
         </div>
       </div>
+
+      <h2 style="margin:1.75rem 0 .35rem 0">System Statistics</h2>
 
       <div class="section-divider stats-block">
         <div class="stats-grid">
@@ -308,42 +339,50 @@ if (is_string($__net_raw1)) {
             <span class="sg-lbl">Media</span><span class="sg-span" style="font-style:italic">unavailable</span>
           <?php endif; ?>
 
-          <div style="grid-column:1/-1;height:.5rem"></div>
+          <div style="grid-column:1/-1;height:.2rem"></div>
 
           <?php
             $__os_net_any  = !empty($__os_net);
-            $__os_host_any = !empty($__media_disk) || $__os_mem !== null;
-            $__os_any      = $__os_net_any || $__os_host_any;
+            $__os_host_any = !empty($__media_disk) || $__os_mem !== null || $__os_cpu !== null;
+            $__apache_any  = $__container_cpu !== null || $__os_net_any;
+            $__os_any      = $__os_host_any || $__apache_any;
           ?>
           <?php if ($__os_any): ?>
             <span class="sg-lbl">OS</span><span class="sg-span"></span>
             <span class="sg-sub">docker host</span><span class="sg-span"></span>
             <?php if ($__os_host_any): ?>
+              <?php if ($__os_cpu !== null): ?>
+                <span></span><span class="sg-metric">cpu util</span><span class="snum sg-metric" data-stat="host-cpu"><?= __stats_pct($__os_cpu['pct']) ?></span><span class="sg-metric"></span>
+              <?php endif; ?>
               <?php if (!empty($__media_disk)): ?>
                 <?php foreach ($__media_disk as $__disk): ?>
-                  <span></span><span>disk free</span><span class="snum" data-stat="disk-0-free"><?= __stats_gb($__disk['free']) ?></span><span class="snum" data-stat="disk-0-total">of <?= __stats_gb($__disk['total']) ?></span>
+                  <span></span><span class="sg-metric">disk free</span><span class="snum sg-metric" data-stat="disk-0-free"><?= __stats_gb($__disk['free']) ?></span><span class="snum sg-metric" data-stat="disk-0-total">of <?= __stats_gb($__disk['total']) ?></span>
                 <?php endforeach; unset($__disk); ?>
               <?php endif; ?>
               <?php if ($__os_mem !== null): ?>
-                <?php if (!empty($__media_disk)): ?><span></span><hr class="sg-sep"><?php endif; ?>
-                <span></span><span>mem free</span><span class="snum" data-stat="mem-avail"><?= __stats_gb($__os_mem['avail']) ?></span><span class="snum" data-stat="mem-total">of <?= __stats_gb($__os_mem['total']) ?></span>
+                <span></span><span class="sg-metric">mem free</span><span class="snum sg-metric" data-stat="mem-avail"><?= __stats_gb($__os_mem['avail']) ?></span><span class="snum sg-metric" data-stat="mem-total">of <?= __stats_gb($__os_mem['total']) ?></span>
               <?php endif; ?>
             <?php else: ?>
               <span></span><span class="sg-span" style="font-style:italic">unavailable</span>
             <?php endif; ?>
             <div style="grid-column:1/-1;height:.35rem"></div>
             <span class="sg-sub"><?= $__apache_container_name !== '' ? htmlspecialchars($__apache_container_name) : 'apacheWebServer' ?></span><span class="sg-span"></span>
-            <?php if ($__os_net_any): ?>
-              <?php foreach ($__os_net as $__net_idx => $__net): ?>
-                <span></span><span><?= htmlspecialchars($__net['iface']) ?></span><span class="snum" data-stat="net-<?= $__net_idx ?>-rx"><?= __stats_bps($__net['rx_bps']) ?> rx</span><span class="snum" data-stat="net-<?= $__net_idx ?>-tx"><?= __stats_bps($__net['tx_bps']) ?> tx</span>
-              <?php endforeach; unset($__net, $__net_idx); ?>
+            <?php if ($__apache_any): ?>
+              <?php if ($__container_cpu !== null): ?>
+                <span></span><span class="sg-metric">cpu util</span><span class="snum sg-metric" data-stat="container-cpu"><?= __stats_pct($__container_cpu['pct']) ?></span><span class="sg-metric"></span>
+              <?php endif; ?>
+              <?php if ($__os_net_any): ?>
+                <?php foreach ($__os_net as $__net_idx => $__net): ?>
+                  <span></span><span class="sg-metric"><?= htmlspecialchars($__net['iface']) ?></span><span class="snum sg-metric" data-stat="net-<?= $__net_idx ?>-rx"><?= __stats_bps($__net['rx_bps']) ?> rx</span><span class="snum sg-metric" data-stat="net-<?= $__net_idx ?>-tx"><?= __stats_bps($__net['tx_bps']) ?> tx</span>
+                <?php endforeach; unset($__net, $__net_idx); ?>
+              <?php endif; ?>
             <?php else: ?>
               <span></span><span class="sg-span" style="font-style:italic">unavailable</span>
             <?php endif; ?>
           <?php else: ?>
             <span class="sg-lbl">OS</span><span class="sg-span" style="font-style:italic">unavailable</span>
           <?php endif; ?>
-          <?php unset($__os_any, $__os_net_any, $__os_host_any); ?>
+          <?php unset($__os_any, $__os_net_any, $__os_host_any, $__apache_any); ?>
           <div style="grid-column:1/-1;height:.35rem"></div>
           <div style="grid-column:1/-1;display:flex;align-items:center;gap:.6rem">
             <button id="live-btn" type="button" onclick="toggleLive()" style="font-size:.7rem;padding:.2rem .55rem;border-color:#ef4444">Live</button>
@@ -501,7 +540,7 @@ if (is_string($__net_raw1)) {
         </div>
         <div class="row">
           <label for="import_zip_file">Archive file</label>
-          <input type="file" id="import_zip_file" name="zip_file" accept=".tar.gz,.tgz" />
+          <input type="file" id="import_zip_file" name="zip_file" accept=".tar.gz,.tgz,.gz" />
         </div>
         <div id="importZipStatus"></div>
         <button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import Archive</button>
@@ -1429,6 +1468,9 @@ if (is_string($__net_raw1)) {
           xhr.onload = function () {
             let data = null;
             try { data = JSON.parse(xhr.responseText); } catch (_e) {}
+            if (xhr.status < 200 || xhr.status >= 300) {
+              console.error('[import_media_zip] HTTP ' + xhr.status, xhr.responseText.substring(0, 500));
+            }
             resolve({ data: data, status: xhr.status });
           };
           xhr.onerror = function () { reject(new Error('Network error')); };
@@ -1542,6 +1584,7 @@ if (is_string($__net_raw1)) {
     function escHtml(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
+    function fmtPct(v) { return Number(v).toFixed(1)+'%'; }
     function fmtGB(b)  { return (b/1073741824).toFixed(2)+' GB'; }
     function fmtMB(b)  { return (b/1048576).toFixed(1)+' MB'; }
     function fmtN(n)   { return Number(n).toLocaleString(); }
@@ -1589,6 +1632,12 @@ if (is_string($__net_raw1)) {
       if (d.memory) {
         setStat('mem-avail', fmtGB(d.memory.available_bytes));
         setStat('mem-total', 'of '+fmtGB(d.memory.total_bytes));
+      }
+      if (d.host_cpu) {
+        setStat('host-cpu', fmtPct(d.host_cpu.pct));
+      }
+      if (d.container_cpu) {
+        setStat('container-cpu', fmtPct(d.container_cpu.pct));
       }
       if (d.network) {
         d.network.forEach(function(n, i) {

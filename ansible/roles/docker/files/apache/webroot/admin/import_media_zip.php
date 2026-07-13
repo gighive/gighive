@@ -20,8 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$mode = isset($_POST['mode']) ? trim((string)$_POST['mode']) : '';
-
 // Helper: convert PHP ini size string (e.g. "512M") to bytes
 $iniToBytes = static function (string $val): int {
     $val  = trim($val);
@@ -34,6 +32,24 @@ $iniToBytes = static function (string $val): int {
         default => $num,
     };
 };
+
+// Detect post_max_size / upload_max_filesize exceeded (PHP empties $_POST and $_FILES silently)
+$contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
+$postMaxBytes  = $iniToBytes((string)ini_get('post_max_size'));
+if ($contentLength > 0 && $postMaxBytes > 0 && $contentLength > $postMaxBytes) {
+    http_response_code(413);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error'   => 'Upload too large for PHP limits — post_max_size=' . ini_get('post_max_size')
+                   . ', upload_max_filesize=' . ini_get('upload_max_filesize')
+                   . ', Content-Length=' . $contentLength . ' bytes'
+                   . '. Rebuild the container to apply correct limits.',
+    ]);
+    exit;
+}
+
+$mode = isset($_POST['mode']) ? trim((string)$_POST['mode']) : '';
 
 require_once __DIR__ . '/admin_media_lib.php';
 $exts         = loadMediaExtensions();

@@ -3,6 +3,7 @@
 > **Document status: migration planning.**
 > This document describes the current ZIP-based implementation and contains the full plan
 > to migrate to tar.gz. The current production state is ZIP. The target state is tar.gz.
+> Phase 5 (thumbnail export/import) has been appended as a follow-on to the completed migration.
 
 ## Purpose
 
@@ -57,6 +58,13 @@ Extract four patterns copy-pasted across 5–42 files into a single shared inclu
 Delete 110 unreachable lines in `export_media.php` (the deprecated `mode=build` ZipArchive
 block) flagged by SonarQube S1763.
 
+**5. Thumbnail export/import**
+Include generated video thumbnails (`thumbnails/{sha256}.png`) in the tar.gz export archive
+and restore them during import. The `thumbnails/` subdirectory is the only supported non-flat
+path in the archive. A new shared helper `isValidThumbnailEntry()` in `admin_media_lib.php`
+validates these entries on import. Thumbnail inclusion is best-effort — a missing thumbnail
+never fails the export or import.
+
 ### Benefits
 
 | Benefit | Detail |
@@ -70,7 +78,8 @@ block) flagged by SonarQube S1763.
 
 ### Scope
 
-- **11 files total**: 1 new shared lib, 9 existing PHP files, 1 test file
+- **11 files total** (Phases 0–4): 1 new shared lib, 9 existing PHP files, 1 test file
+- **+4 files** (Phase 5 — thumbnails): `admin_media_lib.php`, `export_media_worker.php`, `export_media.php`, `import_media_zip_worker.php`
 - No new endpoints, no schema changes, no Ansible role changes
 - UI changes are label/text only (Section E and F headings, button text, file `accept` attribute)
 
@@ -138,6 +147,23 @@ Phase 0 = #1; Phase 1 = #2–5; Phase 2 = #6; Phase 3 = #7–9; Phase 4 = #10–
 
 **#11 — `ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts`** 🧪 Test *(Phase 4)*
 - Line 71 comment: "Section E: Export Media to ZIP" → "Section E: Export Media Archive"
+
+**#12 — `admin/admin_media_lib.php`** ✏️ Modified *(Phase 5)*
+- Add `isValidThumbnailEntry(string $name): bool` — validates `thumbnails/{64-hex}.png` with no traversal chars and no additional path nesting
+
+**#13 — `admin/export_media_worker.php`** ✏️ Modified *(Phase 5)*
+- After collecting each video file, probe for `thumbnails/{sha256}.png`; if present, add `thumbnails/{sha256}.png` (relative to `$videoDir`) to the video filelist and add thumbnail bytes to `$bytesAdded`
+- `$added = count($audioFiles) + count($videoFiles) + count($thumbnailFiles)` — all tar-processed files, for accurate progress bar
+- Update final status message to include thumbnail count for transparency
+
+**#14 — `admin/export_media.php`** ✏️ Modified *(Phase 5 — prepare mode only)*
+- For each video row, probe `thumbnails/{sha256}.png`; if found, add to `$found` and `$totalBytes` — keeps the confirm dialog file count and size estimate accurate
+
+**#15 — `admin/import_media_zip_worker.php`** ✏️ Modified *(Phase 5 — tar.gz branch only)*
+- Pre-scan: count `thumbnails/{sha256}.png` entries via `isValidThumbnailEntry()` — contributes to `$total`, not `$unsupportedCount`
+- Post-extraction: second pass over `glob($extractDir . 'thumbnails/*.png')` after the flat-file loop; `isValidThumbnailEntry()` + `realpath()` containment check; `mkdir` thumbnail destination dir (best-effort); `copy() + @unlink()` to `/var/www/html/video/thumbnails/`; copy failures push to `$errors[]` and continue (best-effort)
+- `finally` block: explicit cleanup of `thumbnails/` subdir contents and `@rmdir($extractDir . 'thumbnails/')` before `@rmdir($extractDir)` — prevents orphaned temp dir if worker crashes mid-thumbnail-pass
+- ZIP branch: unchanged
 
 ## Implementation Plan Summary
 
@@ -384,8 +410,9 @@ DB records with no matching on-disk file are skipped. Files with no DB record ar
 
 - audio: `/var/www/html/audio`
 - video: `/var/www/html/video`
+- video thumbnails: `/var/www/html/video/thumbnails` (created by `MediaProbeService::generateVideoThumbnail()` on first video upload; also created by the import worker if absent)
 
-On-disk filename: `<sha256>.<ext>` (or `<sha256>` when no extension).
+On-disk filename: `<sha256>.<ext>` (or `<sha256>` when no extension). Thumbnails: `<sha256>.png` inside the `thumbnails/` subdirectory.
 
 ## Backend: `export_media_worker.php`
 
@@ -555,6 +582,13 @@ No new endpoints, no schema changes, no Ansible role changes are needed.
 The import worker (`import_media_zip_worker.php`) rejects any archive entry whose name
 contains a path separator (`strpos($name, '/') !== false`). Entry names must be flat:
 `<sha256>.<ext>` with no directory prefix.
+
+#### Exception: Thumbnail Entries (Phase 5)
+
+Thumbnails use exactly one level of subdirectory: `thumbnails/{sha256}.png`. The import
+worker handles these via `isValidThumbnailEntry()` and a dedicated second glob pass over
+`$extractDir/thumbnails/`. The flat-name constraint continues to apply to all audio and
+video media files — only thumbnail entries use the `thumbnails/` prefix.
 
 This means `tar --files-from` with absolute paths is **not usable as-is** — it would
 produce entry names like `/var/www/html/audio/abc123.mp4`, which the import side would
@@ -776,6 +810,147 @@ Several hardcoded assumptions must change:
 - Update description text to reference both ZIP (for legacy exports) and tar.gz.
 - Update button text: `Import ZIP` → `Import Archive`.
 - Update `btn.textContent = 'Import ZIP'` in `doImportMediaZip()` finalize block similarly.
+
+#### 10. `admin_media_lib.php` — `isValidThumbnailEntry()`
+
+Add a new shared helper alongside `isValidMediaEntry()`:
+
+```php
+function isValidThumbnailEntry(string $name): bool
+{
+    if (str_contains($name, '..')) return false;
+    if (!str_starts_with($name, 'thumbnails/')) return false;
+    $base = substr($name, strlen('thumbnails/'));
+    if (str_contains($base, '/')) return false;
+    $hash = pathinfo($base, PATHINFO_FILENAME);
+    $ext  = strtolower(pathinfo($base, PATHINFO_EXTENSION));
+    return preg_match('/^[a-f0-9]{64}$/', $hash) === 1 && $ext === 'png';
+}
+```
+
+No audio/video extension sets are needed — thumbnails are always `.png`. The `..` check
+and single-depth restriction are the primary security mitigations.
+
+#### 11. `export_media_worker.php` — thumbnail collection
+
+Declare `$thumbnailFiles = []` alongside `$audioFiles` / `$videoFiles`. In the main loop,
+after `$videoFiles[] = $filename`:
+
+```php
+$thumbRel  = 'thumbnails/' . $sha . '.png';
+$thumbPath = $videoDir . '/' . $thumbRel;
+if (is_file($thumbPath)) {
+    $thumbnailFiles[] = $thumbRel;
+    $bytesAdded += (int)filesize($thumbPath);
+}
+```
+
+Since the tar command already uses `-C $videoDir`, the relative path `thumbnails/{sha256}.png`
+produces the correct subdirectory entry in the archive.
+
+Merge thumbnails into the video filelist:
+
+```php
+$allVideoRelPaths = array_merge($videoFiles, $thumbnailFiles);
+file_put_contents($videoListPath, implode("\n", $allVideoRelPaths) . "\n");
+```
+
+Update `$added` to reflect all files tar will process:
+
+```php
+$added = count($audioFiles) + count($videoFiles) + count($thumbnailFiles);
+```
+
+Update the final status message to note thumbnail count separately (e.g. `"5 media file(s) + 5 thumbnail(s) written"`).
+
+#### 12. `export_media.php` — prepare mode thumbnail count
+
+After the `is_file($path)` check for each video row, probe for the corresponding thumbnail:
+
+```php
+if ($type === 'video') {
+    $thumbPath = $videoDir . '/thumbnails/' . $sha . '.png';
+    if (is_file($thumbPath)) {
+        $found++;
+        $totalBytes += (int)filesize($thumbPath);
+    }
+}
+```
+
+Use a local `$thumbPath` variable (not repeated `filesize()` on a re-built string) to avoid
+the S1192 duplicate-string-literal and redundant-call issues.
+
+#### 13. `import_media_zip_worker.php` — tar.gz branch thumbnails
+
+**Pre-scan phase:** Replace the binary `isValidMediaEntry` / `$unsupportedCount++` branch with
+a three-way check:
+
+```php
+if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
+    $total++;
+} elseif (isValidThumbnailEntry($name)) {
+    $total++;
+} else {
+    $unsupportedCount++;
+}
+```
+
+**Post-extraction second pass** (after the existing flat-file `foreach` loop):
+
+```php
+$thumbDestDir = '/var/www/html/video/thumbnails';
+@mkdir($thumbDestDir, 0775, true);
+
+foreach (glob($extractDir . 'thumbnails/*.png') ?: [] as $thumbFilePath) {
+    $thumbName = basename($thumbFilePath);
+    if (!isValidThumbnailEntry('thumbnails/' . $thumbName)) {
+        $unsupportedCount++;
+        @unlink($thumbFilePath);
+        continue;
+    }
+    $realThumb    = realpath($thumbFilePath);
+    $realThumbDir = realpath($extractDir . 'thumbnails');
+    if ($realThumb === false || $realThumbDir === false ||
+        strncmp($realThumb, $realThumbDir . DIRECTORY_SEPARATOR,
+                 strlen($realThumbDir) + 1) !== 0) {
+        $unsupportedCount++;
+        continue;
+    }
+    $processed++;
+    $dest = $thumbDestDir . '/' . $thumbName;
+    if (is_file($dest)) {
+        $alreadyExists++;
+        @unlink($thumbFilePath);
+    } else {
+        $fileBytes = (int)filesize($thumbFilePath);
+        if (!copy($thumbFilePath, $dest)) {
+            $errors[] = 'thumbnail copy failed: ' . $thumbName;
+            @unlink($thumbFilePath);
+            continue;
+        }
+        @unlink($thumbFilePath);
+        $added++;
+        $bytesAdded += $fileBytes;
+    }
+}
+@rmdir($extractDir . 'thumbnails/');
+```
+
+**`finally` block** — replace with explicit subdir-first cleanup:
+
+```php
+} finally {
+    foreach (glob($extractDir . 'thumbnails/*.png') ?: [] as $f) { @unlink($f); }
+    @rmdir($extractDir . 'thumbnails/');
+    foreach (glob($extractDir . '*') ?: [] as $f) { @unlink($f); }
+    @rmdir($extractDir);
+}
+```
+
+`glob($extractDir . '*')` does not descend into subdirectories — the `thumbnails/` subdir
+must be cleaned up before `@rmdir($extractDir)` or the parent rmdir will silently fail.
+
+---
 
 ### Coding Best Practices and SonarQube Considerations
 
@@ -1017,13 +1192,48 @@ Update Section F heading, description, button text, and `accept=".zip,.tar.gz,.t
 
 **✅ Test gate:** Full Playwright admin suite end-to-end — all steps pass including the updated Section E and F labels.
 
+---
+
+#### Phase 5 — Thumbnail Export/Import
+
+**Files:** `admin_media_lib.php`, `export_media_worker.php`, `export_media.php`, `import_media_zip_worker.php`
+
+- `admin_media_lib.php`: add `isValidThumbnailEntry()` (Touch Point #10)
+- `export_media_worker.php`: collect `thumbnails/{sha256}.png` alongside each video row; merge into video filelist; update `$added` count and `$bytesAdded`; update final status message (Touch Point #11)
+- `export_media.php` (prepare mode only): probe for thumbnail alongside each video row; add to `$found` and `$totalBytes` (Touch Point #12)
+- `import_media_zip_worker.php` (tar.gz branch only): update pre-scan three-way check; add second pass for `thumbnails/` subdir; `mkdir` destination dir; containment check; best-effort copy; update `finally` block (Touch Point #13)
+
+Thumbnail inclusion is **best-effort** on both sides:
+- Export: a missing thumbnail never prevents a video from being exported
+- Import: thumbnail copy failure pushes to `$errors[]` and continues; the import is not aborted
+
+ZIP import branch is **not** updated — ZIP exports do not include thumbnails and ZIP imports pre-date thumbnail support.
+
+**✅ Test gate:**
+- Export a corpus with at least one video that has a generated thumbnail; confirm archive contains both `{sha256}.mp4` (flat) and `thumbnails/{sha256}.png` entries
+- Import the resulting tar.gz; confirm `.png` lands in `/var/www/html/video/thumbnails/`
+- Re-import the same archive; confirm already-present thumbnail is skipped (idempotent)
+- Export with `file_type=audio`; confirm no `thumbnails/` entries in the archive
+- Export a video that has no generated thumbnail; confirm export succeeds and only the video file appears
+- Import a crafted tar.gz with a `thumbnails/../etc/passwd` traversal entry; confirm rejection
+- Import a tar.gz with no `thumbnails/` dir; confirm import succeeds normally
+- Confirm prepare confirm dialog shows updated file count and size including thumbnails
+
 ### Testing Checklist
 
 - **Pre-flight**: `docker exec <php-container> which tar` — verify `tar` binary is present in
   the PHP/Apache container before any testing begins
 - Export a small corpus (< 100 MB) — verify `archive.tar.gz` is produced and downloadable
-- Verify tar.gz is structurally valid: `tar tzf archive.tar.gz` shows flat `<sha256>.<ext>` entries (no path prefixes)
+- Verify tar.gz is structurally valid: `tar tzf archive.tar.gz` shows flat `<sha256>.<ext>` entries for media files and `thumbnails/{sha256}.png` entries for video thumbnails
 - Verify file contents intact: spot-check an extracted audio/video file
+- Export a corpus with video thumbnails — verify archive contains `thumbnails/{sha256}.png` entries alongside flat video entries
+- Import a tar.gz with thumbnails — verify `.png` files land in `/var/www/html/video/thumbnails/`
+- Re-import the same archive — verify already-present thumbnails are skipped (idempotent)
+- Export with `file_type=audio` — verify no `thumbnails/` entries appear in the archive
+- Export a video with no generated thumbnail — verify export succeeds and only the video file is included
+- Import a crafted tar.gz with `thumbnails/../` traversal entry — verify it is rejected
+- Import a tar.gz with no `thumbnails/` dir — verify import succeeds normally (best-effort)
+- Confirm prepare confirm dialog shows updated file count and size including thumbnails
 - Export a corpus where a single file exceeds 4 GB — verify no truncation (was a ZIP64 risk)
 - Export with `org_name` filter — verify only matching assets are in the archive
 - Export audio-only and video-only — verify correct subsets (no empty `--files-from` error)

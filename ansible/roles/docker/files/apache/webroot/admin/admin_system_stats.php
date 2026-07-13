@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/admin_sys_stats_lib.php';
 
 use Production\Api\Infrastructure\Database;
 
@@ -113,13 +114,40 @@ try {
         }
     }
 
-    // ── Network stats (1-second sample) ───────────────────────────────────────
+    // ── CPU + network stats (1-second sample) ─────────────────────────────────
+    $hostCpu = null;
+    $containerCpu = null;
     $network = null;
+    $cpuSample1 = readProcCpuSample();
+    $cgroupUsage1 = readCgroupCpuUsageUsec();
+    $sampleStartedAt = microtime(true);
     $raw1 = @file_get_contents('/proc/net/dev');
-    if (is_string($raw1)) {
+    if ($cpuSample1 !== null || $cgroupUsage1 !== null || is_string($raw1)) {
         sleep(1);
+        $sampleElapsedUsec = max(1.0, (microtime(true) - $sampleStartedAt) * 1000000);
+
+        $cpuSample2 = readProcCpuSample();
+        if ($cpuSample1 !== null && $cpuSample2 !== null) {
+            $totalDelta = (int) ($cpuSample2['total'] - $cpuSample1['total']);
+            $idleDelta = (int) ($cpuSample2['idle'] - $cpuSample1['idle']);
+            if ($totalDelta > 0) {
+                $hostCpu = [
+                    'pct' => max(0.0, min(100.0, (($totalDelta - $idleDelta) / $totalDelta) * 100.0)),
+                ];
+            }
+        }
+
+        $cgroupUsage2 = readCgroupCpuUsageUsec();
+        if ($cgroupUsage1 !== null && $cgroupUsage2 !== null) {
+            $cpuCount = ($cpuSample2['cpu_count'] ?? $cpuSample1['cpu_count'] ?? 1);
+            $usageDeltaUsec = max(0, (int) ($cgroupUsage2 - $cgroupUsage1));
+            $containerCpu = [
+                'pct' => max(0.0, min(100.0, ($usageDeltaUsec / ($sampleElapsedUsec * max(1, $cpuCount))) * 100.0)),
+            ];
+        }
+
         $raw2 = @file_get_contents('/proc/net/dev');
-        if (is_string($raw2)) {
+        if (is_string($raw1) && is_string($raw2)) {
             $parseDev = function(string $raw): array {
                 $out = [];
                 foreach (explode("\n", $raw) as $line) {
@@ -155,6 +183,8 @@ try {
         'media'   => $media,
         'disk'    => $disk,
         'memory'  => $memory,
+        'host_cpu' => $hostCpu,
+        'container_cpu' => $containerCpu,
         'network' => $network,
     ]);
 } catch (Throwable $e) {

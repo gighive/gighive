@@ -27,6 +27,13 @@ SecAuditLogType Serial
 SecAuditLog /var/log/apache2/modsec_audit.log
 SecAuditLogRelevantStatus "^(?:5|4(?!04))"
 
+# Allow large bodies on admin endpoints (media archive import, backup restore)
+<LocationMatch "^/admin/">
+    SecRuleEngine On
+    SecRequestBodyAccess On
+    SecRequestBodyLimit {{ upload_max_bytes }}
+</LocationMatch>
+
 # Allow large bodies on API upload endpoints explicitly
 <LocationMatch "^/api/(uploads\.php|media-files)$">
     SecRuleEngine On

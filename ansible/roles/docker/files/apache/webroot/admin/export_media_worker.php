@@ -46,10 +46,11 @@ try {
         throw new RuntimeException('Invalid filelist.json content');
     }
 
-    $skipped    = 0;
-    $bytesAdded = 0;
-    $audioFiles = [];
-    $videoFiles = [];
+    $skipped        = 0;
+    $bytesAdded    = 0;
+    $audioFiles    = [];
+    $videoFiles    = [];
+    $thumbnailFiles = [];
 
     foreach ($rows as $row) {
         $type = (string)($row['file_type']       ?? '');
@@ -83,11 +84,19 @@ try {
             $audioFiles[] = $filename;
         } else {
             $videoFiles[] = $filename;
+            $thumbRel  = 'thumbnails/' . $sha . '.png';
+            $thumbPath = $videoDir . '/' . $thumbRel;
+            if (is_file($thumbPath)) {
+                $thumbnailFiles[] = $thumbRel;
+                $bytesAdded += (int)filesize($thumbPath);
+            }
         }
         $bytesAdded += (int)filesize($filePath);
     }
 
-    $added = count($audioFiles) + count($videoFiles);
+    $mediaAdded = count($audioFiles) + count($videoFiles);
+    $thumbAdded = count($thumbnailFiles);
+    $added      = $mediaAdded + $thumbAdded;
 
     // Zero-file guard — must check before calling tar
     if ($added === 0) {
@@ -108,8 +117,10 @@ try {
     if ($audioFiles !== []) {
         file_put_contents($audioListPath, implode("\n", $audioFiles) . "\n");
     }
-    if ($videoFiles !== []) {
-        file_put_contents($videoListPath, implode("\n", $videoFiles) . "\n");
+    // Video list includes flat video entries + thumbnails/ relative paths
+    $allVideoEntries = array_merge($videoFiles, $thumbnailFiles);
+    if ($allVideoEntries !== []) {
+        file_put_contents($videoListPath, implode("\n", $allVideoEntries) . "\n");
     }
 
     // Build tar command — omit -C pair for any empty list
@@ -117,7 +128,7 @@ try {
     if ($audioFiles !== []) {
         array_push($tarArgs, '-C', $audioDir, '--files-from', $audioListPath);
     }
-    if ($videoFiles !== []) {
+    if ($allVideoEntries !== []) {
         array_push($tarArgs, '-C', $videoDir, '--files-from', $videoListPath);
     }
 
@@ -167,7 +178,7 @@ try {
         'completed_at'  => date('c'),
         'steps'         => [
             ['name' => 'Build archive', 'status' => 'ok',
-             'message'  => $added . ' file(s) written (' . $skipped . ' skipped)',
+             'message'  => $mediaAdded . ' media file(s)' . ($thumbAdded > 0 ? ' + ' . $thumbAdded . ' thumbnail(s)' : '') . ' written (' . $skipped . ' skipped)',
              'progress' => ['processed' => $added, 'total' => $added]],
         ],
     ]);

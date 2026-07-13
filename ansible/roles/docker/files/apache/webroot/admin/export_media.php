@@ -91,7 +91,19 @@ if ($mode === 'prepare') {
         if ($dir === null) { $skipped++; continue; }
         $served = $ext !== '' ? ($sha . '.' . $ext) : $sha;
         $path   = $dir . '/' . $served;
-        if (is_file($path)) { $found++; $totalBytes += (int)filesize($path); } else { $skipped++; }
+        if (is_file($path)) {
+            $found++;
+            $totalBytes += (int)filesize($path);
+            if ($type === 'video') {
+                $thumbPath = $videoDir . '/thumbnails/' . $sha . '.png';
+                if (is_file($thumbPath)) {
+                    $found++;
+                    $totalBytes += (int)filesize($thumbPath);
+                }
+            }
+        } else {
+            $skipped++;
+        }
     }
     if ($found === 0) {
         http_response_code(404);
