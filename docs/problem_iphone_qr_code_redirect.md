@@ -311,7 +311,7 @@ The one-shot bundle role copies from static source paths (e.g.
 `ansible/roles/docker/files/apache/webroot`) — the `.well-known/` directory is
 **not present in the repo source tree**; it is a deploy-time artifact. Additionally,
 `apple-app-site-association.j2` already appears in the template scan and falls through all
-`{% elif %}` branches to `{{ _p | basename }}`, rendering it as `apple-app-site-association.j2`
+{% raw %}`{% elif %}`{% endraw %} branches to {% raw %}`{{ _p | basename }}`{% endraw %}, rendering it as `apple-app-site-association.j2`
 in the bundle root (wrong path, wrong name).
 
 The Apache config in `default-ssl.conf.j2` (lines 337–342) already handles the AASA correctly:
@@ -320,13 +320,15 @@ The Apache config in `default-ssl.conf.j2` (lines 337–342) already handles the
 
 ### Implementation: 4 edits in 2 files
 
-The same `{% elif %}` branch must be added to each `_one_shot_bundle_dest_file` variable block.
+The same {% raw %}`{% elif %}`{% endraw %} branch must be added to each `_one_shot_bundle_dest_file` variable block.
 Insert it after the `Dockerfile.j2` branch in each location:
 
+{% raw %}
 ```jinja2
 {% elif _p == (_one_shot_bundle_templates_prefix ~ 'apple-app-site-association.j2') %}
 apache/webroot/.well-known/apple-app-site-association
 ```
+{% endraw %}
 
 #### File 1: `ansible/roles/one_shot_bundle/tasks/monitor.yml`
 
