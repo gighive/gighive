@@ -278,6 +278,7 @@ xcrun devicectl device process launch \
 | iOS 26 CDN-first behavior | No workaround; Apple CDN must have correct AASA cached |
 | Chrome as default browser | Use Safari as default during testing; web fallback is acceptable for production Chrome users |
 | Admin page Cloudflare caching | Added `Cache-Control: no-store` to `event_qr.php` |
+| One-shot bundle missing AASA | AASA is deploy-generated, not source-copied; see OSB fix section below |
 
 ---
 
@@ -288,3 +289,120 @@ xcrun devicectl device process launch \
 - Access the admin QR page via the same public domain used in the app's entitlements (e.g. `dev.gighive.app`) so the generated token URL domain is always correct.
 - Keep `project.yml` `PRODUCT_BUNDLE_IDENTIFIER` and the AASA `appIDs` in sync; the mismatch is invisible at compile time and only surfaces at runtime via Console.app `swcd` logs.
 - Add a smoke test that compares `curl https://app-site-association.cdn-apple.com/a/v1/<domain>` against the expected `appIDs` value in CI or during deployment verification.
+- For any new subdomain added to entitlements, run the two-command CDN check below before declaring it ready.
+- An **App Store update is sufficient** to trigger iOS re-evaluation of associated domains — a fresh
+  delete-and-reinstall is not required. iOS re-evaluates all domains in the updated entitlements
+  at install/update time.
+- Apple's CDN cache **survives temporary origin outages**. If the origin goes 403 after the CDN
+  has already cached the AASA, the CDN continues serving the cached copy and Universal Links keep
+  working. The CDN only shows `Not Found` if it could not reach the origin during its initial crawl.
+
+---
+
+## One-Shot Bundle: Baking the AASA into the Bundle
+
+### Why OSB deployments return 403 on `/.well-known/apple-app-site-association`
+
+Ansible-managed environments (`dev`, `lab`, `staging`, `prod`) receive the AASA because the
+Docker role explicitly creates `apache/webroot/.well-known/` and renders
+`apple-app-site-association.j2` into the running container's webroot during deploy.
+
+The one-shot bundle role copies from static source paths (e.g.
+`ansible/roles/docker/files/apache/webroot`) — the `.well-known/` directory is
+**not present in the repo source tree**; it is a deploy-time artifact. Additionally,
+`apple-app-site-association.j2` already appears in the template scan and falls through all
+`{% elif %}` branches to `{{ _p | basename }}`, rendering it as `apple-app-site-association.j2`
+in the bundle root (wrong path, wrong name).
+
+The Apache config in `default-ssl.conf.j2` (lines 337–342) already handles the AASA correctly:
+`/.well-known/` is not in the auth `LocationMatch` regex, and the `<Location>` block forces
+`Content-Type: application/json`. **No Apache config change is needed.**
+
+### Implementation: 4 edits in 2 files
+
+The same `{% elif %}` branch must be added to each `_one_shot_bundle_dest_file` variable block.
+Insert it after the `Dockerfile.j2` branch in each location:
+
+```jinja2
+{% elif _p == (_one_shot_bundle_templates_prefix ~ 'apple-app-site-association.j2') %}
+apache/webroot/.well-known/apple-app-site-association
+```
+
+#### File 1: `ansible/roles/one_shot_bundle/tasks/monitor.yml`
+
+- **Edit 1** — `_one_shot_bundle_dest_file` var in the "Add directory file entries to source manifest" task
+- **Edit 2** — `_one_shot_bundle_dest_file` var in the "Add individual file entries to source manifest" task
+  _(Note: this branch will never execute for `apple-app-site-association.j2` — templates are
+  discovered via `ansible.builtin.find` on the templates directory, not via individual stat, so
+  they never appear in the `stat.isreg` loop. The branch is included to keep all four
+  `_one_shot_bundle_dest_file` blocks in sync and to guard against future refactoring.)_
+
+#### File 2: `ansible/roles/one_shot_bundle/tasks/output_bundle.yml`
+
+- **Edit 3** — `_one_shot_bundle_dest_file` var in the "Ensure destination directories exist" task
+  (this causes the loop to create `apache/webroot/.well-known/` before rendering)
+- **Edit 4** — `_one_shot_bundle_dest_file` var in the "Render template files into fresh one-shot bundle output" task
+  (this renders the AASA to the correct destination path)
+
+No exclusion `when:` clause is needed; `qr_aasa_app_id` and `qr_guest_upload_prefix` are
+available from `group_vars` at bundle generation time and the file renders identically to
+the Ansible-managed path.
+
+### Immediate fix for an already-deployed OSB instance
+
+While waiting for OSB regeneration, inject the AASA directly into the running Apache container.
+**This is temporary — a container restart will lose it.** Use it to unblock Apple CDN crawling now.
+
+```bash
+docker exec apacheWebServer mkdir -p /var/www/html/.well-known
+docker exec apacheWebServer sh -c 'cat > /var/www/html/.well-known/apple-app-site-association << '"'"'EOF'"'"'
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [ "WB7D4FC7XU.app.gighive.GigHive" ],
+        "components": [
+          { "/": "/upload/*" }
+        ]
+      }
+    ]
+  }
+}
+EOF'
+```
+
+Then confirm the CDN crawls it:
+
+```bash
+curl -s https://app-site-association.cdn-apple.com/a/v1/<osb-domain>
+```
+
+### Re-deploying the new OSB to an existing instance
+
+The AASA is baked into the Docker image (not a mounted file), so after downloading the new OSB:
+
+```bash
+docker compose up --build -d
+```
+
+This rebuilds the Apache image from the new bundle contents (which now include
+`apache/webroot/.well-known/apple-app-site-association`) and replaces the running container.
+The `docker exec` workaround above is no longer needed after this step.
+
+### Post-deploy verification
+
+After regenerating and deploying the OSB, confirm both origin and Apple CDN:
+
+```bash
+curl -si https://<osb-domain>/.well-known/apple-app-site-association
+# Expected: HTTP/2 200  content-type: application/json
+
+curl -s https://app-site-association.cdn-apple.com/a/v1/<osb-domain>
+# Expected: JSON containing WB7D4FC7XU.app.gighive.GigHive
+```
+
+Apple's CDN will crawl the origin within ~24 hours of first serving the file (often much faster).
+Universal Links will not work for regular users until the CDN has the AASA cached.
+
+Once the CDN has the correct AASA, end users need only **update the app from the App Store** —
+a fresh install is not required. iOS re-evaluates all entitlement domains at update time.

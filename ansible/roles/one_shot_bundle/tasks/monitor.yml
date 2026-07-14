@@ -97,6 +97,8 @@
       mysql/dbScripts/dbDump.sh
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'apple-app-site-association.j2') %}
+      apache/webroot/.well-known/apple-app-site-association
       {% elif _p.startswith(_one_shot_bundle_ai_worker_prefix ~ '/') %}
       ai-worker/{{ _p[(_one_shot_bundle_ai_worker_prefix ~ '/') | length:] }}
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
@@ -157,6 +159,8 @@
       apache/externalConfigs/crs/crs-setup.conf
       {% elif _p == (_one_shot_bundle_templates_prefix ~ 'Dockerfile.j2') %}
       apache/Dockerfile
+      {% elif _p == (_one_shot_bundle_templates_prefix ~ 'apple-app-site-association.j2') %}
+      apache/webroot/.well-known/apple-app-site-association
       {% elif _p.startswith(_one_shot_bundle_ai_worker_prefix ~ '/') %}
       ai-worker/{{ _p[(_one_shot_bundle_ai_worker_prefix ~ '/') | length:] }}
       {% elif _p.startswith(_one_shot_bundle_files_prefix) %}
