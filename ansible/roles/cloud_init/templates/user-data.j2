@@ -13,6 +13,11 @@ growpart:
   ignore_growroot_disabled: false
 resize_rootfs: true
 
+swap:
+  filename: /swap.img
+  size: {{ swap_size }}
+  maxsize: {{ swap_max_size }}
+
 hostname: {{ hostname }}
 fqdn: {{ hostname }}.mysettings.com
 

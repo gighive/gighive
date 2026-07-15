@@ -119,7 +119,7 @@ done cheaply.
 > | Step 4: verify with `validate_app` + `upload_tests` | Step 16: verify with `validate_app` |
 
 **Phase 1a — Standalone Enhancements + SaaS Prerequisites** *(pre-release; ships with self-hosted)*
-- Step 5: Per-event QR code upload links + anonymous upload form; `SAAS_MODE` env flag (group_vars → `.env.j2`) — see [`docs/feature_iphone_qr_code_support.md`](feature_iphone_qr_code_support.md) for full detail
+- Step 5: Per-event QR code upload links + anonymous upload form; `SAAS_MODE` env flag (group_vars → `.env.j2`) — see [`docs/feature_completed_iphone_qr_code_support.md`](feature_completed_iphone_qr_code_support.md) for full detail
 
 **Phase 2 — Full SaaS Mode** *(post-release)*
 - Step 6: Wildcard subdomain routing + Cloudflare TLS
@@ -210,7 +210,7 @@ the session's `tenant_id` explicitly. That work belongs to step 8, not here.
 
 5. Per-event QR code guest upload links + `SAAS_MODE` env flag — owner generates a per-event QR code; guests scan to upload without an account; attribution recorded via ToS checkbox + optional display name; owner can revoke tokens and view guest-contributed uploads in the event admin page; iPhone with app installed uses iOS Universal Link → native app; Android and iPhone without app fall back to `db/upload_form_single.php`. `SAAS_MODE` flag gates Basic Auth (self-hosted, `false`) vs. OIDC (`true`); set via Ansible `group_vars` → `.env.j2`. *Does not depend on OIDC, RBAC, or subdomain routing — implement immediately after Phase 1.*
 
-   → **Full implementation detail, sequenced task list, and test matrix:** [`docs/feature_iphone_qr_code_support.md`](feature_iphone_qr_code_support.md)
+   → **Full implementation detail, sequenced task list, and test matrix:** [`docs/feature_completed_iphone_qr_code_support.md`](feature_completed_iphone_qr_code_support.md)
 
 **Phase 2 — Full SaaS Mode** *(post-release; each step is independently shippable)*
 
@@ -1058,7 +1058,7 @@ is a stored XSS vector.
 insert. (c) Escape on output with `htmlspecialchars($name, ENT_QUOTES, 'UTF-8')`
 wherever `display_name` is rendered. (d) Set a `Content-Security-Policy` header
 on all pages that render `display_name` — this is a requirement, not optional.
-See implementation spec `docs/feature_iphone_qr_code_support.md` SEC-16 for the
+See implementation spec `docs/feature_completed_iphone_qr_code_support.md` SEC-16 for the
 exact CSP directive. At minimum: `default-src 'self'; script-src 'self'`.
 
 **SEC-10 — No rate limiting on auth endpoints before step 18 (steps 7–17 window)**

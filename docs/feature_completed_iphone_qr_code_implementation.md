@@ -1,8 +1,8 @@
 # Phase 1a Implementation Checklist — QR Code Guest Upload
 
 **Status:** All steps complete ✅  
-**Reference plan:** `docs/feature_iphone_qr_code_support.md`  
-**Walkthrough rationale:** `docs/feature_iphone_qr_code_support_conversation.md`
+**Reference plan:** `docs/feature_completed_iphone_qr_code_support.md`  
+**Walkthrough rationale:** `docs/feature_completed_iphone_qr_code_support_conversation.md`
 
 ---
 
@@ -892,4 +892,4 @@ These are not implementation steps but must be resolved before Phase 1a ships:
 
 ## Shared Event Gallery
 
-See **`docs/feature_iphone_qr_code_shared_gallery.md`** for the full rationale, risk analysis, and numbered safety framework.
+See **`docs/feature_completed_iphone_qr_code_shared_gallery.md`** for the full rationale, risk analysis, and numbered safety framework.

@@ -4,6 +4,18 @@ Date: 2026-05-02
 
 See also: [feature_iphone_upload_catalog.md](feature_iphone_upload_catalog.md) · [feature_iphone_upload_catalog_caveats.md](feature_iphone_upload_catalog_caveats.md)
 
+## Review Status — 2026-07-14
+
+**Assessment:** Recently reviewed. This document still appears current and remains the clearest statement of why the feature is not yet being treated as fully complete.
+
+**Confirmed in code / docs:**
+- Section D is implemented
+- The wizard/admin PHP files exist
+- The main admin import page still keeps the Section D entry point commented out / hidden
+
+**Conclusion:**
+- This reservations document remains active and should continue to be used as the gating note for full rollout/completion decisions
+
 ---
 
 ## Status

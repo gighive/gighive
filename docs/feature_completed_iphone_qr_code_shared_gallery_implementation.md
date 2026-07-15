@@ -1,7 +1,8 @@
 # Shared Gallery — Implementation Plan
 
-**High-level spec:** `docs/feature_iphone_qr_code_shared_gallery.md`
-**Related docs:** `docs/feature_iphone_qr_code_support.md` · `docs/feature_iphone_qr_code_implementation.md`
+**Status:** Completed ✅  
+**High-level spec:** `docs/feature_completed_iphone_qr_code_shared_gallery.md`
+**Related docs:** `docs/feature_completed_iphone_qr_code_support.md` · `docs/feature_completed_iphone_qr_code_implementation.md`
 
 This plan is split into two sequential **coding phases**. Complete Phase 1 and deploy to dev/staging before beginning Phase 2.
 
@@ -35,7 +36,9 @@ This plan is split into two sequential **coding phases**. Complete Phase 1 and d
 15. [P2] `GigHive/Views/SplashView.swift`
 16. [P2] `GigHive/Views/GuestGalleryView.swift`
 
-> ⚠️ **Phase naming note:** the spec (`feature_iphone_qr_code_shared_gallery.md` § "Release Gating") also uses Phase 1/2/3 to describe *feature release gates* (MVP → beta promotion → scale). Those are distinct from the coding phases here. Coding Phase 1 + 2 together correspond to the spec's Release Gate Phase 1 (MVP launch).
+> ⚠️ **Phase naming note:** the spec (`feature_completed_iphone_qr_code_shared_gallery.md` § "Release Gating") also uses Phase 1/2/3 to describe *feature release gates* (MVP → beta promotion → scale). Those are distinct from the coding phases here. Coding Phase 1 + 2 together correspond to the spec's Release Gate Phase 1 (MVP launch).
+
+> **Completion note:** The implementation described in this document is complete. This file is retained as the authoritative record of the work that shipped.
 
 ### Phase 1 — Infrastructure / Ansible / PHP
 - **Step 1** — Ansible: add `QR_GALLERY_DEFAULT_LIFESPAN_DAYS` env var to all group_vars and `.env.j2`

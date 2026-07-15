@@ -1,13 +1,14 @@
 # Feature: QR Code Guest Upload (Phase 1a, Step 5)
 
-**Status:** Not started  
+**Status:** Completed ✅  
+**Implementation status note:** This planning/spec document is retained as the original design reference. For the completed implementation and follow-on gallery work, see `docs/feature_completed_iphone_qr_code_implementation.md`, `docs/feature_completed_iphone_qr_code_shared_gallery.md`, and `docs/feature_completed_iphone_qr_code_shared_gallery_implementation.md`.  
 **Phase:** 1a (pre-release; ships with self-hosted)  
 **Prerequisite:** Phase 1 schema changes complete (`tenants` table, `tenant_id` FKs on `events` and `upload_jobs`)  
 **Reference:** `docs/feature_saas_model_changes.md` step 5  
 **Apple Team ID:** `WB7D4FC7XU` (Gighive Labs, LLC)  
 **Production domain:** `gighive.app`  
-**App Bundle ID:** `com.gighive.GigHive`  
-**AASA app entry:** `WB7D4FC7XU.com.gighive.GigHive`  
+**App Bundle ID:** `app.gighive.GigHive`  
+**AASA app entry:** `WB7D4FC7XU.app.gighive.GigHive`  
 **PHP runtime:** php-fpm 8.3 — `readonly class`, named arguments, fibers, and all 8.2/8.3 features available
 
 ---

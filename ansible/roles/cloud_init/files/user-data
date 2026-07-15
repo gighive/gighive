@@ -13,6 +13,11 @@ growpart:
   ignore_growroot_disabled: false
 resize_rootfs: true
 
+swap:
+  filename: /swap.img
+  size: 2147483648
+  maxsize: 2147483648
+
 hostname: gighive2
 fqdn: gighive2.mysettings.com
 

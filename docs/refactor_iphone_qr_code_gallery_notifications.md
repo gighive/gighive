@@ -1,5 +1,24 @@
 # Refactor: GuestGalleryView — Notifications & Per-Nonce Data
 
+## Status — 2026-07-14
+
+**Assessment:** Effectively completed for the meaningful refactor work, but not fully exhausted if every optional cleanup item in this document is counted.
+
+**Completed in code:**
+- `updateAllEventRecords(_:)` exists in `GuestGalleryView`
+- `markViewed` writes `viewedUploadJobIds` across all records for the event
+- `ownUploadIds` is built from the union of all event records
+- `performDelete` looks up the correct uploader nonce per `uploadJobId`
+- `lastSeenVideoCount` is updated across all event records for the event
+
+**Still remaining (optional / low-priority cleanup):**
+- Inline logging in the view/render path still exists and could be removed or relocated once debugging is fully done
+- `loadGallery` still has multiple responsibilities and could be split further if the function grows
+
+**Conclusion:**
+- The main bug fixes and the high-value refactor from this document are complete
+- The remaining items are cleanup opportunities, not blockers or missing core behavior
+
 ## Background
 
 Each QR code upload creates a separate `GuestUploadRecord` with its own `statusNonce`

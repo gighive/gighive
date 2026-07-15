@@ -1,4 +1,141 @@
 *** 
+releaseNotes20260714.txt
+Changes: added swap disk to user data, updated documentation, consolidated skill.md
+Scope: egrep -A1 'GIG2|STAGING|TELEMETRY|LAB' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2 PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260712.log
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260714.log
+# GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-gighive2-20260712.log
+# GIG2 EVERYTHING make sure playwright_admin_tests = true in group_var
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive -e allow_destructive=true -K"
+# PROD ROLLOUT
+Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260711.log
+# LAB PUSH: 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260713.log
+# LAB ALL TESTS: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
+# GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260713.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260415.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260715.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260713.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
+# OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+# OSB create install.sh only
+ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   SKILL.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/cloud_init/files/network-config
+	modified:   ansible/roles/cloud_init/files/user-data
+	modified:   ansible/roles/cloud_init/templates/user-data.j2
+	renamed:    docs/feature_iphone_qr_code_implementation.md -> docs/feature_completed_iphone_qr_code_implementation.md
+	renamed:    docs/feature_iphone_qr_code_shared_gallery.md -> docs/feature_completed_iphone_qr_code_shared_gallery.md
+	renamed:    docs/feature_iphone_qr_code_shared_gallery_implementation.md -> docs/feature_completed_iphone_qr_code_shared_gallery_implementation.md
+	renamed:    docs/feature_iphone_qr_code_support.md -> docs/feature_completed_iphone_qr_code_support.md
+	renamed:    docs/feature_iphone_qr_code_support_conversation.md -> docs/feature_completed_iphone_qr_code_support_conversation.md
+	modified:   docs/feature_iphone_upload_catalog.md
+	modified:   docs/feature_iphone_upload_catalog_caveats.md
+	modified:   docs/feature_iphone_upload_catalog_reservations.md
+	modified:   docs/feature_saas_model_changes.md
+	modified:   docs/process_backup_alter_backup.md
+	modified:   docs/refactor_iphone_qr_code_gallery_notifications.md
+	new file:   docs/refactor_os_add_swap.md
+	modified:   docs/refactor_security_ssl_cert_lifetime.md
+	renamed:    docs/refactor_observability_container_stats.md -> docs/refactored_observability_container_stats.md
+	deleted:    skill.md
+
+PRIORITY
+What's next: the import media feature's progress meter doesn't tell the correct story
+What's next: turn off the stagingvm/move stagingvm onto it's own box
+What's next: rebuild vm-based LAB/STAGING for swap
+What's next: add "how to use Gighive" video to the home page of the iphone app
+
+TODO
+Feature: encode from browser window
+Feature: ability to use ANY LLM, not just open ai
+Feature: additional information provided by ffmpeg (lat/long?) into the media file info field
+What's next: fix telemetry to not rebuild db every time
+What's next: add dialog popup with stack
+Security: upgrade from id_rsa to id_ed25519 in /home/sodo/gighive/docs/refactor_security_upgrade_ssh_key.md
+DB: rename create_music_db.sql to create_db.sql
+AI: maybe include ai tests for OSB
+Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
+App: Media database page should show the thumbnail
+App: Does the media player have to open a separate window?
+App: Add How to Use button with link to video at bottom of home page
+App: Add tutorial at bottom of upload page
+App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
+App: From the upload page, add a link to the supported media file types
+App: Make database scroll one-handed, like modern apps
+App: Move search to top in database
+App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
+App: Integrate changes for db events
+
+App: App breaks on upload when changing to Messages app
+App: Is it worthwhile to have an embed feature?
+App: Can i provide a link to the Media Details page in the app?
+App: Share link feature in media page
+App/Web: skin the app based on domain?
+App: not just designed for iPad, what does "not verified" on laptop mean?
+App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
+
+Upload: should add "Still processing.." after heartbeat
+Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
+Security: Interesting that security_basic_auth is always needed after docker run
+API: refactor based on docs/refactor_api_cleanup_if_desired.md
+Next: we will need an upload videos/thumbnails only after restore of database function
+Next: admin upload still allowing duplicate shas based upon different column info
+Product: Lock down / remove full build option (full build is saas)
+Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
+Db: Fix edit page to separate words in the song
+Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
+Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
+Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
+Feature: Consider generic media player addition to database.php
+Feature: Should have "backup now" feature
+Feature: integrate with cddb
+Admin: Rename the vms to their full names
+Security: protect the debug directory w/admin password
+Security: Consider adding session timeout and max session timeout
+Security: use ansible vault
+Security: Remove mysql_native_password=ON
+Certs: Match cert with cloudflare, name only or something else needed?
+Issue: Why is cert creation taking longer now after adding ffmpeg to install?
+Issue: investigate vids that didn't produce thumbnails
+Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
+Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
 releaseNotes20260713.txt
 Changes: fix well known and redistribute bundle
 Scope: egrep -A1 'GIG2|OSB|STAGING|TELEMETRY|LAB' CHANGELOG.md | head -20
@@ -56,67 +193,6 @@ Changes to be committed:
 	modified:   ansible/roles/one_shot_bundle/tasks/output_bundle.yml
 	modified:   docs/problem_iphone_qr_code_redirect.md
 	renamed:    docs/refactor_admin_export_media.md -> docs/refactored_admin_export_media.md
-
-PRIORITY
-What's next: the import media feature's progress meter doesn't tell the correct story
-What's next: turn off the stagingvm/move stagingvm onto it's own box
-What's next: update backup media mechanism to tar from zip
-What's next: add "how to use Gighive" video to the home page of the iphone app
-
-TODO
-Feature: encode from browser window
-Feature: ability to use ANY LLM, not just open ai
-Feature: additional information provided by ffmpeg (lat/long?) into the media file info field
-What's next: fix telemetry to not rebuild db every time
-What's next: add dialog popup with stack
-Security: upgrade from id_rsa to id_ed25519 in /home/sodo/gighive/docs/refactor_security_upgrade_ssh_key.md
-DB: rename create_music_db.sql to create_db.sql
-AI: maybe include ai tests for OSB
-Marketing: Pat/I silly video "Wouldn't it be great if there was an app that our fans could use to upload their videos of us?  Yeah, then we could make a cool video out of it and share it with them.  I agree!  I agree!" Or just do it myself with a disguise and then send Pat the result.
-App: Media database page should show the thumbnail
-App: Does the media player have to open a separate window?
-App: Add How to Use button with link to video at bottom of home page
-App: Add tutorial at bottom of upload page
-App: When playing a video, can i avoid a separate popup window and auto play in a new page in the app?
-App: From the upload page, add a link to the supported media file types
-App: Make database scroll one-handed, like modern apps
-App: Move search to top in database
-App: Change language in app after logged in.."You'r logged into Gighive!  Now you can View the Database or Upload a Video!"
-App: Integrate changes for db events
-
-App: App breaks on upload when changing to Messages app
-App: Is it worthwhile to have an embed feature?
-App: Can i provide a link to the Media Details page in the app?
-App: Share link feature in media page
-App/Web: skin the app based on domain?
-App: not just designed for iPad, what does "not verified" on laptop mean?
-App: user agent defined as GigHive/1 CFNetwork/3860.300.31 Darwin/25.2.0
-
-Upload: should add "Still processing.." after heartbeat
-Backup: Need to resolve backup restore / missing video and image issue after restore of db..how best to handle?
-Security: Interesting that security_basic_auth is always needed after docker run
-API: refactor based on docs/refactor_api_cleanup_if_desired.md
-Next: we will need an upload videos/thumbnails only after restore of database function
-Next: admin upload still allowing duplicate shas based upon different column info
-Product: Lock down / remove full build option (full build is saas)
-Testing: Note that i should deprecate upload_media_by_hash.py and replace_existing_media.py but will need to test these at some point.
-Db: Fix edit page to separate words in the song
-Db: Fully understand and cleanup schema,Rejigger the db schema to not account for all the sp dross like jams missing songs or 27 orphan sessions are junk or expected shells or the 92 session-song rows with no files:
-Db: add legend or footnote to db/database.php, like "Media Create date only populated if EXIF data complete"
-Problem: If file is on filesystem but not in database and you try to upload again, upload willl fail.  Manual deletion required.  Not good.
-Feature: Consider generic media player addition to database.php
-Feature: Should have "backup now" feature
-Feature: integrate with cddb
-Admin: Rename the vms to their full names
-Security: protect the debug directory w/admin password
-Security: Consider adding session timeout and max session timeout
-Security: use ansible vault
-Security: Remove mysql_native_password=ON
-Certs: Match cert with cloudflare, name only or something else needed?
-Issue: Why is cert creation taking longer now after adding ffmpeg to install?
-Issue: investigate vids that didn't produce thumbnails
-Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
-Infra: rebuild prod baremetal with same ansible scripts as staging
 
 *** 
 releaseNotes20260713.txt

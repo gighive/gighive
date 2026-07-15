@@ -2,6 +2,22 @@
 
 Date: 2026-05-02
 
+## Review Status — 2026-07-14
+
+**Assessment:** Recently reviewed. Largely implemented, but not fully completed as a rolled-out feature.
+
+**Confirmed in code / docs:**
+- The server-side/admin implementation described by this plan exists in the codebase
+- The iPhone import endpoints and wizard files are present
+- The reservations doc still describes the feature as implemented and macOS end-to-end tested
+
+**Not yet treated as fully complete:**
+- The Section D entry point remains hidden from the main admin import UI
+- Cross-platform rollout/testing items described in the reservations doc remain open
+
+**Conclusion:**
+- Treat this document as an active feature record for an implemented-but-not-fully-unblocked workflow
+
 ---
 
 ## Deployment Applicability

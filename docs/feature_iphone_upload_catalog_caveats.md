@@ -4,6 +4,17 @@ Date: 2026-05-02
 
 See also: [feature_iphone_upload_catalog.md](feature_iphone_upload_catalog.md)
 
+## Review Status — 2026-07-14
+
+**Assessment:** Recently reviewed. This caveats document still appears relevant and should remain paired with the main feature and reservations docs.
+
+**Confirmed relevance:**
+- The rollout reservations remain open, so these caveats are still operationally important
+- iCloud optimization, staging-path differences, and playback limitations are still part of the documented user/operator experience
+
+**Conclusion:**
+- Keep this document active as current guidance rather than treating it as historical-only documentation
+
 ---
 
 ## iCloud Storage Optimization (Most Common Issue)

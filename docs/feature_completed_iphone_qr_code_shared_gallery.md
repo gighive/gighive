@@ -1,6 +1,7 @@
 # Shared Event Gallery — Rationale and Safety Framework
 
-**Related docs:** `docs/feature_iphone_qr_code_support.md` · `docs/feature_iphone_qr_code_implementation.md`
+**Status:** Completed ✅  
+**Related docs:** `docs/feature_completed_iphone_qr_code_support.md` · `docs/feature_completed_iphone_qr_code_implementation.md`
 
 ---
 
@@ -428,7 +429,7 @@ Deleted videos remain visible in the admin moderation queue in `admin/event_qr.p
 
 **New external software required: none.** The entire Phase 1 implementation is pure PHP, MySQL schema additions, and Swift — all within the existing Docker/Ansible stack.
 
-See `docs/feature_iphone_qr_code_shared_gallery_implementation.md` for the full sequenced implementation plan (Phase 1: infrastructure/PHP; Phase 2: iOS; Phase 3: production Universal Links launch).
+See `docs/feature_completed_iphone_qr_code_shared_gallery_implementation.md` for the completed sequenced implementation plan (Phase 1: infrastructure/PHP; Phase 2: iOS; Phase 3: production Universal Links launch).
 
 ### Phase 2 — Beta promotion (before sharing beyond low-risk / known-audience events)
 

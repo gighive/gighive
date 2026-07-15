@@ -214,7 +214,7 @@ If rollback via DDL is not possible or the database is in an unknown state, rest
 
 ## Related documentation
 
-- `docs/feature_iphone_qr_code_shared_gallery_implementation.md` — original source of this
+- `docs/feature_completed_iphone_qr_code_shared_gallery_implementation.md` — original source of this
   process pattern (Database Migration section)
 - `docs/process_mysql_init.md` — how MySQL initialisation works internally
 - `docs/guide_docker_compose_behavior.md` — `rebuild_mysql_data` flag mechanics

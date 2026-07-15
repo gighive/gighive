@@ -1,5 +1,23 @@
 # Refactor: SSL Certificate Lifetime — Internal Dev Server (`gighive2.gighive.internal`)
 
+## Status — 2026-07-14
+
+**Assessment:** Partially complete operationally, but not completed as a refactor.
+
+**Completed / confirmed:**
+- The separate trust requirement documented here was addressed: the internal TLS config now includes the `CA:TRUE` fix needed for iOS `swcd` / Universal Links trust evaluation
+- The document's current operating model remains valid: after Apache container rebuilds, the dev certificate may need to be re-extracted and re-trusted on test devices
+- `dev.gighive.app` remains the lower-friction path for day-to-day Universal Links / QR testing when internal-only server behavior is not required
+
+**Not completed:**
+- The certificate lifetime / persistence refactor itself has not been implemented
+- There is no documented evidence here that Option 2 (host-persisted certificate via bind mount / Ansible-managed cert generation) was shipped
+- The container rebuild model described in the Problem section still appears to be the operative behavior
+
+**Conclusion:**
+- The iOS trust failure root cause was fixed
+- The longer-lived certificate management refactor remains available for future work if rebuild friction becomes worth addressing
+
 ## Problem
 
 The self-signed TLS certificate for internal dev servers is generated **inside the Docker container** at startup (entrypoint.sh.j2):

@@ -1,6 +1,6 @@
 # QR Code Guest Upload — Phase 1a Walkthrough Notes
 **Date:** 2026-06-27  
-**Scope:** Step-by-step walkthrough of the Phase 1a implementation plan (Step 5 in `feature_saas_model_changes.md`, full detail in `feature_iphone_qr_code_support.md`), covering server/PHP steps 1–10. Captures rationale, what each step does and does not do, gates, UI diagrams, and key notes per step.
+**Scope:** Step-by-step walkthrough of the Phase 1a implementation plan (Step 5 in `feature_saas_model_changes.md`, full detail in `feature_completed_iphone_qr_code_support.md`), covering server/PHP steps 1–10. Captures rationale, what each step does and does not do, gates, UI diagrams, and key notes per step.
 
 ---
 
@@ -119,7 +119,7 @@ Deployed as part of the Docker role on every Ansible run. Verified by the `qr_co
 - **Deferred:** The existing htpasswd `guest` user should be renamed (e.g., to `readonly`) to avoid conceptual confusion with the QR guest persona. No functional impact in Phase 1a.
 
 ### Plan changes
-Security Controls section added to `feature_iphone_qr_code_support.md`; htpasswd deferred rename note added.
+Security Controls section added to `feature_completed_iphone_qr_code_support.md`; htpasswd deferred rename note added.
 
 ---
 
@@ -452,7 +452,7 @@ None — Ansible work was already complete from previous sessions.
 - A single neutral word that fits both event personas
 
 **What changed:**
-- All conceptual "fan" references in `feature_iphone_qr_code_support.md` → "guest"
+- All conceptual "fan" references in `feature_completed_iphone_qr_code_support.md` → "guest"
 - `feature_saas_model_changes.md` step 5 description updated
 - `qr_fan_upload_prefix` → `qr_guest_upload_prefix` in all three group_vars files and in `ansible/roles/qr_code/tasks/main.yml`
 - PHP/Apache code symbols (not yet implemented) will be written with "guest" from the start
@@ -929,7 +929,7 @@ None.
 
 | Document | Type | What Changed |
 |---|---|---|
-| `docs/feature_iphone_qr_code_support.md` | Modified | Step 1 wording (exit-on-missing); Step 5 (MVC file references + flow diagram); Steps 6–9 restructured (admin to new page, steps 8–9 absorbed); Security Controls section added; fan→guest throughout; htpasswd deferred note; mermaid chart TODO on step 5; Files Changed table updated |
+| `docs/feature_completed_iphone_qr_code_support.md` | Modified | Step 1 wording (exit-on-missing); Step 5 (MVC file references + flow diagram); Steps 6–9 restructured (admin to new page, steps 8–9 absorbed); Security Controls section added; fan→guest throughout; htpasswd deferred note; mermaid chart TODO on step 5; Files Changed table updated |
 | `docs/feature_saas_model_changes.md` | Modified | Step 5 description: fan→guest |
 | `ansible/inventories/group_vars/gighive2/gighive2.yml` | Modified | `qr_fan_upload_prefix` → `qr_guest_upload_prefix`; section comment "QR Code Fan Upload" → "QR Code Guest Upload" |
 | `ansible/inventories/group_vars/gighive/gighive.yml` | Modified | Same |

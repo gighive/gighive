@@ -1,5 +1,23 @@
 # Refactor: Per-Container Network Stats on Admin System Page
 
+## Status — 2026-07-14
+
+**Assessment:** Implemented / completed.
+
+**Completed / confirmed:**
+- `/admin/admin_system.php` now has a live-update mode for the existing stats block
+- The live mode uses `admin_system_stats.php` plus client-side polling to refresh currently supported metrics in place
+- The current admin-system observability work is considered sufficient to satisfy the intent of this refactor
+- The stats page now reflects the modernized observability approach that shipped rather than the narrower original proposal captured below
+
+**Notes:**
+- The specific implementation that shipped does not need to match one of the original options below line-for-line for this refactor to be considered complete
+- The remainder of this document is retained as historical design analysis and implementation alternatives considered during the work
+
+**Conclusion:**
+- This refactor is now considered complete by project decision
+- Keep this document as the historical record of the original problem framing and option analysis
+
 ## Current State (as of Jul 2026)
 
 `/admin/admin_system.php` displays two OS-level sub-sections:
