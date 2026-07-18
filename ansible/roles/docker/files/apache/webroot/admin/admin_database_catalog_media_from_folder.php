@@ -83,7 +83,6 @@ $__video_exts = $__json_env_array('UPLOAD_VIDEO_EXTS_JSON') ?: ['mp4', 'mov', 'm
       <a href="/admin/admin_system.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">System &amp; Recovery</button></a>
       <a href="/admin/admin_database_load_import_media_from_folder.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import Media</button></a>
       <a href="/admin/admin_database_load_import_csv.php"><button type="button" style="border-color:#3b82f6;font-size:.8rem;padding:.4rem .8rem">Import CSV</button></a>
-      <a href="/db/database_catalog.php"><button type="button" style="border-color:#a855f7;font-size:.8rem;padding:.4rem .8rem">Catalog Database</button></a>
       <a href="/admin/event_qr.php"><button type="button" style="border-color:#22c55e;font-size:.8rem;padding:.4rem .8rem">Guest QR Upload</button></a>
     </div>
   </div>

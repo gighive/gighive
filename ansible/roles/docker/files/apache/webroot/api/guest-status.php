@@ -23,7 +23,7 @@ try {
 try {
     $stmt = $pdo->prepare(
         'SELECT j.moderation_status,
-                e.event_date, e.org_name, e.gallery_expires_at,
+                e.event_date, e.org_name, t.expires_at,
                 (SELECT COUNT(*) FROM upload_jobs j2
                  JOIN anon_upload_attributions a2 ON a2.upload_job_id = j2.job_id
                  JOIN event_upload_tokens t2 ON t2.token_id = a2.token_id
@@ -49,14 +49,12 @@ if ($row === false) {
 }
 
 $now           = new \DateTime('now');
-$galleryExpiry = $row['gallery_expires_at'] !== null ? new \DateTime($row['gallery_expires_at']) : null;
-$isExpired     = $galleryExpiry !== null && $galleryExpiry <= $now;
+$tokenExpiry   = new \DateTime($row['expires_at']);
+$isExpired     = $tokenExpiry <= $now;
 
 $status        = $isExpired ? 'expired' : (string)$row['moderation_status'];
-$daysRemaining = null;
-if ($galleryExpiry !== null) {
-    $daysRemaining = $isExpired ? 0 : max(0, (int)$now->diff($galleryExpiry)->days);
-}
+$diff          = $now->diff($tokenExpiry);
+$daysRemaining = $isExpired ? 0 : ($diff->days > 3650 ? null : max(0, (int)$diff->days));
 
 echo json_encode([
     'status'         => $status,

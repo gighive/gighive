@@ -12,7 +12,7 @@ if ($body === null) {
     echo json_encode(['error' => 'invalid request']);
     exit;
 }
-if (preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $body->nonce ?? '') !== 1) {
+if (preg_match('/^[A-Za-z0-9_\-]{30,43}$/', $body->nonce ?? '') !== 1) {
     http_response_code(400);
     exit;
 }
@@ -47,12 +47,28 @@ try {
 }
 
 if ($row === false) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Forbidden']);
-    exit;
+    try {
+        $tokenHash = hash('sha256', $nonce);
+        $stmt = $pdo->prepare(
+            'SELECT t.event_id
+             FROM event_upload_tokens t
+             WHERE t.token_hash = ? AND t.is_active = 1 AND t.expires_at > NOW()'
+        );
+        $stmt->execute([$tokenHash]);
+        $tokenRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        exit;
+    }
+    if ($tokenRow === false) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden']);
+        exit;
+    }
+    $eventId = (int)$tokenRow['event_id'];
+} else {
+    $eventId = (int)$row['event_id'];
 }
-
-$eventId = (int)$row['event_id'];
 
 try {
     // Step 2: flag the target video (approved, same event); idempotent — guest_flagged_at updates on repeat

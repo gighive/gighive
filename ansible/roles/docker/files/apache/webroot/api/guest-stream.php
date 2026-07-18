@@ -6,7 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Production\Api\Infrastructure\Database;
 
 $nonce = $_GET['nonce'] ?? '';
-if (preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $nonce) !== 1) {
+if (preg_match('/^[A-Za-z0-9_\-]{30,43}$/', $nonce) !== 1) {
     http_response_code(400);
     header('Content-Type: application/json');
     echo json_encode(['error' => 'invalid nonce']);
@@ -31,11 +31,10 @@ try {
 try {
     // Step 1: authenticate nonce — requester's own upload must be approved; get event_id + expiry
     $stmt = $pdo->prepare(
-        'SELECT t.event_id, e.gallery_expires_at
+        'SELECT t.event_id, t.expires_at
          FROM anon_upload_attributions a
          JOIN upload_jobs j ON j.job_id = a.upload_job_id
          JOIN event_upload_tokens t ON t.token_id = a.token_id
-         JOIN events e ON e.event_id = t.event_id
          WHERE a.status_nonce = ? AND j.moderation_status = \'approved\''
     );
     $stmt->execute([$nonce]);
@@ -46,21 +45,40 @@ try {
 }
 
 if ($authRow === false) {
-    http_response_code(403);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Forbidden']);
-    exit;
-}
+    // Fallback: authenticate as a raw upload token (viewer path)
+    try {
+        $tokenHash = hash('sha256', $nonce);
+        $stmt = $pdo->prepare(
+            'SELECT t.event_id
+             FROM event_upload_tokens t
+             WHERE t.token_hash = ? AND t.is_active = 1 AND t.expires_at > NOW()'
+        );
+        $stmt->execute([$tokenHash]);
+        $tokenRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        exit;
+    }
 
-$eventId       = (int)$authRow['event_id'];
-$galleryExpiry = $authRow['gallery_expires_at'] !== null ? new \DateTime($authRow['gallery_expires_at']) : null;
-$now           = new \DateTime('now');
+    if ($tokenRow === false) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Forbidden']);
+        exit;
+    }
 
-if ($galleryExpiry !== null && $galleryExpiry <= $now) {
-    http_response_code(403);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'gallery expired']);
-    exit;
+    $eventId = (int)$tokenRow['event_id'];
+} else {
+    $eventId     = (int)$authRow['event_id'];
+    $tokenExpiry = new \DateTime($authRow['expires_at']);
+    $now         = new \DateTime('now');
+
+    if ($tokenExpiry <= $now) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'gallery expired']);
+        exit;
+    }
 }
 
 try {

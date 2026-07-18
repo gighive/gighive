@@ -38,7 +38,8 @@ $orgName     = trim($_GET['org_name']   ?? '');
 $eventDate   = trim($_GET['event_date'] ?? '');
 $eventId     = null;
 $loadError   = '';
-$revokedMsg  = trim($_GET['msg'] ?? '') === 'revoked' ? 'Token revoked.' : '';
+$revokedMsg  = trim($_GET['msg'] ?? '') === 'revoked'  ? 'Token revoked.'        : '';
+$extendedMsg = trim($_GET['msg'] ?? '') === 'extended' ? 'Token expiry updated.' : '';
 
 if ($orgName !== '' || $eventDate !== '') {
     if ($orgName === '' || strlen($orgName) > 255) {
@@ -104,20 +105,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'generate') {
-        $defaultTtlEnv = (int)(getenv('QR_TOKEN_DEFAULT_TTL_HOURS') ?: 168);
+        $defaultTtlEnv = (int)(getenv('QR_TOKEN_DEFAULT_TTL_HOURS') ?: 336);
         $expiryHours   = (int)($_POST['ttl_hours'] ?? $defaultTtlEnv);
-        if (!in_array($expiryHours, [4, 24, 168, 336], true)) {
+        if (!in_array($expiryHours, [0, 24, 168, 336, 672, 1728], true)) {
             $postMsg = 'Invalid expiry value.';
             $postOk  = false;
         } else {
             try {
                 $rawToken  = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
                 $tokenHash = hash('sha256', $rawToken);
+                $expiresAt = $expiryHours === 0
+                    ? (new \DateTime())->modify('+100 years')->format('Y-m-d H:i:s')
+                    : (new \DateTime())->modify("+{$expiryHours} hours")->format('Y-m-d H:i:s');
                 $stmt = $pdo->prepare(
                     'INSERT INTO event_upload_tokens (event_id, token_hash, expires_at, created_by_user_id)
-                     VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR), NULL)'
+                     VALUES (?, ?, ?, NULL)'
                 );
-                $stmt->execute([$eventId, $tokenHash, $expiryHours]);
+                $stmt->execute([$eventId, $tokenHash, $expiresAt]);
                 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
                 $host   = $_SERVER['HTTP_HOST'] ?? 'gighive.app';
                 $_SESSION['flash_url'] = $scheme . '://' . $host . '/upload/' . $rawToken;
@@ -152,27 +156,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
             }
         }
 
-    } elseif ($action === 'save_event_settings') {
-        $n = filter_var($_POST['gallery_lifespan_days'] ?? '', FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-        if ($n === false) {
-            $postMsg = 'Gallery lifespan must be a non-negative integer (0 = indefinite).';
+    } elseif ($action === 'extend_token') {
+        $tokenId  = (int)($_POST['token_id'] ?? 0);
+        $ttlHours = (int)($_POST['ttl_hours'] ?? -1);
+        if ($tokenId <= 0) {
+            $postMsg = 'Invalid token ID.';
+            $postOk  = false;
+        } elseif (!in_array($ttlHours, [0, 24, 168, 336, 672, 1728], true)) {
+            $postMsg = 'Invalid expiry value.';
             $postOk  = false;
         } else {
-            $isMultiDayPost = isset($_POST['is_multi_day']) ? 1 : 0;
-            $tenantIdSave   = (int)(getenv('QR_GUEST_UPLOAD_TENANT_ID') ?: 1);
             try {
+                $newExpiry = $ttlHours === 0
+                    ? (new \DateTime())->modify('+100 years')->format('Y-m-d H:i:s')
+                    : (new \DateTime())->modify("+{$ttlHours} hours")->format('Y-m-d H:i:s');
                 $stmt = $pdo->prepare(
-                    'UPDATE events
-                     SET gallery_expires_at = CASE WHEN ? > 0 THEN DATE_ADD(event_date, INTERVAL ? DAY) ELSE NULL END,
-                         is_multi_day = ?
-                     WHERE event_id = ? AND tenant_id = ?'
+                    'UPDATE event_upload_tokens
+                     SET expires_at = ?
+                     WHERE token_id = ? AND event_id = ?'
                 );
-                $stmt->execute([$n, $n, $isMultiDayPost, $eventId, $tenantIdSave]);
-                header('Location: /admin/event_qr.php?org_name=' . urlencode($orgName)
-                     . '&event_date=' . urlencode($eventDate));
-                exit;
+                $stmt->execute([$newExpiry, $tokenId, $eventId]);
+                if ($stmt->rowCount() === 0) {
+                    $postMsg = 'Token not found for this event.';
+                    $postOk  = false;
+                } else {
+                    header('Location: /admin/event_qr.php?org_name=' . urlencode($orgName)
+                         . '&event_date=' . urlencode($eventDate) . '&msg=extended');
+                    exit;
+                }
             } catch (\Throwable $e) {
-                $postMsg = 'Error saving event settings: ' . $e->getMessage();
+                $postMsg = 'Error updating token: ' . $e->getMessage();
                 $postOk  = false;
             }
         }
@@ -254,9 +267,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $eventId) {
 $tokens              = [];
 $guestUploads        = [];
 $pendingCount        = 0;
-$galleryExpiresAt    = null;
-$isMultiDay          = 0;
-$galleryLifespanDays = null;
 if ($pdo && $eventId) {
     try {
         $stmt = $pdo->prepare(
@@ -270,6 +280,7 @@ if ($pdo && $eventId) {
     } catch (\Throwable $e) { /* ignore */ }
 
     // Detect whether any active (not revoked, not expired) token already exists
+    $now = new \DateTime('now');
     $activeTokenCount = 0;
     foreach ($tokens as $t) {
         if ((int)$t['is_active'] === 1 && new \DateTime($t['expires_at']) > $now) {
@@ -308,42 +319,13 @@ if ($pdo && $eventId) {
             $pendingCount++;
         }
     }
-
-    try {
-        $stmt = $pdo->prepare(
-            'SELECT gallery_expires_at, is_multi_day,
-                    DATEDIFF(gallery_expires_at, event_date) AS lifespan
-             FROM events WHERE event_id = ? LIMIT 1'
-        );
-        $stmt->execute([$eventId]);
-        $evtRow = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($evtRow) {
-            $galleryExpiresAt    = $evtRow['gallery_expires_at'];
-            $isMultiDay          = (int)$evtRow['is_multi_day'];
-            $galleryLifespanDays = $galleryExpiresAt !== null
-                ? max(0, (int)$evtRow['lifespan'])
-                : 0;
-        }
-    } catch (\Throwable $e) { /* ignore */ }
 }
 
-$defaultTtl = (int)(getenv('QR_TOKEN_DEFAULT_TTL_HOURS') ?: 168);
-if (!in_array($defaultTtl, [4, 24, 168, 336], true)) {
-    $defaultTtl = 168;
+$defaultTtl = (int)(getenv('QR_TOKEN_DEFAULT_TTL_HOURS') ?: 336);
+if (!in_array($defaultTtl, [0, 24, 168, 336, 672, 1728], true)) {
+    $defaultTtl = 336;
 }
 $qrJsVersion            = htmlspecialchars(getenv('QR_CODE_JS_VERSION') ?: '1.5.4', ENT_QUOTES);
-$galleryDefaultLifespan = (int)(getenv('QR_GALLERY_DEFAULT_LIFESPAN_DAYS') ?: 90);
-$ttlWarningHours        = [];
-if ($galleryExpiresAt !== null) {
-    $galleryExpDt = new \DateTime($galleryExpiresAt);
-    $nowCheck     = new \DateTime('now');
-    foreach ([4, 24, 168, 336] as $h) {
-        $windowEnd = (clone $nowCheck)->modify("+{$h} hours");
-        if ($windowEnd > $galleryExpDt) {
-            $ttlWarningHours[] = $h;
-        }
-    }
-}
 ?>
 <!doctype html>
 <html lang="en">
@@ -429,24 +411,6 @@ if ($galleryExpiresAt !== null) {
       <div class="alert-err"><?= htmlspecialchars($loadError, ENT_QUOTES) ?></div>
     <?php elseif ($eventId): ?>
       <div class="alert-ok">Event loaded: <strong><?= htmlspecialchars($orgName, ENT_QUOTES) ?></strong> &mdash; <?= htmlspecialchars($eventDate, ENT_QUOTES) ?></div>
-      <form method="POST" action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>" style="margin-top:.75rem">
-        <input type="hidden" name="action" value="save_event_settings">
-        <input type="hidden" name="event_id" value="<?= (int)$eventId ?>">
-        <div class="form-row" style="align-items:flex-end;gap:.75rem;flex-wrap:wrap">
-          <div class="field">
-            <label for="gallery_lifespan_days">Gallery lifespan (days; 0&nbsp;=&nbsp;indefinite)</label>
-            <input id="gallery_lifespan_days" name="gallery_lifespan_days" type="number" min="0"
-                   value="<?= (int)($galleryLifespanDays ?? $galleryDefaultLifespan) ?>"
-                   style="width:110px;padding:.5rem;border-radius:8px;border:1px solid #33427a;background:#0e1530;color:#e9eef7;font-size:.9rem">
-          </div>
-          <div class="field" style="flex-direction:row;align-items:center;gap:.4rem">
-            <input id="is_multi_day" name="is_multi_day" type="checkbox" value="1"
-                   <?= $isMultiDay ? 'checked' : '' ?>>
-            <label for="is_multi_day" style="font-weight:400;margin-bottom:0">Multi-day event</label>
-          </div>
-          <button type="submit" class="btn-sm">Save</button>
-        </div>
-      </form>
     <?php else: ?>
       <?php if (!empty($recentEvents)): ?>
         <p class="muted" style="margin:.5rem 0 .4rem">Recent events with QR codes &mdash; click to load:</p>
@@ -472,6 +436,9 @@ if ($galleryExpiresAt !== null) {
   <?php if ($revokedMsg): ?>
     <div class="alert-ok"><?= htmlspecialchars($revokedMsg, ENT_QUOTES) ?></div>
   <?php endif; ?>
+  <?php if ($extendedMsg): ?>
+    <div class="alert-ok"><?= htmlspecialchars($extendedMsg, ENT_QUOTES) ?></div>
+  <?php endif; ?>
 
   <!-- Section 1: QR Generator -->
   <div class="card">
@@ -484,36 +451,15 @@ if ($galleryExpiresAt !== null) {
       <input type="hidden" name="action" value="generate">
       <label>Link expiry</label>
       <div class="ttl-group">
-        <?php foreach ([4 => '4 hours', 24 => '24 hours', 168 => '7 days', 336 => '14 days'] as $h => $lbl): ?>
+        <?php foreach ([24 => '24 hours', 168 => '7 days', 336 => '14 days', 672 => '28 days', 1728 => '72 days', 0 => 'No Expiration'] as $h => $lbl): ?>
           <label>
             <input type="radio" name="ttl_hours" value="<?= $h ?>" <?= $defaultTtl === $h ? 'checked' : '' ?>>
             <?= htmlspecialchars($lbl, ENT_QUOTES) ?>
           </label>
         <?php endforeach; ?>
       </div>
-      <?php if (!empty($ttlWarningHours)): ?>
-      <div id="ttl-mismatch-warning" class="alert-warn" style="display:none;margin:.5rem 0 .75rem">
-        &#9888; Upload window extends beyond gallery expiry &mdash; guests who upload near the end of the window may be approved after the gallery has already closed.
-      </div>
-      <?php endif; ?>
       <button type="submit"<?php if (!empty($activeTokenWarning)): ?> onclick="return confirm('<?= $activeTokenWarning ?>')"<?php endif; ?>>Generate QR</button>
     </form>
-    <?php if (!empty($ttlWarningHours)): ?>
-    <script>
-    (function() {
-      var warningTtls = <?= json_encode($ttlWarningHours) ?>;
-      var radios  = document.querySelectorAll('input[name="ttl_hours"]');
-      var warning = document.getElementById('ttl-mismatch-warning');
-      function update() {
-        var sel = document.querySelector('input[name="ttl_hours"]:checked');
-        var h   = sel ? parseInt(sel.value, 10) : null;
-        if (warning) warning.style.display = (h !== null && warningTtls.indexOf(h) !== -1) ? 'block' : 'none';
-      }
-      radios.forEach(function(r) { r.addEventListener('change', update); });
-      update();
-    })();
-    </script>
-    <?php endif; ?>
 
     <div id="qr-wrap">
       <div id="qr-inner" style="display:inline-block;margin:.5rem auto"></div>
@@ -562,13 +508,44 @@ if ($galleryExpiresAt !== null) {
                   <input type="hidden" name="action" value="revoke">
                   <input type="hidden" name="token_id" value="<?= (int)$tok['token_id'] ?>">
                   <button type="submit" class="btn-danger btn-sm"
-                          onclick="return confirm('Revoke this token? Guests with this QR link will no longer be able to upload.')">Revoke</button>
+                          onclick="return confirm('Revoking a token IS PERMANENT. Do you really wish to do this?')">Revoke</button>
                 </form>
+                <button type="button" class="btn-sm" style="margin-left:.25rem"
+                        onclick="toggleExtend(<?= (int)$tok['token_id'] ?>)">Extend</button>
+              <?php elseif ($status === 'expired'): ?>
+                <button type="button" class="btn-sm"
+                        onclick="toggleExtend(<?= (int)$tok['token_id'] ?>)">Extend</button>
               <?php else: ?>
                 &mdash;
               <?php endif; ?>
             </td>
           </tr>
+          <?php if ($status !== 'revoked'): ?>
+          <tr id="extend-row-<?= (int)$tok['token_id'] ?>" style="display:none">
+            <td colspan="5" style="background:#0e1530;padding:.75rem 1rem">
+              <form method="POST"
+                    action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>"
+                    style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+                <input type="hidden" name="action" value="extend_token">
+                <input type="hidden" name="token_id" value="<?= (int)$tok['token_id'] ?>">
+                <span style="font-weight:600;font-size:.88rem;white-space:nowrap">New expiry from now:</span>
+                <div class="ttl-group" style="margin:0">
+                  <?php foreach ([24 => '24 hours', 168 => '7 days', 336 => '14 days', 672 => '28 days', 1728 => '72 days', 0 => 'No Expiration'] as $h => $lbl): ?>
+                    <label>
+                      <input type="radio" name="ttl_hours" value="<?= $h ?>" <?= $defaultTtl === $h ? 'checked' : '' ?>>
+                      <?= htmlspecialchars($lbl, ENT_QUOTES) ?>
+                    </label>
+                  <?php endforeach; ?>
+                </div>
+                <div style="display:flex;gap:.5rem">
+                  <button type="submit" class="btn-sm" style="border-color:#1f7a3b">Set Expiry</button>
+                  <button type="button" class="btn-sm"
+                          onclick="toggleExtend(<?= (int)$tok['token_id'] ?>)">Cancel</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          <?php endif; ?>
           <?php endforeach; ?>
         </tbody>
       </table>
@@ -667,6 +644,24 @@ if ($galleryExpiresAt !== null) {
                   <button type="submit" class="btn-sm btn-danger"
                           onclick="return confirm('Reject this upload?')">Reject</button>
                 </form>
+              <?php elseif ($modStatus === 'approved'): ?>
+                <form method="POST"
+                      action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>"
+                      style="display:inline">
+                  <input type="hidden" name="action" value="reject_upload">
+                  <input type="hidden" name="job_id" value="<?= htmlspecialchars((string)($gu['job_id'] ?? ''), ENT_QUOTES) ?>">
+                  <button type="submit" class="btn-sm btn-danger"
+                          onclick="return confirm('This video has already been approved. Reject it anyway?')">Reject</button>
+                </form>
+              <?php elseif ($modStatus === 'rejected'): ?>
+                <form method="POST"
+                      action="/admin/event_qr.php?org_name=<?= urlencode($orgName) ?>&event_date=<?= urlencode($eventDate) ?>"
+                      style="display:inline">
+                  <input type="hidden" name="action" value="approve_upload">
+                  <input type="hidden" name="job_id" value="<?= htmlspecialchars((string)($gu['job_id'] ?? ''), ENT_QUOTES) ?>">
+                  <button type="submit" class="btn-sm" style="border-color:#1f7a3b"
+                          onclick="return confirm('This video has already been rejected. Approve it anyway?')">Approve</button>
+                </form>
               <?php else: ?>
                 &mdash;
               <?php endif; ?>
@@ -689,6 +684,10 @@ if ($galleryExpiresAt !== null) {
 </div>
 
 <script>
+function toggleExtend(tokenId) {
+  const row = document.getElementById('extend-row-' + tokenId);
+  if (row) { row.style.display = row.style.display === 'none' ? '' : 'none'; }
+}
 (function() {
   const qrUrl = <?= json_encode($newQrUrl) ?>;
   if (!qrUrl) return;

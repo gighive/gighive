@@ -54,8 +54,6 @@ CREATE TABLE events (
     event_date DATE NOT NULL,
     org_name VARCHAR(128) NOT NULL DEFAULT 'default',
     event_type ENUM('band','wedding','other') DEFAULT NULL,
-    gallery_expires_at DATETIME NULL,
-    is_multi_day TINYINT(1) NOT NULL DEFAULT 0,
     title VARCHAR(255) NULL,
     published_at DATETIME DEFAULT NULL,
     duration_seconds INT NULL,

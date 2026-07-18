@@ -7,7 +7,7 @@ use Production\Api\Infrastructure\Database;
 
 // --- Nonce validation (shared by GET and POST paths) ---
 $rawNonce = $_POST['nonce'] ?? $_GET['nonce'] ?? '';
-$nonceValid = preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $rawNonce) === 1;
+$nonceValid = preg_match('/^[A-Za-z0-9_\-]{30,43}$/', $rawNonce) === 1;
 $safeNonce  = $nonceValid ? $rawNonce : '';
 
 // --- Handle report POST (POST–Redirect–GET pattern) ---
@@ -32,6 +32,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'repor
             $rowR = $stmtR->fetch(\PDO::FETCH_ASSOC);
             if ($rowR !== false) {
                 $eventIdR = (int)$rowR['event_id'];
+            } else {
+                $tokenHash = hash('sha256', $safeNonce);
+                $stmtTok = $pdoR->prepare(
+                    'SELECT t.event_id FROM event_upload_tokens t
+                     WHERE t.token_hash = ? AND t.is_active = 1 AND t.expires_at > NOW()'
+                );
+                $stmtTok->execute([$tokenHash]);
+                $rowTok   = $stmtTok->fetch(\PDO::FETCH_ASSOC);
+                $eventIdR = $rowTok !== false ? (int)$rowTok['event_id'] : null;
+            }
+            if ($eventIdR !== null) {
                 $stmtFlag = $pdoR->prepare(
                     'UPDATE upload_jobs j_target
                      JOIN anon_upload_attributions a2 ON a2.upload_job_id = j_target.job_id
@@ -76,7 +87,7 @@ try {
 // --- Step 1: verify nonce's own upload is approved and gallery is not expired ---
 try {
     $stmt = $pdo->prepare(
-        'SELECT t.event_id, e.gallery_expires_at, e.org_name, e.event_date
+        'SELECT t.event_id, t.expires_at, e.org_name, e.event_date
          FROM anon_upload_attributions a
          JOIN upload_jobs j ON j.job_id = a.upload_job_id
          JOIN event_upload_tokens t ON t.token_id = a.token_id
@@ -91,6 +102,23 @@ try {
 }
 
 if ($meta === false) {
+    try {
+        $tokenHash = hash('sha256', $safeNonce);
+        $stmtTok = $pdo->prepare(
+            'SELECT t.event_id, t.expires_at,
+                    e.org_name, e.event_date
+             FROM event_upload_tokens t
+             JOIN events e ON e.event_id = t.event_id
+             WHERE t.token_hash = ? AND t.is_active = 1 AND t.expires_at > NOW()'
+        );
+        $stmtTok->execute([$tokenHash]);
+        $meta = $stmtTok->fetch(\PDO::FETCH_ASSOC);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        exit;
+    }
+}
+if ($meta === false) {
     http_response_code(403);
     ?><!doctype html>
 <html lang="en">
@@ -104,13 +132,11 @@ if ($meta === false) {
 }
 
 $eventId       = (int)$meta['event_id'];
-$galleryExpiry = $meta['gallery_expires_at'] !== null ? new \DateTime($meta['gallery_expires_at']) : null;
+$tokenExpiry   = new \DateTime($meta['expires_at']);
 $now           = new \DateTime('now');
-$isExpired     = $galleryExpiry !== null && $galleryExpiry <= $now;
-$daysRemaining = null;
-if ($galleryExpiry !== null) {
-    $daysRemaining = $isExpired ? 0 : max(0, (int)$now->diff($galleryExpiry)->days);
-}
+$isExpired     = $tokenExpiry <= $now;
+$diff          = $now->diff($tokenExpiry);
+$daysRemaining = $isExpired ? 0 : ($diff->days > 3650 ? null : max(0, (int)$diff->days));
 $eventTitle = htmlspecialchars($meta['org_name'] . ' \u2014 ' . $meta['event_date'], ENT_QUOTES);
 
 $reportMsg = '';

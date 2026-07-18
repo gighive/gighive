@@ -14,25 +14,6 @@
 
 # --- Env vars ---
 
-- name: Assert QR_GALLERY_DEFAULT_LIFESPAN_DAYS is set in Apache container environment
-  community.docker.docker_container_exec:
-    container: "{{ apache_container_name }}"
-    command: printenv QR_GALLERY_DEFAULT_LIFESPAN_DAYS
-  register: _sg_lifespan_env
-  changed_when: false
-  failed_when: (_sg_lifespan_env.rc | default(1)) != 0 or (_sg_lifespan_env.stdout | trim) == ''
-  tags: [shared_gallery, smoke, env]
-
-- name: Assert QR_GALLERY_DEFAULT_LIFESPAN_DAYS is a positive integer
-  ansible.builtin.assert:
-    that:
-      - (_sg_lifespan_env.stdout | trim) is match('^[0-9]+$')
-      - (_sg_lifespan_env.stdout | trim | int) > 0
-    fail_msg: >-
-      QR_GALLERY_DEFAULT_LIFESPAN_DAYS='{{ _sg_lifespan_env.stdout | trim }}' is not a positive integer.
-      Check qr_gallery_default_lifespan_days in group_vars and QR_GALLERY_DEFAULT_LIFESPAN_DAYS in .env.j2.
-  tags: [shared_gallery, smoke, env]
-
 - name: Assert QR_GUEST_UPLOAD_TENANT_ID is set in Apache container environment
   community.docker.docker_container_exec:
     container: "{{ apache_container_name }}"
@@ -71,26 +52,6 @@
       - (_sg_aua_cols.stdout | trim) == '1'
     fail_msg: >-
       status_nonce or apns_token column missing from anon_upload_attributions.
-      Run the shared gallery DDL migration (Phase 1 Step 3).
-  tags: [shared_gallery, smoke, db]
-
-- name: Assert shared gallery columns exist in events
-  community.docker.docker_container_exec:
-    container: "{{ mysql_container_name }}"
-    command: >-
-      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
-      -e "SELECT gallery_expires_at, is_multi_day FROM events LIMIT 0" > /dev/null 2>&1
-      && echo 1 || echo 0'
-  register: _sg_events_cols
-  changed_when: false
-  tags: [shared_gallery, smoke, db]
-
-- name: Fail if shared gallery columns missing from events
-  ansible.builtin.assert:
-    that:
-      - (_sg_events_cols.stdout | trim) == '1'
-    fail_msg: >-
-      gallery_expires_at or is_multi_day column missing from events.
       Run the shared gallery DDL migration (Phase 1 Step 3).
   tags: [shared_gallery, smoke, db]
 

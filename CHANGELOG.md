@@ -1,11 +1,11 @@
 *** 
-releaseNotes20260714.txt
-Changes: added swap disk to user data, updated documentation, consolidated skill.md
-Scope: egrep -A1 'GIG2|STAGING|TELEMETRY|LAB' CHANGELOG.md | head -20
+releaseNotes20260718.txt
+Changes: iphone event gallery Visit Event Gallery link for orgname & event, changes a bunch of other pages, as remove gallery lifespan in favor of just token, add extend function to event_qr.php and admin menu sync
+Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY|OSB' CHANGELOG.md | head -20
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260712.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260717.log
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260714.log
 # GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
@@ -15,20 +15,20 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # PROD ROLLOUT
 Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260711.log
 # LAB PUSH: 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260713.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260718.log
 # LAB ALL TESTS: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
 # LAB, rebuild 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
 # GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260713.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260718.log
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260415.log
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260715.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260713.log 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260718.log 
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
@@ -51,33 +51,38 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   SKILL.md
 	modified:   ansible/inventories/group_vars/gighive/gighive.yml
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
 	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/roles/cloud_init/files/network-config
-	modified:   ansible/roles/cloud_init/files/user-data
-	modified:   ansible/roles/cloud_init/templates/user-data.j2
-	renamed:    docs/feature_iphone_qr_code_implementation.md -> docs/feature_completed_iphone_qr_code_implementation.md
-	renamed:    docs/feature_iphone_qr_code_shared_gallery.md -> docs/feature_completed_iphone_qr_code_shared_gallery.md
-	renamed:    docs/feature_iphone_qr_code_shared_gallery_implementation.md -> docs/feature_completed_iphone_qr_code_shared_gallery_implementation.md
-	renamed:    docs/feature_iphone_qr_code_support.md -> docs/feature_completed_iphone_qr_code_support.md
-	renamed:    docs/feature_iphone_qr_code_support_conversation.md -> docs/feature_completed_iphone_qr_code_support_conversation.md
-	modified:   docs/feature_iphone_upload_catalog.md
-	modified:   docs/feature_iphone_upload_catalog_caveats.md
-	modified:   docs/feature_iphone_upload_catalog_reservations.md
-	modified:   docs/feature_saas_model_changes.md
-	modified:   docs/process_backup_alter_backup.md
-	modified:   docs/refactor_iphone_qr_code_gallery_notifications.md
-	new file:   docs/refactor_os_add_swap.md
-	modified:   docs/refactor_security_ssl_cert_lifetime.md
-	renamed:    docs/refactor_observability_container_stats.md -> docs/refactored_observability_container_stats.md
-	deleted:    skill.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/event_qr.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-gallery.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-report.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-status.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-stream.php
+	modified:   ansible/roles/docker/files/apache/webroot/guest_event_view.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   ansible/roles/shared_gallery/tasks/main.yml
+	new file:   docs/feature_iphone_qr_code_gallery_live_refresh.md
+	new file:   docs/problem_iphone_qr_code_approve_reject_update.md
+	new file:   docs/problem_os_out_of_mem_no_swap.md
+	new file:   docs/refactor_iphone_qr_code_extend_time.md
+	new file:   docs/refactor_iphone_qr_code_gallery_access_for_all.md
 
 PRIORITY
+
+What's next: for individuals who only have a qr code, Login/Upload/View the database buttons should disappear entirely from splashview. those buttons should only appear if the user is a user (admin/uploader/viewer) of the gighive database.  this will simplify the view for the user and will not add confusion "oh, do I need to login now?" when in reality, it is the fact that they have access to a token that allows them the ability to view the event gallery. however, we may give a think if we need to address an admin/viewer/uploader whose first experience with gighive is a token.  this is an edge case and should be disregarded for now. So all a qr code guest uploader would see on the splashview after uploading a file is the gighive bee logo and the notification to wait for the moderator to approve his/her video.
+What's next: after leaving the app open after an initial upload, if i rescan the qr code again from a photo and press "Open in Gighive", it only brings me to the splashview and not the upload screen.  however, if i close the app and rescan the qr code, the newly opened app DOES get me to the qr code uploader page.  i think the qr code should always end up in the upload screen. agree?
+What's next: move play button to the left of the name
+What's next: a user should be able to toggle the flag button on, but also be able to toggle the flag off if they have touched flag in error
+What's next: /admin/admin.php doesn't have buttons
+What's next: should we make the flagged videos visible to other users?
+What's next: also, the qr code upload feature allows the same video to be uploaded twice..is it storing the asset twice as well?
 What's next: the import media feature's progress meter doesn't tell the correct story
 What's next: turn off the stagingvm/move stagingvm onto it's own box
-What's next: rebuild vm-based LAB/STAGING for swap
 What's next: add "how to use Gighive" video to the home page of the iphone app
 
 TODO
@@ -134,6 +139,82 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260714.txt
+Changes: added swap disk to user data, updated documentation, consolidated skill.md
+Scope: egrep -A1 'GIG2|STAGING|TELEMETRY|LAB' CHANGELOG.md | head -20
+
+# To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
+# BASE GIG2 PUSH
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260712.log
+# BASE GIG2, rebuild 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260714.log
+# GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-gighive2-20260712.log
+# GIG2 EVERYTHING make sure playwright_admin_tests = true in group_var
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive -e allow_destructive=true -K"
+# PROD ROLLOUT
+Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260711.log
+# LAB PUSH: 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260713.log
+# LAB ALL TESTS: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
+# LAB, rebuild 
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
+# GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260713.log
+# GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
+# STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260715.log
+
+# OSB ONE-SHOT-BUNDLE CREATION AFTER GIT COMMIT (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260713.log 
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
+# OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+# OSB create install.sh only
+ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
+
+# ADMIN functions testing (files + command), to be run after clean build using std sec.yml
+	.nvmrc, package-lock.json, package.json, playwright.config.ts, tests/, tests/.env
+	export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm use 20
+	npx playwright test
+
+# VULN testing
+	~/scripts/vulnerabilityScanUsingZap.sh
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   SKILL.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/cloud_init/files/network-config
+	modified:   ansible/roles/cloud_init/files/user-data
+	modified:   ansible/roles/cloud_init/templates/user-data.j2
+	renamed:    docs/feature_iphone_qr_code_implementation.md -> docs/feature_completed_iphone_qr_code_implementation.md
+	renamed:    docs/feature_iphone_qr_code_shared_gallery.md -> docs/feature_completed_iphone_qr_code_shared_gallery.md
+	renamed:    docs/feature_iphone_qr_code_shared_gallery_implementation.md -> docs/feature_completed_iphone_qr_code_shared_gallery_implementation.md
+	renamed:    docs/feature_iphone_qr_code_support.md -> docs/feature_completed_iphone_qr_code_support.md
+	renamed:    docs/feature_iphone_qr_code_support_conversation.md -> docs/feature_completed_iphone_qr_code_support_conversation.md
+	modified:   docs/feature_iphone_upload_catalog.md
+	modified:   docs/feature_iphone_upload_catalog_caveats.md
+	modified:   docs/feature_iphone_upload_catalog_reservations.md
+	modified:   docs/feature_saas_model_changes.md
+	modified:   docs/process_backup_alter_backup.md
+	modified:   docs/refactor_iphone_qr_code_gallery_notifications.md
+	new file:   docs/refactor_os_add_swap.md
+	modified:   docs/refactor_security_ssl_cert_lifetime.md
+	renamed:    docs/refactor_observability_container_stats.md -> docs/refactored_observability_container_stats.md
+	deleted:    skill.md
 
 *** 
 releaseNotes20260713.txt

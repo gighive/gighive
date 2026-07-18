@@ -7,7 +7,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Production\Api\Infrastructure\Database;
 
 $nonce = $_GET['nonce'] ?? '';
-if (preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $nonce) !== 1) {
+if (preg_match('/^[A-Za-z0-9_\-]{30,43}$/', $nonce) !== 1) {
     http_response_code(400);
     echo json_encode(['error' => 'invalid nonce']);
     exit;
@@ -23,11 +23,10 @@ try {
 try {
     // Step 1: verify nonce's own upload is approved and gallery is not expired
     $stmt = $pdo->prepare(
-        'SELECT t.event_id, e.gallery_expires_at
+        'SELECT t.event_id, t.expires_at
          FROM anon_upload_attributions a
          JOIN upload_jobs j ON j.job_id = a.upload_job_id
          JOIN event_upload_tokens t ON t.token_id = a.token_id
-         JOIN events e ON e.event_id = t.event_id
          WHERE a.status_nonce = ? AND j.moderation_status = \'approved\''
     );
     $stmt->execute([$nonce]);
@@ -38,24 +37,50 @@ try {
 }
 
 if ($row === false) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Forbidden']);
-    exit;
-}
+    // Fallback: authenticate as a raw upload token (viewer path)
+    try {
+        $tokenHash = hash('sha256', $nonce);
+        $stmt = $pdo->prepare(
+            'SELECT t.event_id, t.expires_at
+             FROM event_upload_tokens t
+             WHERE t.token_hash = ? AND t.is_active = 1 AND t.expires_at > NOW()'
+        );
+        $stmt->execute([$tokenHash]);
+        $tokenRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        exit;
+    }
 
-$eventId       = (int)$row['event_id'];
-$galleryExpiry = $row['gallery_expires_at'] !== null ? new \DateTime($row['gallery_expires_at']) : null;
-$now           = new \DateTime('now');
-$isExpired     = $galleryExpiry !== null && $galleryExpiry <= $now;
+    if ($tokenRow === false) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden']);
+        exit;
+    }
 
-if ($isExpired) {
-    echo json_encode(['status' => 'expired', 'days_remaining' => 0, 'videos' => []]);
-    exit;
-}
+    $eventId = (int)$tokenRow['event_id'];
+    try {
+        $tokenExpiry   = new \DateTime($tokenRow['expires_at']);
+        $now           = new \DateTime('now');
+        $diff          = $now->diff($tokenExpiry);
+        $daysRemaining = $diff->days > 3650 ? null : max(0, (int)$diff->days);
+    } catch (\Exception $e) {
+        http_response_code(500);
+        exit;
+    }
+} else {
+    $eventId     = (int)$row['event_id'];
+    $tokenExpiry = new \DateTime($row['expires_at']);
+    $now         = new \DateTime('now');
+    $isExpired   = $tokenExpiry <= $now;
 
-$daysRemaining = null;
-if ($galleryExpiry !== null) {
-    $daysRemaining = max(0, (int)$now->diff($galleryExpiry)->days);
+    if ($isExpired) {
+        echo json_encode(['status' => 'expired', 'days_remaining' => 0, 'videos' => []]);
+        exit;
+    }
+
+    $diff          = $now->diff($tokenExpiry);
+    $daysRemaining = $diff->days > 3650 ? null : max(0, (int)$diff->days);
 }
 
 try {
