@@ -327,6 +327,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'stream_url', type: 'string'),
         new OA\Property(property: 'display_name', type: 'string', nullable: true),
         new OA\Property(property: 'approved_at', type: 'string', format: 'date-time'),
+        new OA\Property(property: 'reported_by_me', type: 'boolean', description: 'True if the authenticated guest has an active report row for this video'),
     ]
 )]
 #[OA\Get(
@@ -547,8 +548,8 @@ use OpenApi\Attributes as OA;
 #[OA\Post(
     path: '/guest-report.php',
     operationId: 'reportGuestVideo',
-    summary: 'Flag a video for moderation review',
-    description: 'Allows an approved guest to flag another approved video in the same event. Sets guest_flagged=1 on the upload_jobs row. Idempotent — repeat calls update guest_flagged_at.',
+    summary: 'Report or retract a flag on a video',
+    description: 'Allows a guest to report (reported=true) or retract (reported=false) a flag on an approved video in the same event. Persists a per-guest row in guest_video_reports and recomputes the aggregate guest_flagged / guest_flagged_at on upload_jobs. Idempotent in both directions. Defaults reported to true if omitted (backward compatibility).',
     servers: [new OA\Server(url: '/api')],
     tags: ['guest'],
     requestBody: new OA\RequestBody(
@@ -561,13 +562,28 @@ use OpenApi\Attributes as OA;
                     properties: [
                         new OA\Property(property: 'nonce', type: 'string'),
                         new OA\Property(property: 'upload_job_id', type: 'integer', minimum: 1),
+                        new OA\Property(property: 'reported', type: 'boolean', description: 'true to submit a report; false to retract. Defaults to true if omitted.'),
                     ]
                 )
             ),
         ]
     ),
     responses: [
-        new OA\Response(response: 200, description: 'Flagged successfully'),
+        new OA\Response(
+            response: 200,
+            description: 'Report or retract succeeded',
+            content: [
+                new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        properties: [
+                            new OA\Property(property: 'success', type: 'boolean'),
+                            new OA\Property(property: 'reported_by_me', type: 'boolean', description: 'Server-authoritative state for this guest after the operation'),
+                        ]
+                    )
+                ),
+            ]
+        ),
         new OA\Response(response: 400, description: 'Invalid request body'),
         new OA\Response(response: 403, description: 'Forbidden — nonce not approved or video not in same event'),
     ]

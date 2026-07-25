@@ -62,8 +62,9 @@
     SetEnvIf X-Upload-Token .+ upload_token_auth
     # iOS AVPlayer sends X-Gallery-Nonce header via AVURLAsset HTTPHeaderFields
     SetEnvIf X-Gallery-Nonce .+ gallery_nonce_auth
-    # Web browser <video src="/video/...?nonce=..."> — query-string detection
-    SetEnvIf Request_URI "[?&]nonce=[A-Za-z0-9_\-]{30,40}" gallery_nonce_auth
+    # Web browser / iOS URLSession — query-string nonce detection
+    # SetEnvIf Query_String does not work reliably in this Apache build; SetEnvIfExpr is required.
+    SetEnvIfExpr "%{QUERY_STRING} =~ /(^|&)nonce=/" gallery_nonce_auth
 
     # QR guest upload routing — /upload/<token> served by PHP handler (rewritten internally)
     RewriteRule ^/upload/([A-Za-z0-9_-]+)$ /db/upload_form_single.php?token=$1 [L,QSA]

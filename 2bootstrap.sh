@@ -3,6 +3,71 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# RESUME / PARTIAL RUN: ./2bootstrap.sh [stage]
+# Stage        Skips                          Runs
+# all          nothing                        everything (default)
+# plan         auth, backend                  plan → apply → inventory → build
+# apply        auth, backend, plan            apply → inventory → build
+# inventory    auth, backend, plan, apply     inventory → build
+# build        everything else                build only
+
+START_STAGE="${1:-all}"
+
+stage_enabled() {
+  local start_stage="$1"
+  local current_stage="$2"
+  local -a stages=(all plan apply inventory build)
+  local start_idx=-1
+  local current_idx=-1
+  local i
+
+  for i in "${!stages[@]}"; do
+    if [[ "${stages[$i]}" == "$start_stage" ]]; then
+      start_idx=$i
+    fi
+    if [[ "${stages[$i]}" == "$current_stage" ]]; then
+      current_idx=$i
+    fi
+  done
+
+  if (( start_idx < 0 )); then
+    echo "❌ Unknown start stage: $start_stage"
+    echo "   Valid stages: ${stages[*]}"
+    exit 1
+  fi
+
+  if (( current_idx >= start_idx )); then
+    return 0
+  else
+    return 1
+  fi
+}
+
+render_inventory() {
+  local inventory_template="ansible/inventories/inventory_azure.yml.j2"
+  local inventory_target="ansible/inventories/inventory_azure.yml"
+  local jinja_bin="$HOME/.ansible-azure/bin/jinja2"
+  local tmp_inventory
+
+  if [[ ! -x "$jinja_bin" ]]; then
+    echo "❌ Missing required inventory renderer: $jinja_bin"
+    echo "   Run ./1prereqsInstall.sh and install the Azure prerequisites to create it."
+    return 1
+  fi
+
+  tmp_inventory=$(mktemp)
+  if "$jinja_bin" "$inventory_template" \
+    -D vm_public_ip="$VM_IP" \
+    -D user_home="$HOME" \
+    > "$tmp_inventory"; then
+    mv "$tmp_inventory" "$inventory_target"
+    return 0
+  fi
+
+  rm -f "$tmp_inventory"
+  return 1
+}
+
 # HOW TO RUN
 # 1 This script depends on azure.env file in $GIGHIVE_HOME that includes two lines: a subscription and a tenant id. It will look like this:
 #export ARM_SUBSCRIPTION_ID=[put subscription id here]
@@ -93,57 +158,76 @@ if [ "$CONTAINER_EXISTS" != "true" ]; then
 fi
 
 # ─── Run Terraform ────────────────────────────────────────────────────
-echo "==> Running Terraform init/validate/plan"
-pushd terraform >/dev/null
-terraform init -backend-config=backend.tfvars
-terraform validate
-# explicitly tell Terraform which RG to use for infra (not the backend RG)
-terraform plan -var-file=infra.tfvars -out=tfplan
-popd >/dev/null
+if stage_enabled "$START_STAGE" plan; then
+  echo "==> Running Terraform init/validate/plan"
+  pushd terraform >/dev/null
+  terraform init -backend-config=backend.tfvars
+  terraform validate
+  # explicitly tell Terraform which RG to use for infra (not the backend RG)
+  terraform plan -var-file=infra.tfvars -out=tfplan
+  popd >/dev/null
+else
+  echo "==> Skipping Terraform plan stage (start stage: $START_STAGE)"
+fi
 
 echo
 echo "✅ Bootstrap complete!"
 
 # ─── Optionally apply the plan ────────────────────────────────────────
-read -p "❓ Do you want to apply the Terraform plan now? [y/N]: " APPLY_PLAN
-if [[ "$APPLY_PLAN" =~ ^[Yy]$ ]]; then
-  echo "==> Applying Terraform plan..."
-  terraform -chdir=terraform apply -var-file=infra.tfvars tfplan
+if stage_enabled "$START_STAGE" apply; then
+  read -p "❓ Do you want to apply the Terraform plan now? [y/N]: " APPLY_PLAN
+  if [[ "$APPLY_PLAN" =~ ^[Yy]$ ]]; then
+    echo "==> Applying Terraform plan..."
+    terraform -chdir=terraform apply -var-file=infra.tfvars tfplan
+  else
+    echo "⏭️ Skipping apply. You can run it later with:"
+    echo "   cd terraform && terraform apply tfplan"
+  fi
 else
-  echo "⏭️ Skipping apply. You can run it later with:"
-  echo "   cd terraform && terraform apply tfplan"
+  echo "==> Skipping Terraform apply stage (start stage: $START_STAGE)"
 fi
 
 # ─── Extract IP and optionally update inventory ───────────────────────
-if terraform -chdir=terraform output -raw vm_public_ip &>/dev/null; then
-  VM_IP=$(terraform -chdir=terraform output -raw vm_public_ip)
-  echo "==> Terraform VM public IP: $VM_IP"
+if stage_enabled "$START_STAGE" inventory; then
+  if terraform -chdir=terraform output -raw vm_public_ip &>/dev/null; then
+    VM_IP=$(terraform -chdir=terraform output -raw vm_public_ip)
+    echo "==> Terraform VM public IP: $VM_IP"
 
-  read -p "❓ Do you want to update the Ansible inventory with this IP? $VM_IP [y/N]: " UPDATE_INV
-  if [[ "$UPDATE_INV" =~ ^[Yy]$ ]]; then
-    echo "==> Generating Ansible inventory from template..."
-    ~/.ansible-azure/bin/jinja2 ansible/inventories/inventory_azure.yml.j2 \
-      -D vm_public_ip="$VM_IP" \
-      -D user_home="$HOME" \
-      > ansible/inventories/inventory_azure.yml
-    echo "✅ Inventory updated: ansible/inventories/inventory_azure.yml"
-    cat ansible/inventories/inventory_azure.yml
+    read -p "❓ Do you want to update the Ansible inventory with this IP? $VM_IP [y/N]: " UPDATE_INV
+    if [[ "$UPDATE_INV" =~ ^[Yy]$ ]]; then
+      echo "==> Generating Ansible inventory from template..."
+      if render_inventory; then
+        echo "✅ Inventory updated: ansible/inventories/inventory_azure.yml"
+        cat ansible/inventories/inventory_azure.yml
+      else
+        echo "❌ Inventory update failed. Existing inventory was left unchanged."
+        exit 1
+      fi
+    else
+      echo "⏭️ Skipping inventory update."
+    fi
   else
-    echo "⏭️ Skipping inventory update."
+    echo "⚠️  Could not extract VM IP — Terraform may not have applied yet."
   fi
 else
-  echo "⚠️  Could not extract VM IP — Terraform may not have applied yet."
+  echo "==> Skipping inventory stage (start stage: $START_STAGE)"
 fi
 echo "✅ To execute ansible build, run:"
-echo "  ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2" 
+echo "  ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,installation_tracking,base,docker,one_shot_bundle,one_shot_bundle_archive" 
+echo "  Other roles that will run: ai_worker,security_owasp_crs,security_basic_auth,db_migrations,playwright_admin_tests,upload_tests,post_build_checks,validate_app,mysql_backup,qr_code,shared_gallery"
 
 # ─── Optionally run ansible build ────────────────────────────────────────
-read -p "❓ Do you want to run the Ansible build now? [y/N]: " RUN_BUILD
-if [[ "$RUN_BUILD" =~ ^[Yy]$ ]]; then
-  echo "==> Run Ansible Build..."
-  ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2
-  
+if stage_enabled "$START_STAGE" build; then
+  read -p "❓ Do you want to run the Ansible build now? [y/N]: " RUN_BUILD
+  if [[ "$RUN_BUILD" =~ ^[Yy]$ ]]; then
+    echo "==> Run Ansible Build..."
+    ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,installation_tracking,base,docker,one_shot_bundle,one_shot_bundle_archive
+    
+  else
+    echo "⏭️ Skipping build. You can run it later with:"
+    echo " ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2,installation_tracking,base,docker,one_shot_bundle,one_shot_bundle_archive"
+ echo "  Other roles that will run: ai_worker,security_owasp_crs,security_basic_auth,db_migrations,playwright_admin_tests,upload_tests,post_build_checks,validate_app,mysql_backup,qr_code,shared_gallery"
+  fi
 else
-  echo "⏭️ Skipping build. You can run it later with:"
-  echo " ansible-playbook -i ansible/inventories/inventory_azure.yml   ansible/playbooks/site.yml --skip-tags vbox_provision,blobfuse2"
+  echo "==> Skipping Ansible build stage (start stage: $START_STAGE)"
 fi

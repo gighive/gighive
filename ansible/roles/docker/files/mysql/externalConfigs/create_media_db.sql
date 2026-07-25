@@ -397,3 +397,21 @@ CREATE TABLE IF NOT EXISTS anon_upload_attributions (
   CONSTRAINT fk_aua_job FOREIGN KEY (upload_job_id)
     REFERENCES upload_jobs (job_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/****************************
+ * Guest Video Reports      *
+ ****************************/
+CREATE TABLE IF NOT EXISTS guest_video_reports (
+  report_id                bigint unsigned NOT NULL AUTO_INCREMENT,
+  event_id                 INT             NOT NULL,
+  upload_job_id            INT UNSIGNED    NOT NULL,
+  reporter_credential_hash CHAR(64)        NOT NULL,
+  created_at               datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at               datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (report_id),
+  UNIQUE KEY uq_guest_video_reports_reporter (upload_job_id, reporter_credential_hash),
+  KEY idx_guest_video_reports_event      (event_id),
+  KEY idx_guest_video_reports_upload_job (upload_job_id),
+  CONSTRAINT fk_gvr_event      FOREIGN KEY (event_id)      REFERENCES events      (event_id) ON DELETE CASCADE,
+  CONSTRAINT fk_gvr_upload_job FOREIGN KEY (upload_job_id) REFERENCES upload_jobs (id)       ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -12,7 +12,7 @@ if ($body === null) {
     echo json_encode(['error' => 'Bad Request']);
     exit;
 }
-if (preg_match('/^[A-Za-z0-9_\-]{30,40}$/', $body->nonce ?? '') !== 1) {
+if (preg_match('/^[A-Za-z0-9_\-]{30,43}$/', $body->nonce ?? '') !== 1) {
     http_response_code(400);
     echo json_encode(['error' => 'Bad Request']);
     exit;

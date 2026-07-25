@@ -35,13 +35,16 @@
 
 # --- DB columns ---
 
-- name: Assert shared gallery columns exist in anon_upload_attributions
+- name: Query shared gallery columns in anon_upload_attributions
   community.docker.docker_container_exec:
     container: "{{ mysql_container_name }}"
+    env:
+      MYSQL_PWD: "{{ mysql_root_password }}"
     command: >-
-      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
-      -e "SELECT status_nonce, apns_token FROM anon_upload_attributions LIMIT 0" > /dev/null 2>&1
-      && echo 1 || echo 0'
+      mysql -h 127.0.0.1 -u root {{ mysql_database }} -Nse
+      "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'anon_upload_attributions'
+      AND COLUMN_NAME IN ('status_nonce', 'apns_token')"
   register: _sg_aua_cols
   changed_when: false
   tags: [shared_gallery, smoke, db]
@@ -49,19 +52,22 @@
 - name: Fail if shared gallery columns missing from anon_upload_attributions
   ansible.builtin.assert:
     that:
-      - (_sg_aua_cols.stdout | trim) == '1'
+      - (_sg_aua_cols.stdout | trim) == '2'
     fail_msg: >-
       status_nonce or apns_token column missing from anon_upload_attributions.
       Run the shared gallery DDL migration (Phase 1 Step 3).
   tags: [shared_gallery, smoke, db]
 
-- name: Assert shared gallery columns exist in upload_jobs
+- name: Query shared gallery columns in upload_jobs
   community.docker.docker_container_exec:
     container: "{{ mysql_container_name }}"
+    env:
+      MYSQL_PWD: "{{ mysql_root_password }}"
     command: >-
-      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
-      -e "SELECT label, file_relpath, moderation_status, guest_flagged, approved_at FROM upload_jobs LIMIT 0"
-      > /dev/null 2>&1 && echo 1 || echo 0'
+      mysql -h 127.0.0.1 -u root {{ mysql_database }} -Nse
+      "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'upload_jobs'
+      AND COLUMN_NAME IN ('label', 'file_relpath', 'moderation_status', 'guest_flagged', 'approved_at')"
   register: _sg_uj_cols
   changed_when: false
   tags: [shared_gallery, smoke, db]
@@ -69,11 +75,56 @@
 - name: Fail if shared gallery columns missing from upload_jobs
   ansible.builtin.assert:
     that:
-      - (_sg_uj_cols.stdout | trim) == '1'
+      - (_sg_uj_cols.stdout | trim) == '5'
     fail_msg: >-
       One or more shared gallery columns missing from upload_jobs
       (label, file_relpath, moderation_status, guest_flagged, approved_at).
       Run the shared gallery DDL migration (Phase 1 Step 3).
+  tags: [shared_gallery, smoke, db]
+
+- name: Query guest_video_reports table columns
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    env:
+      MYSQL_PWD: "{{ mysql_root_password }}"
+    command: >-
+      mysql -h 127.0.0.1 -u root {{ mysql_database }} -Nse
+      "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'guest_video_reports'
+      AND COLUMN_NAME IN ('report_id', 'event_id', 'upload_job_id', 'reporter_credential_hash', 'created_at', 'updated_at')"
+  register: _sg_gvr_table
+  changed_when: false
+  tags: [shared_gallery, smoke, db]
+
+- name: Fail if guest_video_reports table or columns missing
+  ansible.builtin.assert:
+    that:
+      - (_sg_gvr_table.stdout | trim) == '6'
+    fail_msg: >-
+      guest_video_reports table or expected columns missing.
+      Run the report-retract DDL from refactor_iphone_report_video_flag_retract.md Phase 1 Step 1.
+  tags: [shared_gallery, smoke, db]
+
+- name: Query guest_flagged_at nullability on upload_jobs
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    env:
+      MYSQL_PWD: "{{ mysql_root_password }}"
+    command: >-
+      mysql -h 127.0.0.1 -u root {{ mysql_database }} -Nse
+      "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'upload_jobs' AND COLUMN_NAME = 'guest_flagged_at' AND IS_NULLABLE = 'YES'"
+  register: _sg_nullable_check
+  changed_when: false
+  tags: [shared_gallery, smoke, db]
+
+- name: Fail if guest_flagged_at is not nullable on upload_jobs
+  ansible.builtin.assert:
+    that:
+      - (_sg_nullable_check.stdout | trim) == '1'
+    fail_msg: >-
+      upload_jobs.guest_flagged_at is not nullable. Run:
+      ALTER TABLE upload_jobs MODIFY COLUMN guest_flagged_at DATETIME NULL;
   tags: [shared_gallery, smoke, db]
 
 # --- API smoke tests ---
@@ -135,6 +186,18 @@
     url: "{{ gighive_base_url }}/api/guest-report.php"
     method: POST
     body: '{"nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","upload_job_id":1}'
+    body_format: json
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 403
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-report — reported:false with unknown nonce returns 403 (not 400)
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-report.php"
+    method: POST
+    body: '{"nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","upload_job_id":1,"reported":false}'
     body_format: json
     validate_certs: "{{ gighive_validate_certs }}"
     headers: "{{ _shared_gallery_host_header }}"

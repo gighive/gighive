@@ -73,6 +73,7 @@
   when:
     - viewer_user is defined
     - gighive_viewer_password is defined
+    - gighive_viewer_password is not none
     - (gighive_viewer_password | length) > 0
   become: true
 
@@ -88,6 +89,7 @@
   when:
     - uploader_user is defined
     - gighive_uploader_password is defined
+    - gighive_uploader_password is not none
     - (gighive_uploader_password | length) > 0
   become: true
 
@@ -103,6 +105,7 @@
   when:
     - guest_user is defined
     - gighive_guest_password is defined
+    - gighive_guest_password is not none
     - (gighive_guest_password | length) > 0
   become: true
 

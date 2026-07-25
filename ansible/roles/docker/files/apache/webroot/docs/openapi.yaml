@@ -745,8 +745,8 @@ paths:
     post:
       tags:
         - guest
-      summary: 'Flag a video for moderation review'
-      description: 'Allows an approved guest to flag another approved video in the same event. Sets guest_flagged=1 on the upload_jobs row. Idempotent — repeat calls update guest_flagged_at.'
+      summary: 'Report or retract a flag on a video'
+      description: 'Allows a guest to report (reported=true) or retract (reported=false) a flag on an approved video in the same event. Persists a per-guest row in guest_video_reports and recomputes the aggregate guest_flagged / guest_flagged_at on upload_jobs. Idempotent in both directions. Defaults reported to true if omitted (backward compatibility).'
       operationId: reportGuestVideo
       requestBody:
         required: true
@@ -762,10 +762,20 @@ paths:
                 upload_job_id:
                   type: integer
                   minimum: 1
+                reported:
+                  description: 'true to submit a report; false to retract. Defaults to true if omitted.'
+                  type: boolean
               type: object
       responses:
         '200':
-          description: 'Flagged successfully'
+          description: 'Report or retract succeeded'
+          content:
+            application/json:
+              schema:
+                properties:
+                  success: { type: boolean }
+                  reported_by_me: { description: 'Server-authoritative state for this guest after the operation', type: boolean }
+                type: object
         '400':
           description: 'Invalid request body'
         '403':
@@ -1221,6 +1231,9 @@ components:
         approved_at:
           type: string
           format: date-time
+        reported_by_me:
+          description: 'True if the authenticated guest has an active report row for this video'
+          type: boolean
       type: object
     SystemStats:
       properties:

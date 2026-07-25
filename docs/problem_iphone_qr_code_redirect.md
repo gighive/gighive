@@ -28,6 +28,150 @@ This document records every problem encountered during initial setup and serves 
 
 ---
 
+## How the QR Code Redirect Works
+
+
+What’s happening is not that the QR code’s website is “converted to GigHive.”
+
+A better way to say it is:
+
+- the QR code contains a URL
+- iOS recognizes that the URL’s domain is an Associated Domain for `GigHive`
+- iOS has fetched and validated that domain’s AASA
+- so Camera/Safari offers the Universal Link handoff to the app
+
+In short:
+
+- website URL
+- matched to app via Universal Links
+- app association succeeds
+
+## Console Log Success messaging
+
+The key lines for `gighive2.gighive.internal` are these:
+
+```text
+Beginning data task ... { domain: gi….gi….internal?mode=developer, ... }
+```
+
+That means `swcd` is evaluating the internal domain’s AASA.
+
+Then the critical success signal is:
+
+```text
+Connection 86: TLS handshake complete
+```
+
+and especially:
+
+```text
+Task <D13D5D6C-3432-4877-8E4E-45163CD05A93>.<1> received response, status 200 content K
+...
+Task <D13D5D6C-3432-4877-8E4E-45163CD05A93>.<1> finished successfully
+```
+
+and again:
+
+```text
+Task <114D191F-6E76-47EA-9C51-A530B59BEB10>.<6> received response, status 200 content K
+...
+Task <114D191F-6E76-47EA-9C51-A530B59BEB10>.<6> finished successfully
+```
+
+### Why those lines matter
+
+Earlier, the bad state looked like:
+
+- `TrustResultType=5`
+- `Disallowed trust result type`
+- trust verification failure
+
+Now those are gone.
+
+Instead, for the internal domain you now have:
+
+- TLS completes
+- AASA request gets `200`
+- task finishes successfully
+
+That means:
+
+- iOS trusted the cert sufficiently for `swcd`
+- `swcd` downloaded and accepted the AASA for `gighive2.gighive.internal`
+- the domain can now be associated with GigHive
+
+### Why the Camera badge matters even more
+
+Your screenshot is actually the clearest user-visible proof:
+
+- Camera shows `GigHive`
+- that means iOS has recognized the scanned URL as a Universal Link for your app
+
+That is the system-level handoff UI you were missing before.
+
+### One subtle point
+
+The log does not literally say:
+
+- “this website was converted to GigHive”
+
+Instead it shows the lower-level steps:
+
+- resolve domain
+- establish TLS
+- verify trust
+- fetch AASA
+- finish successfully
+
+Those steps enable the later UI behavior where the URL is presented as opening in `GigHive`.
+
+### Best plain-English phrasing
+
+You could describe it as:
+
+- “iOS successfully associated `gighive2.gighive.internal` with the GigHive app via Universal Links.”
+
+Or even simpler:
+
+- “The domain is now recognized as belonging to GigHive.”
+
+## Two Separate Failure Layers
+
+Universal Links and the in-app token validation are **completely independent** failure domains. "Upload link invalid" does not mean Universal Links are broken.
+
+| Layer | What happens | Debugging focus |
+|-------|-------------|-----------------|
+| 1 — Universal Links | QR URL → `swcd` fetches AASA → iOS associates domain with app → Camera/Safari offers app handoff | `swcd` logs in Console.app, entitlements, AASA, cert trust |
+| 2 — Token API | App opens → `GuestUploadView.validateToken()` calls `/api/upload-token.php?token=<rawToken>` → server returns event details | Xcode `[QRTokenAPI]` logs, `curl` the API endpoint directly, check network reachability |
+
+**Implication:** After Layer 1 is confirmed working (Camera shows `GigHive` badge, app opens), all further failures are Layer 2 problems and require completely different commands to diagnose.
+
+### Layer 2 — Token API endpoint
+
+The app calls:
+```
+GET https://<baseURL>/api/upload-token.php?token=<rawToken>
+```
+Expected: `HTTP 200` with JSON body `{"event_id": ..., "event_date": ..., "org_name": ..., "event_type": ...}`.
+
+**Test Layer 2 from Mac:**
+```bash
+curl -vk "https://gighive2.gighive.internal/api/upload-token.php?token=<rawToken>"
+```
+
+**What the Xcode `[QRTokenAPI]` logs tell you:**
+
+| Log line | Meaning |
+|----------|---------|
+| `URLSession error: ... code=-1009` | Network unreachable — phone not on the right Wi-Fi or VPN |
+| `URLSession error: ... code=-1200` | TLS/cert failure from `URLSession` — different from `swcd` cert trust |
+| `response status=404` | `/api/upload-token.php` does not exist on this server |
+| `response status=200 body=...` | Endpoint reached; check if JSON decode succeeds |
+| `JSON decode error: ...` | Response is 200 but does not match `QREventDetails` struct |
+| `decode success: org=... date=...` | Layer 2 fully working |
+
+**"Upload link invalid / The Internet connection appears to be offline"** is the generic error shown when the `URLSession` call throws. It is most often a **transient network issue** and does not mean the token has expired.
+
 ## Problems Encountered (Chronological)
 
 ### 1 — iOS 14 API incompatibilities in `GuestUploadView.swift`
@@ -195,6 +339,60 @@ echo | openssl s_client -connect gighive2.gighive.internal:443 2>/dev/null | ope
 
 ---
 
+### 11 — Dead entitlement entry causes `DNS Error: NoSuchRecord`
+
+`GigHive.entitlements` contained `applinks:gighive.internal?mode=developer`. The domain `gighive.internal` is a DNS namespace for internal servers (e.g. `gighive2.gighive.internal`) but is not itself a resolvable hostname. `swcd` attempts a DNS lookup for every `applinks:` entry and logs a hard error when it fails:
+
+```
+swcd    DNS Error: NoSuchRecord for gighive.internal?mode=developer
+```
+
+This error appears in the batch log alongside all other domains. It does not block the rest of the batch from completing, but it pollutes logs and can mask real failures.
+
+**Fix:** Remove any `applinks:` entitlement entry whose domain does not resolve via DNS. A root namespace like `gighive.internal` should never appear in the entitlements file — only actual hostnames like `gighive2.gighive.internal`.
+
+---
+
+### 12 — Certificate installed on device but full trust not enabled in Certificate Trust Settings
+
+After installing a self-signed CA certificate on the iPhone (via `.mobileconfig` or by opening a `.crt`), iOS requires a **second explicit step** to grant it full root trust. Without enabling this toggle, `swcd` still rejects the certificate with `TrustResultType=5` even if the cert has `CA:TRUE` and is correctly generated.
+
+**Symptom in swcd logs — indistinguishable from a bad cert:**
+```
+Trust evaluate failure: [leaf AnchorTrusted]
+TrustResultType=5
+Disallowed trust result type.
+```
+
+**Fix:** Settings → General → About → Certificate Trust Settings → find the certificate under "Enable Full Trust For Root Certificates" → toggle ON.
+
+Then delete and reinstall the app so `swcd` re-evaluates the entitlement domains.
+
+**Note:** This toggle is separate from:
+- Developer Mode (Settings → Privacy & Security)
+- Associated Domains Development (Settings → Developer)
+- The profile installation confirmation tap
+
+Installing the certificate profile does **not** automatically enable full trust. It is easy to install the profile, see it listed in Certificate Trust Settings, and assume it is active — but the toggle is OFF by default and must be flipped manually.
+
+---
+
+### 13 — Cloudflare cert rotation breaks `?mode=developer` association on device
+
+When a domain is proxied through a CDN (e.g. Cloudflare) that automatically rotates TLS certificates, `swcd` can invalidate its cached Universal Link association for that domain when it detects the cert has changed on the origin. On the next background re-evaluation, `swcd` re-fetches the AASA against the new cert. If the re-evaluation produces a different trust outcome — or simply because the cached association was linked to the previous cert — iOS drops the association silently with no notification.
+
+**Symptom:** Camera shows the domain name badge (e.g. `dev.gighive.app`) instead of the app name badge (`GigHive`) — identical to the appearance before Universal Links were ever configured. No changes were made to the server, entitlements, or app.
+
+**Trigger:** Cloudflare (or any reverse-proxy) transparently renewed the TLS cert for the domain between the last reinstall and now.
+
+**Why `?mode=developer` makes this worse:** The non-developer entry (`applinks:dev.gighive.app`) is served through Apple's CDN, which is insulated from origin cert changes. The `?mode=developer` entry fetches directly from the origin on each re-evaluation and is therefore exposed to every cert rotation. If both entries are present, the non-developer entry is fine but `?mode=developer` continues to be re-evaluated and can break the association independently.
+
+**Fix:** Delete the app → reinstall via Xcode ▶. swcd re-fetches the AASA against the new cert at install time and re-establishes the association.
+
+**Long-term mitigation for public CDN-proxied domains:** If the AASA is stable and instant AASA iteration is no longer needed, removing `applinks:<domain>?mode=developer` from `GigHive.entitlements` for public domains eliminates this failure mode entirely. The non-developer entry continues to work through Apple's CDN regardless of cert rotation. Reserve `?mode=developer` only for internal domains where Apple's CDN cannot reach the origin.
+
+---
+
 ## Full Configuration Checklist
 
 All of the following must be satisfied for Universal Links to fire and open the app.
@@ -220,6 +418,9 @@ All of the following must be satisfied for Universal Links to fire and open the 
 | 17 | Device | **Associated Domains Development** toggle enabled (separate from Developer Mode) | Settings → Developer → Associated Domains Development → ON. Without this, swcd logs `Developer mode enabled: NO` and silently skips all `?mode=developer` domains |
 | 18 | Server | Production domain AASA cached on Apple CDN if `applinks:<prod-domain>` (no `?mode=developer`) is in entitlements | `curl -s https://app-site-association.cdn-apple.com/a/v1/gighive.app` — must not return `Not Found`. Remove the entitlement entry until the CDN has it. |
 | 19 | Device / Server | Internal server TLS cert has `CA:TRUE` — required for swcd to trust it as a root anchor | `echo \| openssl s_client -connect <host>:443 2>/dev/null \| openssl x509 -noout -text \| grep -A2 "Basic Constraints"` — must show `CA:TRUE`. Without this, swcd logs `TrustResultType=5` and rejects the AASA fetch even if the cert is installed and enabled in Certificate Trust Settings. |
+| 20 | Xcode project | No unresolvable domain in entitlements — every `applinks:` entry must resolve via DNS | Check `Configs/GigHive.entitlements` — root namespaces like `gighive.internal` are not resolvable hosts and must be removed. swcd logs `DNS Error: NoSuchRecord` for each unresolvable entry. |
+| 21 | Device | Installed CA cert has full trust enabled in Certificate Trust Settings | Settings → General → About → Certificate Trust Settings → toggle must be ON. Installing the cert profile does NOT enable full trust automatically. swcd logs `TrustResultType=5` if the toggle is OFF even if the cert has `CA:TRUE`. |
+| 22 | Entitlements | `?mode=developer` used only on internal domains, not on public CDN-proxied domains | If `applinks:<public-domain>?mode=developer` is in the entitlements, every CDN cert rotation silently drops the association until the next reinstall. Remove `?mode=developer` from public domains once the AASA is stable. |
 
 ---
 
@@ -257,13 +458,25 @@ xcrun simctl openurl <simulator-udid> \
 ```
 Use this to validate the app-side `onOpenURL` handler without CDN dependencies.
 
-### Direct device URL dispatch (physical device, bypasses Camera)
+### Direct device URL dispatch — open in app (not reliable for Universal Link callback testing)
 ```bash
 xcrun devicectl device process launch \
   --device <device-name-or-udid> \
   app.gighive.GigHive \
   --url "https://dev.gighive.app/upload/<token>"
 ```
+
+**Warning:** This command opens the app but does not reliably trigger `onOpenURL` or `onContinueUserActivity` callbacks. It bypasses the Universal Links subsystem. Use only to confirm basic app launch, not to validate Universal Link delivery.
+
+### Direct device URL dispatch — open in Safari (reliable for Universal Link handoff testing)
+```bash
+xcrun devicectl device process launch \
+  --device "Scott's iPhone 12" \
+  com.apple.mobilesafari \
+  --url "https://gighive2.gighive.internal/upload/<token>"
+```
+
+Safari will load the URL and — if Universal Links are correctly configured — display an **"Open this page in GigHive?"** system dialog. Tapping Open triggers the real Universal Link handoff and fires `onContinueUserActivity` in the app, making this the most reliable Mac-side command for testing the full QR→app flow without physically interacting with Camera.
 
 ---
 
@@ -279,6 +492,10 @@ xcrun devicectl device process launch \
 | Chrome as default browser | Use Safari as default during testing; web fallback is acceptable for production Chrome users |
 | Admin page Cloudflare caching | Added `Cache-Control: no-store` to `event_qr.php` |
 | One-shot bundle missing AASA | AASA is deploy-generated, not source-copied; see OSB fix section below |
+| Dead entitlement `DNS Error: NoSuchRecord` | Removed `applinks:gighive.internal?mode=developer` — root namespace, not a resolvable host |
+| Cert installed but full trust not toggled | Settings → General → About → Certificate Trust Settings → toggle ON for the installed cert |
+| "Upload link invalid" after Universal Links work | Layer 2 failure (token API call); use `[QRTokenAPI]` Xcode logs and `curl /api/upload-token.php?token=...` to isolate |
+| CDN cert rotation drops `?mode=developer` association | Delete app → reinstall via Xcode; consider removing `?mode=developer` from public domains |
 
 ---
 
@@ -408,3 +625,77 @@ Universal Links will not work for regular users until the CDN has the AASA cache
 
 Once the CDN has the correct AASA, end users need only **update the app from the App Store** —
 a fresh install is not required. iOS re-evaluates all entitlement domains at update time.
+
+---
+
+## Why This is Difficult
+
+### Every layer must be perfect, independently
+
+- Server (AASA content, headers, cert)
+- Apple's CDN (which you don't control)
+- Xcode project (entitlements, bundle ID)
+- App code (modifier placement, API compatibility)
+- Device settings (3 separate toggles, none of which are obvious)
+
+Any single one silently breaks the entire thing with **no error surfaced to the user**.
+
+### Apple's CDN adds a 24-hour wildcard
+
+You can have everything right and still wait a day. There's no flush button. You can't tell if it's working or just cached-wrong.
+
+### `?mode=developer` behavior changed between iOS versions
+
+What worked in iOS 15/16 silently stopped working in iOS 26. No deprecation notice, no log message explaining why.
+
+### `swcd` logs are not beginner-friendly
+
+The only diagnostic tool is a daemon log in Console.app that uses private formatting, partial domain redaction, and error codes that aren't in any public Apple documentation (`TrustResultType=5`, `kSecTrustResultRecoverableTrustFailure`, etc.).
+
+### The cert trust requirement is obscure
+
+`CA:TRUE` in `basicConstraints` is a requirement that applies specifically to `swcd` for internal domains — not to Safari, not to `URLSession`, not to anything else. There's no Apple documentation that says this. It's only discoverable through `swcd` logs and community reverse-engineering.
+
+### The two-layer architecture isn't documented
+
+Apple's documentation stops at "the app opens." It says nothing about the fact that after the Universal Link fires, your app still has to make a second network call that can independently fail with a completely different class of errors.
+
+### The honest comparison
+
+Getting a standard `https://` Universal Link working on a **public domain with a CA-signed cert** is moderately hard but doable in a day.
+
+What was built here — Universal Links on a **private internal domain** with a **self-signed cert** on a **physical device** in **developer mode** — is several difficulty levels above that. Most iOS developers have never done this specific combination.
+
+The fact that this document covers all 13 problems in chronological order means the **next** person to set this up on a new environment (or a new device, or after a cert rotation) should be able to do it in a fraction of the time.
+
+---
+
+## Appendix — What `?mode=developer` Does and When to Use It
+
+### Without it (CDN-only entry `applinks:<domain>`)
+
+- `swcd` fetches the AASA from Apple's CDN (`app-site-association.cdn-apple.com`)
+- AASA changes on the origin server can take up to **24 hours** to propagate through the CDN cache
+- Immune to origin TLS cert rotations — the CDN serves whatever it last crawled
+
+### With it (`applinks:<domain>?mode=developer`)
+
+- `swcd` also fetches directly from the origin server at install time, bypassing Apple's CDN
+- AASA changes are picked up **immediately** on next reinstall — no CDN wait
+- Useful when actively iterating on the AASA (new path patterns, new app IDs)
+- **Required** for internal domains (e.g. `gighive2.gighive.internal`) — Apple's CDN cannot reach private hostnames, so without `?mode=developer` swcd would never successfully fetch the AASA
+
+### The tradeoff on public CDN-proxied domains
+
+For domains like `dev.gighive.app` proxied through Cloudflare:
+
+| | Benefit | Cost |
+|-|---------|------|
+| `?mode=developer` present | Instant AASA iteration after reinstall | Every Cloudflare cert rotation silently drops the association; requires a delete-and-reinstall to recover |
+| `?mode=developer` absent | No cert-rotation risk; association survives CDN cert changes | AASA changes take up to 24h to reach devices via Apple's CDN |
+
+### Recommendation
+
+- **Internal domains** (`*.gighive.internal`): always keep `?mode=developer` — it is required
+- **Public domains** (`dev.gighive.app`, etc.): keep `?mode=developer` only while actively changing the AASA; remove it once the AASA is stable to eliminate cert-rotation breakage
+- The non-developer and developer entries for the same domain can coexist — removing `?mode=developer` does not remove the underlying Universal Link; it only changes which fetch path swcd uses

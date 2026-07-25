@@ -21,7 +21,8 @@ if ($uploadJobId === false) {
     http_response_code(400);
     exit;
 }
-$nonce = (string)$body->nonce;
+$nonce    = (string)$body->nonce;
+$reported = isset($body->reported) ? (bool)$body->reported : true;
 
 try {
     $pdo = Database::createFromEnv();
@@ -70,18 +71,20 @@ if ($row === false) {
     $eventId = (int)$row['event_id'];
 }
 
+$credentialHash = hash('sha256', $nonce);
+
 try {
-    // Step 2: flag the target video (approved, same event); idempotent — guest_flagged_at updates on repeat
+    // Step 2: validate target video belongs to the authenticated event (outside transaction)
     $stmt = $pdo->prepare(
-        'UPDATE upload_jobs j_target
-         JOIN anon_upload_attributions a2 ON a2.upload_job_id = j_target.job_id
-         JOIN event_upload_tokens t2 ON t2.token_id = a2.token_id
-         SET j_target.guest_flagged = 1, j_target.guest_flagged_at = NOW()
-         WHERE j_target.id = ? AND j_target.moderation_status = \'approved\'
-           AND t2.event_id = ?'
+        'SELECT j.id
+         FROM upload_jobs j
+         JOIN anon_upload_attributions a ON a.upload_job_id = j.job_id
+         JOIN event_upload_tokens t ON t.token_id = a.token_id
+         WHERE j.id = ? AND j.moderation_status = \'approved\'
+           AND t.event_id = ?'
     );
     $stmt->execute([$uploadJobId, $eventId]);
-    if ($stmt->rowCount() === 0) {
+    if ($stmt->fetch() === false) {
         http_response_code(403);
         echo json_encode(['error' => 'Forbidden']);
         exit;
@@ -91,4 +94,47 @@ try {
     exit;
 }
 
-echo json_encode(['success' => true]);
+try {
+    // Step 3: write per-guest report row and recompute aggregate (transactional)
+    $pdo->beginTransaction();
+
+    if ($reported) {
+        $pdo->prepare(
+            'INSERT INTO guest_video_reports (event_id, upload_job_id, reporter_credential_hash)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE updated_at = updated_at'
+        )->execute([$eventId, $uploadJobId, $credentialHash]);
+    } else {
+        $pdo->prepare(
+            'DELETE FROM guest_video_reports
+             WHERE upload_job_id = ? AND reporter_credential_hash = ? AND event_id = ?'
+        )->execute([$uploadJobId, $credentialHash, $eventId]);
+    }
+
+    $agg = $pdo->prepare(
+        'SELECT COUNT(*) AS remaining, MAX(created_at) AS latest_at
+         FROM guest_video_reports
+         WHERE upload_job_id = ?'
+    );
+    $agg->execute([$uploadJobId]);
+    $aggRow    = $agg->fetch(\PDO::FETCH_ASSOC);
+    $remaining = (int)$aggRow['remaining'];
+    $latestAt  = $aggRow['latest_at'];
+
+    $pdo->prepare(
+        'UPDATE upload_jobs
+         SET guest_flagged    = IF(? > 0, 1, 0),
+             guest_flagged_at = IF(? > 0, ?, NULL)
+         WHERE id = ?'
+    )->execute([$remaining, $remaining, $latestAt, $uploadJobId]);
+
+    $pdo->commit();
+} catch (\PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    http_response_code(500);
+    exit;
+}
+
+echo json_encode(['success' => true, 'reported_by_me' => $reported]);
