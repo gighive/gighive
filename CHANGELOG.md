@@ -3,6 +3,19 @@ Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260726.txt
+Changes: Resize write request fix
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/write_resize_request.php
+
+*** 
+releaseNotes20260726.txt
 Changes: Gighive add vars for azure, put test into post_build_checks/base/main.yml
 
 sodo@pop-os:~/gighive$ git status

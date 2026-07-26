@@ -112,7 +112,7 @@ try {
             . ' -i ' . $gighiveInventoryFile
             . ' --request-host ' . $gighiveFqdn
             . ' --request-inventory-host ' . $gighiveInventoryHost
-            . ' --latest';
+            . ' ' . basename($requestFile);
     }
 
     http_response_code(200);
