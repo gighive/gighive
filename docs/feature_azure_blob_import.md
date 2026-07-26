@@ -30,6 +30,18 @@ Section E export feature and now want to restore it — or seed a new instance �
   `gighive-export/20260725-093012/all/`) is pasted directly into the import form — no manual
   blob navigation required.
 
+**Phase 1 prefix scope**: The admin pastes the full export prefix as displayed in the Section E
+success banner (e.g. `gighive-export/20260725-093012/all/`). This prefix is environment-scoped
+— a single listing covers all media in that export batch regardless of org. Browsing down to
+individual org-name sub-prefixes is deferred to a future phase (see Future Considerations).
+
+**Destination directories**: The Azure worker writes to the same bind-mounted Docker host paths
+as the local import worker — `/var/www/html/audio/`, `/var/www/html/video/`, and
+`/var/www/html/video/thumbnails/`. The blob naming convention produced by the export worker
+(`{prefix}/audio/{sha256}.ext`, `{prefix}/video/{sha256}.ext`,
+`{prefix}/video/thumbnails/{sha256}.png`) maps directly to these paths once the prefix is
+stripped. No new directory structure is introduced.
+
 **Scope**: Companion restore path for `feature_azure_blob_export.md`. Covers all file types
 exported by that feature: audio files, video files, and video thumbnails.
 
@@ -214,7 +226,7 @@ Add an auth-check task immediately after the existing `export_media_worker_azure
     validate_certs: "{{ gighive_validate_certs }}"
     return_content: no
     status_code: 401
-    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+    headers: "{% raw %}{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}{% endraw %}"
   changed_when: false
   tags: [smoke]
 ```
@@ -252,7 +264,9 @@ Add an auth-check task immediately after the existing `export_media_worker_azure
 
 **Step 1 — `import_media_zip_worker_azure.php` (new)**
 
-CLI-only (`PHP_SAPI !== 'cli'` → exit 1). Accepts `--job_id=`.
+CLI-only (`PHP_SAPI !== 'cli'` → `http_response_code(401); exit` — matches
+`export_media_worker_azure.php` convention; Apache htpasswd handles the real 401 at the
+network layer, this is defense-in-depth). Accepts `--job_id=`.
 
 Must `require_once __DIR__ . '/admin_media_lib.php'` to reuse `writeJobStatus()`,
 `isValidMediaEntry()`, and `isValidThumbnailEntry()`.
@@ -263,16 +277,17 @@ Key structure:
 1.  Parse --job_id; validate format /^[a-f0-9]{16}$/
 2.  Resolve $jobDir, $bloblistPath ($jobDir . 'bloblist.json'), $jsonPath from sys_get_temp_dir()
 3.  Read Azure credentials from getenv(); fail with writeJobStatus error state if any are empty
-4.  Read $rows from bloblist.json (array of {blob_name, size}); unlink it
-5.  Read $prefix from $jobDir . 'prefix.txt'; if file is missing or empty →
+4.  Load media extension sets: $exts = loadMediaExtensions(); $audioExtsSet = $exts['audioSet']; $videoExtsSet = $exts['videoSet']
+5.  Read $rows from bloblist.json (array of {blob_name, size}); unlink it
+6.  Read $prefix from $jobDir . 'prefix.txt'; if file is missing or empty →
     writeJobStatus state=error 'prefix.txt missing from job directory'; exit(1)
     Trim trailing slash then re-add it (normalize)
-6.  Validate destination dirs: /var/www/html/audio and /var/www/html/video must exist
-7.  Disk space check: sum $row['size'] across all rows; check disk_free_space('/var/www/html') >= totalBytes * 1.1
+7.  Validate destination dirs: /var/www/html/audio and /var/www/html/video must exist
+8.  Disk space check: sum $row['size'] across all rows; check disk_free_space('/var/www/html') >= totalBytes * 1.1
     On failure: writeJobStatus state=error 'Insufficient disk space on destination volume'
-8.  set_time_limit(0)
-9.  Write initial running status: steps=[{name:'List blobs', status:'ok', message: count . ' blobs found · ' . fmtBytes}, {name:'Import files', status:'running', message:'Starting…'}]
-10. For each $row in $rows:
+9.  set_time_limit(0)
+10. Write initial running status: steps=[{name:'List blobs', status:'ok', message: count . ' blobs found · ' . fmtBytes}, {name:'Import files', status:'running', message:'Starting…'}]
+11. For each $row in $rows:
     a. $blobName = $row['blob_name']
        $size     = (int)$row['size']
        Strip $prefix from $blobName → $relative (e.g. 'audio/abc123.mp3')
@@ -293,8 +308,8 @@ Key structure:
        *** NEVER log or echo the GET URL — it contains the SAS token ***
     g. $added++; $bytesAdded += $size; $processed++
     h. writeJobStatus after every file
-11. On completion: writeJobStatus state=done with added, alreadyExists, skipped, bytesAdded, completed_at
-12. catch Throwable: writeJobStatus state=error; @unlink($tmpDest ?? '') on cleanup
+12. On completion: writeJobStatus state=done with added, alreadyExists, skipped, bytesAdded, completed_at
+13. catch Throwable: writeJobStatus state=error; @unlink($tmpDest ?? '') on cleanup
 ```
 
 Helper function in worker file (local, not in `admin_media_lib.php`):
@@ -330,6 +345,7 @@ downloadBlobFromAzure(string $blobName, string $localTmpPath, string $account, s
   - Guard: if `$audioCount + $videoCount === 0` → return HTTP 400
     `{success: false, error: 'No importable blobs found under prefix — check prefix or SAS Read+List permissions'}`
     (do not store a temp file for a zero-result listing)
+  - Generate token: `$token = bin2hex(random_bytes(8))` — same 16-hex-char format as local prepare
   - Store blob list: `file_put_contents('/tmp/gighive_azure_import_prepare_' . $token . '.json', json_encode($rows))`
   - Return `{success, prepare_token, audio_count, video_count, unsupported_count, total_bytes}`
 
@@ -337,11 +353,18 @@ downloadBlobFromAzure(string $blobName, string $localTmpPath, string $account, s
   - Validate `$prepareToken` as before
   - Look up temp file: `/tmp/gighive_azure_import_prepare_{token}.json`
     (different path pattern from local's `gighive_zip_prepare_` — no collision)
-  - Check file exists and is < 1800s old
+  - Check file exists and is < 1800s old; if absent or expired:
+    `http_response_code(410)` + `{success: false, error: 'Prepare token expired or not found — re-run listing and confirm again'}`
+    (matches existing local start behavior at line 230–234 of `import_media_zip.php`)
   - Read `$prefix` from `$_POST['prefix']` — re-validate (same rules as prepare)
-  - Create job dir; write `source.txt` = 'azure', `prefix.txt` = $prefix
+  - Guard: `if (!function_exists('exec'))` → HTTP 500 + `{success: false, error: 'exec() is disabled; background worker cannot be spawned'}` (must come before job dir creation; matches local start handler at line 236)
+  - `$jobId = bin2hex(random_bytes(8))` (must be generated before mkdir; matches local handler at line 243)
+  - Create `$jobDir = sys_get_temp_dir() . '/gighive_import_' . $jobId . '/'`; `mkdir($jobDir, 0700, true)`
+  - Write `source.txt` = 'azure', `prefix.txt` = $prefix
+  - Read `$rows = json_decode(file_get_contents($bloblistTmpPath), true)` (needed for `count($rows)` in status.json)
   - Copy bloblist json to `$jobDir . 'bloblist.json'`; unlink temp file
-  - Write initial `status.json` with steps:
+    (use `copy()` + `unlink()`, not `rename()` — cross-device safe; same pattern as local handler at line 262)
+  - Write initial `status.json` with steps (using `LOCK_EX`):
     ```php
     [
         ['name' => 'List blobs',   'status' => 'ok',      'message' => count($rows) . ' blobs found',
@@ -463,8 +486,11 @@ const src = (document.querySelector('input[name="import_source"]:checked') || {}
     cache: 'no-store',
   });
   ```
-  On success: update `steps[0]` to `ok` with `X audio + Y video blobs found (Z)`;
-  display `steps[1]` as pending
+  On success (`prepResp.ok && prepData.success`): update `steps[0]` to `ok` with
+  `X audio + Y video blobs found (Z)`; display `steps[1]` as pending
+  On failure: `steps[0] = { name: 'List blobs', status: 'error', message: errMsg }` where
+  `errMsg = (prepData && (prepData.error || prepData.message)) || 'HTTP ' + prepResp.status`;
+  re-enable button and return
 - **Confirm dialog**:
   ```
   "X audio + Y video files ready to import (Z) from Azure Blob Storage.
@@ -481,6 +507,9 @@ const src = (document.querySelector('input[name="import_source"]:checked') || {}
     cache: 'no-store',
   });
   ```
+- **HTTP 410 on start**: if `startResp.status === 410` →
+  `steps[1] = { name: 'Import files', status: 'error', message: 'Prepare token expired — re-run listing and confirm again' }`;
+  re-enable button and return (note: Azure uses `steps[1]`, not `steps[2]` as in the local path)
 - **Poll**: same `pollJobStatus()` call to `import_media_zip_status.php`, interval 1500ms.
   Poll callback maps both worker steps to the UI steps array:
   ```js
@@ -600,9 +629,68 @@ the Source row is visible and the local radio is the default.
 
 ## Future Considerations
 
-- **Browse available prefixes**: add a "Browse exports" button that calls the Azure List API
-  with the `gighive-export/` root prefix and presents available batch timestamps in a dropdown.
+- **Browse available export timestamps (dropdown — Phase 2)**:
+  Replace the manual prefix text input with a "Browse" button that calls the Azure List API
+  using the `delimiter=/` parameter to enumerate available export batches:
+  ```
+  GET ?restype=container&comp=list&prefix=gighive-export/&delimiter=/
+  ```
+  Returns `<BlobPrefix>` elements (not `<Blob>`) for each virtual subdirectory, e.g.:
+  ```xml
+  <BlobPrefix><Name>gighive-export/20260725-093012/</Name></BlobPrefix>
+  <BlobPrefix><Name>gighive-export/20260718-140501/</Name></BlobPrefix>
+  ```
+  A dropdown presents these timestamps for selection. No new SAS permissions required — the
+  `List` permission already granted for import covers this call. Implementation is a small
+  new PHP endpoint (e.g. `list_azure_export_prefixes.php`) plus a JS fetch on button click.
+
+- **Org-level scoping (Phase 3)**:
+  The current export prefix is environment-scoped (`all/` sub-prefix). A future export
+  convention would include the org name (e.g. `gighive-export/20260725-093012/{org_name}/`).
+  A second `delimiter=/` call on the selected timestamp prefix would enumerate available
+  org-name sub-prefixes for a more granular restore. This requires a coordinated change to
+  both the export worker (to write org-scoped blob paths) and the import UI (to present the
+  org selector).
+
 - **Multi-provider support**: extend with `BLOB_PROVIDER=azure|s3|b2` env var (same roadmap
   as export feature).
+
 - **SaaS alignment**: when tenant-scoped file paths land, blob prefix structure gains a
   `tenant_id` component matching the export convention.
+
+---
+
+## Bugs Fixed During Initial Testing (2026-07-26)
+
+### Zero-byte files downloaded from Azure (`CURLOPT_RETURNTRANSFER` + `CURLOPT_FILE` conflict)
+
+**Symptom**: After a successful import (worker reported "48 added, 1.5 GB added", no errors),
+all downloaded media files were 0 bytes on disk. Videos hung in the browser with 0:00 duration
+and 0.0 kB transferred.
+
+**Root cause**: In `downloadBlobToFile()`, the curl options array included both
+`CURLOPT_FILE => $fh` and `CURLOPT_RETURNTRANSFER => false`. In PHP's curl extension,
+explicitly setting `CURLOPT_RETURNTRANSFER => false` **after** `CURLOPT_FILE` in the same
+`curl_setopt_array()` call overrides the file handle, causing the response body to be written
+to stdout instead of the file. The file was created and renamed (HTTP 200 was returned), but
+contained 0 bytes. The worker's success metrics (`$added`, `$bytesAdded`) were derived from
+blob metadata size — not actual bytes written — so the status JSON falsely showed a successful
+import.
+
+**Fix**: Removed `CURLOPT_RETURNTRANSFER => false` from the curl options. When `CURLOPT_FILE`
+is set without `CURLOPT_RETURNTRANSFER`, PHP curl writes the response body to the file handle
+as intended.
+
+**Lesson**: Never combine `CURLOPT_FILE` with an explicit `CURLOPT_RETURNTRANSFER => false`.
+Set one or the other: `CURLOPT_FILE` alone to stream to disk, or `CURLOPT_RETURNTRANSFER =>
+true` to capture in a string.
+
+### Leading slash in blob prefix caused "No importable blobs found" error
+
+**Symptom**: Typing `/gighive-export/20260725-185053/all` (with a leading `/`) produced the
+error "No importable blobs found under prefix — check prefix or SAS Read+List permissions"
+because no Azure blob name starts with `/`.
+
+**Fix**: Prefix normalization in `import_media_zip.php` changed from `rtrim($prefix, '/') . '/'`
+to `ltrim(rtrim($prefix, '/'), '/') . '/'` in both the `prepare` and `start` mode Azure
+branches, so leading slashes are stripped automatically.

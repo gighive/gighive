@@ -759,3 +759,14 @@
     headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
   changed_when: false
   tags: [smoke]
+
+- name: /admin/import_media_zip_worker_azure.php should require auth (401)
+  uri:
+    url: "{{ gighive_base_url }}/admin/import_media_zip_worker_azure.php"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    return_content: no
+    status_code: 401
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke]

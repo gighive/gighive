@@ -558,10 +558,36 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
           <strong>&#9888;&#65039; Note:</strong> This only restores the media files. A matching database backup
           (Section C) must also be restored separately to reconstruct the full catalogue.
         </div>
+<?php if ($__azure_available): ?>
         <div class="row">
+          <label>Source</label>
+          <div>
+            <label style="margin-right:1.5em">
+              <input type="radio" name="import_source" id="import_src_local" value="local" checked onchange="onImportSourceChange()" />
+              Upload from computer
+            </label>
+            <span style="display:inline-block; vertical-align:top;">
+              <label>
+                <input type="radio" name="import_source" id="import_src_azure" value="azure" onchange="onImportSourceChange()" />
+                Import from Azure Blob Storage
+              </label>
+              <div class="muted" style="margin-left:1.6em; font-size:0.92em; line-height:1.3;">
+                Sample entry: gighive-export/20260725-185053/all, no leading slash
+              </div>
+            </span>
+          </div>
+        </div>
+<?php endif; ?>
+        <div class="row" id="importLocalRow">
           <label for="import_zip_file">Archive file</label>
           <input type="file" id="import_zip_file" name="zip_file" accept=".tar.gz,.tgz,.gz" />
         </div>
+<?php if ($__azure_available): ?>
+        <div class="row" id="importAzureRow" style="display:none">
+          <label for="import_blob_prefix">Blob prefix</label>
+          <input type="text" id="import_blob_prefix" placeholder="e.g. gighive-export/20260725-093012/all/" />
+        </div>
+<?php endif; ?>
         <div id="importZipStatus"></div>
         <button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import Archive</button>
       </div>
@@ -1456,7 +1482,20 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     });
   }
 
+  function onImportSourceChange() {
+    const isAzure  = (document.querySelector('input[name="import_source"]:checked') || {}).value === 'azure';
+    const localRow = document.getElementById('importLocalRow');
+    const azureRow = document.getElementById('importAzureRow');
+    if (localRow) localRow.style.display = isAzure ? 'none' : '';
+    if (azureRow) azureRow.style.display = isAzure ? '' : 'none';
+    const btn = document.getElementById('importZipBtn');
+    if (btn) btn.textContent = isAzure ? 'Import from Azure' : 'Import Archive';
+  }
+
   function doImportMediaZip() {
+    const source = (document.querySelector('input[name="import_source"]:checked') || {}).value || 'local';
+    if (source === 'azure') { doImportFromAzure(); return; }
+
     const fileInput = document.getElementById('import_zip_file');
     const btn       = document.getElementById('importZipBtn');
     const statusEl  = document.getElementById('importZipStatus');
@@ -1622,11 +1661,158 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         steps[2] = { name: 'Import files', status: 'error', message: errMsg };
       }
       render();
+      if (result.state === 'done') {
+        statusEl.innerHTML = '<div class="alert-ok">Import completed successfully.</div>' + statusEl.innerHTML;
+      }
     }
 
     importRun().finally(() => {
       btn.disabled = false;
       btn.textContent = 'Import Archive';
+    });
+  }
+
+  function doImportFromAzure() {
+    const blobPrefixEl = document.getElementById('import_blob_prefix');
+    const btn          = document.getElementById('importZipBtn');
+    const statusEl     = document.getElementById('importZipStatus');
+    const blobPrefix   = blobPrefixEl ? blobPrefixEl.value.trim() : '';
+
+    if (!blobPrefix) {
+      statusEl.innerHTML = '<div class="alert-err">Please enter a blob prefix.</div>';
+      return;
+    }
+
+    function fmtBytes(n) {
+      if (n < 1024)       return n + ' B';
+      if (n < 1048576)    return (n / 1024).toFixed(1) + ' KB';
+      if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB';
+      return (n / 1073741824).toFixed(1) + ' GB';
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Listing blobs\u2026';
+    statusEl.innerHTML = '';
+
+    const steps = [
+      { name: 'List blobs',   status: 'running', message: 'Listing\u2026', progress: null },
+      { name: 'Import files', status: 'pending', message: '',               progress: null },
+    ];
+
+    function render() {
+      if (typeof renderImportStepsShared === 'function') {
+        statusEl.innerHTML = renderImportStepsShared(steps, { showProgressBar: true, label: 'Import:', statusIndentPx: 80 });
+      }
+    }
+
+    async function azureRun() {
+      render();
+
+      // ── Step 1: List blobs (prepare) ──────────────────────────────────────
+      let prepResp, prepData;
+      try {
+        prepResp = await fetch('import_media_zip.php', {
+          method: 'POST',
+          body: new URLSearchParams({ mode: 'prepare', source: 'azure', prefix: blobPrefix }),
+          cache: 'no-store',
+        });
+        prepData = await prepResp.json().catch(() => null);
+      } catch (err) {
+        steps[0] = { name: 'List blobs', status: 'error', message: 'Network error: ' + String(err.message) };
+        render();
+        return;
+      }
+
+      if (!prepResp.ok || !(prepData && prepData.success)) {
+        const msg = (prepData && (prepData.error || prepData.message)) ? String(prepData.error || prepData.message) : 'HTTP ' + prepResp.status;
+        steps[0] = { name: 'List blobs', status: 'error', message: msg };
+        render();
+        return;
+      }
+
+      const audioCount   = Number(prepData.audio_count)  || 0;
+      const videoCount   = Number(prepData.video_count)  || 0;
+      const totalBytes   = Number(prepData.total_bytes)  || 0;
+      const prepareToken = String(prepData.prepare_token || '');
+
+      steps[0] = { name: 'List blobs', status: 'ok',
+                   message: audioCount + ' audio + ' + videoCount + ' video blobs found (' + fmtBytes(totalBytes) + ')',
+                   progress: null };
+      steps[1] = { name: 'Import files', status: 'pending', message: '', progress: null };
+      render();
+
+      // ── Step 2: Confirm ───────────────────────────────────────────────────
+      const confirmMsg = audioCount + ' audio + ' + videoCount + ' video blobs ready to import (' + fmtBytes(totalBytes) + ') from Azure Blob Storage.\n\n'
+        + 'Files already on disk are skipped safely.\n\nDo you wish to import?';
+      if (!window.confirm(confirmMsg)) {
+        steps[1] = { name: 'Import files', status: 'pending', message: 'Canceled.' };
+        render();
+        return;
+      }
+
+      steps[1] = { name: 'Import files', status: 'running', message: 'Starting\u2026',
+                   progress: { processed: 0, total: audioCount + videoCount || 1 } };
+      btn.textContent = 'Importing\u2026';
+      render();
+
+      // ── Step 3: Start — spawn Azure worker ────────────────────────────────
+      let startResp, startData;
+      try {
+        startResp = await fetch('import_media_zip.php', {
+          method: 'POST',
+          body: new URLSearchParams({ mode: 'start', source: 'azure', prepare_token: prepareToken, prefix: blobPrefix }),
+          cache: 'no-store',
+        });
+        startData = await startResp.json().catch(() => null);
+      } catch (err) {
+        steps[1] = { name: 'Import files', status: 'error', message: 'Network error: ' + String(err.message) };
+        render();
+        return;
+      }
+
+      if (startResp.status === 410) {
+        steps[1] = { name: 'Import files', status: 'error', message: 'Prepare token expired \u2014 re-run listing and confirm again.' };
+        render();
+        return;
+      }
+      if (!startResp.ok || !(startData && startData.success && startData.job_id)) {
+        const msg = (startData && (startData.error || startData.message)) ? String(startData.error || startData.message) : 'HTTP ' + startResp.status;
+        steps[1] = { name: 'Import files', status: 'error', message: msg };
+        render();
+        return;
+      }
+
+      const jobId = String(startData.job_id);
+
+      // ── Step 4: Poll worker progress ──────────────────────────────────────
+      if (typeof resetProgressLatch === 'function') resetProgressLatch();
+
+      const result = await new Promise(function (resolve) {
+        pollJobStatus(jobId, 'import_media_zip_status.php', null, function (state, data) {
+          resolve({ state: state, data: data });
+        }, 1500, null, function (data) {
+          if (data && Array.isArray(data.steps)) {
+            data.steps.forEach(function (s, i) { if (i < steps.length) steps[i] = s; });
+          }
+          render();
+        });
+      });
+
+      if (result.data && Array.isArray(result.data.steps) && result.data.steps.length > 0) {
+        result.data.steps.forEach(function (s, i) { if (i < steps.length) steps[i] = s; });
+      } else if (result.state === 'error') {
+        steps[1] = { name: 'Import files', status: 'error',
+                     message: (result.data && result.data.error_message) ? String(result.data.error_message) : 'Worker error' };
+      }
+      render();
+      if (result.state === 'done') {
+        statusEl.innerHTML = '<div class="alert-ok">Import completed successfully.</div>' + statusEl.innerHTML;
+      }
+    }
+
+    azureRun().finally(() => {
+      btn.disabled    = false;
+      btn.textContent = 'Import from Azure';
     });
   }
   </script>

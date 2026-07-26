@@ -49,7 +49,8 @@ if ($contentLength > 0 && $postMaxBytes > 0 && $contentLength > $postMaxBytes) {
     exit;
 }
 
-$mode = isset($_POST['mode']) ? trim((string)$_POST['mode']) : '';
+$mode   = isset($_POST['mode'])   ? trim((string)$_POST['mode'])   : '';
+$source = isset($_POST['source']) ? trim((string)$_POST['source']) : 'local';
 
 require_once __DIR__ . '/admin_media_lib.php';
 $exts         = loadMediaExtensions();
@@ -60,6 +61,100 @@ $videoExtsSet = $exts['videoSet'];
 // mode=prepare — inspect ZIP, no writes to audio/video dirs
 // ─────────────────────────────────────────────────────────────────────────────
 if ($mode === 'prepare') {
+    if ($source === 'azure') {
+        $azAccount   = (string)getenv('AZURE_BLOB_ACCOUNT_NAME');
+        $azContainer = (string)getenv('AZURE_BLOB_CONTAINER');
+        $azSas       = (string)getenv('AZURE_BLOB_SAS_TOKEN');
+        if ($azAccount === '' || $azContainer === '' || $azSas === '') {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Azure credentials not configured']);
+            exit;
+        }
+        $prefix = isset($_POST['prefix']) ? trim((string)$_POST['prefix']) : '';
+        if ($prefix === '') {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Blob prefix is required']);
+            exit;
+        }
+        $prefix = ltrim(rtrim($prefix, '/'), '/') . '/';
+
+        set_time_limit(0);
+
+        try {
+            $allBlobs = listAzureBlobs($azAccount, $azContainer, $azSas, $prefix);
+        } catch (RuntimeException $e) {
+            http_response_code(502);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Azure list failed: ' . $e->getMessage()]);
+            exit;
+        }
+
+        if ($allBlobs === null) {
+            http_response_code(502);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to list blobs from Azure (invalid XML response)']);
+            exit;
+        }
+
+        $audioCount       = 0;
+        $videoCount       = 0;
+        $unsupportedCount = 0;
+        $totalBytes       = 0;
+        $rows             = [];
+
+        foreach ($allBlobs as $blob) {
+            $blobName = (string)$blob['blob_name'];
+            $size     = (int)$blob['size'];
+            if (!str_starts_with($blobName, $prefix)) { $unsupportedCount++; continue; }
+            $relative = substr($blobName, strlen($prefix));
+            $basename = basename($relative);
+
+            if (str_starts_with($relative, 'video/thumbnails/') && isValidThumbnailEntry('thumbnails/' . $basename)) {
+                $totalBytes += $size;
+                $rows[]      = $blob;
+            } elseif (str_starts_with($relative, 'audio/') && isValidMediaEntry($basename, $audioExtsSet, $videoExtsSet)) {
+                $audioCount++;
+                $totalBytes += $size;
+                $rows[]      = $blob;
+            } elseif (str_starts_with($relative, 'video/') && isValidMediaEntry($basename, $audioExtsSet, $videoExtsSet)) {
+                $videoCount++;
+                $totalBytes += $size;
+                $rows[]      = $blob;
+            } else {
+                $unsupportedCount++;
+            }
+        }
+
+        if ($audioCount + $videoCount === 0) {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'No importable blobs found under prefix — check prefix or SAS Read+List permissions']);
+            exit;
+        }
+
+        $token   = bin2hex(random_bytes(8));
+        $tmpPath = sys_get_temp_dir() . '/gighive_azure_import_prepare_' . $token . '.json';
+        if (file_put_contents($tmpPath, json_encode($rows, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX) === false) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to store blob list']);
+            exit;
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success'           => true,
+            'prepare_token'     => $token,
+            'audio_count'       => $audioCount,
+            'video_count'       => $videoCount,
+            'unsupported_count' => $unsupportedCount,
+            'total_bytes'       => $totalBytes,
+        ]);
+        exit;
+    }
+
     if (!isset($_FILES['zip_file'])) {
         http_response_code(400);
         header('Content-Type: application/json');
@@ -207,6 +302,107 @@ if ($mode === 'prepare') {
 // mode=start — move prep file into job dir, spawn worker
 // ─────────────────────────────────────────────────────────────────────────────
 if ($mode === 'start') {
+    if ($source === 'azure') {
+        $prepareToken = isset($_POST['prepare_token']) ? trim((string)$_POST['prepare_token']) : '';
+        if ($prepareToken === '' || preg_match('/^[a-f0-9]{16}$/', $prepareToken) !== 1) {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Missing or invalid prepare_token']);
+            exit;
+        }
+
+        $prefix = isset($_POST['prefix']) ? trim((string)$_POST['prefix']) : '';
+        $prefix = ltrim(rtrim($prefix, '/'), '/') . '/';
+
+        $bloblistTmpPath = sys_get_temp_dir() . '/gighive_azure_import_prepare_' . basename($prepareToken) . '.json';
+        if (!is_file($bloblistTmpPath) || filemtime($bloblistTmpPath) < time() - 1800) {
+            http_response_code(410);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Prepare token expired or not found — re-run listing and confirm again']);
+            exit;
+        }
+
+        if (!function_exists('exec')) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'exec() is disabled; background worker cannot be spawned']);
+            exit;
+        }
+
+        $rows = json_decode((string)file_get_contents($bloblistTmpPath), true);
+        if (!is_array($rows)) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to read blob list from prepare step']);
+            exit;
+        }
+
+        $jobId  = bin2hex(random_bytes(8));
+        $jobDir = sys_get_temp_dir() . '/gighive_import_' . $jobId . '/';
+
+        if (!mkdir($jobDir, 0700, true)) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to create job directory']);
+            exit;
+        }
+
+        if (file_put_contents($jobDir . 'source.txt', 'azure') === false
+            || file_put_contents($jobDir . 'prefix.txt', $prefix) === false) {
+            @array_map('unlink', glob($jobDir . '*') ?: []);
+            @rmdir($jobDir);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to write job metadata']);
+            exit;
+        }
+
+        if (!copy($bloblistTmpPath, $jobDir . 'bloblist.json')) {
+            @array_map('unlink', glob($jobDir . '*') ?: []);
+            @rmdir($jobDir);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to copy blob list into job directory']);
+            exit;
+        }
+        @unlink($bloblistTmpPath);
+
+        $rowCount      = count($rows);
+        $initialStatus = json_encode([
+            'success'        => true,
+            'job_id'         => $jobId,
+            'state'          => 'running',
+            'updated_at'     => date('c'),
+            'processed'      => 0,
+            'total'          => $rowCount,
+            'added'          => 0,
+            'already_exists' => 0,
+            'bytes_added'    => 0,
+            'steps'          => [
+                ['name' => 'List blobs',   'status' => 'ok',      'message' => $rowCount . ' blobs found', 'progress' => null],
+                ['name' => 'Import files', 'status' => 'running', 'message' => 'Starting\u2026',
+                 'progress' => ['processed' => 0, 'total' => $rowCount]],
+            ],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if (file_put_contents($jobDir . 'status.json', $initialStatus . "\n", LOCK_EX) === false) {
+            @array_map('unlink', glob($jobDir . '*') ?: []);
+            @rmdir($jobDir);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to write initial status']);
+            exit;
+        }
+
+        exec('php ' . escapeshellarg(__DIR__ . '/import_media_zip_worker_azure.php')
+            . ' --job_id=' . escapeshellarg($jobId)
+            . ' >> ' . escapeshellarg($jobDir . 'worker.log') . ' 2>&1 &');
+
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'job_id' => $jobId]);
+        exit;
+    }
+
     $prepareToken = isset($_POST['prepare_token']) ? trim((string)$_POST['prepare_token']) : '';
     if ($prepareToken === '' || preg_match('/^[a-f0-9]{16}$/', $prepareToken) !== 1) {
         http_response_code(400);
@@ -313,3 +509,54 @@ http_response_code(400);
 header('Content-Type: application/json');
 echo json_encode(['success' => false, 'error' => 'Invalid mode; expected "prepare" or "start"']);
 exit;
+
+/**
+ * List all blobs under $prefix from Azure Blob Storage (paginated).
+ * NEVER log or echo $sas — it is a secret.
+ * Returns null on XML parse failure; array of {blob_name, size} rows on success.
+ * @throws RuntimeException on HTTP error from Azure.
+ */
+function listAzureBlobs(string $account, string $container, string $sas, string $prefix): ?array
+{
+    $results = [];
+    $marker  = '';
+    do {
+        $params = ['restype' => 'container', 'comp' => 'list', 'prefix' => $prefix];
+        if ($marker !== '') $params['marker'] = $marker;
+        $url = 'https://' . $account . '.blob.core.windows.net/' . $container . '?' . http_build_query($params) . '&' . $sas;
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_HTTPHEADER     => ['x-ms-version: 2020-04-08'],
+        ]);
+        $body     = curl_exec($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !is_string($body)) {
+            throw new RuntimeException('Azure List failed: HTTP ' . $httpCode);
+        }
+
+        libxml_use_internal_errors(true);
+        $xml = simplexml_load_string($body);
+        libxml_clear_errors();
+        if ($xml === false) {
+            return null;
+        }
+
+        foreach ($xml->Blobs->Blob ?? [] as $blob) {
+            $results[] = [
+                'blob_name' => (string)$blob->Name,
+                'size'      => (int)(string)$blob->Properties->{'Content-Length'},
+            ];
+        }
+
+        $marker = (string)($xml->NextMarker ?? '');
+    } while ($marker !== '');
+
+    return $results;
+}
