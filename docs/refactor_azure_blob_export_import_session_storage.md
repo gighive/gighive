@@ -287,29 +287,34 @@ function resumeJobPolling(storageKey, statusEndpoint, jobId, statusEl, btn, orig
     if (btn) { btn.disabled = false; btn.textContent = originalBtnLabel; }
   }
 
+  // _resetStaleness() is called at startup and on every successful onProgress tick.
+  // The timer therefore means "60 s of server silence" not "60 s of total job time".
+  // A multi-hour import is safe as long as the status endpoint keeps responding.
+  var stalenessTimer = null;
+  function _resetStaleness() {
+    clearTimeout(stalenessTimer);
+    stalenessTimer = setTimeout(function () {
+      if (_cleaned) return;
+      poll.stop();
+      _cleanup();
+      if (statusEl) {
+        statusEl.innerHTML = '<div class="muted">⚠ Could not reconnect to previous job '
+          + escapeHtml(jobId) + ' (it may have completed or been cleared).<br>'
+          + 'Check file counts on disk to confirm the operation succeeded.</div>';
+      }
+    }, 60000);
+  }
+
   var poll = pollJobStatus(jobId, statusEndpoint, null, function (state, data) {
     _cleanup();
     // Render final state (done or error) — Option 3: generic banner.
     // _cleanup() is idempotent; if stalenessTimer already ran this is a no-op.
   }, 1500, null, function (data) {
-    // onProgress tick — update steps display using existing render helper.
+    _resetStaleness();  // server is alive — push the watchdog forward
+    // update steps display using existing render helper
   });
 
-  // Safety timeout: pollJobStatus retries indefinitely on HTTP errors (its
-  // .catch handler reschedules). If no terminal state arrives within 60 s
-  // (e.g. server restarted, temp dir gone), stop polling and show neutral banner.
-  // _cleaned guard prevents this from overwriting a success banner if onDone
-  // fired just before the 60 s mark (slow but healthy server scenario).
-  var stalenessTimer = setTimeout(function () {
-    if (_cleaned) return;
-    poll.stop();
-    _cleanup();
-    if (statusEl) {
-      statusEl.innerHTML = '<div class="muted">⚠ Could not reconnect to previous job '
-        + escapeHtml(jobId) + ' (it may have completed or been cleared).<br>'
-        + 'Check file counts on disk to confirm the operation succeeded.</div>';
-    }
-  }, 60000);
+  _resetStaleness();  // start initial 60 s watchdog window
 }
 ```
 
@@ -331,16 +336,30 @@ just reschedules the next poll (see `assets/import_progress.js` line 212). A 404
 (e.g. temp dir gone after server restart) therefore never calls `onDone`; the
 terminal callback in the normal reconnect flow is unreachable for this case.
 
-The fix is the **60-second staleness timeout** in `resumeJobPolling` (§5 above):
-`poll.stop()` halts the infinite retry loop, and the neutral banner is shown:
+The fix is the **reset-on-tick staleness watchdog** in `resumeJobPolling` (§5 above).
+The key design rule:
+
+> **Staleness = server silence, not elapsed job time.**
+
+The watchdog works as follows:
+- A 60-second timer is started when `resumeJobPolling` is first called.
+- Every `onProgress` tick (a valid JSON response from the status endpoint) calls
+  `_resetStaleness()`, which cancels the current timer and starts a fresh 60-second
+  window. The poll interval is 1500 ms, so with a healthy server the timer is reset
+  every ~1.5 s and never fires.
+- If the server goes silent — due to a restart, the temp dir disappearing, or
+  sustained network failure — `onProgress` stops being called. After 60 consecutive
+  seconds with no valid response (≈ 40 failed poll attempts), the watchdog fires,
+  stops polling, and shows the neutral banner:
 
 ```
 ⚠ Could not reconnect to previous job (it may have completed or been cleared).
   Check file counts on disk to confirm the operation succeeded.
 ```
 
-60 seconds is long enough that a slow-responding but healthy server will have
-delivered a real response well before the timeout fires.
+This design is safe for multi-hour imports: a large Azure blob import that takes
+hours will keep resetting the watchdog on every 1.5 s tick and will never trigger
+the neutral banner as long as the server is responding.
 
 #### 7. Scroll-into-view on reconnect
 

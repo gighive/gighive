@@ -1852,6 +1852,21 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       if (btn) { btn.disabled = false; btn.textContent = originalBtnLabel; }
     }
 
+    var stalenessTimer = null;
+    function _resetStaleness() {
+      clearTimeout(stalenessTimer);
+      stalenessTimer = setTimeout(function () {
+        if (_cleaned) return;
+        poll.stop();
+        _cleanup();
+        if (statusEl) {
+          statusEl.innerHTML = '<div class="muted">⚠ Could not reconnect to previous job '
+            + escapeHtml(jobId) + ' (it may have completed or been cleared).<br>'
+            + 'Check file counts on disk to confirm the operation succeeded.</div>';
+        }
+      }, 60000);
+    }
+
     var poll = pollJobStatus(jobId, statusEndpoint, null, function (state, data) {
       _cleanup();
       if (statusEl) {
@@ -1860,6 +1875,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
           : '<div class="alert-err">Job ' + escapeHtml(jobId) + ' finished with errors.</div>';
       }
     }, 1500, null, function (data) {
+      _resetStaleness();
       if (statusEl && data && Array.isArray(data.steps) && data.steps.length > 0 && typeof renderImportStepsShared === 'function') {
         statusEl.innerHTML = '<div class="alert-ok" style="border-color:#3b82f6;margin-bottom:.4rem">'
           + 'Reconnected — restoring progress…</div>'
@@ -1867,16 +1883,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       }
     });
 
-    var stalenessTimer = setTimeout(function () {
-      if (_cleaned) return;
-      poll.stop();
-      _cleanup();
-      if (statusEl) {
-        statusEl.innerHTML = '<div class="muted">⚠ Could not reconnect to previous job '
-          + escapeHtml(jobId) + ' (it may have completed or been cleared).<br>'
-          + 'Check file counts on disk to confirm the operation succeeded.</div>';
-      }
-    }, 60000);
+    _resetStaleness();
   }
 
   window.addEventListener('beforeunload', function (e) {
