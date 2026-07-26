@@ -668,7 +668,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         if (cmd) {
           html += '<div style="margin-top:.75rem"><div class="muted" style="margin-bottom:.35rem">cd into the gighive directory and run this on your VirtualBox host:</div>'
             + '<pre id="resizeCmdPre" style="margin:0;background:#0e1530;border:1px solid #33427a;border-radius:8px;padding:.6rem .8rem;white-space:pre-wrap;word-break:break-all;font-size:.82rem;color:#cfd8ee">' + esc(cmd) + '</pre>'
-            + '<div class="muted" style="margin-top:.4rem;font-size:.82rem">It is recommended that you do a dry run first to check that syntax is correct. To do this, append <code>--dry-run</code> to the command in the above window.</div>'
+            + '<div class="muted" style="margin-top:.4rem;font-size:.82rem">It is recommended that you:<ul style="margin:.35rem 0 0 1.2rem;padding:0"><li>Make sure passwordless SSH is set up between your VM host and the guest VM.</li><li>Do a dry run to check that syntax is correct. To do this, append <code>--dry-run</code> to the command in the above window.</li></ul></div>'
             + '<button type="button" id="resizeCopyBtn" style="margin-top:.4rem;font-size:.82rem;padding:.3rem .8rem;border-color:#6b7280" onclick="(function(){var t=document.getElementById(\'resizeCmdPre\').textContent;var b=document.getElementById(\'resizeCopyBtn\');function done(){b.textContent=\'Copied!\';setTimeout(function(){b.textContent=\'Copy Command\'},1500);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(function(){var ta=document.createElement(\'textarea\');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand(\'copy\');document.body.removeChild(ta);done();});}else{var ta=document.createElement(\'textarea\');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand(\'copy\');document.body.removeChild(ta);done();}})()">Copy Command</button>'
             + '</div>';
         }
@@ -1346,6 +1346,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         return;
       }
       const jobId = String(startData.job_id);
+      if (dest === 'azure') { _activeJob = true; sessionStorage.setItem('gh_export_job', JSON.stringify({ jobId: jobId, dest: 'azure' })); }
 
       // ── Step 3: Poll worker progress ───────────────────────────────────────
       const buildResult = await new Promise(function (resolve) {
@@ -1477,6 +1478,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     }
 
     exportRun().finally(() => {
+      if (dest === 'azure') { _activeJob = false; sessionStorage.removeItem('gh_export_job'); }
       btn.disabled = false;
       btn.textContent = dest === 'azure' ? 'Send to Azure' : 'Download Archive';
     });
@@ -1639,6 +1641,8 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       }
 
       const jobId = String(startData.job_id);
+      _activeJob = true;
+      sessionStorage.setItem('gh_import_job', JSON.stringify({ jobId: jobId, source: 'local' }));
 
       // ── Step 4: Poll worker progress ──────────────────────────────────────
       if (typeof resetProgressLatch === 'function') resetProgressLatch();
@@ -1667,6 +1671,8 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     }
 
     importRun().finally(() => {
+      _activeJob = false;
+      sessionStorage.removeItem('gh_import_job');
       btn.disabled = false;
       btn.textContent = 'Import Archive';
     });
@@ -1783,6 +1789,8 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       }
 
       const jobId = String(startData.job_id);
+      _activeJob = true;
+      sessionStorage.setItem('gh_import_job', JSON.stringify({ jobId: jobId, source: 'azure', prefix: blobPrefix }));
 
       // ── Step 4: Poll worker progress ──────────────────────────────────────
       if (typeof resetProgressLatch === 'function') resetProgressLatch();
@@ -1811,10 +1819,99 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     }
 
     azureRun().finally(() => {
+      _activeJob = false;
+      sessionStorage.removeItem('gh_import_job');
       btn.disabled    = false;
       btn.textContent = 'Import from Azure';
     });
   }
+
+  /* ── sessionStorage job recovery ────────────────────────────────────────── */
+  let _activeJob = false;
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function resumeJobPolling(storageKey, statusEndpoint, jobId, statusEl, btn, originalBtnLabel) {
+    _activeJob = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'In progress…'; }
+    if (statusEl) {
+      statusEl.innerHTML = '<div class="alert-ok" style="border-color:#3b82f6">'
+        + 'Reconnected to in-progress job ' + escapeHtml(jobId) + '. Restoring progress…</div>';
+      statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    var _cleaned = false;
+    function _cleanup() {
+      if (_cleaned) return;
+      _cleaned = true;
+      clearTimeout(stalenessTimer);
+      _activeJob = false;
+      sessionStorage.removeItem(storageKey);
+      if (btn) { btn.disabled = false; btn.textContent = originalBtnLabel; }
+    }
+
+    var poll = pollJobStatus(jobId, statusEndpoint, null, function (state, data) {
+      _cleanup();
+      if (statusEl) {
+        statusEl.innerHTML = state === 'done'
+          ? '<div class="alert-ok">Job ' + escapeHtml(jobId) + ' completed successfully.</div>'
+          : '<div class="alert-err">Job ' + escapeHtml(jobId) + ' finished with errors.</div>';
+      }
+    }, 1500, null, function (data) {
+      if (statusEl && data && Array.isArray(data.steps) && data.steps.length > 0 && typeof renderImportStepsShared === 'function') {
+        statusEl.innerHTML = '<div class="alert-ok" style="border-color:#3b82f6;margin-bottom:.4rem">'
+          + 'Reconnected — restoring progress…</div>'
+          + renderImportStepsShared(data.steps, { showProgressBar: true, label: 'Progress:', statusIndentPx: 80 });
+      }
+    });
+
+    var stalenessTimer = setTimeout(function () {
+      if (_cleaned) return;
+      poll.stop();
+      _cleanup();
+      if (statusEl) {
+        statusEl.innerHTML = '<div class="muted">⚠ Could not reconnect to previous job '
+          + escapeHtml(jobId) + ' (it may have completed or been cleared).<br>'
+          + 'Check file counts on disk to confirm the operation succeeded.</div>';
+      }
+    }, 60000);
+  }
+
+  window.addEventListener('beforeunload', function (e) {
+    if (_activeJob) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var savedImport = sessionStorage.getItem('gh_import_job');
+    if (savedImport) {
+      try {
+        var imp = JSON.parse(savedImport);
+        if (imp && imp.jobId) {
+          resumeJobPolling(
+            'gh_import_job', 'import_media_zip_status.php', imp.jobId,
+            document.getElementById('importZipStatus'),
+            document.getElementById('importZipBtn'), 'Import Archive'
+          );
+        }
+      } catch (e) { sessionStorage.removeItem('gh_import_job'); }
+    }
+
+    var savedExport = sessionStorage.getItem('gh_export_job');
+    if (savedExport) {
+      try {
+        var exp = JSON.parse(savedExport);
+        if (exp && exp.jobId) {
+          resumeJobPolling(
+            'gh_export_job', 'export_media_status.php', exp.jobId,
+            document.getElementById('exportMediaStatus'),
+            document.getElementById('exportMediaBtn'), 'Send to Azure'
+          );
+        }
+      } catch (e) { sessionStorage.removeItem('gh_export_job'); }
+    }
+  });
   </script>
   <script>
   /* ── Live stats refresh ─────────────────────────────────────────────────── */

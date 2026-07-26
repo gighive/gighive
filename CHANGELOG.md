@@ -3,6 +3,21 @@ Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260726.txt
+Changes: Save session/state for admin_system.php export/import media
+ 
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	new file:   docs/refactor_azure_blob_export_import_session_storage.md
+
+*** 
+releaseNotes20260726.txt
 Changes: Resize write request fix
 
 sodo@pop-os:~/gighive$ git status
