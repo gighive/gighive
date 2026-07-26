@@ -79,5 +79,8 @@ if (empty($steps)) {
     ];
 }
 
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 header('Content-Type: application/json');
 echo json_encode(['success' => true, 'state' => $state, 'steps' => $steps], JSON_UNESCAPED_SLASHES);

@@ -191,7 +191,7 @@
 
     function _poll() {
       if (_stopped) return;
-      fetch(statusUrl + '?job_id=' + encodeURIComponent(String(jobId)))
+      fetch(statusUrl + '?job_id=' + encodeURIComponent(String(jobId)) + '&_ts=' + Date.now(), { cache: 'no-store' })
         .then(function (resp) {
           return resp.ok ? resp.json() : Promise.reject('HTTP ' + resp.status);
         })

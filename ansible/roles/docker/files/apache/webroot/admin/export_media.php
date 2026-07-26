@@ -27,6 +27,10 @@ if (!in_array($typeFilter, ['all', 'audio', 'video'], true)) {
 if (!in_array($mode, ['prepare', 'build', 'start'], true)) {
     $mode = 'build';
 }
+$destination = isset($_POST['destination']) ? trim((string)$_POST['destination']) : 'local';
+if (!in_array($destination, ['local', 'azure'], true)) {
+    $destination = 'local';
+}
 
 require __DIR__ . '/../vendor/autoload.php';
 use Production\Api\Infrastructure\Database;
@@ -79,6 +83,17 @@ $audioDir = '/var/www/html/audio';
 $videoDir = '/var/www/html/video';
 
 if ($mode === 'prepare') {
+    if ($destination === 'azure') {
+        $azAccount   = (string)getenv('AZURE_BLOB_ACCOUNT_NAME');
+        $azContainer = (string)getenv('AZURE_BLOB_CONTAINER');
+        $azSas       = (string)getenv('AZURE_BLOB_SAS_TOKEN');
+        if ($azAccount === '' || $azContainer === '' || $azSas === '') {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Azure credentials not configured']);
+            exit;
+        }
+    }
     $found      = 0;
     $skipped    = 0;
     $totalBytes = 0;
@@ -155,7 +170,7 @@ if ($mode === 'start') {
         exit;
     }
 
-    if (!function_exists('proc_open')) {
+    if ($destination === 'local' && !function_exists('proc_open')) {
         http_response_code(500);
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'proc_open() is disabled; archive worker cannot run']);
@@ -178,22 +193,27 @@ if ($mode === 'start') {
         exit;
     }
 
-    $total = count($rows);
-    $initialStatus = json_encode([
+    $total           = count($rows);
+    $initialStepName = $destination === 'azure' ? 'Upload to Azure' : 'Build archive';
+    $statusData = [
         'success'     => true,
         'job_id'      => $jobId,
         'state'       => 'running',
+        'destination' => $destination,
         'updated_at'  => date('c'),
         'processed'   => 0,
         'total'       => $total,
         'added'       => 0,
         'skipped'     => 0,
         'bytes_added' => 0,
-        'filename'    => $filename,
         'steps'       => [
-            ['name' => 'Build archive', 'status' => 'running', 'message' => '0 / ' . $total . ' written', 'progress' => ['processed' => 0, 'total' => $total]],
+            ['name' => $initialStepName, 'status' => 'running', 'message' => '0 / ' . $total . ' written', 'progress' => ['processed' => 0, 'total' => $total]],
         ],
-    ], JSON_UNESCAPED_SLASHES);
+    ];
+    if ($destination === 'local') {
+        $statusData['filename'] = $filename;
+    }
+    $initialStatus = json_encode($statusData, JSON_UNESCAPED_SLASHES);
 
     if (file_put_contents($jobDir . 'status.json', $initialStatus . "\n", LOCK_EX) === false) {
         @unlink($jobDir . 'filelist.json');
@@ -204,10 +224,17 @@ if ($mode === 'start') {
         exit;
     }
 
-    exec('php ' . escapeshellarg(__DIR__ . '/export_media_worker.php') . ' --job_id=' . escapeshellarg($jobId) . ' >> ' . escapeshellarg($jobDir . 'worker.log') . ' 2>&1 &');
+    $workerScript = $destination === 'azure'
+        ? __DIR__ . '/export_media_worker_azure.php'
+        : __DIR__ . '/export_media_worker.php';
+    $orgArg = $orgFilter !== '' ? ' --org=' . escapeshellarg($orgFilter) : '';
+    exec('php ' . escapeshellarg($workerScript)
+        . ' --job_id=' . escapeshellarg($jobId)
+        . $orgArg
+        . ' >> ' . escapeshellarg($jobDir . 'worker.log') . ' 2>&1 &');
 
     header('Content-Type: application/json');
-    echo json_encode(['success' => true, 'job_id' => $jobId, 'total' => $total]);
+    echo json_encode(['success' => true, 'job_id' => $jobId, 'total' => $total, 'destination' => $destination]);
     exit;
 }
 

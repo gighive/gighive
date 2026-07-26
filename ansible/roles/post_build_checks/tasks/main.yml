@@ -689,3 +689,73 @@
   ansible.builtin.debug:
     var: stack_versions_summary
   tags: [stack_versions]
+
+# --- Azure Blob Storage connectivity (conditional on credentials) ---
+
+- name: Build Azure connectivity probe facts
+  ansible.builtin.set_fact:
+    azure_probe_url: "https://{{ azure_blob_account_name }}.blob.core.windows.net/{{ azure_blob_container }}/test-connectivity/ansible-probe-{{ ansible_facts['date_time'].epoch }}.txt?{{ azure_blob_sas_token }}"
+  when:
+    - azure_blob_account_name | default('') | length > 0
+    - azure_blob_container    | default('') | length > 0
+    - azure_blob_sas_token    | default('') | length > 0
+  no_log: true
+  tags: [smoke, azure]
+
+- block:
+    - name: PUT sentinel blob to Azure (connectivity check)
+      ansible.builtin.uri:
+        url: "{{ azure_probe_url }}"
+        method: PUT
+        body: "gighive-azure-connectivity-probe"
+        body_format: raw
+        headers:
+          x-ms-blob-type: BlockBlob
+          Content-Type: text/plain
+          x-ms-version: "2020-04-08"
+        status_code: 201
+        return_content: false
+      changed_when: false
+      no_log: true
+
+    - name: Assert Azure blob PUT succeeded
+      ansible.builtin.debug:
+        msg: "Azure Blob Storage connectivity OK — credentials valid, Write+Create confirmed"
+
+  always:
+    - name: DELETE Azure connectivity probe blob (cleanup)
+      ansible.builtin.uri:
+        url: "{{ azure_probe_url }}"
+        method: DELETE
+        status_code: [202, 404]
+        return_content: false
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+  when: azure_probe_url is defined
+  tags: [smoke, azure]
+
+# --- Azure export endpoint auth checks ---
+
+- name: /admin/export_media.php should require auth (401)
+  uri:
+    url: "{{ gighive_base_url }}/admin/export_media.php"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    return_content: no
+    status_code: 401
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke]
+
+- name: /admin/export_media_worker_azure.php should require auth (401)
+  uri:
+    url: "{{ gighive_base_url }}/admin/export_media_worker_azure.php"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    return_content: no
+    status_code: 401
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke]

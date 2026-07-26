@@ -1,6 +1,6 @@
 # Feature: Azure Blob Storage Export (Section E)
 
-**Status**: Planning  
+**Status**: Complete  
 **Date**: 2026-07-25  
 **Related docs**: `docs/feature_saas_model_changes.md` (Steps 17, 19), `docs/refactored_admin_export_media.md`
 
@@ -241,9 +241,16 @@ No `group_vars` feature flags needed — presence of non-empty env vars is the a
 5. `ansible/inventories/group_vars/gighive2/secrets.yml` — Same
 6. `ansible/inventories/group_vars/prod/secrets.yml` — Same
 7. `ansible/inventories/group_vars/gighive/secrets.example.yml` — Same with explanatory comment
-8. `ansible/roles/post_build_checks/tasks/main.yml` — New `[smoke, azure]` tagged block: conditionally PUTs a sentinel blob and DELETEs it; skipped when credentials are absent; `no_log: true` on all tasks
+8. `ansible/roles/post_build_checks/tasks/main.yml` — New `[smoke, azure]` tagged block: conditionally PUTs a sentinel blob and DELETEs it; skipped when credentials are absent; `no_log: true` on all tasks. Two additional `[smoke]` 401 auth-check tasks: assert `export_media.php` and `export_media_worker_azure.php` both require authentication.
 
-**Unchanged**: `export_media_worker.php`, `export_media_status.php`, `export_media_download.php`, `admin_media_lib.php`, `assets/import_progress.js`.
+**Also modified during implementation/testing** (not in original plan):
+- `export_media_status.php` — forward `blob_prefix`, `added`, `archive_bytes` to frontend on done state; add `Cache-Control: no-store` headers (see Post-Implementation Fixes)
+- `assets/import_progress.js` — add `_ts` cache-buster + `cache: 'no-store'` to `pollJobStatus` fetch (see Post-Implementation Fixes)
+- `export_media_worker.php` — write progress on every file instead of every 10 (see Post-Implementation Fixes)
+- `import_media_zip_status.php` — add `Cache-Control: no-store` headers (same caching bug; see Post-Implementation Fixes)
+- `import_media_zip_worker.php` — write progress on every file instead of every 10 (all 3 loop sites; see Post-Implementation Fixes)
+
+**Unchanged**: `export_media_download.php`, `admin_media_lib.php`.
 
 ---
 
@@ -317,9 +324,10 @@ The block runs only when all three `azure_blob_*` vars are non-empty; it is sile
 ```
 
 Notes:
-- `no_log: true` on every task touching `azure_probe_url` — SAS token must never appear in Ansible output.
-- `always:` block ensures cleanup even when the PUT assertion fails.
-- Tag `--skip-tags azure` on any run where credentials are absent and you want to suppress the skip output.
+1. The smoke test works in two steps: **PUT** writes a tiny text file (`test-connectivity/ansible-probe-{timestamp}.txt`) to your Azure container to prove the credentials work and the container accepts writes; **DELETE** immediately removes that same blob so it doesn't accumulate junk in your container on every deploy.
+2. `always:` ensures the DELETE runs even if the PUT assertion fails — container is always left clean. `status_code: [202, 404]` handles both "it existed and was deleted" and "it was never there" gracefully.
+3. `no_log: true` on every task touching `azure_probe_url` — SAS token must never appear in Ansible output.
+4. Tag `--skip-tags azure` on any run where credentials are absent and you want to suppress the skip output.
 
 **Step 4 — Deploy to dev and verify**
 
@@ -381,7 +389,7 @@ Key structure:
        In a try/finally block: always fclose($fh) and curl_close($ch)
     f. Check HTTP response code: 201 = success; anything else = throw RuntimeException
        with blob name, HTTP code, and first 500 chars of response body (never the URL)
-    g. Update status.json every 10 files (mirrors tar worker cadence)
+    g. Write status.json after every file upload (no batching — ensures live counter updates)
     h. For video files: also upload the thumbnail blob if the thumbnail file exists.
        Thumbnail local path: derive by replacing the video dir with the thumbnails dir,
        e.g. str_replace('/video/', '/video/thumbnails/', dirname($filePath)) . '/' . pathinfo($fileName, PATHINFO_FILENAME) . '.png'
@@ -422,6 +430,10 @@ Key structure:
   ```
 - Return `{'success': true, 'job_id': ..., 'total': ..., 'destination': $destination}` so the
   JS knows which done-state path to follow.
+
+**Phase 2 Ansible smoke tests** (added to `post_build_checks/tasks/main.yml`):
+- `GET /admin/export_media.php` without auth → assert 401 (proves file landed and is htpasswd-protected)
+- `GET /admin/export_media_worker_azure.php` without auth → assert 401 (same; also proves CLI-only guard is irrelevant before Apache auth fires)
 
 ---
 
@@ -525,6 +537,46 @@ With Azure credentials absent in the dev test environment (default), the Destina
 rendered and the existing test flow is unchanged — no test update is required for Phase 1–3 of this
 feature. If credentials are ever added to the test environment, the test will need a step to assert
 the Destination row is visible and confirm the local radio remains the default.
+
+---
+
+## Post-Implementation Fixes
+
+The following bugs were discovered during live testing on 2026-07-25 and fixed before production deploy.
+
+### 1. Success banner and file count missing (Azure done state)
+
+**Symptom**: After a successful Azure upload the UI showed no full-width green banner, and the uploaded count read "0 file(s)".
+
+**Root cause**: `export_media_status.php` was not forwarding `blob_prefix`, `added`, or `archive_bytes` from `status.json` to the frontend response when `state=done`. The JS `buildResult.data` was therefore missing those keys.
+
+**Fix**: Added forwarding of those three keys in `export_media_status.php`. Added `_startTime` + `fmtElapsed()` in `doExportMedia()` and rendered an `alert-ok` banner on Azure done state showing file count, blob prefix, and elapsed time:
+```
+Upload complete — 1199 file(s) sent to Azure Blob Storage — gighive-export/20260725-200952/all/ (57m 30s)
+```
+
+### 2. Progress counter frozen at 2/661 — browser caching
+
+**Symptom**: After starting a large Azure export the progress counter stuck at `2 / 661` indefinitely, while files accumulated in Azure Blob Storage — the worker was running fine.
+
+**Root cause**: Apache injects `Cache-Control: public, max-age=86400` on authenticated PHP responses that do not explicitly set their own `Cache-Control` header. The browser cached the first poll response (2/661) and served it from disk cache for all subsequent polls.
+
+**Diagnostic trap**: Unauthenticated `curl -I` returns a 401 with `Cache-Control: no-store` (Apache error-response default), hiding the problem. The authenticated 200 response must be checked — visible in Chrome DevTools Network tab as `200 OK (from disk cache)` with `Cache-Control: public, max-age=86400`.
+
+**Fix**: Added explicit `no-store` headers to `export_media_status.php` and `import_media_zip_status.php` (same missing pattern). Added `&_ts=Date.now()` cache-buster and `{ cache: 'no-store' }` to `pollJobStatus` in `import_progress.js` as a belt-and-suspenders client-side guard.
+
+**Rule**: any PHP endpoint polled repeatedly must explicitly send `Cache-Control: no-store`. See `docs/problem_apache_caching_authenticated_json_endpoints.md`.
+
+### 3. Progress counter updating every 10 files — "lifeless" meter on large corpora
+
+**Symptom**: For large video files (100–500 MB each), the progress bar appeared frozen for minutes at a time because status.json was only written every 10 files.
+
+**Fix**: Removed the `% 10 === 0` batching condition from:
+- `export_media_worker_azure.php` — write after every file upload
+- `export_media_worker.php` — write after every tar verbose line (one per file)
+- `import_media_zip_worker.php` — write after every file at all three loop sites (zip branch, tar main files, tar thumbnails)
+
+Also added `updated_at` to each write.
 
 ---
 

@@ -183,23 +183,22 @@ try {
                 $bytesAdded += (int)($stat['size'] ?? 0);
             }
 
-            if ($processed % 10 === 0) {
-                writeJobStatus($jsonPath, [
-                    'success'        => true,
-                    'job_id'         => $jobId,
-                    'state'          => 'running',
-                    'processed'      => $processed,
-                    'total'          => $total,
-                    'added'          => $added,
-                    'already_exists' => $alreadyExists,
-                    'bytes_added'    => $bytesAdded,
-                    'steps'          => [
-                        ['name' => 'Import files', 'status' => 'running',
-                         'message'  => $processed . ' / ' . $total . ' files imported',
-                         'progress' => ['processed' => $processed, 'total' => $total]],
-                    ],
-                ]);
-            }
+            writeJobStatus($jsonPath, [
+                'success'        => true,
+                'job_id'         => $jobId,
+                'state'          => 'running',
+                'updated_at'     => date('c'),
+                'processed'      => $processed,
+                'total'          => $total,
+                'added'          => $added,
+                'already_exists' => $alreadyExists,
+                'bytes_added'    => $bytesAdded,
+                'steps'          => [
+                    ['name' => 'Import files', 'status' => 'running',
+                     'message'  => $processed . ' / ' . $total . ' files imported',
+                     'progress' => ['processed' => $processed, 'total' => $total]],
+                ],
+            ]);
         }
 
         $zip->close();
@@ -309,23 +308,22 @@ try {
                     $bytesAdded += $fileBytes;
                 }
 
-                if ($processed % 10 === 0) {
-                    writeJobStatus($jsonPath, [
-                        'success'        => true,
-                        'job_id'         => $jobId,
-                        'state'          => 'running',
-                        'processed'      => $processed,
-                        'total'          => $total,
-                        'added'          => $added,
-                        'already_exists' => $alreadyExists,
-                        'bytes_added'    => $bytesAdded,
-                        'steps'          => [
-                            ['name' => 'Import files', 'status' => 'running',
-                             'message'  => $processed . ' / ' . $total . ' files imported',
-                             'progress' => ['processed' => $processed, 'total' => $total]],
-                        ],
-                    ]);
-                }
+                writeJobStatus($jsonPath, [
+                    'success'        => true,
+                    'job_id'         => $jobId,
+                    'state'          => 'running',
+                    'updated_at'     => date('c'),
+                    'processed'      => $processed,
+                    'total'          => $total,
+                    'added'          => $added,
+                    'already_exists' => $alreadyExists,
+                    'bytes_added'    => $bytesAdded,
+                    'steps'          => [
+                        ['name' => 'Import files', 'status' => 'running',
+                         'message'  => $processed . ' / ' . $total . ' files imported',
+                         'progress' => ['processed' => $processed, 'total' => $total]],
+                    ],
+                ]);
             }
 
             // Second pass: thumbnail files in thumbnails/ subdir
@@ -362,23 +360,22 @@ try {
                     $added++;
                     $bytesAdded += $fileBytes;
                 }
-                if ($processed % 10 === 0) {
-                    writeJobStatus($jsonPath, [
-                        'success'        => true,
-                        'job_id'         => $jobId,
-                        'state'          => 'running',
-                        'processed'      => $processed,
-                        'total'          => $total,
-                        'added'          => $added,
-                        'already_exists' => $alreadyExists,
-                        'bytes_added'    => $bytesAdded,
-                        'steps'          => [
-                            ['name' => 'Import files', 'status' => 'running',
-                             'message'  => $processed . ' / ' . $total . ' files imported',
-                             'progress' => ['processed' => $processed, 'total' => $total]],
-                        ],
-                    ]);
-                }
+                writeJobStatus($jsonPath, [
+                    'success'        => true,
+                    'job_id'         => $jobId,
+                    'state'          => 'running',
+                    'updated_at'     => date('c'),
+                    'processed'      => $processed,
+                    'total'          => $total,
+                    'added'          => $added,
+                    'already_exists' => $alreadyExists,
+                    'bytes_added'    => $bytesAdded,
+                    'steps'          => [
+                        ['name' => 'Import files', 'status' => 'running',
+                         'message'  => $processed . ' / ' . $total . ' files imported',
+                         'progress' => ['processed' => $processed, 'total' => $total]],
+                    ],
+                ]);
             }
             @rmdir($extractDir . 'thumbnails/');
 

@@ -501,6 +501,11 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
         <button type="button" id="clearMediaFilesBtn" class="danger" onclick="confirmClearMediaFiles()">Delete All Media Files</button>
       </div>
 
+<?php
+$__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
+    && (string)getenv('AZURE_BLOB_CONTAINER')    !== ''
+    && (string)getenv('AZURE_BLOB_SAS_TOKEN')    !== '';
+?>
       <div class="section-divider">
         <h2>Section E: Export Media Archive</h2>
         <p class="muted">
@@ -523,6 +528,21 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
             <option value="video">Video only</option>
           </select>
         </div>
+<?php if ($__azure_available): ?>
+        <div class="row">
+          <label>Destination</label>
+          <div>
+            <label style="margin-right:1.5em">
+              <input type="radio" name="export_destination" id="export_dest_local" value="local" checked onchange="onExportDestChange()" />
+              Download to browser (tar.gz)
+            </label>
+            <label>
+              <input type="radio" name="export_destination" id="export_dest_azure" value="azure" onchange="onExportDestChange()" />
+              Send to Azure Blob Storage
+            </label>
+          </div>
+        </div>
+<?php endif; ?>
         <div id="exportMediaStatus"></div>
         <button type="button" id="exportMediaBtn" onclick="doExportMedia()">Download Archive</button>
       </div>
@@ -1188,28 +1208,45 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
     return '<div class="alert-ok">' + String(message) + renderDbLinkButton(linkLabel) + '</div>';
   }
 
+  function onExportDestChange() {
+    const dest = (document.querySelector('input[name="export_destination"]:checked') || {}).value || 'local';
+    document.getElementById('exportMediaBtn').textContent = dest === 'azure' ? 'Send to Azure' : 'Download Archive';
+  }
+
   function doExportMedia() {
     const orgName  = (document.getElementById('export_org_name').value  || '').trim();
     const fileType = (document.getElementById('export_file_type').value || 'all');
     const btn      = document.getElementById('exportMediaBtn');
     const statusEl = document.getElementById('exportMediaStatus');
 
+    const dest           = (document.querySelector('input[name="export_destination"]:checked') || {}).value || 'local';
+    const workerStepName = dest === 'azure' ? 'Upload to Azure' : 'Build archive';
+    const _startTime     = Date.now();
+
     btn.disabled = true;
-    btn.textContent = 'Building archive\u2026';
+    btn.textContent = dest === 'azure' ? 'Uploading to Azure\u2026' : 'Building archive\u2026';
 
     if (typeof resetProgressLatch === 'function') resetProgressLatch();
 
     const steps = [
       { name: 'Query database', status: 'running', message: 'Finding matching records\u2026', progress: { processed: 0, total: 1 } },
-      { name: 'Build archive',  status: 'pending', message: '',                               progress: null },
-      { name: 'Download',       status: 'pending', message: '',                               progress: null },
+      { name: workerStepName,   status: 'pending', message: '',                               progress: null },
     ];
+    if (dest === 'local') {
+      steps.push({ name: 'Download', status: 'pending', message: '', progress: null });
+    }
 
     function fmtBytes(n) {
       if (n < 1024)        return n + ' B';
       if (n < 1048576)     return (n / 1024).toFixed(1) + ' KB';
       if (n < 1073741824)  return (n / 1048576).toFixed(1) + ' MB';
       return (n / 1073741824).toFixed(1) + ' GB';
+    }
+
+    function fmtElapsed(ms) {
+      const s = Math.round(ms / 1000);
+      if (s < 60) return s + 's';
+      return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
     }
 
     function render() {
@@ -1228,7 +1265,7 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
       try {
         prepResp = await fetch('export_media.php', {
           method: 'POST',
-          body: new URLSearchParams({ ...baseParams, mode: 'prepare' })
+          body: new URLSearchParams({ ...baseParams, mode: 'prepare', destination: dest })
         });
         prepData = await prepResp.json().catch(() => null);
       } catch (err) {
@@ -1250,16 +1287,16 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
                    message: count + ' file(s) ready to export (' + fmtBytes(totalBytes) + skippedNote + ')',
                    progress: { processed: 1, total: 1 } };
       const skippedWarn  = prepSkipped > 0 ? '\n\nNote: ' + prepSkipped + ' DB record(s) have no matching file on disk and will be skipped.' : '';
-      const confirmMsg = 'You are about to zip ' + fmtBytes(totalBytes) + ' of files.' + skippedWarn + '\n\n' +
-                         'Make sure you have enough free space to accommodate this download.\n\n' +
-                         'Do you wish to continue?';
+      const confirmMsg = dest === 'azure'
+        ? 'You are about to upload ' + fmtBytes(totalBytes) + ' to Azure Blob Storage.' + skippedWarn + '\n\nDo you wish to continue?'
+        : 'You are about to zip ' + fmtBytes(totalBytes) + ' of files.' + skippedWarn + '\n\nMake sure you have enough free space to accommodate this download.\n\nDo you wish to continue?';
       if (!window.confirm(confirmMsg)) {
-        steps[1] = { name: 'Build archive', status: 'pending', message: 'Canceled before ZIP build', progress: null };
-        steps[2] = { name: 'Download',      status: 'pending', message: '',                           progress: null };
+        steps[1] = { name: workerStepName, status: 'pending', message: 'Canceled', progress: null };
+        if (dest === 'local') steps[2] = { name: 'Download', status: 'pending', message: '', progress: null };
         render();
         return;
       }
-      steps[1] = { name: 'Build archive', status: 'running', message: 'Starting\u2026',
+      steps[1] = { name: workerStepName, status: 'running', message: 'Starting\u2026',
                    progress: { processed: 0, total: count || 1 } };
       render();
 
@@ -1268,17 +1305,17 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
       try {
         startResp = await fetch('export_media.php', {
           method: 'POST',
-          body: new URLSearchParams({ ...baseParams, mode: 'start' })
+          body: new URLSearchParams({ ...baseParams, mode: 'start', destination: dest })
         });
         startData = await startResp.json().catch(() => null);
       } catch (err) {
-        steps[1] = { name: 'Build archive', status: 'error', message: 'Network error: ' + err.message };
+        steps[1] = { name: workerStepName, status: 'error', message: 'Network error: ' + err.message };
         render();
         return;
       }
       if (!startResp.ok || !(startData && startData.success && startData.job_id)) {
         const msg = (startData && (startData.error || startData.message)) ? String(startData.error || startData.message) : 'HTTP ' + startResp.status;
-        steps[1] = { name: 'Build archive', status: 'error', message: msg };
+        steps[1] = { name: workerStepName, status: 'error', message: msg };
         render();
         return;
       }
@@ -1301,7 +1338,7 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
           steps[1] = buildResult.data.steps[0];
         } else {
           const errMsg = (buildResult.data && buildResult.data.error_message) ? String(buildResult.data.error_message) : 'Worker error';
-          steps[1] = { name: 'Build archive', status: 'error', message: errMsg };
+          steps[1] = { name: workerStepName, status: 'error', message: errMsg };
         }
         render();
         return;
@@ -1310,6 +1347,21 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
       if (buildResult.data && Array.isArray(buildResult.data.steps) && buildResult.data.steps.length > 0) {
         steps[1] = buildResult.data.steps[0];
       }
+
+      // ── Azure done state ───────────────────────────────────────────────────
+      if (dest === 'azure') {
+        const blobPrefix = (buildResult.data && buildResult.data.blob_prefix) ? String(buildResult.data.blob_prefix) : '';
+        const uploaded   = (buildResult.data && Number(buildResult.data.added) > 0) ? Number(buildResult.data.added) : 0;
+        render();
+        statusEl.innerHTML += '<div class="alert-ok" style="margin-top:.75rem">Upload complete \u2014 '
+          + uploaded + ' file(s) sent to Azure Blob Storage'
+          + (blobPrefix ? ' \u2014 ' + blobPrefix : '')
+          + ' (' + fmtElapsed(Date.now() - _startTime) + ')'
+          + '</div>';
+        return;
+      }
+
+      // ── Step 4: Download pre-built archive (local path only) ───────────────
       // archive_bytes from the worker status — used as Content-Length fallback when the
       // proxy strips that header (e.g. mod_proxy_fcgi chunked-transfer rewrites)
       const archiveBytes = (buildResult.data && Number(buildResult.data.archive_bytes) > 0)
@@ -1400,7 +1452,7 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
 
     exportRun().finally(() => {
       btn.disabled = false;
-      btn.textContent = 'Download Archive';
+      btn.textContent = dest === 'azure' ? 'Send to Azure' : 'Download Archive';
     });
   }
 

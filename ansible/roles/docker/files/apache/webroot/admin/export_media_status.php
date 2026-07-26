@@ -82,7 +82,15 @@ if (empty($steps)) {
 $response = ['success' => true, 'state' => $state, 'steps' => $steps];
 if ($state === 'done') {
     $response['ready_for_download'] = true;
+    foreach (['blob_prefix', 'added', 'archive_bytes'] as $key) {
+        if (is_array($data) && isset($data[$key])) {
+            $response[$key] = $data[$key];
+        }
+    }
 }
 
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 header('Content-Type: application/json');
 echo json_encode($response, JSON_UNESCAPED_SLASHES);

@@ -132,28 +132,27 @@ try {
         array_push($tarArgs, '-C', $videoDir, '--files-from', $videoListPath);
     }
 
-    // Option A progress: verbose stdout line = one file added; update status.json every 10
+    // Option A progress: verbose stdout line = one file added; update status.json on every file
     $verboseCount = 0;
     $result = runTar($tarArgs, null, [], static function (string $line) use (&$verboseCount, $added, $skipped, $jsonPath, $jobId): void {
         if ($line === '') return;
         $verboseCount++;
-        if ($verboseCount % 10 === 0) {
-            writeJobStatus($jsonPath, [
-                'success'     => true,
-                'job_id'      => $jobId,
-                'state'       => 'running',
-                'processed'   => $verboseCount,
-                'total'       => $added,
-                'added'       => $verboseCount,
-                'skipped'     => $skipped,
-                'bytes_added' => 0,
-                'steps'       => [
-                    ['name' => 'Build archive', 'status' => 'running',
-                     'message'  => $verboseCount . ' / ' . $added . ' written',
-                     'progress' => ['processed' => $verboseCount, 'total' => $added]],
-                ],
-            ]);
-        }
+        writeJobStatus($jsonPath, [
+            'success'     => true,
+            'job_id'      => $jobId,
+            'state'       => 'running',
+            'updated_at'  => date('c'),
+            'processed'   => $verboseCount,
+            'total'       => $added,
+            'added'       => $verboseCount,
+            'skipped'     => $skipped,
+            'bytes_added' => 0,
+            'steps'       => [
+                ['name' => 'Build archive', 'status' => 'running',
+                 'message'  => $verboseCount . ' / ' . $added . ' written',
+                 'progress' => ['processed' => $verboseCount, 'total' => $added]],
+            ],
+        ]);
     });
 
     // Cleanup filelists regardless of tar outcome
