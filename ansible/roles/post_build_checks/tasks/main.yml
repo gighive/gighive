@@ -696,9 +696,9 @@
   ansible.builtin.set_fact:
     azure_probe_url: "https://{{ azure_blob_account_name }}.blob.core.windows.net/{{ azure_blob_container }}/test-connectivity/ansible-probe-{{ ansible_facts['date_time'].epoch }}.txt?{{ azure_blob_sas_token }}"
   when:
-    - azure_blob_account_name | default('') | length > 0
-    - azure_blob_container    | default('') | length > 0
-    - azure_blob_sas_token    | default('') | length > 0
+    - azure_blob_account_name | default('', true) | length > 0
+    - azure_blob_container    | default('', true) | length > 0
+    - azure_blob_sas_token    | default('', true) | length > 0
   no_log: true
   tags: [smoke, azure]
 
