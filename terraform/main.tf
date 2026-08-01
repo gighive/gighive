@@ -141,6 +141,7 @@ resource "azurerm_storage_account" "media" {
   location                 = azurerm_resource_group.rg.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
+  access_tier              = "Hot"
 
   public_network_access_enabled = true
 

@@ -3,7 +3,24 @@ Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260801.txt
+Changes: Azure cost md, terraform fix
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	new file:   docs/operating_model_costs_azure_vm_blob.md
+	new file:   docs/refactor_mcp_server_telemetry_connection.md
+	modified:   terraform/main.tf
+
+*** 
+releaseNotes20260801.txt
 Changes: Save session/state for admin_system.php export/import media, elapsed time addition plus mcp_server version pinning to 1.28.1
+Next Scope: egrep -A1 'STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 sodo@pop-os:~/gighive$ git status
 On branch master
