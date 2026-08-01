@@ -38,6 +38,18 @@ and DB-vs-filesystem cross-referencing that would have been natural MCP tool cal
 
 ---
 
+## How the MCP Server Works
+
+- **Software:** Official Anthropic `mcp` Python SDK, **pinned to 1.x** (working deployments use `1.28.1`). `mcp>=2.0` removes `mcp.server.fastmcp.FastMCP` and is currently incompatible with `server.py`.
+- **API entry point:** `from mcp.server.fastmcp import FastMCP` — a decorator-based server API that ships inside the `mcp` package.
+- **Runtime model:** A Python process running **on the Docker host**, not inside a container, so it can reach MySQL via `127.0.0.1:3306` and read the host `.env` file directly.
+- **Transport:** `stdio` over SSH. The AI assistant spawns the server on demand with `ssh <host> /home/ubuntu/gighive/mcp-server/venv/bin/python /home/ubuntu/gighive/mcp-server/server.py`.
+- **Lifecycle:** On-demand only. The process starts when the assistant opens the SSH session and exits when the session ends; no persistent daemon or systemd service is required.
+- **Credentials:** Loaded at startup from the host `.env` file (`db.py` + `python-dotenv`), using `127.0.0.1:3306` for MySQL because the process runs on the host, not in the Docker network.
+- **Tool layout:** Tools are grouped in Python modules under `mcp-server/tools/` — `ai_pipeline.py`, `media_library.py`, `upload_jobs.py`, `system.py`, and `schema.py` — and registered in `server.py`.
+
+---
+
 ## GigHive's Three Personas and MCP Fit
 
 ### Persona 1: Musicians / Wedding Photographers

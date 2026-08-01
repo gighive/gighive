@@ -367,7 +367,48 @@ Sections E and F are below the fold. The `statusEl.scrollIntoView(...)` call in
 `resumeJobPolling` (step 5 above) ensures the admin sees the reconnected progress
 banner without having to scroll manually.
 
+#### 8. Elapsed time display
+
+All three terminal completion banners now include elapsed wall-clock time, both
+for normal runs and for reconnect runs.
+
+**Normal flow** — each job-start function captures `const _startTime = Date.now()`
+before any async work. The `done` completion banner appends
+`fmtElapsed(Date.now() - _startTime)`.
+
+**Reconnect flow** — `_startTime` is lost on page refresh. To preserve it,
+`startedAt: _startTime` is added to the `sessionStorage` JSON at job-start time
+(all three paths). On reconnect, `DOMContentLoaded` reads `startedAt` from the
+parsed JSON and passes it as a new `startedAt` parameter to `resumeJobPolling`.
+The `onDone` banner computes `fmtElapsed(Date.now() - startedAt)` to show total
+elapsed time from original job start, not from reconnect time.
+
+If `startedAt` is absent (old sessionStorage entries written before this change),
+the guard `(startedAt && typeof startedAt === 'number')` suppresses the elapsed
+suffix gracefully — no banner breakage.
+
+**`fmtElapsed` placement** — hoisted to script-block level alongside `escapeHtml`
+so it is available to `resumeJobPolling` and both import functions without
+duplication. `doExportMedia()` retains its own local copy which shadows the
+block-level one inside that function — harmless.
+
+```
+// TODO (refactor opportunity): fmtBytes is defined identically as a local
+// function in doExportMedia(), doImportMediaZip(), and doImportFromAzure().
+// fmtElapsed is now duplicated between doExportMedia() (local) and the
+// block-level definition. Both helpers could be hoisted to block level and
+// the three local copies removed. Low risk, purely cosmetic — defer to a
+// dedicated cleanup PR.
+```
+
+**Button label fix (caught during this change)** — the `DOMContentLoaded`
+reconnect listener was always restoring the import button to `'Import Archive'`
+even for Azure import jobs (which should restore to `'Import from Azure'`).
+Fixed by using `imp.source === 'azure' ? 'Import from Azure' : 'Import Archive'`
+— `imp.source` is already present in the stored JSON.
+
 ---
+
 
 ### SonarQube / Best-Practice Notes
 
@@ -428,14 +469,18 @@ original label) and becomes re-enabled when the job reaches a terminal state.
 
 - `sessionStorage` save + `_activeJob = true` on job start (export Azure, import local, import Azure).
 - `_activeJob = false` + `sessionStorage.removeItem` in all three `.finally()` callbacks.
-- `resumeJobPolling` unified helper with `_cleaned` guard, staleness timeout, and live progress ticks.
-- `escapeHtml` helper for safe job ID rendering.
+- `resumeJobPolling` unified helper with `_cleaned` guard, reset-on-tick staleness watchdog, and live progress ticks.
+- `escapeHtml` + block-level `fmtElapsed` helpers.
 - `beforeunload` guard checking `_activeJob`.
 - Second `DOMContentLoaded` listener for import + export re-attach on reload.
+- Elapsed time (`fmtElapsed`) added to all three completion banners (normal + reconnect).
+- `startedAt` stored in all three `sessionStorage` JSON payloads for reconnect elapsed time.
+- `resumeJobPolling` updated to accept and use `startedAt` parameter.
+- Import reconnect button label fix: `'Import from Azure'` vs `'Import Archive'` based on `imp.source`.
 
 ### Remaining — This Feature
 
-- Manual verification against Testing Checklist on devvm.
+- ~~Manual verification against Testing Checklist on devvm (elapsed time, reconnect elapsed time, button label on Azure import reconnect).~~ ✓ Verified Jul 27 2026 — elapsed time confirmed on export reconnect (24s) and import reconnect (2m 43s); button label fix confirmed.
 
 ### Remaining — Follow-on Tasks
 

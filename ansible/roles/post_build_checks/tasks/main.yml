@@ -648,6 +648,14 @@
   failed_when: false
   tags: [stack_versions]
 
+- name: Get MCP server package version from host virtualenv
+  ansible.builtin.command: "{{ mcp_server_dir }}/venv/bin/pip show mcp"
+  register: stack_mcp_raw
+  changed_when: false
+  failed_when: false
+  when: mcp_server_enabled | default(false) | bool
+  tags: [stack_versions]
+
 - name: Slurp composer.lock on controller
   ansible.builtin.slurp:
     src: "{{ repo_root }}/ansible/roles/docker/files/apache/webroot/composer.lock"
@@ -677,6 +685,7 @@
       MySQL: "{{ stack_mysql_raw.stdout | default('N/A') | trim }}"
       tusd: "{{ (stack_tusd_raw.stdout_lines | default(['N/A'])) | first }}"
       Docker: "{{ stack_docker_raw.stdout | default('N/A') | trim }}"
+      MCP_Python_SDK: "{{ ((stack_mcp_raw.stdout_lines | default([])) | select('match', '^Version: ') | list | first | default('Version: N/A')) | regex_replace('^Version: ', '') if (mcp_server_enabled | default(false) | bool) else 'disabled' }}"
       OpenAI_Model: "{{ openai_model }}"
       App_Flavor: "{{ app_flavor }}"
       QR_Code_JS: "{{ qr_code_js_version | default('N/A') }}"

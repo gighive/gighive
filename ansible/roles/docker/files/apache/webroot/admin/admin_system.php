@@ -1346,7 +1346,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         return;
       }
       const jobId = String(startData.job_id);
-      if (dest === 'azure') { _activeJob = true; sessionStorage.setItem('gh_export_job', JSON.stringify({ jobId: jobId, dest: 'azure' })); }
+      if (dest === 'azure') { _activeJob = true; sessionStorage.setItem('gh_export_job', JSON.stringify({ jobId: jobId, dest: 'azure', startedAt: _startTime })); }
 
       // ── Step 3: Poll worker progress ───────────────────────────────────────
       const buildResult = await new Promise(function (resolve) {
@@ -1518,6 +1518,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       return (n / 1073741824).toFixed(1) + ' GB';
     }
 
+    const _startTime = Date.now();
     const fileSize = fileInput.files[0].size;
 
     const steps = [
@@ -1642,7 +1643,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
 
       const jobId = String(startData.job_id);
       _activeJob = true;
-      sessionStorage.setItem('gh_import_job', JSON.stringify({ jobId: jobId, source: 'local' }));
+      sessionStorage.setItem('gh_import_job', JSON.stringify({ jobId: jobId, source: 'local', startedAt: _startTime }));
 
       // ── Step 4: Poll worker progress ──────────────────────────────────────
       if (typeof resetProgressLatch === 'function') resetProgressLatch();
@@ -1666,7 +1667,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       }
       render();
       if (result.state === 'done') {
-        statusEl.innerHTML = '<div class="alert-ok">Import completed successfully.</div>' + statusEl.innerHTML;
+        statusEl.innerHTML = '<div class="alert-ok">Import completed successfully (' + fmtElapsed(Date.now() - _startTime) + ').</div>' + statusEl.innerHTML;
       }
     }
 
@@ -1696,6 +1697,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       return (n / 1073741824).toFixed(1) + ' GB';
     }
 
+    const _startTime = Date.now();
     btn.disabled    = true;
     btn.textContent = 'Listing blobs\u2026';
     statusEl.innerHTML = '';
@@ -1790,7 +1792,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
 
       const jobId = String(startData.job_id);
       _activeJob = true;
-      sessionStorage.setItem('gh_import_job', JSON.stringify({ jobId: jobId, source: 'azure', prefix: blobPrefix }));
+      sessionStorage.setItem('gh_import_job', JSON.stringify({ jobId: jobId, source: 'azure', prefix: blobPrefix, startedAt: _startTime }));
 
       // ── Step 4: Poll worker progress ──────────────────────────────────────
       if (typeof resetProgressLatch === 'function') resetProgressLatch();
@@ -1814,7 +1816,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       }
       render();
       if (result.state === 'done') {
-        statusEl.innerHTML = '<div class="alert-ok">Import completed successfully.</div>' + statusEl.innerHTML;
+        statusEl.innerHTML = '<div class="alert-ok">Import completed successfully (' + fmtElapsed(Date.now() - _startTime) + ').</div>' + statusEl.innerHTML;
       }
     }
 
@@ -1833,7 +1835,13 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function resumeJobPolling(storageKey, statusEndpoint, jobId, statusEl, btn, originalBtnLabel) {
+  function fmtElapsed(ms) {
+    const s = Math.round(ms / 1000);
+    if (s < 60) return s + 's';
+    return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+  }
+
+  function resumeJobPolling(storageKey, statusEndpoint, jobId, statusEl, btn, originalBtnLabel, startedAt) {
     _activeJob = true;
     if (btn) { btn.disabled = true; btn.textContent = 'In progress…'; }
     if (statusEl) {
@@ -1870,9 +1878,10 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     var poll = pollJobStatus(jobId, statusEndpoint, null, function (state, data) {
       _cleanup();
       if (statusEl) {
+        var elapsed = (startedAt && typeof startedAt === 'number') ? ' (' + fmtElapsed(Date.now() - startedAt) + ')' : '';
         statusEl.innerHTML = state === 'done'
-          ? '<div class="alert-ok">Job ' + escapeHtml(jobId) + ' completed successfully.</div>'
-          : '<div class="alert-err">Job ' + escapeHtml(jobId) + ' finished with errors.</div>';
+          ? '<div class="alert-ok">Job ' + escapeHtml(jobId) + ' completed successfully' + elapsed + '.</div>'
+          : '<div class="alert-err">Job ' + escapeHtml(jobId) + ' finished with errors' + elapsed + '.</div>';
       }
     }, 1500, null, function (data) {
       _resetStaleness();
@@ -1899,7 +1908,9 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
           resumeJobPolling(
             'gh_import_job', 'import_media_zip_status.php', imp.jobId,
             document.getElementById('importZipStatus'),
-            document.getElementById('importZipBtn'), 'Import Archive'
+            document.getElementById('importZipBtn'),
+            imp.source === 'azure' ? 'Import from Azure' : 'Import Archive',
+            imp.startedAt || null
           );
         }
       } catch (e) { sessionStorage.removeItem('gh_import_job'); }
@@ -1913,7 +1924,8 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
           resumeJobPolling(
             'gh_export_job', 'export_media_status.php', exp.jobId,
             document.getElementById('exportMediaStatus'),
-            document.getElementById('exportMediaBtn'), 'Send to Azure'
+            document.getElementById('exportMediaBtn'), 'Send to Azure',
+            exp.startedAt || null
           );
         }
       } catch (e) { sessionStorage.removeItem('gh_export_job'); }
