@@ -135,6 +135,8 @@ For many personal, club, and community deployments, the complete Azure hosting c
 
 before significant user traffic or media streaming.
 
+And when you're done, deleting the infrastructure stops the cost immediately — no contract to wait out.
+
 ---
 
 # Azure Infrastructure vs. Traditional Web Hosting
@@ -153,6 +155,7 @@ However, these are fundamentally different products.
 | Export options may be limited | Your data is always portable |
 | Usually shared with many other customers | Dedicated virtual machine and private storage |
 | Lower monthly cost | Greater ownership, flexibility, and control |
+| Keep paying until end of contract | Immediate cost elimination by deleting the infrastructure |
 
 ---
 
