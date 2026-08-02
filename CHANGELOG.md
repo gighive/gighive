@@ -3,6 +3,19 @@ Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260802.txt
+Changes: How Users Connect
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/how_users_connect.md
+
+*** 
+releaseNotes20260802.txt
 Changes: Clarified cost elimination
 
 sodo@pop-os:~/gighive$ git status

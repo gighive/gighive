@@ -1,4 +1,4 @@
-# Access Options
+# How Users Connect
 
 **Users of GigHive have two deployment options, each with different upload capabilities:**
 
