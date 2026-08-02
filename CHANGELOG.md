@@ -3,7 +3,7 @@ Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260802.txt
-Changes: Index.md and db options updates
+Changes: Index.md reorder menu
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,7 +12,22 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   docs/index.md
+
+*** 
+releaseNotes20260802.txt
+Changes: Index.md, db options and new azure setup doc updates
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/azure_setup.md
 	modified:   docs/database_load_options.md
+	renamed:    docs/upload_options.md -> docs/how_users_connect.md
 	modified:   docs/index.md
 
 *** 
