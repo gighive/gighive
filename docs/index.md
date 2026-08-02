@@ -281,16 +281,6 @@ img {
         <li><a href="iphone_app.html">� GigHive iPhone App</a></li>
     </ul>
     
-    <h3>🎥 Streaming</h3>
-    <ul>
-        <li><a href="process_upload_limits.html">📊 Upload Limits</a></li>
-    </ul>
-    
-    <h3>�️ Database</h3>
-    <ul>
-        <li><a href="database_load_options.html">� Database Load Options</a></li>
-    </ul>
-    
     <h3>📄 Legal & Policies</h3>
     <ul>
         <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
@@ -307,8 +297,10 @@ img {
 
     <h3>🔮 Advanced / Internals</h3>
     <ul>
+        <li><a href="how_users_connect.html">⭐ How Users Connect</a></li>
+        <li><a href="database_load_options.html">📂 Database Load Options</a></li>
+        <li><a href="azure_setup.html">☁️ Azure Setup</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
-        <li><a href="upload_options.html">⭐ Access Options</a></li>
     </ul>
     
 </nav>
