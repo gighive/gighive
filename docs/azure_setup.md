@@ -4,6 +4,8 @@ GigHive includes an Azure deployment path for users who want to run the system i
 
 This guide is written as a simple overview of the setup flow that already exists in this repository.
 
+We've done some pre-work for you in regards to cost estimation of running Gighive in Azure. If interested, [check out this information](operating_model_costs_azure_vm_blob.html).
+
 ## Before you start
 
 The most important prerequisites are:

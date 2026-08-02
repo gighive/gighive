@@ -3,6 +3,19 @@ Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260802.txt
+Changes: Added Azure costing info
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/azure_setup.md
+
+*** 
+releaseNotes20260802.txt
 Changes: Index.md reorder menu
 
 sodo@pop-os:~/gighive$ git status
