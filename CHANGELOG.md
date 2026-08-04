@@ -2,6 +2,22 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
+releaseNotes20260804.txt
+Changes: refactor_storage_media_rest_endpoint*.md
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/refactor_storage_media_rest_endpoint.md
+	new file:   docs/refactor_storage_media_rest_endpoint_azurite.md
+	new file:   docs/refactor_storage_media_rest_endpoint_implementation.md
+	new file:   docs/temp_refactor_storage_media_rest_endpoint_phases.md
+
+*** 
 releaseNotes20260802.txt
 Changes: How Users Connect
 
