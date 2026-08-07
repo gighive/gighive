@@ -114,7 +114,7 @@ docker run -d \
 Add a conditional service block to `ansible/roles/docker/templates/docker-compose.yml.j2`:
 
 ```yaml
-{% if azurite_enabled | default(false) %}
+&#123;% if azurite_enabled | default(false) %&#125;
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite:3.36.0
     container_name: azuriteServer
@@ -124,7 +124,7 @@ Add a conditional service block to `ansible/roles/docker/templates/docker-compos
     volumes:
       - azurite_data:/data
     restart: unless-stopped
-{% endif %}
+&#123;% endif %&#125;
 # Pin to a specific Azurite version. Do not use :latest — a surprise upgrade can change
 # emulated API behaviour and break tests without a clear cause. Update the pin
 # deliberately when a new Azurite version is needed.
@@ -133,9 +133,9 @@ Add a conditional service block to `ansible/roles/docker/templates/docker-compos
 Add the volume declaration in the `volumes:` block:
 
 ```yaml
-{% if azurite_enabled | default(false) %}
+&#123;% if azurite_enabled | default(false) %&#125;
   azurite_data:
-{% endif %}
+&#123;% endif %&#125;
 ```
 
 **Network access from the Apache container:**
@@ -299,8 +299,8 @@ Ansible `docker` role tasks gated on `azurite_enabled`:
     container: azuriteServer
     command: >
       sh -c 'az storage container create
-        --name {{ azure_blob_container }}
-        --connection-string "{{ azurite_connection_string }}"'
+        --name &#123;&#123; azure_blob_container &#125;&#125;
+        --connection-string "&#123;&#123; azurite_connection_string &#125;&#125;"'
   when: azurite_enabled | default(false)
   tags: [azurite]
 ```
@@ -309,13 +309,13 @@ Ansible `docker` role tasks gated on `azurite_enabled`:
 
 ## Environment Variables
 
-Add to `.env.j2` under a `{% if azurite_enabled | default(false) %}` block:
+Add to `.env.j2` under a `&#123;% if azurite_enabled | default(false) %&#125;` block:
 
 ```dotenv
 # Azurite local blob storage — only set when azurite_enabled=true
 AZURE_BLOB_ENDPOINT_OVERRIDE=http://azuriteServer:10000/devstoreaccount1
 AZURE_BLOB_AUTH_MODE=sas
-AZURE_BLOB_SAS_TOKEN={{ azurite_sas_token }}   # generated once; stored in group_vars secrets
+AZURE_BLOB_SAS_TOKEN=&#123;&#123; azurite_sas_token &#125;&#125;   # generated once; stored in group_vars secrets
 ```
 
 And in production `.env.j2` (always):

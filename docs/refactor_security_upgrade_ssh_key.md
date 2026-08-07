@@ -32,7 +32,7 @@ Move the SSH public key file path to a `group_vars` variable so:
 ```yaml
 - name: Read SSH public key
   set_fact:
-    my_ssh_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+    my_ssh_key: "&#123;&#123; lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') &#125;&#125;"
 ```
 
 `id_rsa.pub` is hardcoded. The value is passed to `user-data.j2` via `my_ssh_key`,
@@ -41,7 +41,7 @@ which is already correctly templated.
 **`ansible/roles/cloud_init/templates/user-data.j2` (line 26):**
 ```yaml
     ssh_authorized_keys:
-      - {{ my_ssh_key | quote }}
+      - &#123;&#123; my_ssh_key | quote &#125;&#125;
 ```
 
 No change needed here — already uses the variable.
@@ -68,7 +68,7 @@ Replace the hardcoded path with the variable:
 ```yaml
 - name: Read SSH public key
   set_fact:
-    my_ssh_key: "{{ lookup('file', ssh_public_key_file) }}"
+    my_ssh_key: "&#123;&#123; lookup('file', ssh_public_key_file) &#125;&#125;"
 ```
 
 ### Step 3 — Per-environment override (future, when migrating)
@@ -108,7 +108,7 @@ Or change `all.yml` globally once the entire fleet is migrated.
 ## Known Issues Not in Scope (track separately)
 
 ### `fqdn` domain in `user-data.j2`
-`fqdn: {{ hostname }}.mysettings.com` uses `.mysettings.com` but actual environment
+`fqdn: &#123;&#123; hostname &#125;&#125;.mysettings.com` uses `.mysettings.com` but actual environment
 FQDNs use `.gighive.internal`. Fix during any full VM re-provision.
 
 ### `nat.yml` and `test.yml` hardcode `id_rsa`
@@ -150,7 +150,7 @@ With:
 chpasswd:
   expire: false
   list:
-    - "ubuntu:{{ vm_console_password }}"
+    - "ubuntu:&#123;&#123; vm_console_password &#125;&#125;"
 ```
 
 Files affected: `ansible/roles/cloud_init/templates/user-data.j2`,
@@ -177,5 +177,5 @@ Note: `gighive/secrets.yml` covers both lab and staging (they share the same gro
 ### Console Password
 - [ ] Generate a strong replacement password
 - [ ] Add `vm_console_password` to each environment's `secrets.yml` (ansible-vault)
-- [ ] Update `user-data.j2` to use `{{ vm_console_password }}`
+- [ ] Update `user-data.j2` to use `&#123;&#123; vm_console_password &#125;&#125;`
 - [ ] Re-provision new VMs to pick up the change (existing VMs: update manually via console)
