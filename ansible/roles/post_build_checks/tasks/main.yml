@@ -627,6 +627,22 @@
   failed_when: false
   tags: [stack_versions]
 
+- name: Get PHP-FPM version from apache container
+  ansible.builtin.command: >
+    docker exec {{ apache_container_name }}
+    php-fpm{{ gighive_php_version | default('8.3') }} --version
+  register: stack_php_fpm_raw
+  changed_when: false
+  failed_when: false
+  tags: [stack_versions]
+
+- name: Get Composer version from apache container
+  ansible.builtin.command: docker exec {{ apache_container_name }} composer --version
+  register: stack_composer_version_raw
+  changed_when: false
+  failed_when: false
+  tags: [stack_versions]
+
 - name: Get Apache version from apache container
   ansible.builtin.command: docker exec {{ apache_container_name }} apache2 -v
   register: stack_apache_raw
@@ -681,6 +697,8 @@
       GigHive_iOS: "{{ gighive_ios_app_version }}"
       Ubuntu: "{{ ubuntu_version }}"
       PHP: "{{ (stack_php_raw.stdout_lines | default(['N/A'])) | first }}"
+      PHP_FPM: "{{ (stack_php_fpm_raw.stdout_lines | default(['N/A'])) | first }}"
+      Composer: "{{ stack_composer_version_raw.stdout | default('N/A') | trim }}"
       Apache: "{{ (stack_apache_raw.stdout_lines | default(['N/A'])) | first }}"
       MySQL: "{{ stack_mysql_raw.stdout | default('N/A') | trim }}"
       tusd: "{{ (stack_tusd_raw.stdout_lines | default(['N/A'])) | first }}"

@@ -45,6 +45,8 @@
     files:
       - docker-compose.yml
       - docker-compose-ai-worker.yml
+    services:
+      - ai-worker
     state: present
     build: always
   when: ai_worker_enabled | default(false) | bool

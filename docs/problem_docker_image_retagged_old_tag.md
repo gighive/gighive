@@ -1,0 +1,339 @@
+---
+description: RCA for a Jekyll-breaking Docker/Compose incident doc; disable Liquid rendering for Docker and Ansible brace syntax
+render_with_liquid: false
+---
+
+# Problem: Docker Compose Re-tagged Apache Image and Left the Running Container Pointing at a Missing Old Image ID
+
+## Symptom
+
+The Ansible playbook failed during the `ai_worker` role at:
+
+```text
+TASK [ai_worker : Deploy ai-worker container project_src={{ docker_dir }}, files=['docker-compose.yml', 'docker-compose-ai-worker.yml'], state=present, build=always]
+```
+
+The module error showed that `community.docker.docker_compose_v2` called:
+
+```bash
+docker compose --project-directory /home/ubuntu/gighive/ansible/roles/docker/files \
+  --file docker-compose.yml \
+  --file docker-compose-ai-worker.yml \
+  images --format json
+```
+
+and Docker returned:
+
+```text
+Error response from daemon: No such image: sha256:c0309bc4058f2c71a919753bd1366879fa7d20f00b570bd21ff5df23a374d429
+```
+
+At the time of failure:
+
+- `docker compose ... ps -a` still showed `apacheWebServer` running
+- the `IMAGE` column for `apacheWebServer` was the same missing digest
+- `docker compose ... images` failed on that digest
+
+## Root Cause
+
+This was not an `ai-worker` image problem.
+
+The root cause was **project-scoped Compose execution instead of service-scoped Compose execution**.
+
+The failure chain was:
+
+1. The main `docker` role built an Apache image with digest `sha256:c0309bc...`.
+2. Docker tagged that image as `ubuntu-apache-img:1.00`.
+3. Docker then created and started the `apacheWebServer` container from that image.
+4. Later in the same playbook run, the `ai_worker` role invoked Docker Compose again against the combined project (`docker-compose.yml` + `docker-compose-ai-worker.yml`) with `build: always`.
+5. Because that deploy task was **project-scoped** and not limited to `services: [ai-worker]`, Compose considered every build-enabled service in the combined project eligible for rebuild.
+6. The main `docker-compose.yml` includes `apacheWebServer` with its own `build:` block, so the `ai_worker` deploy rebuilt Apache too.
+7. During that later Compose run, Docker built a new Apache image with digest `sha256:a00cd3a...` and moved the `ubuntu-apache-img:1.00` tag to the new image.
+8. The already-running `apacheWebServer` container still referenced the old image object `sha256:c0309bc...`.
+9. That old image object was no longer locally inspectable, so `docker compose images --format json` failed.
+10. `community.docker.docker_compose_v2` surfaced that Compose image-listing failure as the `ai_worker` task failure.
+
+## 100% Proof
+
+### Current container and tag state
+
+```bash
+docker inspect apacheWebServer --format '{{.Image}}|{{.Config.Image}}|{{.Id}}'
+docker image inspect ubuntu-apache-img:1.00 --format '{{.Id}}|{{json .RepoTags}}'
+```
+
+Observed:
+
+```text
+sha256:c0309bc4058f2c71a919753bd1366879fa7d20f00b570bd21ff5df23a374d429|ubuntu-apache-img:1.00|29ed26fd...
+sha256:a00cd3a69cf2974cf9a96592995d80267c10e0a01263d23623d4138173271b90|["ubuntu-apache-img:1.00"]
+```
+
+This proves:
+
+- the running container points at `c030...`
+- the tag `ubuntu-apache-img:1.00` now points at `a00...`
+- those are different image objects
+
+### The old image object is missing
+
+```bash
+docker image inspect sha256:c0309bc4058f2c71a919753bd1366879fa7d20f00b570bd21ff5df23a374d429
+```
+
+Observed:
+
+```text
+Error response from daemon: No such image: sha256:c0309bc4058f2c71a919753bd1366879fa7d20f00b570bd21ff5df23a374d429
+```
+
+### Docker event history proves the retag sequence
+
+```bash
+docker events --since '2026-08-06T18:58:00' --until '2026-08-06T19:10:30' --filter type=image
+docker events --since '2026-08-06T18:58:00' --until '2026-08-06T19:10:30' --filter type=container
+```
+
+Observed image events:
+
+```text
+2026-08-06T19:05:19 image create sha256:c0309bc...
+2026-08-06T19:05:19 image tag sha256:c0309bc... name=ubuntu-apache-img:1.00
+2026-08-06T19:05:47 image create sha256:a00cd3a...
+2026-08-06T19:05:47 image tag sha256:a00cd3a... name=ubuntu-apache-img:1.00
+```
+
+Observed container events:
+
+```text
+2026-08-06T19:05:23 container create ... name=apacheWebServer image=ubuntu-apache-img:1.00
+2026-08-06T19:05:24 container start ... name=apacheWebServer image=ubuntu-apache-img:1.00
+```
+
+This proves the exact antecedent sequence:
+
+- image `c030...` was built and tagged
+- `apacheWebServer` was created from that tag
+- later, image `a00...` was built and tagged with the same tag
+- the tag moved, but the running container still pointed at the old image object
+
+## Diagnosis Commands
+
+```bash
+cd /home/ubuntu/gighive/ansible/roles/docker/files
+
+# Show the broken compose behavior
+docker compose -f docker-compose.yml -f docker-compose-ai-worker.yml ps -a
+docker compose -f docker-compose.yml -f docker-compose-ai-worker.yml images
+
+# Show container image object vs configured tag
+docker inspect apacheWebServer --format '{{.Image}}|{{.Config.Image}}|{{.Id}}'
+docker image inspect ubuntu-apache-img:1.00 --format '{{.Id}}|{{json .RepoTags}}'
+
+# Prove the old image object is gone
+docker image inspect sha256:c0309bc4058f2c71a919753bd1366879fa7d20f00b570bd21ff5df23a374d429
+
+# Prove the historical retag sequence
+docker events --since '2026-08-06T18:58:00' --until '2026-08-06T19:10:30' --filter type=image
+docker events --since '2026-08-06T18:58:00' --until '2026-08-06T19:10:30' --filter type=container
+```
+
+## Why the Failure Surfaced in the `ai_worker` Role
+
+The `ai_worker` role does not deploy only `ai-worker`. Its deploy task uses the combined compose project and `build: always`, but does **not** specify `services: [ai-worker]`.
+
+That means the task is **project-scoped**, not **service-scoped**. Because the main `docker-compose.yml` contains `apacheWebServer` with a `build:` block, Compose rebuilt Apache as part of the `ai_worker` deploy.
+
+So this was not a timing issue or random Docker behavior. It happened because the deploy operated on the whole merged project instead of being limited to the `ai-worker` service.
+
+As a result, the later Compose invocation caused the Apache retagging problem, and the Ansible module failed while trying to list project images.
+
+## Detection Plan (detection only, does not fix the root cause)
+
+A single pre-flight task is added immediately before `TASK [ai_worker : Deploy ai-worker container ...]`
+in `ansible/roles/ai_worker/tasks/main.yml`.
+
+### What the task does
+
+The final detection mechanism does **not** try to inspect current container image IDs.
+That earlier approach was logically wrong for this case because the stale/missing image
+condition is created **during** the later `ai_worker` deploy, not necessarily present
+before it starts.
+
+Instead, the detection now checks for the actual risky precondition:
+
+1. Read `docker-compose.yml`.
+2. Read `docker-compose-ai-worker.yml`.
+3. Combine their `services` maps exactly the way the deploy task effectively does.
+4. Find every service in the combined project that has a `build:` block.
+5. Exclude `ai-worker` itself.
+6. If any additional build-enabled services remain, fail before deploy and print their names.
+
+In the current project, that additional build-enabled service is `apacheWebServer`.
+
+### Example failure message
+
+```text
+The ai_worker deploy uses the combined compose project with build=always and no service scope.
+The combined project includes additional build-enabled service(s): apacheWebServer.
+Running this task will rebuild those service images during the ai_worker deploy, which is the
+condition that led to the stale-image / "No such image" failure. Detection is stopping here
+before the deploy runs.
+```
+
+### Where the task belongs in the playbook
+
+The detection task must live in `ansible/roles/ai_worker/tasks/main.yml`, immediately
+before the `Deploy ai-worker container` task — not in `post_build_checks`.
+
+The playbook execution order is:
+
+```
+docker role          → starts apacheWebServer container
+...
+ai_worker role
+  Sync ai-worker source
+  Render docker-compose-ai-worker.yml
+  [NEW] Preflight: detect unscoped compose build risk          ← detection fires here
+  Deploy ai-worker container                                   ← risky task
+post_build_checks    → runs only if ai_worker role succeeded
+```
+
+`post_build_checks` runs after `ai_worker` and only when the play has not already
+failed. If `ai_worker` fails, `post_build_checks` is never reached. Placing detection
+there would catch nothing in this failure mode.
+
+### Why this is the right single check
+
+- It detects the **actual hazard condition** proven in this incident: project-scoped
+  `build: always` on a combined project that includes non-target services with `build:`.
+- It fires before `community.docker.docker_compose_v2` runs the risky deploy.
+- It names the additional build-enabled service(s) that would be rebuilt.
+- It uses native Ansible data handling (`slurp`, `from_yaml`, `set_fact`, `fail`) rather
+  than brittle shell parsing.
+
+### Important caveat
+
+This detection task will now fail every time in the current design, because Apache does
+have a `build:` stanza in the combined project and the deploy task still has no service
+scope. That is expected and correct for a detection-only solution.
+
+## Final Fix Implemented
+
+The final fix was implemented in `ansible/roles/ai_worker/tasks/main.yml` by scoping the
+`community.docker.docker_compose_v2` deploy task to the `ai-worker` service only.
+
+### Exact Ansible code
+
+```yaml
+- name: Deploy ai-worker container
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    files:
+      - docker-compose.yml
+      - docker-compose-ai-worker.yml
+    services:
+      - ai-worker
+    state: present
+    build: always
+  when: ai_worker_enabled | default(false) | bool
+```
+
+### Why this fixed the root cause
+
+Before the fix, the deploy task was **project-scoped** because it used the combined
+compose project with `build: always` but did not specify `services:`.
+
+That caused Docker Compose to consider every build-enabled service in the merged project,
+including `apacheWebServer`, eligible for rebuild during the `ai_worker` deploy.  The unfortunate side effect was that Apache could be rebuilt and re-tagged under the same image name while an already-running container still pointed at the previous image object, leaving the shared compose project vulnerable to a later `No such image` failure.
+
+After the fix, the deploy is **service-scoped**:
+- the combined compose files are still loaded
+- `build: always` still applies
+- but the operation is restricted to `ai-worker`
+- Apache is no longer rebuilt during the `ai_worker` deploy
+
+This directly removed the retagging path that had been creating stale image references in
+the shared compose project.
+
+### Why this follows existing Ansible patterns
+
+The existing handler already used the correct service-scoped pattern:
+
+```yaml
+- name: restart ai-worker
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    files:
+      - docker-compose.yml
+      - docker-compose-ai-worker.yml
+    services:
+      - ai-worker
+    state: restarted
+```
+
+So the final fix simply brought the main deploy task into alignment with the handler.
+
+### Validation of the final fix
+
+After the stale historical containers were cleaned up, a normal playbook run completed
+successfully.
+
+That validates both conclusions:
+1. the historical stale container state was the immediate blocker to recovery
+2. the service-scoped `ai-worker` deploy prevented Apache from being rebuilt again
+
+## Manual Cleanup Commands Used
+
+After the service-scoping fix was implemented, the compose project still contained stale
+historical container references, so one manual cleanup pass was required before the next
+successful deploy.
+
+### 1. Rebuild and recreate Apache with the correct current image
+
+```bash
+cd /home/ubuntu/gighive/ansible/roles/docker/files
+docker rm -f apacheWebServer
+docker compose -f docker-compose.yml up -d --build apacheWebServer
+```
+
+This repaired the stale Apache container reference and recreated `apacheWebServer`
+against the current `ubuntu-apache-img:1.00` image.
+
+### 2. Verify which container still held the missing image digest
+
+```bash
+cd /home/ubuntu/gighive/ansible/roles/docker/files
+docker compose -f docker-compose.yml -f docker-compose-ai-worker.yml ps -a
+docker inspect ai-worker --format '{{.Image}}|{{.Config.Image}}'
+docker inspect mysqlServer --format '{{.Image}}|{{.Config.Image}}'
+docker inspect apacheWebServer_tusd --format '{{.Image}}|{{.Config.Image}}'
+```
+
+Important correction: the tusd container name in this project is `apacheWebServer_tusd`,
+not `tusdServer`.
+
+That verification proved the remaining stale reference was the old `ai-worker`
+container, which still pointed at the missing digest `sha256:73373643...`.
+
+### 3. Remove the stale `ai-worker` container
+
+```bash
+docker rm -f ai-worker
+```
+
+### 4. Confirm the combined compose project image listing is healthy again
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose-ai-worker.yml images
+```
+
+After removing `ai-worker`, `docker compose ... images` succeeded, confirming that the
+compose project no longer contained any containers pointing at missing image objects.
+
+## Related Files
+
+- `ansible/roles/ai_worker/tasks/main.yml` — the failing `docker_compose_v2` task
+- `ansible/roles/docker/templates/docker-compose.yml.j2` — Apache service definition with `build:` and `image:`
+- `ansible/inventories/group_vars/gighive2/gighive2.yml` — defines `apache_docker_image: "ubuntu-apache-img:1.00"`
+- `ansible/roles/docker/tasks/main.yml` — starts the main compose project earlier in the playbook

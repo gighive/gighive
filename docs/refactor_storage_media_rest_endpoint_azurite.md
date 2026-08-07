@@ -1,5 +1,17 @@
 # Storage Media REST Endpoint — Azurite Local Testing
 
+## Status — 2026-08-02
+
+**Draft / Initial plan — not yet approved for implementation.**
+
+---
+
+## Elevator Pitch
+
+Before any code touches a real Azure account, developers can validate the full Azure Blob upload and streaming path locally using Azurite — Microsoft's official Azure Storage emulator running in Docker. This document explains how to wire it into the existing docker-compose stack, generate the auth tokens it needs, and work through a step-by-step checklist to confirm every code path behaves correctly before committing to a real Azure deployment.
+
+---
+
 > **Companion document.** Production architecture, deployment phases, PHP class
 > skeletons, and Ansible role changes live in:
 > - [`refactor_storage_media_rest_endpoint.md`](refactor_storage_media_rest_endpoint.md)
@@ -32,25 +44,32 @@ handles this.
 
 ## When to Use Azurite
 
-See the full deployment-type table in the design doc. The short rule:
+The practical test is simple:
 
 > **Is `GIGHIVE_MEDIA_STORAGE_BACKEND` set to `azure_blob` or
 > `azure_blob_with_local_fallback`, but you are not on a real Azure VM?**
 > If yes — use Azurite. If the backend is `local`, Azurite is irrelevant.
 
+**By deployment type:**
+
+| # | Deployment | Storage backend | Azurite? |
+|---|---|---|---|
+| 1 | Azure VM (production) | Real Azure Blob Storage | No — IMDS + real endpoint |
+| 2 | Azure VM (dev/staging, exercising the Azure code path) | Real Azure Blob Storage | No — same as production |
+| 3 | VirtualBox / baremetal transitioning to Azure (`azure_blob_with_local_fallback`, `FallbackMediaBackend`) | Azure Blob Storage | **Yes** — Azurite stands in for real Azure endpoint |
+| 4 | VirtualBox / baremetal testing the full Azure code path before cutover (`azure_blob` mode) | Azure Blob Storage | **Yes** — Azurite stands in for real Azure endpoint |
+| 5 | VirtualBox / baremetal staying on local storage (`LocalMediaBackend`) | Bind-mounted host dirs | No — no Blob REST calls made |
+| 6 | OneShot bundle (`LocalMediaBackend`) | Bind-mounted host dirs | No — bundle mechanism is filesystem-based |
+
 Specific scenarios:
 
-- VirtualBox or baremetal host testing the full Azure upload / stream code path
-  before committing to a real Azure deployment
-- Developer machine (`azure_blob` mode) exercising `AzureBlobRestClient`,
-  `AzureBlobTusBackend`, and `AzureBlobMediaBackend` against a real REST server
-- Phase 10A transition testing (`azure_blob_with_local_fallback`,
-  `FallbackMediaBackend`) — verifying the fallback logic before cutover
+- VirtualBox or baremetal host testing the full Azure upload / stream code path before committing to a real Azure deployment
+- Developer machine (`azure_blob` mode) exercising `AzureBlobRestClient`, `AzureBlobTusBackend`, and `AzureBlobMediaBackend` against a real REST server
+- Phase 10A transition testing (`azure_blob_with_local_fallback`, `FallbackMediaBackend`) — verifying the fallback logic before cutover
 
 Not needed for:
 
-- Local storage deployments (`GIGHIVE_MEDIA_STORAGE_BACKEND=local`) — bind
-  mounts and `LocalMediaBackend` / `LocalFileTusBackend` are used instead
+- Local storage deployments (`GIGHIVE_MEDIA_STORAGE_BACKEND=local`) — bind mounts and `LocalMediaBackend` / `LocalFileTusBackend` are used instead
 - OneShot bundle — filesystem-based; no Blob REST calls
 - Real Azure VM deployments — IMDS and the real endpoint are used
 
@@ -68,7 +87,9 @@ Not needed for:
 | Blob block limits | 50,000 blocks per blob, 4000 MiB per block | Same limits enforced |
 | Container creation | Via Terraform / Azure portal | Must be created manually before first use (see [Container Setup](#container-setup)) |
 | Durability / replication | Azure SLA | In-memory or local disk only; data lost if container removed without a volume |
-| `x-ms-version` requirement | Enforced | Enforced unless `--skipApiVersionCheck` flag is used |
+| `x-ms-version` requirement | Enforced | Bypassed when `--skipApiVersionCheck` is used (see warning below) |
+
+> **`--skipApiVersionCheck` fidelity warning:** The docker-compose snippet uses `--skipApiVersionCheck` to avoid Azurite rejecting `x-ms-version` headers during local development. This flag reduces test fidelity: Azurite will accept requests regardless of the API version sent, so a wrong or missing `x-ms-version` header in `AzureBlobRestClient` will not cause test failures locally but **will** fail against real Azure. Passing the Azurite testing checklist does NOT prove `x-ms-version` compliance. Verify `self::API_VERSION` in `AzureBlobRestClient` matches the expected Azure Storage REST API version when testing against a real Azure endpoint.
 
 ---
 
@@ -81,7 +102,7 @@ docker run -d \
   --name azurite \
   -p 10000:10000 \
   -v azurite-data:/data \
-  mcr.microsoft.com/azure-storage/azurite \
+  mcr.microsoft.com/azure-storage/azurite:3.36.0 \
   azurite-blob --blobHost 0.0.0.0 --location /data
 ```
 
@@ -95,7 +116,7 @@ Add a conditional service block to `ansible/roles/docker/templates/docker-compos
 ```yaml
 {% if azurite_enabled | default(false) %}
   azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:latest
+    image: mcr.microsoft.com/azure-storage/azurite:3.36.0
     container_name: azuriteServer
     command: azurite-blob --blobHost 0.0.0.0 --location /data --skipApiVersionCheck
     ports:
@@ -104,6 +125,9 @@ Add a conditional service block to `ansible/roles/docker/templates/docker-compos
       - azurite_data:/data
     restart: unless-stopped
 {% endif %}
+# Pin to a specific Azurite version. Do not use :latest — a surprise upgrade can change
+# emulated API behaviour and break tests without a clear cause. Update the pin
+# deliberately when a new Azurite version is needed.
 ```
 
 Add the volume declaration in the `volumes:` block:
@@ -320,12 +344,10 @@ any real Azure group vars file — production never includes the Azurite service
 
 ## Files Under Change (Azurite-specific)
 
-| File | Repo | Change |
-|---|---|---|
-| `ansible/roles/docker/templates/docker-compose.yml.j2` | `gighiveinfra` | Add conditional `azurite` service block and `azurite_data` volume |
-| `ansible/roles/docker/templates/.env.j2` | `gighiveinfra` | Add `AZURE_BLOB_ENDPOINT_OVERRIDE`, `AZURE_BLOB_AUTH_MODE`, `AZURE_BLOB_SAS_TOKEN` under `azurite_enabled` guard |
-| `ansible/inventories/group_vars/` | `gighiveinfra` | Add `azurite_enabled`, `azurite_connection_string`, `azurite_sas_token` to dev group vars; `false` in prod |
-| `ansible/roles/docker/files/apache/webroot/src/Services/AzureBlobRestClient.php` | `gighiveinfra` | Add `AZURE_BLOB_ENDPOINT_OVERRIDE` support to `blobUrl()`; add SAS token auth mode to `authHeaders()` |
+1. `ansible/roles/docker/templates/docker-compose.yml.j2` — `gighiveinfra` — add conditional `azurite` service block and `azurite_data` named volume under `azurite_enabled` Jinja2 guard
+2. `ansible/roles/docker/templates/.env.j2` — `gighiveinfra` — add `AZURE_BLOB_ENDPOINT_OVERRIDE`, `AZURE_BLOB_AUTH_MODE`, `AZURE_BLOB_SAS_TOKEN` under `azurite_enabled` guard; never rendered in prod group vars
+3. `ansible/inventories/group_vars/` — `gighiveinfra` — add `azurite_enabled: true`, `azurite_connection_string`, `azurite_sas_token` to dev group vars (`gighive2.yml`); set `azurite_enabled: false` (or omit) in `stagingvm.yml`, `prod.yml`, and any Azure group vars file
+4. `ansible/roles/docker/files/apache/webroot/src/Services/AzureBlobRestClient.php` — `gighiveinfra` — add `AZURE_BLOB_ENDPOINT_OVERRIDE` support to `blobUrl()` so the production endpoint is replaced by the Azurite URL when the override is set; add SAS token auth mode to `authHeaders()` so `Authorization: SharedKeyLite` is used instead of Bearer when `AZURE_BLOB_AUTH_MODE=sas`
 
 ---
 

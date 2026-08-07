@@ -1,5 +1,17 @@
 # Storage Media REST Endpoint — Implementation Reference
 
+## Status — 2026-08-02
+
+**Draft / Initial plan — not yet approved for implementation.**
+
+---
+
+## Elevator Pitch
+
+This document is the hands-on build guide for the media storage refactor. It provides the PHP class skeletons, interface contracts, DB schema, Apache routing rules, and phase-by-phase deployment checklist that a developer needs to implement the change described in the main refactor doc — without having to re-derive any scaffolding from scratch.
+
+---
+
 > **Companion documents:**
 > - [`refactor_storage_media_rest_endpoint.md`](refactor_storage_media_rest_endpoint.md) — architecture, rationale, decisions, execution traces, risks
 > - [`refactor_storage_media_rest_endpoint_azurite.md`](refactor_storage_media_rest_endpoint_azurite.md) — local Azurite testing setup
@@ -2207,9 +2219,13 @@ CREATE TABLE IF NOT EXISTS tus_uploads (
     user_id       INT UNSIGNED  NOT NULL,           -- authenticated user who initiated the upload
     status        ENUM('pending','complete','failed') NOT NULL DEFAULT 'pending',
     upload_length BIGINT UNSIGNED NOT NULL,         -- total file size from Upload-Length header
-    block_count   SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-    block_size    INT UNSIGNED  NOT NULL DEFAULT 0, -- set from first PATCH body length; never updated after
-    sha256_ctx    BLOB          NULL,               -- serialized HashContext (PHP 8.0+); 1-2 KB
+    block_count   SMALLINT UNSIGNED NOT NULL DEFAULT 0,  -- Azure Block Blob: number of PUT Block calls committed so far.
+                                                         -- Azure-backend-specific state. A future S3 backend would track
+                                                         -- part numbers + ETags via a separate mechanism rather than this column.
+    block_size    INT UNSIGNED  NOT NULL DEFAULT 0,      -- set from first PATCH body length; never updated after.
+                                                         -- Azure Block Blob: all blocks except the final one are this size.
+                                                         -- Azure-backend-specific state (S3 uses variable-size parts).
+    sha256_ctx    BLOB          NULL,                    -- serialized HashContext (PHP 8.0+); 1-2 KB
     file_type     ENUM('audio','video') NOT NULL,
     mime_type     VARCHAR(128)  NOT NULL DEFAULT '',
     asset_id      INT UNSIGNED  NULL,               -- populated on commit
@@ -2238,7 +2254,50 @@ CREATE TABLE IF NOT EXISTS probe_jobs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-Both tables must be added to `create_media_db.sql` as part of Phase 3. A migration script must be run on all existing environments before the PHP tus server is deployed. The `tus_uploads` table is safe to create empty on running instances; no data migration required. The `probe_jobs` table is also new; existing assets already have duration and thumbnail filled, so no backfill of this table is needed.
+**Live DDL for existing environments (run before Phase 3 code deploy):**
+
+Use the same schema shown above, but apply it to existing environments from the Docker host with the MySQL container command below:
+
+```bash
+docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db' <<'SQL'
+CREATE TABLE IF NOT EXISTS tus_uploads (
+    id            INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    upload_id     VARCHAR(36)   NOT NULL,
+    user_id       INT UNSIGNED  NOT NULL,
+    status        ENUM('pending','complete','failed') NOT NULL DEFAULT 'pending',
+    upload_length BIGINT UNSIGNED NOT NULL,
+    block_count   SMALLINT UNSIGNED NOT NULL DEFAULT 0,  -- Azure Block Blob state; S3 would use part numbers+ETags instead
+    block_size    INT UNSIGNED  NOT NULL DEFAULT 0,      -- Azure Block Blob state; set from first PATCH body, never updated after
+    sha256_ctx    BLOB          NULL,
+    file_type     ENUM('audio','video') NOT NULL,
+    mime_type     VARCHAR(128)  NOT NULL DEFAULT '',
+    asset_id      INT UNSIGNED  NULL,
+    created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at    DATETIME      NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_upload_id (upload_id),
+    INDEX idx_user_pending (user_id, status),
+    INDEX idx_expires (expires_at),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS probe_jobs (
+    id         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    asset_id   INT UNSIGNED  NOT NULL,
+    blob_key   VARCHAR(512)  NOT NULL,
+    file_type  ENUM('audio','video') NOT NULL,
+    status     ENUM('queued','running','done','failed') NOT NULL DEFAULT 'queued',
+    attempts   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME NULL,
+    PRIMARY KEY (id),
+    INDEX idx_queued  (status, created_at),
+    INDEX idx_running (status, started_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SQL
+```
+
+Both tables must be added to `create_media_db.sql` as part of Phase 3, and the equivalent live SQL above must be run on all existing environments before the PHP tus server is deployed. The `tus_uploads` table is safe to create empty on running instances; no data migration required. The `probe_jobs` table is also new; existing assets already have duration and thumbnail filled, so no backfill of this table is needed.
 
 **`tus_uploads` expired row + staging file cleanup (required):**
 
@@ -2560,11 +2619,14 @@ Existing media URLs stored in the DB and cached by iOS/browser clients use the o
 
 ```apache
 # New canonical paths (all deployments)
-RewriteRule ^/media/(audio|video)/thumbnails/(.+)$ /api/media-stream.php [L,QSA,E=MEDIA_TYPE:video/thumbnails,E=MEDIA_KEY:$2]
+# Thumbnail rule must be listed BEFORE the general /media/(audio|video)/... rule so it matches first.
+# Only video/thumbnails/ exists — audio thumbnails never existed; do not accept /media/audio/thumbnails/.
+RewriteRule ^/media/video/thumbnails/(.+)$         /api/media-stream.php [L,QSA,E=MEDIA_TYPE:video/thumbnails,E=MEDIA_KEY:$1]
 RewriteRule ^/media/(audio|video)/(.+)$            /api/media-stream.php [L,QSA,E=MEDIA_TYPE:$1,E=MEDIA_KEY:$2]
 
 # Backward-compat aliases — existing stored URLs continue to work without a data migration
-RewriteRule ^/(audio|video)/thumbnails/(.+)$       /api/media-stream.php [L,QSA,E=MEDIA_TYPE:video/thumbnails,E=MEDIA_KEY:$2]
+# Only /video/thumbnails/ was ever used; /audio/thumbnails/ never existed.
+RewriteRule ^/video/thumbnails/(.+)$               /api/media-stream.php [L,QSA,E=MEDIA_TYPE:video/thumbnails,E=MEDIA_KEY:$1]
 RewriteRule ^/(audio|video)/(.+)$                  /api/media-stream.php [L,QSA,E=MEDIA_TYPE:$1,E=MEDIA_KEY:$2]
 ```
 
@@ -2574,11 +2636,11 @@ Both old and new paths resolve to the same `media-stream.php` handler. `media-st
 
 **Phase 11 step 10 prerequisite:** Before removing host media bind mounts, verify that both `/audio/{key}` and `/media/audio/{key}` return the correct bytes and correct `Content-Type` headers for a test asset.
 
-**Thumbnail authentication:** Browser `<img>` tags and iOS `UIImageView` do not send auth headers. If thumbnails are served under `/media/video/thumbnails/` with the same auth gate as audio and video, they will fail to load in any `<img>` context. GigHive's admin UI uses session-cookie-based auth, which the browser sends automatically for same-origin `<img>` requests — thumbnails will load correctly in the browser admin panel via this mechanism. For iOS, thumbnail fetch should be done via authenticated `URLSession` (not `UIImageView` with a plain URL) to send session credentials. Document this assumption before deploying Phase 4 to avoid a silent thumbnail breakage in the iOS UI.
+**Thumbnail authentication:** Browser `<img>` tags and iOS `UIImageView` do not send custom headers. If thumbnails are served under `/media/video/thumbnails/` with the same auth gate as audio and video, they will return 401 in any `<img>` context unless the auth check also accepts session cookies. The current code skeleton only checks `X-Upload-Token` — this means thumbnail `<img>` rendering in the browser admin panel **will fail as written**. Session-cookie auth must be added to `media-stream.php` as an alternative credential path before browser thumbnails will work (tracked in Remaining — Follow-on Tasks below). For iOS, thumbnail fetch must be done via authenticated `URLSession` (not `UIImageView` with a plain URL) to send session credentials. Document this assumption before deploying Phase 4 to avoid a silent thumbnail breakage in the iOS UI.
 
 The endpoint must:
 1. Validate `{key}` format against a strict regex before any blob operation
-2. Authorize the request (same session-cookie or token auth as other API endpoints; applies to audio, video, and thumbnails uniformly)
+2. Authorize the request — token auth (`X-Upload-Token`) is implemented in the skeleton; session-cookie auth for browser `<img>` contexts is a required follow-on addition before Phase 4 is deployed (see Remaining — Follow-on Tasks)
 3. Call `MediaStorageService::getMeta()` to get `Content-Type`, `Content-Length`, `ETag`
 4. Parse `Range` header if present
 5. Call `MediaStorageService::getRangeStream()` or `getStream()`
@@ -2637,18 +2699,19 @@ The range is forwarded to `AzureBlobMediaBackend::getRangeStream()` which sets t
 
 **iOS thumbnail authentication — acceptance criterion for Phase 11 step 9:**
 
-Browser `<img>` tags and `UIImageView` do not send credentials. Thumbnails are served under the same auth gate as audio and video. The expected behavior by context:
+Browser `<img>` tags and `UIImageView` do not send credentials. Thumbnails are served under the same auth gate as audio and video. The expected behavior **once session-cookie auth is added to `media-stream.php`** (see Remaining — Follow-on Tasks):
 
 | Context | How auth is satisfied |
 |---|---|
-| Browser admin panel `<img src="/media/video/thumbnails/...">` | Session cookie sent automatically (same-origin request) — works |
+| Browser admin panel `<img src="/media/video/thumbnails/...">` | Session cookie sent automatically (same-origin request) — works **only after cookie auth is added** |
 | iOS `UIImageView` with a plain URL string | No credential sent — **will return 401** |
 | iOS `URLSession` with session cookie / token header | Credential sent — works |
 
 Before proceeding to Phase 11 step 10, verify explicitly:
-1. Load the admin panel in a browser — confirm thumbnails render in `<img>` tags (cookie auth)
-2. In the iOS app, confirm thumbnails load via `URLSession` (not `UIImageView` with a raw URL)
-3. If any iOS code uses `UIImageView` + plain URL for thumbnails, update it to use `URLSession` + auth headers before deploying Phase 4
+1. Session-cookie auth has been added to `media-stream.php` (prerequisite)
+2. Load the admin panel in a browser — confirm thumbnails render in `<img>` tags (cookie auth)
+3. In the iOS app, confirm thumbnails load via `URLSession` (not `UIImageView` with a raw URL)
+4. If any iOS code uses `UIImageView` + plain URL for thumbnails, update it to use `URLSession` + auth headers before deploying Phase 4
 
 Add this as a checklist item in Phase 11 step 9.
 
@@ -3648,3 +3711,293 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
 
 **T-63 [Manual]** — `FallbackMediaBackend` class flagged or deleted from the codebase.
 > Code review / grep check: `grep -r "FallbackMediaBackend" src/` should return only a deletion commit or a `// TODO: remove` comment after Step 10.
+
+---
+
+## Ansible Role Interactions
+
+Every role in `ansible/roles/` was reviewed against this refactor. The findings are grouped by severity.
+
+**No new Ansible roles are required by this refactor.** All changes are in-place modifications of existing roles. The two new Phase 3 cron jobs (`run_probe_job.php`, `cleanup_expired_uploads.php`) belong in the `docker` role as a new `/etc/cron.d/` template — the `docker` role already owns the full application deployment. The `blobfuse2` role is retired (not replaced).
+
+---
+
+### Roles that break — must be fixed as part of this refactor
+
+#### `post_build_checks` — tusd checks become dead code
+
+`roles/post_build_checks/tasks/main.yml` contains:
+
+1. **"Verify tusd container is running"** — checks `docker container info tusd_container_name`; will fail or pass vacuously once tusd is removed.
+2. **"Probe tusd directly via Docker DNS from inside apache container"** — curls `http://tusd:8080/files/`; the container does not exist after Phase 3.
+3. **"Build internal tusd probe URL"** and associated assertions — dead after Phase 3.
+
+**Required change (Phase 3):** Remove the three tusd-specific checks. Replace with:
+- Assert PHP tus server responds: `GET /files/` → 400 (not a 404 or 502)
+- Assert `POST /files/` without auth → 401
+- These are already specified in Phase 3 smoke test requirements; they must also replace the tusd checks here.
+
+---
+
+#### `validate_app` — tusd version check + Azure connectivity probe both broken
+
+**Issue 1 — tusd version in stack summary:**
+
+`validate_app` includes:
+```yaml
+- name: Get tusd version from tusd container
+  command: docker exec {{ tusd_container_name }} tusd --version
+  register: stack_tusd_raw
+```
+and builds `stack_versions_summary.tusd` from this. After Phase 3, the container does not exist; `docker exec` fails silently (`failed_when: false`), and `stack_tusd_raw.stdout` is empty. The summary shows `tusd: N/A` forever with no indication that the field is now meaningless.
+
+**Required change (Phase 3):** Remove `stack_tusd_raw` task and the `tusd:` line from `stack_versions_summary`. Add a `PHP_TUS_Server: "php_tus_block_upload_service"` or similar static label confirming the PHP server is the active upload backend.
+
+**Issue 2 — Azure Blob connectivity probe uses SAS token over public endpoint:**
+
+```yaml
+azure_probe_url: "https://{{ azure_blob_account_name }}.blob.core.windows.net/{{ azure_blob_container }}/test-connectivity/ansible-probe-...?{{ azure_blob_sas_token }}"
+```
+
+This probe PUTs a sentinel blob directly to the storage account's public hostname using a SAS token. After Phase 6 (Terraform disables public network access), the storage account is reachable only through the private endpoint inside the VNet. The probe will time out and fail on every deploy after Phase 6.
+
+**Required change (Phase 6 / Phase 2):** Replace the probe with one that runs from inside the Apache container (which has access to the private endpoint via Docker `host-gateway`):
+```yaml
+- name: Azure Blob connectivity probe (from inside container via private endpoint)
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >
+      php -r "
+        \$ch = curl_init('https://{{ azure_blob_account_name }}.blob.core.windows.net/{{ azure_blob_container }}?restype=container');
+        curl_setopt_array(\$ch, [CURLOPT_RETURNTRANSFER => true,
+                                  CURLOPT_HTTPHEADER => ['x-ms-version: 2020-04-08']]);
+        \$code = curl_getinfo(\$ch, CURLINFO_HTTP_CODE);
+        curl_exec(\$ch);
+        exit(\$code === 403 ? 0 : 1);  // 403 = auth required but endpoint reachable
+      "
+  register: azure_private_probe
+  failed_when: azure_private_probe.rc != 0
+  tags: [smoke, azure]
+```
+A `403` response (auth required) confirms the private endpoint is routable and the storage account is responding. An IMDS token check (Managed Identity) can follow as a second probe.
+
+---
+
+#### `upload_tests` — test_7.yml has three tusd-specific assumptions
+
+`roles/upload_tests/tasks/test_7.yml` performs the full TUS upload flow. Three parts assume the tusd model:
+
+**Issue 1 — "Wait for post-finish hook to write payload" (3-second pause):**
+```yaml
+- name: Upload tests 7 - wait for post-finish hook to write payload
+  ansible.builtin.pause:
+    seconds: 3
+```
+This waits for the tusd `post-finish` hook to write a notification file that PHP polls. In the new model, the DB row is committed synchronously during the final PATCH. The pause is unnecessary and should be removed. The finalize endpoint will respond immediately without any wait.
+
+**Issue 2 — Cleanup removes non-existent tusd volume paths:**
+```yaml
+- name: Remove tus staging artifacts for this upload_id
+  command: >
+    docker exec {{ apache_container_name }}
+    sh -lc 'rm -f
+    "/var/www/private/tus-data/{{ tus_upload_id }}"
+    "/var/www/private/tus-hooks/uploads/{{ tus_upload_id }}.json"
+    "/var/www/private/tus-hooks/finalized/{{ tus_upload_id }}.json"'
+```
+These paths are from the tusd volume (`tusd_data`, `tus_hooks`). After Phase 3, these volumes are gone. The cleanup should be updated to delete the `tus_uploads` DB row for the test upload ID instead:
+```yaml
+- name: Remove tus_uploads DB row for smoke-test upload
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
+              -e "DELETE FROM tus_uploads WHERE upload_id = ''{{ tus_upload_id }}'' LIMIT 1;"'
+```
+
+**Issue 3 — test_7 assertions need async probe job tolerance:**
+
+`upload_tests_7_finalize_resp.checksum_sha256` is asserted present. This is fine — the new model writes checksum synchronously. However, `duration_seconds` and `thumbnail` are `null` until the async probe job completes. If the finalize assertions ever check for those fields, they will fail. Currently they do not, but this should be explicitly documented in the test so future assertions against `duration_seconds` know to add a retry/wait loop.
+
+**Required changes (Phase 3):** Remove the 3-second pause; update cleanup to delete DB row; add comment about async probe job fields.
+
+---
+
+#### `ai_worker` — bind-mounts the local media directories; silent breakage in Azure mode
+
+`roles/ai_worker/templates/docker-compose-ai-worker.yml.j2`:
+```yaml
+volumes:
+  - {{ video_dir }}:/data/video:ro
+  - {{ audio_dir }}:/data/audio:ro
+```
+
+`{{ video_dir }}` is `{{ gighive_home }}/video` (the VM host path). After Phase 11 step 10 removes the Azure media bind mounts, `{{ video_dir }}` is empty. The ai-worker container starts, but finds no media files at `/data/video` or `/data/audio`. It processes nothing and raises no error — a silent operational failure.
+
+The ai-worker uses these paths to read video frames and audio for AI analysis. In Azure mode it needs to download blobs to temp paths before processing them.
+
+**Required change (Phase 10 / before Phase 11 step 10):**
+
+In Azure mode, the ai-worker cannot use bind mounts. Two approaches:
+
+- **Option A (preferred):** Add a Blob download step to the ai-worker Python code: download the target blob to `/data/ai_assets/tmp/{asset_id}.{ext}`, process it, then delete. Mirror the pattern used by `MediaProbeJobService`. The compose volumes for `video` and `audio` become conditional on `gighive_media_storage_backend`:
+  ```yaml
+  # in docker-compose-ai-worker.yml.j2:
+  {% if gighive_media_storage_backend != 'azure_blob' %}
+        - {{ video_dir }}:/data/video:ro
+        - {{ audio_dir }}:/data/audio:ro
+  {% endif %}
+  ```
+  Pass `GIGHIVE_MEDIA_STORAGE_BACKEND` and the Azure env vars into the ai-worker container so it can access Blob.
+
+- **Option B (stopgap):** Disable ai-worker in Azure mode with `ai_worker_enabled: false` in Azure group_vars until Option A is implemented.
+
+This is the **highest-risk silent failure** in the entire refactor. The ai-worker will appear to function (container running, no errors) while silently processing no media.
+
+---
+
+### Roles that need conditional guards — media directory creation/sync
+
+#### `base` — unconditionally creates and syncs local media directories
+
+`roles/base/tasks/main.yml` does the following unconditionally:
+
+1. Creates `/home/{{ ansible_user }}/audio` and `video` with www-data ownership
+2. `rsync`s full or reduced audio/video sets from the controller to the VM (`sync_audio`, `sync_video` tasks)
+3. Creates `{{ video_dir }}/podcasts`
+
+In Azure mode, these directories are not needed as media storage (they exist only as bind mount sources, which are removed after Phase 11 step 10). The rsync tasks are wasted work and potentially misleading — they populate directories that are not the canonical media store.
+
+**Required change (Phase 1 / before Azure Blob cutover):** gate the sync tasks and directory creation that are only meaningful for local media storage on:
+
+```yaml
+when: gighive_media_storage_backend != 'azure_blob'
+```
+
+If thumbnails are still written locally in any intermediate step, keep only the required local temp/thumb paths — not the full media sync.
+
+---
+
+### Roles that need new tasks — schema migration tracking
+
+#### `db_migrations` — new tables are not tracked
+
+`roles/db_migrations/tasks/main.yml` uses a pattern of checking whether columns exist and adding them if missing. The two new tables this refactor adds — `tus_uploads` and `probe_jobs` — are created by `create_media_db.sql`, but there are no migration tasks in `db_migrations` to verify or idempotently create them.
+
+If `create_media_db.sql` is not run on an existing environment (e.g., an upgrade path where the container was recreated), the tables will be absent and `TusBlockUploadService` will fail with a MySQL error.
+
+**Required change (Phase 3):** Add two migration tasks to `db_migrations/tasks/main.yml` following the existing pattern:
+
+```yaml
+- name: Check if tus_uploads table exists
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse
+      "SELECT COUNT(*) FROM information_schema.TABLES
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ''tus_uploads'';"'
+  register: _tus_uploads_table_exists
+  changed_when: false
+
+- name: Create tus_uploads table if missing
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
+              < /docker-entrypoint-initdb.d/create_media_db.sql'
+  when: (_tus_uploads_table_exists.stdout | trim) == '0'
+  changed_when: true
+```
+
+Repeat for `probe_jobs`. This ensures the tables are present on any environment regardless of whether `create_media_db.sql` was manually applied.
+
+---
+
+### Roles with minor issues
+
+#### `mysql_backup` — backup includes in-progress upload state
+
+`roles/mysql_backup` dumps the entire database on a schedule. After Phase 3, this includes `tus_uploads` rows with `status=pending` and `sha256_ctx` BLOB columns containing serialized PHP `HashContext` objects.
+
+Restoring a backup that captures a pending upload leaves an orphaned incomplete Azure blob (uncommitted blocks) with a DB row claiming the upload is in progress. The blocks expire in 7 days; the DB row will remain until `cleanup_expired_uploads.php` fires.
+
+**No code change required.** Add a note to the backup rotation configuration and runbook: restoring `tus_uploads` rows with `status=pending` is safe — they will expire naturally. Do not manually attempt to resume or complete pending uploads from a restored backup.
+
+#### `one_shot_bundle` — bundles local media files; Azure mode has none
+
+`roles/one_shot_bundle` builds a deployment bundle that includes `_host_audio/` and `_host_video/` directories populated from the local VM media paths (via `{{ _one_shot_bundle_assets_prefix }}/audio/` and `/video/`). In Azure mode, those VM directories are empty after Phase 11 step 10, so the bundle contains no media files.
+
+`one_shot_bundle` is a local/VirtualBox deployment tool and is not used for Azure production. **No code change required.** Add a guard comment or `when: gighive_media_storage_backend != 'azure_blob'` to the `output_bundle.yml` tasks that populate `_host_audio` and `_host_video` so it is clear the bundle is not expected to contain media in Azure mode.
+
+#### `security_owasp_crs` — no conflict, but ordering matters
+
+`roles/security_owasp_crs` toggles `IncludeOptional` directives in `modsecurity.conf`. The refactor adds a `<LocationMatch "^/files/">` `SecRequestBodyLimit` rule in `default-ssl.conf.j2`. These are in different files and do not conflict. However, if `security_owasp_crs` is ever extended to manage `default-ssl.conf.j2` directly, the ordering constraint is: the `/files/` location exception must always be present whenever ModSecurity is enabled. **No immediate change required** — document the constraint.
+
+#### `blobfuse2` — retire as planned
+
+The role installs blobfuse2, renders a config, mounts the container, and adds an fstab entry. The refactor's Non-Goals section already calls out "no blobfuse2 at any point." The Follow-on task says to retire or mark deprecated. **No new finding** — the existing Follow-on task covers this.
+
+---
+
+### Summary table
+
+| Role | Severity | Phase | Action required |
+|---|---|---|---|
+| `post_build_checks` | **Critical** | 4 | Remove tusd container checks; add PHP tus server smoke tests |
+| `validate_app` | **Critical** | 1 + 4 | Fix Azure connectivity probe (SAS → private endpoint); remove tusd version task |
+| `upload_tests` (test_7) | **Critical** | 4 | Remove 3-second hook pause; replace tusd volume cleanup with DB row delete |
+| `ai_worker` | **Critical** | 9 (before 10A step 10) | Make video/audio bind mounts conditional; add Blob download in Azure mode |
+| `base` | **Significant** | 2 | Gate `sync_video` / `sync_audio` tasks on `gighive_media_storage_backend != 'azure_blob'` |
+| `db_migrations` | **Significant** | 4 | Add idempotent `tus_uploads` and `probe_jobs` table checks |
+| `mysql_backup` | Minor | — | Runbook note only; no code change |
+| `one_shot_bundle` | Minor | — | Add `when` guard or comment; no functional impact |
+| `security_owasp_crs` | Minor | — | Document ordering constraint; no code change |
+| `blobfuse2` | Minor | Follow-on | Retire per existing task |
+
+---
+
+## Progress
+
+### Completed
+
+_(nothing yet — plan stage)_
+
+### Remaining — This Refactor
+
+#### Azure (Phase 11 — primary)
+
+- [ ] Phase 6: Terraform private endpoint + disable public network access; **update `validate_app` Azure connectivity probe to use private endpoint from inside container (SAS probe breaks after public access disabled)**
+- [ ] Phase 1: Runtime config, group_vars, compose IMDS fix, storage backend switch; `extra_hosts` unconditional; **gate `base` role `sync_video`/`sync_audio` tasks on `gighive_media_storage_backend != 'azure_blob'`**
+- [ ] Phase 2: `MediaStorageService` with `LocalMediaBackend` and `AzureBlobMediaBackend`
+- [ ] Phase 3: `api/tus-upload.php` + `TusBlockUploadService` (`AzureBlobTusBackend` + `LocalFileTusBackend`); `run_probe_job.php` (async ffprobe + thumbnail); `cleanup_expired_uploads.php` (cron DB row + staging file cleanup); `gighive-probe.cron.j2`; pre-deployment Ansible assertions: PHP ≥ 8.2, `innodb_lock_wait_timeout` ≥ 60, `apcu.enable_cli=1`; retire tusd from **all** compose files; unconditional Apache routing + ModSecurity exception; **`post_build_checks`: remove tusd container checks, add PHP tus server smoke tests**; **`validate_app`: remove tusd version task from stack_versions_summary**; **`upload_tests` test_7: remove 3s hook pause, replace tusd volume cleanup with DB row delete**; **`db_migrations`: add idempotent `tus_uploads` + `probe_jobs` table checks**
+- [ ] Phase 4: `api/media-stream.php` streaming endpoint with range support; smoke test; iOS thumbnail auth acceptance criterion verified
+- [ ] Phase 7: Thumbnail async generation and Blob storage (part of Phase 3 probe job)
+- [ ] Phase 8: Managed Identity token acquisition + caching verified from inside container
+- [ ] Phase 9: `2bootstrap.sh` Terraform output extraction + Ansible variable wiring
+- [ ] Phase 10: Admin tooling updates (Blob-backed stats, delete, `mysqlPrep_normalized.py` Blob-download mode, catalog scan via `MediaStorageService::list()`); **`ai_worker`: make video/audio bind mounts conditional; add Blob download path in Azure mode — must be done before Phase 11 step 10 or ai-worker silently processes no media**
+- [ ] Phase 11: Deploy `FallbackMediaBackend` (`azure_blob_with_local_fallback`); run `backfill_media_to_blob.php --dry-run` then live; verify all checksums; verify counts, thumbnails, range seeks; confirm iOS thumbnails load; switch to `azure_blob`; remove Azure media bind mounts; delete `FallbackMediaBackend.php`
+
+#### Local / VirtualBox / Baremetal (Phase 5 — Tranche 1 final step)
+
+- [ ] Phase 5: Deploy `LocalMediaBackend` read path to local inventories; verify PHP-mediated stream + range; remove local media bind mounts; retire `MEDIA_SEARCH_DIRS`
+
+### Remaining — Follow-on Tasks
+
+- Retire `ansible/roles/blobfuse2/` role (remove from repo or mark deprecated)
+- Update `docs/media_file_location_variables.md` to reflect the new model (local-backend / azure-blob-backend / container)
+- Evaluate retiring `AZURE_BLOB_SAS_TOKEN` from `.env.j2` once all admin tooling migrates to `MediaStorageService`
+- Reconciliation query for orphaned blobs (blob exists, no DB row). Until a full reconciliation job is built, operators can detect orphans with:
+
+  ```sql
+  -- Blobs committed by tus (upload complete) with no corresponding asset row
+  SELECT upload_id, blob_key FROM tus_uploads
+  WHERE status = 'complete' AND asset_id IS NULL
+    AND created_at < NOW() - INTERVAL 1 HOUR;
+  ```
+
+  Any row returned means the final DB write failed after a successful blob commit. Resolution: verify the blob exists in Azure, manually insert the asset row, then update `tus_uploads.asset_id`.
+- Evaluate Apache `X-Sendfile` for local-mode read path if PHP file serving becomes a performance concern at scale
+- Delete `src/Services/FallbackMediaBackend.php` after Phase 11 step 9 backfill is verified complete — it is a migration-window-only class and must not persist in the codebase
+- Local-mode orphan files: if the DB write fails after `rename()` in `LocalFileTusBackend`, the file exists in the media directory with no DB record. The same reconciliation pattern as Azure applies — detect with `SELECT upload_id, blob_key FROM tus_uploads WHERE status = 'complete' AND asset_id IS NULL AND created_at < NOW() - INTERVAL 1 HOUR` and manually recover
+- Add logrotate config for `/var/log/probe_job.log` — the cron job appends to this file indefinitely; without rotation it will grow unboundedly as media volume increases. Add a logrotate drop-in via the `docker` role (e.g., `ansible/roles/docker/files/logrotate.d/gighive-probe`) with `daily`, `rotate 14`, `compress`, `missingok`, `notifempty`
+- Confirm streaming endpoint (`media-stream.php`) auth mechanism against the existing API auth pattern: the current skeleton uses `X-Upload-Token` (an upload-event-scoped token). Verify this token is appropriate for read/stream access, or add session-cookie auth as an alternative for browser contexts (particularly relevant for `<img>` thumbnail loading where session cookies are sent automatically but `X-Upload-Token` is not)
