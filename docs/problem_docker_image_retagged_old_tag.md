@@ -10,7 +10,7 @@ render_with_liquid: false
 The Ansible playbook failed during the `ai_worker` role at:
 
 ```text
-TASK [ai_worker : Deploy ai-worker container project_src={{ docker_dir }}, files=['docker-compose.yml', 'docker-compose-ai-worker.yml'], state=present, build=always]
+TASK [ai_worker : Deploy ai-worker container project_src=&#123;&#123; docker_dir &#125;&#125;, files=['docker-compose.yml', 'docker-compose-ai-worker.yml'], state=present, build=always]
 ```
 
 The module error showed that `community.docker.docker_compose_v2` called:
@@ -58,8 +58,8 @@ The failure chain was:
 ### Current container and tag state
 
 ```bash
-docker inspect apacheWebServer --format '{{.Image}}|{{.Config.Image}}|{{.Id}}'
-docker image inspect ubuntu-apache-img:1.00 --format '{{.Id}}|{{json .RepoTags}}'
+docker inspect apacheWebServer --format '&#123;&#123;.Image&#125;&#125;|&#123;&#123;.Config.Image&#125;&#125;|&#123;&#123;.Id&#125;&#125;'
+docker image inspect ubuntu-apache-img:1.00 --format '&#123;&#123;.Id&#125;&#125;|&#123;&#123;json .RepoTags&#125;&#125;'
 ```
 
 Observed:
@@ -127,8 +127,8 @@ docker compose -f docker-compose.yml -f docker-compose-ai-worker.yml ps -a
 docker compose -f docker-compose.yml -f docker-compose-ai-worker.yml images
 
 # Show container image object vs configured tag
-docker inspect apacheWebServer --format '{{.Image}}|{{.Config.Image}}|{{.Id}}'
-docker image inspect ubuntu-apache-img:1.00 --format '{{.Id}}|{{json .RepoTags}}'
+docker inspect apacheWebServer --format '&#123;&#123;.Image&#125;&#125;|&#123;&#123;.Config.Image&#125;&#125;|&#123;&#123;.Id&#125;&#125;'
+docker image inspect ubuntu-apache-img:1.00 --format '&#123;&#123;.Id&#125;&#125;|&#123;&#123;json .RepoTags&#125;&#125;'
 
 # Prove the old image object is gone
 docker image inspect sha256:c0309bc4058f2c71a919753bd1366879fa7d20f00b570bd21ff5df23a374d429
@@ -228,7 +228,7 @@ The final fix was implemented in `ansible/roles/ai_worker/tasks/main.yml` by sco
 ```yaml
 - name: Deploy ai-worker container
   community.docker.docker_compose_v2:
-    project_src: "{{ docker_dir }}"
+    project_src: "&#123;&#123; docker_dir &#125;&#125;"
     files:
       - docker-compose.yml
       - docker-compose-ai-worker.yml
@@ -263,7 +263,7 @@ The existing handler already used the correct service-scoped pattern:
 ```yaml
 - name: restart ai-worker
   community.docker.docker_compose_v2:
-    project_src: "{{ docker_dir }}"
+    project_src: "&#123;&#123; docker_dir &#125;&#125;"
     files:
       - docker-compose.yml
       - docker-compose-ai-worker.yml
@@ -305,9 +305,9 @@ against the current `ubuntu-apache-img:1.00` image.
 ```bash
 cd /home/ubuntu/gighive/ansible/roles/docker/files
 docker compose -f docker-compose.yml -f docker-compose-ai-worker.yml ps -a
-docker inspect ai-worker --format '{{.Image}}|{{.Config.Image}}'
-docker inspect mysqlServer --format '{{.Image}}|{{.Config.Image}}'
-docker inspect apacheWebServer_tusd --format '{{.Image}}|{{.Config.Image}}'
+docker inspect ai-worker --format '&#123;&#123;.Image&#125;&#125;|&#123;&#123;.Config.Image&#125;&#125;'
+docker inspect mysqlServer --format '&#123;&#123;.Image&#125;&#125;|&#123;&#123;.Config.Image&#125;&#125;'
+docker inspect apacheWebServer_tusd --format '&#123;&#123;.Image&#125;&#125;|&#123;&#123;.Config.Image&#125;&#125;'
 ```
 
 Important correction: the tusd container name in this project is `apacheWebServer_tusd`,
