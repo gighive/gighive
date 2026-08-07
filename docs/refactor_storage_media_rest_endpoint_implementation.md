@@ -1658,8 +1658,8 @@ network_rules {
 # Add to post_build_checks/tasks/main.yml — gated on azure_blob mode
 - name: "[T-3] Blob DNS resolves to private IP inside Apache container"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
-      nslookup {{ azure_blob_account_name }}.blob.core.windows.net
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
+      nslookup &#123;&#123; azure_blob_account_name &#125;&#125;.blob.core.windows.net
   register: blob_dns
   changed_when: false
   when: gighive_media_storage_backend == 'azure_blob'
@@ -1671,7 +1671,7 @@ network_rules {
       - blob_dns.stdout | regex_search('Address:\s+10\.') is not none
     fail_msg: >
       Blob DNS did not resolve to a private IP — private endpoint may not be active.
-      nslookup output: {{ blob_dns.stdout }}
+      nslookup output: &#123;&#123; blob_dns.stdout &#125;&#125;
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
 ```
@@ -1688,11 +1688,11 @@ network_rules {
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-6] Media endpoint returns 401 (not 403/500) after Phase 6 apply"
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/media/audio/"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/media/audio/"
     method: GET
-    validate_certs: "{{ gighive_validate_certs }}"
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: [400, 401, 404]
-    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
   changed_when: false
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
@@ -1722,27 +1722,27 @@ azure_identity_client_id:       ""              # set from Terraform output in A
 **`.env.j2` additions:**
 
 ```
-GIGHIVE_MEDIA_STORAGE_BACKEND={{ gighive_media_storage_backend | default('local') }}
-AZURE_BLOB_ACCOUNT_NAME={{ azure_blob_account_name | default('') }}
-AZURE_BLOB_CONTAINER={{ azure_blob_container | default('') }}
-AZURE_BLOB_PREFIX_AUDIO={{ azure_blob_prefix_audio | default('audio/') }}
-AZURE_BLOB_PREFIX_VIDEO={{ azure_blob_prefix_video | default('video/') }}
+GIGHIVE_MEDIA_STORAGE_BACKEND=&#123;&#123; gighive_media_storage_backend | default('local') &#125;&#125;
+AZURE_BLOB_ACCOUNT_NAME=&#123;&#123; azure_blob_account_name | default('') &#125;&#125;
+AZURE_BLOB_CONTAINER=&#123;&#123; azure_blob_container | default('') &#125;&#125;
+AZURE_BLOB_PREFIX_AUDIO=&#123;&#123; azure_blob_prefix_audio | default('audio/') &#125;&#125;
+AZURE_BLOB_PREFIX_VIDEO=&#123;&#123; azure_blob_prefix_video | default('video/') &#125;&#125;
 # Note: thumbnail prefix 'video/thumbnails/' is baked into MediaStorageService::putThumbnail()
 #       and is not a configurable env var.
-AZURE_IDENTITY_CLIENT_ID={{ azure_identity_client_id | default('') }}
-MEDIA_LOCAL_AUDIO_DIR={{ media_local_audio_dir | default('/var/www/html/audio') }}
-MEDIA_LOCAL_VIDEO_DIR={{ media_local_video_dir | default('/var/www/html/video') }}
-MEDIA_LOCAL_THUMB_DIR={{ media_local_thumb_dir | default('/var/www/html/video/thumbnails') }}
-TUS_LOCAL_STAGING_DIR={{ tus_local_staging_dir | default('/tmp/tus-staging') }}
+AZURE_IDENTITY_CLIENT_ID=&#123;&#123; azure_identity_client_id | default('') &#125;&#125;
+MEDIA_LOCAL_AUDIO_DIR=&#123;&#123; media_local_audio_dir | default('/var/www/html/audio') &#125;&#125;
+MEDIA_LOCAL_VIDEO_DIR=&#123;&#123; media_local_video_dir | default('/var/www/html/video') &#125;&#125;
+MEDIA_LOCAL_THUMB_DIR=&#123;&#123; media_local_thumb_dir | default('/var/www/html/video/thumbnails') &#125;&#125;
+TUS_LOCAL_STAGING_DIR=&#123;&#123; tus_local_staging_dir | default('/tmp/tus-staging') &#125;&#125;
 ```
 
 **`docker-compose.yml.j2` change — conditional bind mounts:**
 
 ```yaml
-{% if gighive_media_storage_backend | default('local') != 'azure_blob' %}
-      - "/home/{{ ansible_user }}/audio:{{ media_search_dir_audio }}"
-      - "/home/{{ ansible_user }}/video:{{ media_search_dir_video }}"
-{% endif %}
+&#123;% if gighive_media_storage_backend | default('local') != 'azure_blob' %&#125;
+      - "/home/&#123;&#123; ansible_user &#125;&#125;/audio:&#123;&#123; media_search_dir_audio &#125;&#125;"
+      - "/home/&#123;&#123; ansible_user &#125;&#125;/video:&#123;&#123; media_search_dir_video &#125;&#125;"
+&#123;% endif %&#125;
 ```
 
 **`docker-compose.yml.j2` change — IMDS access (add unconditionally):**
@@ -1768,7 +1768,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-8] GIGHIVE_MEDIA_STORAGE_BACKEND matches expected value"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}" printenv GIGHIVE_MEDIA_STORAGE_BACKEND
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;" printenv GIGHIVE_MEDIA_STORAGE_BACKEND
   register: media_backend_env
   changed_when: false
   tags: [smoke, media_storage]
@@ -1778,14 +1778,14 @@ This is required for Managed Identity token acquisition from inside the Docker b
     that:
       - media_backend_env.stdout | trim == gighive_media_storage_backend
     fail_msg: >
-      Container GIGHIVE_MEDIA_STORAGE_BACKEND={{ media_backend_env.stdout | trim }},
-      expected {{ gighive_media_storage_backend }}
+      Container GIGHIVE_MEDIA_STORAGE_BACKEND=&#123;&#123; media_backend_env.stdout | trim &#125;&#125;,
+      expected &#123;&#123; gighive_media_storage_backend &#125;&#125;
   tags: [smoke, media_storage]
 
 - name: "[T-8] Azure Blob env vars are non-empty (Azure mode only)"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
-      sh -lc 'test -n "$(printenv {{ item }})"'
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
+      sh -lc 'test -n "$(printenv &#123;&#123; item &#125;&#125;)"'
   loop:
     - AZURE_BLOB_ACCOUNT_NAME
     - AZURE_BLOB_CONTAINER
@@ -1802,8 +1802,8 @@ This is required for Managed Identity token acquisition from inside the Docker b
 - name: "[T-9] Read Apache container ExtraHosts"
   ansible.builtin.command: >
     docker inspect
-      -f '{% raw %}{{range .HostConfig.ExtraHosts}}{{.}}{{"\n"}}{{end}}{% endraw %}'
-      "{{ apache_container_name }}"
+      -f '&#123;% raw %&#125;&#123;&#123;range .HostConfig.ExtraHosts&#125;&#125;&#123;&#123;.&#125;&#125;&#123;&#123;"\n"&#125;&#125;&#123;&#123;end&#125;&#125;&#123;% endraw %&#125;'
+      "&#123;&#123; apache_container_name &#125;&#125;"
   register: container_extra_hosts
   changed_when: false
   tags: [smoke, media_storage]
@@ -1814,7 +1814,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
       - "'host.docker.internal' in container_extra_hosts.stdout"
     fail_msg: >
       host.docker.internal not found in ExtraHosts.
-      Current ExtraHosts: {{ container_extra_hosts.stdout }}
+      Current ExtraHosts: &#123;&#123; container_extra_hosts.stdout &#125;&#125;
   tags: [smoke, media_storage]
 ```
 
@@ -1824,7 +1824,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-10] IMDS instance endpoint reachable from Apache container"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       curl -sf -o /dev/null -w "%{http_code}"
         "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
         -H "Metadata: true" --connect-timeout 5
@@ -1838,7 +1838,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
     that:
       - imds_instance_code.stdout | trim == "200"
     fail_msg: >
-      IMDS returned {{ imds_instance_code.stdout | trim }} (expected 200).
+      IMDS returned &#123;&#123; imds_instance_code.stdout | trim &#125;&#125; (expected 200).
       Check extra_hosts host-gateway config and Azure VM identity assignment.
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
@@ -1851,8 +1851,8 @@ This is required for Managed Identity token acquisition from inside the Docker b
 - name: "[T-11] Read Apache container mount sources"
   ansible.builtin.command: >
     docker inspect
-      -f '{% raw %}{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}{% endraw %}'
-      "{{ apache_container_name }}"
+      -f '&#123;% raw %&#125;&#123;&#123;range .Mounts&#125;&#125;&#123;&#123;.Source&#125;&#125;&#123;&#123;"\n"&#125;&#125;&#123;&#123;end&#125;&#125;&#123;% endraw %&#125;'
+      "&#123;&#123; apache_container_name &#125;&#125;"
   register: container_mounts
   changed_when: false
   tags: [smoke, media_storage]
@@ -1864,7 +1864,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
       - container_mounts.stdout | regex_search('/video') is none
     fail_msg: >
       Local media bind mounts found in Azure mode.
-      Mounts: {{ container_mounts.stdout }}
+      Mounts: &#123;&#123; container_mounts.stdout &#125;&#125;
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
 ```
@@ -1880,7 +1880,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
       - container_mounts.stdout | regex_search('/video') is not none
     fail_msg: >
       Expected audio/video bind mounts not found in local mode.
-      Mounts: {{ container_mounts.stdout }}
+      Mounts: &#123;&#123; container_mounts.stdout &#125;&#125;
   when: gighive_media_storage_backend != 'azure_blob'
   tags: [smoke, media_storage]
   # Depends on T-11 register: container_mounts — place after T-11 block
@@ -1892,14 +1892,14 @@ This is required for Managed Identity token acquisition from inside the Docker b
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-13] clear_media_files.php does not 500 without local media dirs (Azure mode)"
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/src/clear_media_files.php"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/src/clear_media_files.php"
     method: GET
-    url_username: "{{ uploader_user }}"
-    url_password: "{{ gighive_uploader_password }}"
+    url_username: "&#123;&#123; uploader_user &#125;&#125;"
+    url_password: "&#123;&#123; gighive_uploader_password &#125;&#125;"
     force_basic_auth: yes
-    validate_certs: "{{ gighive_validate_certs }}"
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: [200, 302, 401, 403]
-    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
   changed_when: false
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
@@ -2560,7 +2560,7 @@ No polling loop. No hook file. The client may call this endpoint immediately aft
 ```yaml
 - name: "[smoke] tus-upload.php returns 400 on plain GET (not a tus request)"
   ansible.builtin.uri:
-    url: "https://{{ ansible_host }}/files/"
+    url: "https://&#123;&#123; ansible_host &#125;&#125;/files/"
     method: GET
     status_code: 400
     validate_certs: false
@@ -2568,7 +2568,7 @@ No polling loop. No hook file. The client may call this endpoint immediately aft
 
 - name: "[smoke] tus-upload.php returns 401 on unauthenticated POST without tus headers"
   ansible.builtin.uri:
-    url: "https://{{ ansible_host }}/files/"
+    url: "https://&#123;&#123; ansible_host &#125;&#125;/files/"
     method: POST
     status_code: 401
     validate_certs: false
@@ -2690,7 +2690,7 @@ The range is forwarded to `AzureBlobMediaBackend::getRangeStream()` which sets t
 ```yaml
 - name: "[smoke] media-stream.php returns 401 without auth"
   ansible.builtin.uri:
-    url: "https://{{ ansible_host }}/api/media-stream.php"
+    url: "https://&#123;&#123; ansible_host &#125;&#125;/api/media-stream.php"
     method: GET
     status_code: 401
     validate_certs: false
@@ -2755,11 +2755,11 @@ Once Azure (Phase 11) is confirmed stable:
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-64] /media/audio/ returns 401 without auth (LocalMediaBackend live)"
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/media/audio/"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/media/audio/"
     method: GET
-    validate_certs: "{{ gighive_validate_certs }}"
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: [400, 401, 404]
-    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
   changed_when: false
   when: gighive_media_storage_backend == 'local'
   tags: [smoke, media_storage]
@@ -2771,15 +2771,15 @@ Once Azure (Phase 11) is confirmed stable:
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-65] Range request returns 206 for known audio asset (local mode)"
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/media/audio/{{ smoke_test_audio_sha256 }}.mp3"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/media/audio/&#123;&#123; smoke_test_audio_sha256 &#125;&#125;.mp3"
     method: GET
-    url_username: "{{ uploader_user }}"
-    url_password: "{{ gighive_uploader_password }}"
+    url_username: "&#123;&#123; uploader_user &#125;&#125;"
+    url_password: "&#123;&#123; gighive_uploader_password &#125;&#125;"
     force_basic_auth: yes
-    validate_certs: "{{ gighive_validate_certs }}"
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     headers:
       Range: "bytes=0-4095"
-      Host: "{{ gighive_hostname_for_host_header if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+      Host: "&#123;&#123; gighive_hostname_for_host_header if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
     status_code: [206]
   register: range_response
   changed_when: false
@@ -2795,7 +2795,7 @@ Once Azure (Phase 11) is confirmed stable:
       - range_response.content_range is match("^bytes 0-4095/")
     fail_msg: >
       Content-Range header missing or incorrect.
-      Got: {{ range_response.content_range | default('none') }}
+      Got: &#123;&#123; range_response.content_range | default('none') &#125;&#125;
   when:
     - gighive_media_storage_backend == 'local'
     - smoke_test_audio_sha256 is defined
@@ -2810,11 +2810,11 @@ Once Azure (Phase 11) is confirmed stable:
 # A 403 would indicate Apache is still serving it as a static directory listing
 - name: "[T-66] /audio/ returns 401 — PHP handler active, not Apache static serving"
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/audio/test.mp3"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/audio/test.mp3"
     method: GET
-    validate_certs: "{{ gighive_validate_certs }}"
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: [401]
-    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
   changed_when: false
   when: gighive_media_storage_backend == 'local'
   tags: [smoke, media_storage]
@@ -2828,7 +2828,7 @@ Once Azure (Phase 11) is confirmed stable:
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-68] MEDIA_SEARCH_DIRS env var is not set in container (retired)"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}" printenv MEDIA_SEARCH_DIRS
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;" printenv MEDIA_SEARCH_DIRS
   register: media_search_dirs_check
   changed_when: false
   failed_when: media_search_dirs_check.rc == 0
@@ -2880,8 +2880,8 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 # Add to validate_app/tasks/main.yml
 - name: "[T-14] Query count of video assets with thumbnail_blob_key set"
   ansible.builtin.command: >
-    docker exec -i "{{ mysql_container_name }}"
-      sh -lc 'mysql -uroot -p"{{ mysql_root_password }}" media_db -sN -e
+    docker exec -i "&#123;&#123; mysql_container_name &#125;&#125;"
+      sh -lc 'mysql -uroot -p"&#123;&#123; mysql_root_password &#125;&#125;" media_db -sN -e
         "SELECT COUNT(*) FROM assets a
          JOIN probe_jobs p ON p.asset_id = a.id
          WHERE a.file_type = ''video''
@@ -2910,11 +2910,11 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 # Add to validate_app/tasks/main.yml
 - name: "[T-15] Thumbnail blob exists at expected key in Blob storage"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       sh -lc 'php -r "
         require_once \"/var/www/html/vendor/autoload.php\";
         \$s = \Production\Api\Services\MediaStorageService::make();
-        echo \$s->exists(\"video/thumbnails/{{ smoke_test_video_sha256 }}.png\") ? \"1\" : \"0\";
+        echo \$s->exists(\"video/thumbnails/&#123;&#123; smoke_test_video_sha256 &#125;&#125;.png\") ? \"1\" : \"0\";
       "'
   register: thumb_blob_exists
   changed_when: false
@@ -2927,7 +2927,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
   ansible.builtin.assert:
     that:
       - thumb_blob_exists.stdout | trim == "1"
-    fail_msg: "Thumbnail blob not found for video/thumbnails/{{ smoke_test_video_sha256 }}.png"
+    fail_msg: "Thumbnail blob not found for video/thumbnails/&#123;&#123; smoke_test_video_sha256 &#125;&#125;.png"
   when:
     - gighive_media_storage_backend == 'azure_blob'
     - smoke_test_video_sha256 is defined
@@ -2942,13 +2942,13 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 # Add to validate_app/tasks/main.yml
 - name: "[T-16/T-17] Download thumbnail blob and verify PNG validity and dimensions"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       sh -lc '
         php -r "
           require_once \"/var/www/html/vendor/autoload.php\";
           \$s = \Production\Api\Services\MediaStorageService::make();
-          \$tmp = sys_get_temp_dir() . \"/smoke_thumb_{{ smoke_test_video_sha256 }}.png\";
-          file_put_contents(\$tmp, stream_get_contents(\$s->streamRaw(\"video/thumbnails/{{ smoke_test_video_sha256 }}.png\")));
+          \$tmp = sys_get_temp_dir() . \"/smoke_thumb_&#123;&#123; smoke_test_video_sha256 &#125;&#125;.png\";
+          file_put_contents(\$tmp, stream_get_contents(\$s->streamRaw(\"video/thumbnails/&#123;&#123; smoke_test_video_sha256 &#125;&#125;.png\")));
           \$info = getimagesize(\$tmp);
           unlink(\$tmp);
           if (!\$info || \$info[0] < 1 || \$info[1] < 1 || \$info[2] !== IMAGETYPE_PNG) {
@@ -2970,7 +2970,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
     that:
       - thumb_dimensions.rc == 0
       - thumb_dimensions.stdout | regex_search('^\d+x\d+$') is not none
-    fail_msg: "Thumbnail PNG invalid or zero dimensions. Output: {{ thumb_dimensions.stdout }} {{ thumb_dimensions.stderr }}"
+    fail_msg: "Thumbnail PNG invalid or zero dimensions. Output: &#123;&#123; thumb_dimensions.stdout &#125;&#125; &#123;&#123; thumb_dimensions.stderr &#125;&#125;"
   when:
     - gighive_media_storage_backend == 'azure_blob'
     - smoke_test_video_sha256 is defined
@@ -2983,7 +2983,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-18] Count thumbnail files on VM disk (should be 0 in Azure mode)"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       sh -lc 'find /var/www/html/video/thumbnails/ -type f 2>/dev/null | wc -l'
   register: disk_thumb_count
   changed_when: false
@@ -2996,7 +2996,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
     that:
       - disk_thumb_count.stdout | trim == "0"
     fail_msg: >
-      {{ disk_thumb_count.stdout | trim }} thumbnail file(s) found on VM disk in Azure mode.
+      &#123;&#123; disk_thumb_count.stdout | trim &#125;&#125; thumbnail file(s) found on VM disk in Azure mode.
       Probe job may be writing to disk instead of Blob.
   when: gighive_media_storage_backend == 'azure_blob' and disk_thumb_count.rc == 0
   tags: [smoke, media_storage]
@@ -3008,14 +3008,14 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-19] Thumbnail served via media-stream.php returns 200 image/png"
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/media/video/thumbnails/{{ smoke_test_video_sha256 }}.png"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/media/video/thumbnails/&#123;&#123; smoke_test_video_sha256 &#125;&#125;.png"
     method: GET
-    url_username: "{{ uploader_user }}"
-    url_password: "{{ gighive_uploader_password }}"
+    url_username: "&#123;&#123; uploader_user &#125;&#125;"
+    url_password: "&#123;&#123; gighive_uploader_password &#125;&#125;"
     force_basic_auth: yes
-    validate_certs: "{{ gighive_validate_certs }}"
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: [200]
-    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
   register: thumb_http
   changed_when: false
   when:
@@ -3027,7 +3027,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
   ansible.builtin.assert:
     that:
       - "'image/png' in (thumb_http.content_type | default(''))"
-    fail_msg: "Expected Content-Type: image/png, got: {{ thumb_http.content_type | default('none') }}"
+    fail_msg: "Expected Content-Type: image/png, got: &#123;&#123; thumb_http.content_type | default('none') &#125;&#125;"
   when:
     - gighive_media_storage_backend == 'azure_blob'
     - smoke_test_video_sha256 is defined
@@ -3043,8 +3043,8 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 # Add to validate_app/tasks/main.yml
 - name: "[T-21] Audio assets have no thumbnail_blob_key after probe job"
   ansible.builtin.command: >
-    docker exec -i "{{ mysql_container_name }}"
-      sh -lc 'mysql -uroot -p"{{ mysql_root_password }}" media_db -sN -e
+    docker exec -i "&#123;&#123; mysql_container_name &#125;&#125;"
+      sh -lc 'mysql -uroot -p"&#123;&#123; mysql_root_password &#125;&#125;" media_db -sN -e
         "SELECT COUNT(*) FROM assets a
          JOIN probe_jobs p ON p.asset_id = a.id
          WHERE a.file_type = ''audio''
@@ -3061,7 +3061,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
     that:
       - audio_thumb_count.stdout | trim == "0"
     fail_msg: >
-      {{ audio_thumb_count.stdout | trim }} audio asset(s) have thumbnail_blob_key set.
+      &#123;&#123; audio_thumb_count.stdout | trim &#125;&#125; audio asset(s) have thumbnail_blob_key set.
       Audio should never produce a thumbnail.
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [media_storage]
@@ -3127,12 +3127,12 @@ x-ms-date: <RFC1123>
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-22/T-23] Fetch IMDS Bearer token from inside Apache container"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       curl -sf -H "Metadata: true" --connect-timeout 5
         "http://169.254.169.254/metadata/identity/oauth2/token\
 ?api-version=2018-02-01\
 &resource=https%3A%2F%2Fstorage.azure.com%2F\
-&client_id={{ azure_identity_client_id }}"
+&client_id=&#123;&#123; azure_identity_client_id &#125;&#125;"
   register: imds_token_raw
   changed_when: false
   no_log: true
@@ -3141,7 +3141,7 @@ x-ms-date: <RFC1123>
 
 - name: "[T-22/T-23] Parse IMDS token response"
   ansible.builtin.set_fact:
-    imds_token_json: "{{ imds_token_raw.stdout | from_json }}"
+    imds_token_json: "&#123;&#123; imds_token_raw.stdout | from_json &#125;&#125;"
   no_log: true
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
@@ -3173,12 +3173,12 @@ x-ms-date: <RFC1123>
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-24] Bearer token accepted by Azure Blob REST (container HEAD)"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       curl -sf -o /dev/null -w "%{http_code}"
-        -H "Authorization: Bearer {{ imds_token_json.access_token }}"
+        -H "Authorization: Bearer &#123;&#123; imds_token_json.access_token &#125;&#125;"
         -H "x-ms-version: 2020-04-08"
-        "https://{{ azure_blob_account_name }}.blob.core.windows.net/\
-{{ azure_blob_container }}?restype=container"
+        "https://&#123;&#123; azure_blob_account_name &#125;&#125;.blob.core.windows.net/\
+&#123;&#123; azure_blob_container &#125;&#125;?restype=container"
   register: blob_auth_code
   changed_when: false
   no_log: true
@@ -3190,7 +3190,7 @@ x-ms-date: <RFC1123>
     that:
       - blob_auth_code.stdout | trim == "200"
     fail_msg: >
-      Azure Blob rejected the Bearer token — got HTTP {{ blob_auth_code.stdout | trim }}.
+      Azure Blob rejected the Bearer token — got HTTP &#123;&#123; blob_auth_code.stdout | trim &#125;&#125;.
       Check Managed Identity RBAC assignment (Storage Blob Data Contributor).
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
@@ -3208,7 +3208,7 @@ x-ms-date: <RFC1123>
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-27] Scan Apache logs for leaked Bearer token strings"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       sh -lc 'grep -rn "Bearer ey" /var/log/apache2/ /var/www/html/logs/ 2>/dev/null | wc -l'
   register: bearer_leak_count
   changed_when: false
@@ -3221,7 +3221,7 @@ x-ms-date: <RFC1123>
       - bearer_leak_count.stdout | trim == "0"
     fail_msg: >
       Bearer token strings found in logs — token leakage detected.
-      Run: docker exec {{ apache_container_name }}
+      Run: docker exec &#123;&#123; apache_container_name &#125;&#125;
         grep -rn "Bearer ey" /var/log/apache2/ /var/www/html/logs/
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
@@ -3233,7 +3233,7 @@ x-ms-date: <RFC1123>
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-28] Scan access logs for SAS query params in runtime endpoints"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       sh -lc 'grep -E "\"(POST|PATCH|GET) /(files|media)/[^\"]*\?(sv|sig)="
         /var/log/apache2/access.log 2>/dev/null | wc -l'
   register: sas_runtime_count
@@ -3314,7 +3314,7 @@ The `azure.yml` group vars file is version-controlled but the storage account na
 - name: "[T-31] azure.yml has no duplicate azure_blob_account_name entries"
   ansible.builtin.shell: >
     grep -c "^azure_blob_account_name:"
-      "{{ inventory_dir }}/group_vars/azure.yml"
+      "&#123;&#123; inventory_dir &#125;&#125;/group_vars/azure.yml"
   register: acct_key_count
   delegate_to: localhost
   changed_when: false
@@ -3326,7 +3326,7 @@ The `azure.yml` group vars file is version-controlled but the storage account na
     that:
       - acct_key_count.stdout | trim == "1"
     fail_msg: >
-      {{ acct_key_count.stdout | trim }} entries for azure_blob_account_name in azure.yml
+      &#123;&#123; acct_key_count.stdout | trim &#125;&#125; entries for azure_blob_account_name in azure.yml
       (expected 1). Re-running 2bootstrap.sh may have duplicated the key.
   delegate_to: localhost
   tags: [smoke, media_storage]
@@ -3386,7 +3386,7 @@ See T-13 YAML above.
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-40] import_media_zip_worker_azure.php has no direct uploadBlobFromFile() call"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       grep -l "uploadBlobFromFile"
         /var/www/html/src/import_media_zip_worker_azure.php
   register: import_direct_call
@@ -3403,7 +3403,7 @@ See T-13 YAML above.
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-41] export_media_worker_azure.php has no direct downloadBlobToFile() call"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       grep -l "downloadBlobToFile"
         /var/www/html/src/export_media_worker_azure.php
   register: export_direct_call
@@ -3420,7 +3420,7 @@ See T-13 YAML above.
 # Adjust the path pattern to match the actual catalog scan file(s) in this codebase
 - name: "[T-42] No glob() calls scanning media directories in catalog code"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       sh -lc 'grep -rn "glob(" /var/www/html/src/
         | grep -v "vendor/"
         | grep -i "audio\|video\|media"
@@ -3435,7 +3435,7 @@ See T-13 YAML above.
     that:
       - catalog_glob_count.stdout | trim == "0"
     fail_msg: >
-      {{ catalog_glob_count.stdout | trim }} glob() call(s) referencing media paths found.
+      &#123;&#123; catalog_glob_count.stdout | trim &#125;&#125; glob() call(s) referencing media paths found.
       Catalog scan must use MediaStorageService::list() in Azure mode.
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
@@ -3616,7 +3616,7 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-47] tusd container is not running"
   ansible.builtin.command: >
-    docker ps --filter "name=tusd" --format '{% raw %}{{.Names}}{% endraw %}'
+    docker ps --filter "name=tusd" --format '&#123;% raw %&#125;&#123;&#123;.Names&#125;&#125;&#123;% endraw %&#125;'
   register: tusd_running
   changed_when: false
   tags: [smoke, media_storage]
@@ -3625,7 +3625,7 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
   ansible.builtin.assert:
     that:
       - tusd_running.stdout | trim == ""
-    fail_msg: "tusd container is still running: {{ tusd_running.stdout }}"
+    fail_msg: "tusd container is still running: &#123;&#123; tusd_running.stdout &#125;&#125;"
   tags: [smoke, media_storage]
 ```
 
@@ -3667,7 +3667,7 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
 # Add to post_build_checks/tasks/main.yml
 - name: "[T-54] Backend is azure_blob_with_local_fallback during migration window"
   ansible.builtin.command: >
-    docker exec -i "{{ apache_container_name }}"
+    docker exec -i "&#123;&#123; apache_container_name &#125;&#125;"
       printenv GIGHIVE_MEDIA_STORAGE_BACKEND
   register: fallback_backend_env
   changed_when: false
@@ -3679,7 +3679,7 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
     that:
       - fallback_backend_env.stdout | trim == 'azure_blob_with_local_fallback'
     fail_msg: >
-      Expected azure_blob_with_local_fallback, got {{ fallback_backend_env.stdout | trim }}
+      Expected azure_blob_with_local_fallback, got &#123;&#123; fallback_backend_env.stdout | trim &#125;&#125;
   when: gighive_media_storage_backend == 'azure_blob_with_local_fallback'
   tags: [smoke, media_storage]
 ```
@@ -3746,7 +3746,7 @@ Every role in `ansible/roles/` was reviewed against this refactor. The findings 
 `validate_app` includes:
 ```yaml
 - name: Get tusd version from tusd container
-  command: docker exec {{ tusd_container_name }} tusd --version
+  command: docker exec &#123;&#123; tusd_container_name &#125;&#125; tusd --version
   register: stack_tusd_raw
 ```
 and builds `stack_versions_summary.tusd` from this. After Phase 3, the container does not exist; `docker exec` fails silently (`failed_when: false`), and `stack_tusd_raw.stdout` is empty. The summary shows `tusd: N/A` forever with no indication that the field is now meaningless.
@@ -3756,7 +3756,7 @@ and builds `stack_versions_summary.tusd` from this. After Phase 3, the container
 **Issue 2 — Azure Blob connectivity probe uses SAS token over public endpoint:**
 
 ```yaml
-azure_probe_url: "https://{{ azure_blob_account_name }}.blob.core.windows.net/{{ azure_blob_container }}/test-connectivity/ansible-probe-...?{{ azure_blob_sas_token }}"
+azure_probe_url: "https://&#123;&#123; azure_blob_account_name &#125;&#125;.blob.core.windows.net/&#123;&#123; azure_blob_container &#125;&#125;/test-connectivity/ansible-probe-...?&#123;&#123; azure_blob_sas_token &#125;&#125;"
 ```
 
 This probe PUTs a sentinel blob directly to the storage account's public hostname using a SAS token. After Phase 6 (Terraform disables public network access), the storage account is reachable only through the private endpoint inside the VNet. The probe will time out and fail on every deploy after Phase 6.
@@ -3765,10 +3765,10 @@ This probe PUTs a sentinel blob directly to the storage account's public hostnam
 ```yaml
 - name: Azure Blob connectivity probe (from inside container via private endpoint)
   community.docker.docker_container_exec:
-    container: "{{ apache_container_name }}"
+    container: "&#123;&#123; apache_container_name &#125;&#125;"
     command: >
       php -r "
-        \$ch = curl_init('https://{{ azure_blob_account_name }}.blob.core.windows.net/{{ azure_blob_container }}?restype=container');
+        \$ch = curl_init('https://&#123;&#123; azure_blob_account_name &#125;&#125;.blob.core.windows.net/&#123;&#123; azure_blob_container &#125;&#125;?restype=container');
         curl_setopt_array(\$ch, [CURLOPT_RETURNTRANSFER => true,
                                   CURLOPT_HTTPHEADER => ['x-ms-version: 2020-04-08']]);
         \$code = curl_getinfo(\$ch, CURLINFO_HTTP_CODE);
@@ -3799,20 +3799,20 @@ This waits for the tusd `post-finish` hook to write a notification file that PHP
 ```yaml
 - name: Remove tus staging artifacts for this upload_id
   command: >
-    docker exec {{ apache_container_name }}
+    docker exec &#123;&#123; apache_container_name &#125;&#125;
     sh -lc 'rm -f
-    "/var/www/private/tus-data/{{ tus_upload_id }}"
-    "/var/www/private/tus-hooks/uploads/{{ tus_upload_id }}.json"
-    "/var/www/private/tus-hooks/finalized/{{ tus_upload_id }}.json"'
+    "/var/www/private/tus-data/&#123;&#123; tus_upload_id &#125;&#125;"
+    "/var/www/private/tus-hooks/uploads/&#123;&#123; tus_upload_id &#125;&#125;.json"
+    "/var/www/private/tus-hooks/finalized/&#123;&#123; tus_upload_id &#125;&#125;.json"'
 ```
 These paths are from the tusd volume (`tusd_data`, `tus_hooks`). After Phase 3, these volumes are gone. The cleanup should be updated to delete the `tus_uploads` DB row for the test upload ID instead:
 ```yaml
 - name: Remove tus_uploads DB row for smoke-test upload
   community.docker.docker_container_exec:
-    container: "{{ mysql_container_name }}"
+    container: "&#123;&#123; mysql_container_name &#125;&#125;"
     command: >
       sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
-              -e "DELETE FROM tus_uploads WHERE upload_id = ''{{ tus_upload_id }}'' LIMIT 1;"'
+              -e "DELETE FROM tus_uploads WHERE upload_id = ''&#123;&#123; tus_upload_id &#125;&#125;'' LIMIT 1;"'
 ```
 
 **Issue 3 — test_7 assertions need async probe job tolerance:**
@@ -3828,11 +3828,11 @@ These paths are from the tusd volume (`tusd_data`, `tus_hooks`). After Phase 3, 
 `roles/ai_worker/templates/docker-compose-ai-worker.yml.j2`:
 ```yaml
 volumes:
-  - {{ video_dir }}:/data/video:ro
-  - {{ audio_dir }}:/data/audio:ro
+  - &#123;&#123; video_dir &#125;&#125;:/data/video:ro
+  - &#123;&#123; audio_dir &#125;&#125;:/data/audio:ro
 ```
 
-`{{ video_dir }}` is `{{ gighive_home }}/video` (the VM host path). After Phase 11 step 10 removes the Azure media bind mounts, `{{ video_dir }}` is empty. The ai-worker container starts, but finds no media files at `/data/video` or `/data/audio`. It processes nothing and raises no error — a silent operational failure.
+`&#123;&#123; video_dir &#125;&#125;` is `&#123;&#123; gighive_home &#125;&#125;/video` (the VM host path). After Phase 11 step 10 removes the Azure media bind mounts, `&#123;&#123; video_dir &#125;&#125;` is empty. The ai-worker container starts, but finds no media files at `/data/video` or `/data/audio`. It processes nothing and raises no error — a silent operational failure.
 
 The ai-worker uses these paths to read video frames and audio for AI analysis. In Azure mode it needs to download blobs to temp paths before processing them.
 
@@ -3843,10 +3843,10 @@ In Azure mode, the ai-worker cannot use bind mounts. Two approaches:
 - **Option A (preferred):** Add a Blob download step to the ai-worker Python code: download the target blob to `/data/ai_assets/tmp/{asset_id}.{ext}`, process it, then delete. Mirror the pattern used by `MediaProbeJobService`. The compose volumes for `video` and `audio` become conditional on `gighive_media_storage_backend`:
   ```yaml
   # in docker-compose-ai-worker.yml.j2:
-  {% if gighive_media_storage_backend != 'azure_blob' %}
-        - {{ video_dir }}:/data/video:ro
-        - {{ audio_dir }}:/data/audio:ro
-  {% endif %}
+  &#123;% if gighive_media_storage_backend != 'azure_blob' %&#125;
+        - &#123;&#123; video_dir &#125;&#125;:/data/video:ro
+        - &#123;&#123; audio_dir &#125;&#125;:/data/audio:ro
+  &#123;% endif %&#125;
   ```
   Pass `GIGHIVE_MEDIA_STORAGE_BACKEND` and the Azure env vars into the ai-worker container so it can access Blob.
 
@@ -3862,9 +3862,9 @@ This is the **highest-risk silent failure** in the entire refactor. The ai-worke
 
 `roles/base/tasks/main.yml` does the following unconditionally:
 
-1. Creates `/home/{{ ansible_user }}/audio` and `video` with www-data ownership
+1. Creates `/home/&#123;&#123; ansible_user &#125;&#125;/audio` and `video` with www-data ownership
 2. `rsync`s full or reduced audio/video sets from the controller to the VM (`sync_audio`, `sync_video` tasks)
-3. Creates `{{ video_dir }}/podcasts`
+3. Creates `&#123;&#123; video_dir &#125;&#125;/podcasts`
 
 In Azure mode, these directories are not needed as media storage (they exist only as bind mount sources, which are removed after Phase 11 step 10). The rsync tasks are wasted work and potentially misleading — they populate directories that are not the canonical media store.
 
@@ -3891,7 +3891,7 @@ If `create_media_db.sql` is not run on an existing environment (e.g., an upgrade
 ```yaml
 - name: Check if tus_uploads table exists
   community.docker.docker_container_exec:
-    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    container: "&#123;&#123; mysql_container_name | default('mysqlServer') &#125;&#125;"
     command: >-
       sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse
       "SELECT COUNT(*) FROM information_schema.TABLES
@@ -3901,7 +3901,7 @@ If `create_media_db.sql` is not run on an existing environment (e.g., an upgrade
 
 - name: Create tus_uploads table if missing
   community.docker.docker_container_exec:
-    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    container: "&#123;&#123; mysql_container_name | default('mysqlServer') &#125;&#125;"
     command: >-
       sh -lc 'mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE"
               < /docker-entrypoint-initdb.d/create_media_db.sql'
@@ -3925,7 +3925,7 @@ Restoring a backup that captures a pending upload leaves an orphaned incomplete 
 
 #### `one_shot_bundle` — bundles local media files; Azure mode has none
 
-`roles/one_shot_bundle` builds a deployment bundle that includes `_host_audio/` and `_host_video/` directories populated from the local VM media paths (via `{{ _one_shot_bundle_assets_prefix }}/audio/` and `/video/`). In Azure mode, those VM directories are empty after Phase 11 step 10, so the bundle contains no media files.
+`roles/one_shot_bundle` builds a deployment bundle that includes `_host_audio/` and `_host_video/` directories populated from the local VM media paths (via `&#123;&#123; _one_shot_bundle_assets_prefix &#125;&#125;/audio/` and `/video/`). In Azure mode, those VM directories are empty after Phase 11 step 10, so the bundle contains no media files.
 
 `one_shot_bundle` is a local/VirtualBox deployment tool and is not used for Azure production. **No code change required.** Add a guard comment or `when: gighive_media_storage_backend != 'azure_blob'` to the `output_bundle.yml` tasks that populate `_host_audio` and `_host_video` so it is clear the bundle is not expected to contain media in Azure mode.
 
