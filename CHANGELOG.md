@@ -2,6 +2,29 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
+releaseNotes20260809.txt
+Changes: hats_checkout.md
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/hats_checkout.md
+	new file:   docs/images/hat_both_back.jpeg
+	new file:   docs/images/hat_futuristic_left_side.jpeg
+	new file:   docs/images/hat_futuristic_right_side.jpeg
+	new file:   docs/images/hat_modern_left_side.jpeg
+	new file:   docs/images/hat_modern_right_side.jpeg
+	new file:   docs/images/hat_retro_design_sheet copy.png
+	new file:   docs/images/hat_retro_design_sheet.png
+	modified:   docs/index.md
+	new file:   docs/merch_hats_storefront_v1.md
+
+
+*** 
 releaseNotes20260807.txt
 Changes: refactor_storage_media_rest_endpoint*.md unification, deploy task to the `ai-worker` service only fix (Apache could be rebuilt and re-tagged under the same image name while an already-running container), jekyll error 
 Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20

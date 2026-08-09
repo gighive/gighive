@@ -283,6 +283,7 @@ img {
     
     <h3>� Links</h3>
     <ul>
+        <li><a href="/hats">🧢 Wear the Hive</a></li>
         <li><a href="mailto:contactus@gighive.app">✉️ Contact Us</a></li>
         <li><a href="https://github.com/gighive/gighive" target="_blank">� GitHub</a></li>
     </ul>
