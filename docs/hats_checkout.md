@@ -59,6 +59,27 @@ img { background: transparent !important; }
 }
 .nav-menu h3 a.anchor,
 .nav-menu h3 a[href^="#"] { display: none !important; }
+.nav-section-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    pointer-events: auto;
+}
+.nav-section-toggle::after {
+    content: '▾';
+    font-size: 0.9em;
+    transition: transform 0.2s ease;
+}
+.nav-section-toggle[aria-expanded="false"]::after { transform: rotate(-90deg); }
+.nav-section-content.is-collapsed { display: none; }
 .nav-menu ul { list-style: none; padding: 0; margin: 0; }
 .nav-menu li { margin-bottom: 4px; }
 .nav-menu a:not([href^="#"]) {
@@ -278,20 +299,19 @@ img { background: transparent !important; }
   </ul>
   <h3>🔗 Links</h3>
   <ul>
-    <li><a href="/">🏠 Home</a></li>
-    <li><a href="/hats">🧢 Hats</a></li>
+    <li><a href="/hats">🧢 Wear the Hive</a></li>
     <li><a href="mailto:contact@gighive.app">✉️ Contact Us</a></li>
     <li><a href="https://github.com/gighive/gighive" target="_blank" rel="noopener noreferrer">🐙 GitHub</a></li>
   </ul>
-  <h3>🔒 Advanced / Internals</h3>
-  <ul>
+  <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-advanced">🔒 Advanced / Internals</button></h3>
+  <ul id="nav-advanced" class="nav-section-content is-collapsed">
     <li><a href="how_users_connect.html">⭐ How Users Connect</a></li>
     <li><a href="azure_setup.html">☁️ Azure Setup</a></li>
     <li><a href="SECURITY.html">🔒 Security</a></li>
     <li><a href="database_load_options.html">📊 Database Load Options</a></li>
   </ul>
-  <h3>📄 Legal &amp; Policies</h3>
-  <ul>
+  <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-legal">📄 Legal &amp; Policies</button></h3>
+  <ul id="nav-legal" class="nav-section-content is-collapsed">
     <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
     <li><a href="privacy.html">🔒 Privacy Policy</a></li>
     <li><a href="LICENSE.html">📜 Licenses</a></li>
@@ -304,7 +324,7 @@ img { background: transparent !important; }
 
   <div class="hat-shop-header">
     <img src="/images/beelogo.png" alt="GigHive bee" style="height:60px; vertical-align:middle;">
-    <h1>GigHive Hats</h1>
+    <h1>Wear the Hive</h1>
     <p>Support GigHive and help preserve shared experiences.</p>
   </div>
 
@@ -454,9 +474,24 @@ function closeMenu() {
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeMenu(); });
 document.addEventListener('DOMContentLoaded', function() {
     var navMenu = document.querySelector('.nav-menu');
-    if (navMenu) {
-        navMenu.querySelectorAll('h3 a.anchor, h3 a[href^="#"]').forEach(function(a) { a.remove(); });
+    if (!navMenu) {
+        return;
     }
+
+    navMenu.querySelectorAll('h3 a.anchor, h3 a[href^="#"]').forEach(function(a) { a.remove(); });
+    navMenu.querySelectorAll('.nav-section-toggle').forEach(function(toggle) {
+        var controlsId = toggle.getAttribute('aria-controls');
+        var content = controlsId ? document.getElementById(controlsId) : null;
+        if (!content) {
+            return;
+        }
+
+        toggle.addEventListener('click', function() {
+            var isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', String(!isExpanded));
+            content.classList.toggle('is-collapsed', isExpanded);
+        });
+    });
 });
 
 /* Photo gallery — swap hero image on thumbnail click */

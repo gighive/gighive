@@ -99,6 +99,35 @@ img {
     opacity: 0 !important;
 }
 
+.nav-section-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.nav-section-toggle::after {
+    content: '▾';
+    font-size: 0.9em;
+    transition: transform 0.2s ease;
+}
+
+.nav-section-toggle[aria-expanded="false"]::after {
+    transform: rotate(-90deg);
+}
+
+.nav-section-content.is-collapsed {
+    display: none;
+}
+
 .nav-menu ul {
     list-style: none;
     padding: 0;
@@ -288,16 +317,16 @@ img {
         <li><a href="https://github.com/gighive/gighive" target="_blank">� GitHub</a></li>
     </ul>
 
-    <h3>� Advanced / Internals</h3>
-    <ul>
+    <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-advanced">� Advanced / Internals</button></h3>
+    <ul id="nav-advanced" class="nav-section-content is-collapsed">
         <li><a href="how_users_connect.html">⭐ How Users Connect</a></li>
         <li><a href="azure_setup.html">☁️ Azure Setup</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="database_load_options.html">� Database Load Options</a></li>
     </ul>
 
-    <h3>� Legal & Policies</h3>
-    <ul>
+    <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-legal">� Legal & Policies</button></h3>
+    <ul id="nav-legal" class="nav-section-content is-collapsed">
         <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
         <li><a href="privacy.html">� Privacy Policy</a></li>
         <li><a href="LICENSE.html">📜 Licenses</a></li>
@@ -334,13 +363,30 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Remove anchor links from nav menu headings
+// Remove anchor links from nav menu headings and wire collapsible sections
 document.addEventListener('DOMContentLoaded', function() {
     const navMenu = document.querySelector('.nav-menu');
-    if (navMenu) {
-        const anchorLinks = navMenu.querySelectorAll('h3 a.anchor, h3 a[href^="#"]');
-        anchorLinks.forEach(link => link.remove());
+    if (!navMenu) {
+        return;
     }
+
+    const anchorLinks = navMenu.querySelectorAll('h3 a.anchor, h3 a[href^="#"]');
+    anchorLinks.forEach(link => link.remove());
+
+    const sectionToggles = navMenu.querySelectorAll('.nav-section-toggle');
+    sectionToggles.forEach(toggle => {
+        const controlsId = toggle.getAttribute('aria-controls');
+        const content = controlsId ? document.getElementById(controlsId) : null;
+        if (!content) {
+            return;
+        }
+
+        toggle.addEventListener('click', function() {
+            const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', String(!isExpanded));
+            content.classList.toggle('is-collapsed', isExpanded);
+        });
+    });
 });
 </script>
 
