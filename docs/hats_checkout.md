@@ -2,17 +2,17 @@
 layout: null
 permalink: /hats/
 ---
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GigHive Hats</title>
 <style>
 /* ── Base dark theme ──────────────────────────────────── */
-body {
+html, body {
+    margin: 0;
+    padding: 0;
     background-color: #121a33;
     color: white;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+body {
+    line-height: 1.5;
 }
 img { background: transparent !important; }
 
@@ -253,8 +253,6 @@ img { background: transparent !important; }
 .hat-about a { color: #2196F3; text-decoration: none; }
 .hat-about a:hover { text-decoration: underline; }
 </style>
-</head>
-<body>
 
 <!-- Hamburger button -->
 <div class="hamburger-menu">
@@ -470,5 +468,3 @@ function setHero(cardId, thumbEl) {
     thumbEl.classList.add('thumb-active');
 }
 </script>
-</body>
-</html>
