@@ -291,13 +291,13 @@ img { background: transparent !important; }
 <nav class="nav-menu">
   <h3>📚 Setup</h3>
   <ul>
-    <li><a href="PREREQS.html">📋 Prerequisites</a></li>
-    <li><a href="README.html">🚀 Setup Guide</a></li>
-    <li><a href="setup_instructions_quickstart.html">⚡ Quickstart Setup</a></li>
+    <li><a href="/PREREQS.html">📋 Prerequisites</a></li>
+    <li><a href="/README.html">🚀 Setup Guide</a></li>
+    <li><a href="/setup_instructions_quickstart.html">⚡ Quickstart Setup</a></li>
   </ul>
   <h3>📱 iPhone App</h3>
   <ul>
-    <li><a href="iphone_app.html">📱 GigHive iPhone App</a></li>
+    <li><a href="/iphone_app.html">📱 GigHive iPhone App</a></li>
   </ul>
   <h3>🔗 Links</h3>
   <ul>
@@ -306,18 +306,18 @@ img { background: transparent !important; }
   </ul>
   <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-advanced">🔒 Advanced / Internals</button></h3>
   <ul id="nav-advanced" class="nav-section-content is-collapsed">
-    <li><a href="how_users_connect.html">⭐ How Users Connect</a></li>
-    <li><a href="azure_setup.html">☁️ Azure Setup</a></li>
-    <li><a href="SECURITY.html">🔒 Security</a></li>
-    <li><a href="database_load_options.html">📊 Database Load Options</a></li>
+    <li><a href="/how_users_connect.html">⭐ How Users Connect</a></li>
+    <li><a href="/azure_setup.html">☁️ Azure Setup</a></li>
+    <li><a href="/SECURITY.html">🔒 Security</a></li>
+    <li><a href="/database_load_options.html">📊 Database Load Options</a></li>
     <li><a href="https://github.com/gighive/gighive" target="_blank" rel="noopener noreferrer">🐙 GitHub</a></li>
   </ul>
   <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-legal">📄 Legal &amp; Policies</button></h3>
   <ul id="nav-legal" class="nav-section-content is-collapsed">
-    <li><a href="gighive_content_policy.html">📋 Content Policy</a></li>
-    <li><a href="privacy.html">🔒 Privacy Policy</a></li>
-    <li><a href="LICENSE.html">📜 Licenses</a></li>
-    <li><a href="APP_TERMS_OF_SERVICE.html">📋 App Terms of Service</a></li>
+    <li><a href="/gighive_content_policy.html">📋 Content Policy</a></li>
+    <li><a href="/privacy.html">🔒 Privacy Policy</a></li>
+    <li><a href="/LICENSE.html">📜 Licenses</a></li>
+    <li><a href="/APP_TERMS_OF_SERVICE.html">📋 App Terms of Service</a></li>
   </ul>
 </nav>
 
