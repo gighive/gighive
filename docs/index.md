@@ -64,12 +64,14 @@ img {
 .nav-menu {
     position: fixed;
     top: 0;
-    right: -282px;
+    right: 0;
     width: 280px;
     height: 100vh;
+    box-sizing: border-box;
     background-color: #1a2347;
     border-left: 2px solid #2196F3;
-    transition: right 0.3s ease;
+    transform: translateX(calc(100% + 20px));
+    transition: transform 0.3s ease;
     padding: 15px 20px 20px;
     box-shadow: -2px 0 10px rgba(0,0,0,0.3);
     overflow-y: auto;
@@ -78,7 +80,7 @@ img {
 }
 
 .nav-menu.active {
-    right: 0;
+    transform: translateX(0);
 }
 
 .nav-menu h3 {
@@ -184,7 +186,6 @@ img {
 @media (max-width: 768px) {
     .nav-menu {
         width: 100%;
-        right: -100%;
     }
 }
 

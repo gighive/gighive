@@ -39,17 +39,19 @@ img { background: transparent !important; }
 .hamburger-icon.active .hamburger-line:nth-child(3) { transform: rotate(-45deg) translate(8px, -8px); }
 
 .nav-menu {
-    position: fixed; top: 0; right: -282px;
+    position: fixed; top: 0; right: 0;
     width: 280px; height: 100vh;
+    box-sizing: border-box;
     background-color: #1a2347;
     border-left: 2px solid #2196F3;
-    transition: right 0.3s ease;
+    transform: translateX(calc(100% + 20px));
+    transition: transform 0.3s ease;
     padding: 15px 20px 20px;
     box-shadow: -2px 0 10px rgba(0,0,0,0.3);
     overflow-y: auto; z-index: 1001;
     pointer-events: auto;
 }
-.nav-menu.active { right: 0; }
+.nav-menu.active { transform: translateX(0); }
 .nav-menu h3 {
     color: #2196F3 !important;
     margin-bottom: 20px; font-size: 1.0em;
@@ -99,7 +101,7 @@ img { background: transparent !important; }
 }
 .nav-overlay.active { opacity: 1; visibility: visible; }
 
-@media (max-width: 768px) { .nav-menu { width: 100%; right: -100%; } }
+@media (max-width: 768px) { .nav-menu { width: 100%; } }
 
 /* ── Page wrapper ─────────────────────────────────────── */
 .hat-shop {
