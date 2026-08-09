@@ -39,7 +39,7 @@ img { background: transparent !important; }
 .hamburger-icon.active .hamburger-line:nth-child(3) { transform: rotate(-45deg) translate(8px, -8px); }
 
 .nav-menu {
-    position: fixed; top: 0; right: -300px;
+    position: fixed; top: 0; right: -282px;
     width: 280px; height: 100vh;
     background-color: #1a2347;
     border-left: 2px solid #2196F3;

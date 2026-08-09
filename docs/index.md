@@ -64,7 +64,7 @@ img {
 .nav-menu {
     position: fixed;
     top: 0;
-    right: -300px;
+    right: -282px;
     width: 280px;
     height: 100vh;
     background-color: #1a2347;
