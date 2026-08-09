@@ -116,7 +116,7 @@ img {
 
 .nav-section-toggle::after {
     content: '▾';
-    font-size: 0.9em;
+    font-size: 1.2em;
     transition: transform 0.2s ease;
 }
 
@@ -314,7 +314,6 @@ img {
     <ul>
         <li><a href="/hats">🧢 Wear the Hive</a></li>
         <li><a href="mailto:contactus@gighive.app">✉️ Contact Us</a></li>
-        <li><a href="https://github.com/gighive/gighive" target="_blank">� GitHub</a></li>
     </ul>
 
     <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-advanced">� Advanced / Internals</button></h3>
@@ -323,6 +322,7 @@ img {
         <li><a href="azure_setup.html">☁️ Azure Setup</a></li>
         <li><a href="SECURITY.html">🔒 Security</a></li>
         <li><a href="database_load_options.html">� Database Load Options</a></li>
+        <li><a href="https://github.com/gighive/gighive" target="_blank">� GitHub</a></li>
     </ul>
 
     <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-legal">� Legal & Policies</button></h3>

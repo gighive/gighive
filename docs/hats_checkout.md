@@ -75,7 +75,7 @@ img { background: transparent !important; }
 }
 .nav-section-toggle::after {
     content: '▾';
-    font-size: 0.9em;
+    font-size: 1.2em;
     transition: transform 0.2s ease;
 }
 .nav-section-toggle[aria-expanded="false"]::after { transform: rotate(-90deg); }
@@ -301,7 +301,6 @@ img { background: transparent !important; }
   <ul>
     <li><a href="/hats">🧢 Wear the Hive</a></li>
     <li><a href="mailto:contact@gighive.app">✉️ Contact Us</a></li>
-    <li><a href="https://github.com/gighive/gighive" target="_blank" rel="noopener noreferrer">🐙 GitHub</a></li>
   </ul>
   <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-advanced">🔒 Advanced / Internals</button></h3>
   <ul id="nav-advanced" class="nav-section-content is-collapsed">
@@ -309,6 +308,7 @@ img { background: transparent !important; }
     <li><a href="azure_setup.html">☁️ Azure Setup</a></li>
     <li><a href="SECURITY.html">🔒 Security</a></li>
     <li><a href="database_load_options.html">📊 Database Load Options</a></li>
+    <li><a href="https://github.com/gighive/gighive" target="_blank" rel="noopener noreferrer">🐙 GitHub</a></li>
   </ul>
   <h3><button type="button" class="nav-section-toggle" aria-expanded="false" aria-controls="nav-legal">📄 Legal &amp; Policies</button></h3>
   <ul id="nav-legal" class="nav-section-content is-collapsed">
