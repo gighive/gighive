@@ -9,6 +9,16 @@ body {
 }
 img { background: transparent !important; }
 
+/* ── Hide Jekyll theme site header on this page ───────── */
+header.site-header,
+.site-header {
+    display: none !important;
+}
+main.page-content,
+.page-content {
+    padding-top: 0 !important;
+}
+
 /* ── Hamburger menu (matches site-wide nav) ───────────── */
 .hamburger-menu {
     position: fixed;
@@ -83,7 +93,7 @@ img { background: transparent !important; }
 /* ── Page header ──────────────────────────────────────── */
 .hat-shop-header {
     text-align: center;
-    padding: 3rem 0 2.5rem;
+    padding: 1.5rem 0 2rem;
     border-bottom: 1px solid #2a3560;
     margin-bottom: 2.5rem;
 }
@@ -383,7 +393,7 @@ img { background: transparent !important; }
           <span class="hat-price">$39.95</span>
           <span class="shipping-badge">FREE U.S. SHIPPING</span>
         </div>
-        <a href="https://buy.stripe.com/test_fZu6oB9Ft2Za9p8b3aa7C00"
+        <a href="https://buy.stripe.com/8x28wJ3lZg1Fe7Wbrt1wY00"
            class="buy-btn buy-btn-active">Buy Now →</a>
       </div>
     </div>

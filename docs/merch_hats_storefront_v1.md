@@ -79,13 +79,7 @@ No Stripe link yet. Button is disabled ("Coming Soon") until inventory is ready.
 
 ## Current link state in hats_checkout.md
 
-Both hats currently point to **test links** while end-to-end purchase flow
-is being verified. To switch to production, replace the `href` values:
-
-```
-Modern Bee Hat  → https://buy.stripe.com/bJedR3e0DaHlbZO6791wY01
-Futuristic Hat  → https://buy.stripe.com/8x28wJ3lZg1Fe7Wbrt1wY00
-```
+Both hats point to **production links**. End-to-end purchase flow verified via test links.
 
 ------------------------------------------------------------------------
 
