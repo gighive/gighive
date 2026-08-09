@@ -1,6 +1,13 @@
 ---
+layout: null
 permalink: /hats/
 ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GigHive Hats</title>
 <style>
 /* ── Base dark theme ──────────────────────────────────── */
 body {
@@ -8,16 +15,6 @@ body {
     color: white;
 }
 img { background: transparent !important; }
-
-/* ── Hide Jekyll theme site header on this page ───────── */
-header.site-header,
-.site-header {
-    display: none !important;
-}
-main.page-content,
-.page-content {
-    padding-top: 0 !important;
-}
 
 /* ── Hamburger menu (matches site-wide nav) ───────────── */
 .hamburger-menu {
@@ -256,6 +253,8 @@ main.page-content,
 .hat-about a { color: #2196F3; text-decoration: none; }
 .hat-about a:hover { text-decoration: underline; }
 </style>
+</head>
+<body>
 
 <!-- Hamburger button -->
 <div class="hamburger-menu">
@@ -471,3 +470,5 @@ function setHero(cardId, thumbEl) {
     thumbEl.classList.add('thumb-active');
 }
 </script>
+</body>
+</html>
