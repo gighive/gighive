@@ -261,6 +261,43 @@ img { background: transparent !important; }
 .buy-btn-active:hover { background: #1565C0; }
 .buy-btn-soon { background: #1e2a50; color: #556 !important; cursor: default; pointer-events: none; }
 
+/* ── Lightbox ─────────────────────────────────────────── */
+.lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+.lightbox.is-open {
+    display: flex;
+}
+.lightbox-img {
+    max-width: 92vw;
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+    cursor: default;
+}
+.lightbox-close {
+    position: fixed;
+    top: 18px;
+    right: 22px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.8;
+    z-index: 2001;
+}
+.lightbox-close:hover { opacity: 1; }
+
 /* ── About section ────────────────────────────────────── */
 .hat-about {
     background: #1a2347;
@@ -338,7 +375,8 @@ img { background: transparent !important; }
     <div class="hat-card">
       <img id="hero-modern" class="hat-hero"
            src="/images/hat_modern_left_side.jpeg"
-           alt="GigHive Modern Bee Hat">
+           alt="GigHive Modern Bee Hat"
+           onclick="openLightbox(this)">
       <div class="thumb-strip">
         <img class="thumb thumb-active"
              src="/images/hat_modern_left_side.jpeg"
@@ -380,7 +418,8 @@ img { background: transparent !important; }
     <div class="hat-card">
       <img id="hero-futuristic" class="hat-hero"
            src="/images/hat_futuristic_left_side.jpeg"
-           alt="GigHive Futuristic Hat">
+           alt="GigHive Futuristic Hat"
+           onclick="openLightbox(this)">
       <div class="thumb-strip">
         <img class="thumb thumb-active"
              src="/images/hat_futuristic_left_side.jpeg"
@@ -461,6 +500,12 @@ img { background: transparent !important; }
 
 </div><!-- /.hat-shop -->
 
+<!-- Lightbox -->
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
+  <img id="lightbox-img" class="lightbox-img" src="" alt="" onclick="event.stopPropagation()">
+</div>
+
 <script>
 /* Hamburger nav */
 function toggleMenu() {
@@ -473,7 +518,12 @@ function closeMenu() {
     document.querySelector('.nav-menu').classList.remove('active');
     document.querySelector('.nav-overlay').classList.remove('active');
 }
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeMenu(); });
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLightbox();
+        closeMenu();
+    }
+});
 document.addEventListener('DOMContentLoaded', function() {
     var navMenu = document.querySelector('.nav-menu');
     if (!navMenu) {
@@ -503,5 +553,19 @@ function setHero(cardId, thumbEl) {
         t.classList.remove('thumb-active');
     });
     thumbEl.classList.add('thumb-active');
+}
+
+/* Lightbox */
+function openLightbox(imgEl) {
+    var lb = document.getElementById('lightbox');
+    var lbImg = document.getElementById('lightbox-img');
+    lbImg.src = imgEl.src;
+    lbImg.alt = imgEl.alt;
+    lb.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('is-open');
+    document.body.style.overflow = '';
 }
 </script>
