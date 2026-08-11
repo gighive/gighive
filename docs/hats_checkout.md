@@ -407,7 +407,7 @@ img { background: transparent !important; }
           <span class="hat-price">$39.95</span>
           <span class="shipping-badge">FREE U.S. SHIPPING</span>
         </div>
-        <a href="https://buy.stripe.com/test_fZu14hg3R6bm6cWdbia7C01"
+        <a href="https://buy.stripe.com/bJedR3e0DaHlbZO6791wY01"
            class="buy-btn buy-btn-active">Buy Now →</a>
       </div>
     </div>
