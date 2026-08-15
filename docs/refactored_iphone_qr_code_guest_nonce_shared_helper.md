@@ -1,14 +1,12 @@
 # Refactor: Guest Credential Shared Helper (PHP)
 
-## Status — 2026-08-12
-
-Implementation complete — pending deploy to dev → lab → staging → prod.
+## Status — 2026-08-15 — COMPLETE
 
 **Completed (local patch, 2026):** The `{30,40}` → `{30,43}` regex bug in `guest-delete.php` was fixed in-place as part of the flag-retract work.
 
 **Completed (this refactor):** `src/Services/GuestCredentialResolver.php` created. `guest-gallery.php`, `guest-report.php`, `guest-delete.php`, and `guest-stream.php` all updated to use the shared helper. Smoke tests in `shared_gallery` extended to cover delete and stream. Steps 1–6 of the checklist are checked off.
 
-**Pending:** Step 7 — Ansible deploy in progress: dev ✅ verified 2026-08-15 → lab → staging → prod.
+**Complete:** Deployed and verified across all environments 2026-08-15. dev ✅ → lab ✅ → staging ✅ → prod ✅.
 
 **Separate follow-up:** `guest-status.php` still uses `{30,40}` — inconsistent with the canonical `{30,43}`. Not covered by this plan; see Out-of-Scope Follow-Up.
 
@@ -393,7 +391,7 @@ No database changes. No new endpoints. No iPhone app changes. No DDL. No `post_b
 
 - `{30,40}` → `{30,43}` regex bug in `guest-delete.php` fixed locally as part of flag-retract work.
 
-### Remaining — This Feature
+### Completed — This Feature
 
 - [x] Step 1: Create `src/Services/GuestCredentialResolver.php`
 - [x] Step 2: Wire `api/guest-gallery.php`
@@ -401,7 +399,7 @@ No database changes. No new endpoints. No iPhone app changes. No DDL. No `post_b
 - [x] Step 4: Wire `api/guest-stream.php`
 - [x] Step 5: Wire `api/guest-delete.php`
 - [x] Step 6: Extend smoke tests in `shared_gallery`
-- [ ] Step 7: Deploy dev ✅ → lab → staging → prod
+- [x] Step 7: Deploy dev ✅ → lab ✅ → staging ✅ → prod ✅
 
 ### Remaining — Follow-on Tasks
 

@@ -39,6 +39,40 @@
   notify: restart ai-worker
   when: ai_worker_enabled | default(false) | bool
 
+- name: Get all locally available Docker image IDs
+  community.docker.docker_host_info:
+    images: true
+  register: docker_host_facts
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Inspect project containers for stale image references
+  community.docker.docker_container_info:
+    name: "{{ item }}"
+  register: project_containers
+  loop:
+    - "{{ apache_container_name }}"
+    - "{{ tusd_container_name }}"
+    - "{{ mysql_container_name }}"
+    - ai-worker
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Build available image ID set
+  ansible.builtin.set_fact:
+    _available_image_ids: "{{ docker_host_facts.images | map(attribute='Id') | list }}"
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Remove project containers whose image is no longer available locally
+  community.docker.docker_container:
+    name: "{{ item.item }}"
+    state: absent
+    force_kill: true
+  loop: "{{ (project_containers.results | default([])) | selectattr('exists', 'equalto', true) | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - ai_worker_enabled | default(false) | bool
+    - item.container.Image not in (_available_image_ids | default([]))
+
 - name: Deploy ai-worker container
   community.docker.docker_compose_v2:
     project_src: "{{ docker_dir }}"

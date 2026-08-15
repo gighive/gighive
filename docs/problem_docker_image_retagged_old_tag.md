@@ -331,6 +331,51 @@ docker compose -f docker-compose.yml -f docker-compose-ai-worker.yml images
 After removing `ai-worker`, `docker compose ... images` succeeded, confirming that the
 compose project no longer contained any containers pointing at missing image objects.
 
+## Automatic Recovery — Follow-up Fix (2026-08-15)
+
+A second stale-image occurrence happened on 2026-08-15 (SHA `sha256:bf04ab...` missing,
+`ai-worker` container was the stale holder). The service-scoping fix from the original
+incident was still in place and working correctly — this recurrence was caused by a
+separate prior playbook run leaving a stale container behind, not by the Apache
+rebuild path.
+
+To eliminate the need for manual cleanup on future occurrences, four pre-flight tasks
+were added to `ansible/roles/ai_worker/tasks/main.yml` immediately before the
+`Deploy ai-worker container` task.
+
+### What the tasks do
+
+1. **`community.docker.docker_host_info` (`images: true`)** — fetches the definitive
+   list of all image IDs (`sha256:...`) currently available on the Docker host.
+2. **`community.docker.docker_container_info` loop** — inspects all four containers
+   in the combined project (`apacheWebServer`, `apacheWebServer_tusd`, `mysqlServer`,
+   `ai-worker`) to read the image SHA each one was created from.
+3. **`ansible.builtin.set_fact`** — flattens the available image IDs into a simple list
+   (`_available_image_ids`) for use in the next task's `when` condition.
+4. **`community.docker.docker_container` loop (`state: absent`)** — removes any
+   container whose `.Image` SHA is not present in `_available_image_ids`.
+
+Zero `shell` or `command` modules are used. All data manipulation is done with
+standard Ansible modules and Jinja2 filters.
+
+### Behavior on a clean run
+
+All container image SHAs are found in `_available_image_ids`. The remove task's loop
+iterates over an empty filtered list — nothing is removed, no disruption.
+
+### Behavior on a stale-image run
+
+One or more containers whose image SHA is absent from `_available_image_ids` are
+automatically removed before the deploy runs. The `docker compose images` pre-flight
+check inside `community.docker.docker_compose_v2` then succeeds, and the deploy
+rebuilds and recreates the removed container(s) as normal. No manual intervention required.
+
+### Why the Manual Cleanup Commands section above is now superseded
+
+The manual steps in `## Manual Cleanup Commands Used` are retained for historical
+reference, but the automatic pre-flight tasks make them unnecessary for future
+occurrences. The playbook self-heals on the next run.
+
 ## Related Files
 
 - `ansible/roles/ai_worker/tasks/main.yml` — the failing `docker_compose_v2` task

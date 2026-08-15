@@ -3,7 +3,7 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260815.txt
-Changes: nonce code refactor (duplicate cred validate/event-resolution block), remove unused src/Models
+Changes: ai worker retagged redux issue
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,21 +12,10 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/api/guest-delete.php
-	modified:   ansible/roles/docker/files/apache/webroot/api/guest-gallery.php
-	modified:   ansible/roles/docker/files/apache/webroot/api/guest-report.php
-	modified:   ansible/roles/docker/files/apache/webroot/api/guest-stream.php
-	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/FileModel.php
-	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/JamModel.php
-	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/SongModel.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/GuestCredentialResolver.php
-	modified:   ansible/roles/shared_gallery/tasks/main.yml
-	new file:   docs/problem_apple_itunes_podcast_401s.md
-	modified:   docs/refactor_iphone_qr_code_guest_nonce_shared_helper.md
-	new file:   docs/refactor_status_20260812.md
-	modified:   docs/refactor_storage_media_rest_endpoint.md
-	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
-	renamed:    docs/refactor_os_add_swap.md -> docs/refactored_os_add_swap.md
+	modified:   ansible/roles/ai_worker/tasks/main.yml
+	modified:   docs/problem_docker_image_retagged_old_tag.md
+	modified:   docs/refactor_status_20260812.md
+	renamed:    docs/refactor_iphone_qr_code_guest_nonce_shared_helper.md -> docs/refactored_iphone_qr_code_guest_nonce_shared_helper.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
@@ -38,19 +27,19 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # GIG2 EVERYTHING make sure playwright_admin_tests = true in group_var
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive -e allow_destructive=true -K"
 # PROD ROLLOUT
-Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260726.log
+Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260815.log
 # LAB PUSH: 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260726.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260815.log
 # LAB ALL TESTS: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
 # LAB, rebuild 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
 # GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260726.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260815.log
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
-Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260726.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260815.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT PUSH (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260726.log 
@@ -131,6 +120,33 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
 
+
+*** 
+releaseNotes20260815.txt
+Changes: nonce code refactor (duplicate cred validate/event-resolution block), remove unused src/Models
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-delete.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-gallery.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-report.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-stream.php
+	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/FileModel.php
+	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/JamModel.php
+	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/SongModel.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/GuestCredentialResolver.php
+	modified:   ansible/roles/shared_gallery/tasks/main.yml
+	new file:   docs/problem_apple_itunes_podcast_401s.md
+	modified:   docs/refactor_iphone_qr_code_guest_nonce_shared_helper.md
+	new file:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
+	renamed:    docs/refactor_os_add_swap.md -> docs/refactored_os_add_swap.md
 
 *** 
 releaseNotes20260809.txt
