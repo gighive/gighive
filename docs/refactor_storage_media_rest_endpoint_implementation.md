@@ -1576,6 +1576,87 @@ Build in this sequence. Each item is independently testable before the next begi
 
 ---
 
+## Test Inventory: Permanent vs Phase-Gate Checks
+
+This index lists every automated check (`post_build_checks`, `validate_app`) in this refactor plan. Each is classified as a **permanent fixture** (stays in the Ansible roles indefinitely) or a **phase gate** (removed once its tranche is verified stable). Cleanup runbooks are at the end of each tranche — see *Tranche 1 Cleanup* after Phase 5 and *Tranche 2 Cleanup* after Phase 11.
+
+### Permanent Fixtures
+
+These remain in `post_build_checks` and `validate_app` after the full refactor is complete. They detect configuration drift, security regressions, and routing breakage on future deploys.
+
+| Check | Role | Applies to | What it guards |
+|---|---|---|---|
+| T-3 | post_build_checks | Azure | Blob DNS resolves to private IP after Terraform changes |
+| T-6 | post_build_checks | Azure | Media endpoint accessible; no regression after Terraform |
+| T-8 | post_build_checks | all | `GIGHIVE_MEDIA_STORAGE_BACKEND` env var matches group vars |
+| T-9 | post_build_checks | all | `host.docker.internal` extra_host present (IMDS routing) |
+| T-10 | post_build_checks | Azure | IMDS reachable from Apache container |
+| T-11 | post_build_checks | Azure | No local bind mounts in Azure mode (storage coupling) |
+| T-12 | post_build_checks | local | Audio/video bind mounts present in local/VirtualBox mode |
+| T-13 | post_build_checks | Azure | `clear_media_files.php` returns non-500 |
+| T-14 | validate_app | Azure | Video probe job produces `thumbnail_blob_key` |
+| T-15 | validate_app | Azure | Thumbnail blob exists at the recorded key |
+| T-16/T-17 | validate_app | Azure | Thumbnail is a valid PNG with non-zero dimensions |
+| T-18 | post_build_checks | Azure | No thumbnail files on VM disk (probe writes to Blob only) |
+| T-19 | post_build_checks | Azure | `GET /media/video/thumbnails/` → 200 `image/png` |
+| T-21 | validate_app | Azure | Audio probe: `duration_seconds` set; no `thumbnail_blob_key` |
+| T-22/T-23 | post_build_checks | Azure | IMDS returns 200 with a valid JWT |
+| T-24 | post_build_checks | Azure | Bearer token accepted by Azure Blob REST |
+| T-27 | post_build_checks | Azure | No Bearer token strings in Apache logs |
+| T-28 | post_build_checks | Azure | No SAS params in runtime `/files/` or `/media/` logs |
+| T-31 | post_build_checks | Azure (controller) | `azure.yml` has no duplicate storage keys |
+| T-39 | post_build_checks | Azure | `clear_media_files.php` non-500 *(delegates to T-13)* |
+| T-47 | post_build_checks | all | tusd container not running *(mirrors T-83)* |
+| T-51 | post_build_checks | Azure | `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob` *(delegates to T-8)* |
+| T-60 | post_build_checks | Azure | No bind mounts after Phase 11 step 10 *(delegates to T-11)* |
+| T-61 | post_build_checks | Azure | Media endpoint 401 after bind mount removal *(delegates to T-6)* |
+| T-62 | post_build_checks | Azure | Backend reverted to `azure_blob` *(delegates to T-8)* |
+| T-64 | post_build_checks | local | `/media/audio/` returns 401 (local mode routing) |
+| T-65 | post_build_checks | local | Range request → 206 with correct `Content-Range` |
+| T-66 | post_build_checks | local | `/audio/` old path → 401 (PHP-mediated, not Apache static) |
+| T-67 | post_build_checks | local | Bind mounts present *(delegates to T-12)* |
+| T-68 | post_build_checks | local | `MEDIA_SEARCH_DIRS` absent (retired env var) |
+| T-73 | post_build_checks | all | APCu extension loaded (required by `AzureIdentityTokenCache`) |
+| T-79 | post_build_checks | all | PHP >= 8.2 (required by `HashContext` serialization) |
+| T-82 | post_build_checks | all | Probe job cron file present in container |
+| T-83 | post_build_checks | all | tusd container not running |
+| T-84 | post_build_checks | all | `GET /files/` → 400 (PHP tus handler live) |
+| T-85 | post_build_checks | all | `POST /files/` unauthenticated → 401 |
+| T-86 | post_build_checks | all | `innodb_lock_wait_timeout >= 60` |
+| T-90 | post_build_checks | all | `GET /api/media-stream.php` → 401 without auth |
+| T-91 | post_build_checks | all | `GET /media/audio/` → 400/401 (canonical path routing) |
+| T-92 | post_build_checks | all | `GET /audio/` old path → 401 (backward-compat routing) |
+
+### Phase-Gate Checks — Remove After Tranche 1
+
+Remove from `post_build_checks` at the Tranche 1 Cleanup step (after Phase 5 is verified stable). These are one-time structural checks that belong in CI pre-deploy, not in ongoing post-deploy smoke.
+
+| Check | Role | What it confirmed |
+|---|---|---|
+| T-71 | post_build_checks | `composer dump-autoload` exits 0 (Phase 2 classes discoverable) |
+| T-72 | post_build_checks | `php -l` passes on Phase 2 service files |
+| T-74 | post_build_checks | `MediaStorageService::make()` instantiates without error |
+| T-80 | post_build_checks | `tus_uploads` table has all required columns |
+| T-81 | post_build_checks | `probe_jobs` table has all required columns |
+
+### Phase-Gate Checks — Remove After Tranche 2
+
+Remove from `post_build_checks` at the Tranche 2 Cleanup step (after Phase 11 is verified stable). These are one-time structural checks for the Phase 10 code refactor.
+
+| Check | Role | What it confirmed |
+|---|---|---|
+| T-40 | post_build_checks | Import worker has no direct `uploadBlobFromFile()` call |
+| T-41 | post_build_checks | Export worker has no direct `downloadBlobToFile()` call |
+| T-42 | post_build_checks | No `glob()` calls in the media catalog scan path |
+
+### Migration-Window-Only — Remove at Phase 11 Step 9
+
+| Check | Role | When to remove |
+|---|---|---|
+| T-54 | post_build_checks | When `gighive_media_storage_backend` reverts from `azure_blob_with_local_fallback` to `azure_blob` |
+
+---
+
 ## Implementation Phases (Phase 1 – Phase 11)
 
 > Phase-by-phase deployment guide covering Terraform, Ansible, PHP, and
@@ -1653,6 +1734,7 @@ network_rules {
 > Requires Azure portal UI access; not automatable from Ansible on the VM.
 
 **T-3 [post_build_checks]** — Blob DNS resolves to a private IP from inside the Apache container.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; private endpoint DNS can drift after Terraform changes.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml — gated on azure_blob mode
@@ -1683,6 +1765,7 @@ network_rules {
 > Must be run from outside the VM — Ansible runs on the VM and would succeed via the private endpoint, masking a misconfigured public-access block.
 
 **T-6 [post_build_checks]** — Existing media endpoint responds normally post-apply (no 403 regression from inside the container).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects access regressions after any Azure networking change.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -1763,6 +1846,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
 ---
 
 **T-8 [post_build_checks]** — `GIGHIVE_MEDIA_STORAGE_BACKEND` env var is set in the container and matches group vars; Azure-specific vars are non-empty in Azure mode.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects env var drift between group vars and running container.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -1796,6 +1880,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
 ```
 
 **T-9 [post_build_checks]** — Apache container has `host.docker.internal:host-gateway` in `ExtraHosts`.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects compose drift that would break IMDS connectivity.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -1819,6 +1904,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
 ```
 
 **T-10 [post_build_checks]** — IMDS instance endpoint is reachable from inside the Apache container (Azure mode only).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects networking regressions that would silently break all Azure Blob auth.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -1845,6 +1931,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
 ```
 
 **T-11 [post_build_checks]** — Apache container has no local media bind mounts in Azure mode.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects compose drift that would re-couple media to VM disk.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -1870,6 +1957,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
 ```
 
 **T-12 [post_build_checks]** — Apache container has audio and video bind mounts present in local/VirtualBox mode.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; confirms local-mode compose is intact after any role change.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -1887,6 +1975,7 @@ This is required for Managed Identity token acquisition from inside the Docker b
 ```
 
 **T-13 [post_build_checks]** — `clear_media_files.php` admin page returns non-500 in Azure mode.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects admin-page regressions after backend changes.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -2004,6 +2093,135 @@ video/thumbnails/<sha256>.png     (hardcoded in MediaStorageService::putThumbnai
 - **Input validation on blob keys:** Key validation belongs in `media-stream.php` (entry point) — reject non-matching keys with 400 before calling any backend. `AzureBlobMediaBackend` assumes a pre-validated key.
 - **try/catch around all external calls:** Every cURL call in `AzureBlobRestClient::curl()` must catch transport errors and throw `\RuntimeException`. Callers (backends) catch and convert to appropriate HTTP responses. Pattern: `503` for infrastructure failures, `404` for missing blobs.
 - **Shared token cache:** `AzureIdentityTokenCache` uses APCu keyed on `"azure_token:{$clientId}"`. Two `AzureBlobRestClient` instances (one in `MediaStorageService::make()`, one in `TusUploadConfig::fromEnv()`) share the same APCu key — IMDS is called at most once per expiry window across all concurrent PHP workers.
+
+#### Validation Checklist — Phase 2
+
+*4 of 8 automated (`post_build_checks`); 4 manual. Automated checks verify the service layer is syntactically and structurally correct inside the container. Functional correctness of `LocalMediaBackend` and `AzureBlobMediaBackend` requires manual verification against real storage.*
+
+---
+
+**T-71 [post_build_checks]** — `composer dump-autoload` exits 0 inside the Apache container (all new Phase 2 classes are discoverable).
+> *Lifecycle: **phase gate (Tranche 1)** — remove from `post_build_checks` at Tranche 1 cleanup; autoload is stable once confirmed and belongs in CI not post-deploy smoke.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-71] composer dump-autoload succeeds inside Apache container"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; apache_container_name &#125;&#125;"
+    command:
+      - composer
+      - dump-autoload
+      - --no-dev
+      - --working-dir=/var/www/html
+  register: composer_dump
+  changed_when: false
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-71] Assert composer dump-autoload exited 0"
+  ansible.builtin.assert:
+    that:
+      - composer_dump.rc == 0
+    fail_msg: "composer dump-autoload failed: &#123;&#123; composer_dump.stderr &#125;&#125;"
+  tags: [smoke, media_storage]
+```
+
+**T-72 [post_build_checks]** — PHP syntax check (`php -l`) passes on all new Phase 2 service files.
+> *Lifecycle: **phase gate (Tranche 1)** — remove from `post_build_checks` at Tranche 1 cleanup; syntax is confirmed once at deployment and belongs in CI pre-deploy.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-72] PHP syntax check on Phase 2 service files"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; apache_container_name &#125;&#125;"
+    command:
+      - php
+      - -l
+      - "&#123;&#123; item &#125;&#125;"
+  loop:
+    - /var/www/html/src/Services/MediaStorageService.php
+    - /var/www/html/src/Services/AzureBlobRestClient.php
+    - /var/www/html/src/Services/AzureIdentityTokenCache.php
+  register: php_syntax_p2
+  changed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-72] Assert all Phase 2 service files pass php -l"
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+    fail_msg: "PHP syntax error in &#123;&#123; item.item &#125;&#125;: &#123;&#123; item.stderr &#125;&#125;"
+  loop: "&#123;&#123; php_syntax_p2.results &#125;&#125;"
+  tags: [smoke, media_storage]
+```
+
+**T-73 [post_build_checks]** — APCu extension is loaded inside the Apache container (`AzureIdentityTokenCache` requires it).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; APCu availability can change when the base image is updated.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-73] APCu extension is loaded inside the Apache container"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; apache_container_name &#125;&#125;"
+    command:
+      - php
+      - -r
+      - "exit(function_exists('apcu_store') ? 0 : 1);"
+  register: apcu_check
+  changed_when: false
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-73] Assert APCu is available"
+  ansible.builtin.assert:
+    that:
+      - apcu_check.rc == 0
+    fail_msg: >
+      APCu extension not loaded — AzureIdentityTokenCache will fail to cache tokens.
+      Ensure the php-apcu package is installed in the Apache container image.
+  tags: [smoke, media_storage]
+```
+
+**T-74 [post_build_checks]** — `MediaStorageService::make()` instantiates without error in local mode.
+> *Lifecycle: **phase gate (Tranche 1)** — remove from `post_build_checks` at Tranche 1 cleanup; one-time confidence check; ongoing routing smoke (T-90/T-91) covers functional regression.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-74] MediaStorageService::make() instantiates without exception (local mode)"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; apache_container_name &#125;&#125;"
+    command:
+      - php
+      - -r
+      - "require '/var/www/html/vendor/autoload.php'; \\Production\\Api\\Services\\MediaStorageService::make(); echo 'ok';"
+  register: storage_make_check
+  changed_when: false
+  failed_when: false
+  when: gighive_media_storage_backend == 'local'
+  tags: [smoke, media_storage]
+
+- name: "[T-74] Assert MediaStorageService::make() printed ok"
+  ansible.builtin.assert:
+    that:
+      - storage_make_check.stdout | trim == 'ok'
+    fail_msg: >
+      \Production\Api\Services\MediaStorageService::make() threw an exception in local mode.
+      Stderr: &#123;&#123; storage_make_check.stderr &#125;&#125;
+  when: gighive_media_storage_backend == 'local'
+  tags: [smoke, media_storage]
+```
+
+**T-75 [Manual]** — `AzureBlobRestClient::blobUrl('audio/test.mp3')` returns a correctly formed URL; `authHeaders()` returns an array containing `Authorization`, `x-ms-version`, and `x-ms-date` keys.
+> Run a one-off `docker exec` PHP snippet against a dev environment with Azure env vars set. Inspect the printed URL and header array for correctness. Azure mode only.
+
+**T-76 [Manual]** — `LocalMediaBackend` functional: `put()` copies a test file to the audio dir; `getMeta()` returns the correct size; `stream()` pipes the correct bytes to stdout; `exists()` returns `true` for the copied file and `false` for a non-existent key.
+> Run via `docker exec` PHP snippet with a small test file in `/tmp`. Verify byte-for-byte output of `stream()` matches the original. Local mode only.
+
+**T-77 [Manual]** — `AzureBlobMediaBackend` functional: `getMeta()` returns correct `size` and `ETag` for a known blob; `stream()` pipes correct bytes; `put()` creates a blob visible in the Azure portal at the expected key.
+> Run via `docker exec` PHP snippet against a dev Azure environment. Use a known small test blob. Azure mode only.
+
+**T-78 [Manual]** — `MediaStorageService::make()` throws `RuntimeException` when `AZURE_BLOB_ACCOUNT_NAME`, `AZURE_BLOB_CONTAINER`, or `AZURE_IDENTITY_CLIENT_ID` is unset while `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob`.
+> Run `docker exec` with the env var temporarily unset (one at a time). Confirm exception message is thrown and no silent fallback occurs.
 
 ---
 
@@ -2558,21 +2776,25 @@ No polling loop. No hook file. The client may call this endpoint immediately aft
 **Smoke test requirement for `tus-upload.php`:** `post_build_checks/tasks/main.yml` must include:
 
 ```yaml
-- name: "[smoke] tus-upload.php returns 400 on plain GET (not a tus request)"
+- name: "[T-84] tus-upload.php returns 400 on plain GET (not a tus request)"
   ansible.builtin.uri:
-    url: "https://&#123;&#123; ansible_host &#125;&#125;/files/"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/files/"
     method: GET
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: 400
-    validate_certs: false
-  tags: [smoke]
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
+  changed_when: false
+  tags: [smoke, media_storage]
 
-- name: "[smoke] tus-upload.php returns 401 on unauthenticated POST without tus headers"
+- name: "[T-85] tus-upload.php returns 401 on unauthenticated POST"
   ansible.builtin.uri:
-    url: "https://&#123;&#123; ansible_host &#125;&#125;/files/"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/files/"
     method: POST
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: 401
-    validate_certs: false
-  tags: [smoke]
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
+  changed_when: false
+  tags: [smoke, media_storage]
 ```
 
 These two checks verify: (1) the PHP tus server is live and responding (not a 404 or 502 from a missing container), and (2) auth is enforced before any tus processing. Both are non-destructive and run on every deploy.
@@ -2599,6 +2821,209 @@ Phase 3 retires tusd from every compose template unconditionally. There is no en
 4. The `GIGHIVE_MEDIA_STORAGE_BACKEND=local` env var can remain set — the PHP service layer is a no-op until traffic reaches it
 
 The most vulnerable window is the first deploy on a live environment. Deploy to `devvm` first and hold for a minimum of one full upload-test cycle before promoting to `stagingvm` or `prod`.
+
+#### Validation Checklist — Phase 3
+
+*8 of 11 automated (`post_build_checks`); 3 manual. T-79, T-86, and the pre-task assertions in the Phase 3 body are prerequisites that must pass before deployment; T-80–T-85 run as post-deploy smoke checks.*
+
+---
+
+**T-79 [post_build_checks]** — PHP >= 8.2 inside the Apache container (`HashContext` serialization and `readonly class` require 8.2).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; base image updates can silently downgrade the PHP version.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml (also used as a pre-task assertion — see Phase 3 body)
+- name: "[T-79] PHP version is >= 8.2 inside the Apache container"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; apache_container_name &#125;&#125;"
+    command:
+      - php
+      - -r
+      - "exit(PHP_MAJOR_VERSION > 8 || (PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION >= 2) ? 0 : 1);"
+  register: php_ver_p3
+  changed_when: false
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-79] Assert PHP >= 8.2"
+  ansible.builtin.assert:
+    that:
+      - php_ver_p3.rc == 0
+    fail_msg: >
+      PHP version is below 8.2. Update the base image before deploying Phase 3.
+  tags: [smoke, media_storage]
+```
+
+**T-80 [post_build_checks]** — `tus_uploads` table exists in `media_db` with all required columns.
+> *Lifecycle: **phase gate (Tranche 1)** — remove from `post_build_checks` at Tranche 1 cleanup; schema is stable once the DDL is applied.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-80] Count expected columns in tus_uploads"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; mysql_container_name &#125;&#125;"
+    command:
+      - mysql
+      - -uroot
+      - media_db
+      - -sN
+      - -e
+      - >-
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA='media_db'
+          AND TABLE_NAME='tus_uploads'
+          AND COLUMN_NAME IN (
+            'upload_id','user_id','status',
+            'upload_length','block_count','block_size',
+            'sha256_ctx','file_type','asset_id','expires_at')
+    env:
+      MYSQL_PWD: "&#123;&#123; mysql_root_password &#125;&#125;"
+  register: tus_uploads_cols
+  changed_when: false
+  no_log: true
+  tags: [smoke, media_storage]
+
+- name: "[T-80] Assert tus_uploads has all 10 expected columns"
+  ansible.builtin.assert:
+    that:
+      - tus_uploads_cols.stdout | trim | int == 10
+    fail_msg: >
+      tus_uploads column count={{ tus_uploads_cols.stdout | trim }}, expected 10.
+      Apply the Phase 3 DDL from create_media_db.sql before deploying.
+  tags: [smoke, media_storage]
+```
+
+**T-81 [post_build_checks]** — `probe_jobs` table exists in `media_db` with all required columns.
+> *Lifecycle: **phase gate (Tranche 1)** — remove from `post_build_checks` at Tranche 1 cleanup; same rationale as T-80.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-81] Count expected columns in probe_jobs"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; mysql_container_name &#125;&#125;"
+    command:
+      - mysql
+      - -uroot
+      - media_db
+      - -sN
+      - -e
+      - >-
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA='media_db'
+          AND TABLE_NAME='probe_jobs'
+          AND COLUMN_NAME IN (
+            'asset_id','blob_key','file_type',
+            'status','attempts','started_at')
+    env:
+      MYSQL_PWD: "&#123;&#123; mysql_root_password &#125;&#125;"
+  register: probe_jobs_cols
+  changed_when: false
+  no_log: true
+  tags: [smoke, media_storage]
+
+- name: "[T-81] Assert probe_jobs has all 6 expected columns"
+  ansible.builtin.assert:
+    that:
+      - probe_jobs_cols.stdout | trim | int == 6
+    fail_msg: >
+      probe_jobs column count={{ probe_jobs_cols.stdout | trim }}, expected 6.
+      Apply the Phase 3 DDL from create_media_db.sql before deploying.
+  tags: [smoke, media_storage]
+```
+
+**T-82 [post_build_checks]** — Probe job cron file `/etc/cron.d/gighive-probe` exists inside the Apache container and references `run_probe_job.php`.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; a role refactor could drop the cron deployment silently.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-82] Read probe cron file inside Apache container"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; apache_container_name &#125;&#125;"
+    command:
+      - cat
+      - /etc/cron.d/gighive-probe
+  register: probe_cron_check
+  changed_when: false
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-82] Assert probe cron file is present and references run_probe_job.php"
+  ansible.builtin.assert:
+    that:
+      - probe_cron_check.rc == 0
+      - "'run_probe_job' in probe_cron_check.stdout"
+    fail_msg: >
+      /etc/cron.d/gighive-probe missing or does not reference run_probe_job.php.
+      Deploy gighive-probe.cron.j2 via the docker role.
+  tags: [smoke, media_storage]
+```
+
+**T-83 [post_build_checks]** — `tusd` container is not running; the PHP tus handler is the sole upload target.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; guards against tusd being re-added to compose accidentally.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-83] Gather tusd container info"
+  community.docker.docker_container_info:
+    name: "&#123;&#123; tusd_container_name &#125;&#125;"
+  register: tusd_info
+  tags: [smoke, media_storage]
+
+- name: "[T-83] Assert tusd container is absent or not running"
+  ansible.builtin.assert:
+    that:
+      - not (tusd_info.exists and tusd_info.container.State.Status == 'running')
+    fail_msg: >
+      tusd container &#123;&#123; tusd_container_name &#125;&#125; is still running.
+      Remove it from docker-compose.yml.j2 and redeploy.
+  tags: [smoke, media_storage]
+```
+
+**T-84 [post_build_checks]** — `GET /files/` returns 400 (PHP tus server is live and routing correctly; not a 404 or 502 from a missing container). *(YAML snippet already in Phase 3 body — move to this checklist.)*
+> *Lifecycle: **permanent** — keep in `post_build_checks`; any Apache config change could break /files/ routing.*
+
+**T-85 [post_build_checks]** — Unauthenticated `POST /files/` returns 401 (auth enforced before any tus processing). *(YAML snippet already in Phase 3 body — move to this checklist.)*
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects auth regressions on the upload endpoint.*
+
+**T-86 [post_build_checks]** — `innodb_lock_wait_timeout >= 60` (required to cover the PATCH lock window during slow Azure `PUT Block` calls). *(Pre-task assertion in Phase 3 body; also add to post_build_checks for ongoing verification.)*
+> *Lifecycle: **permanent** — keep in `post_build_checks`; MySQL config can drift after restarts or container rebuilds.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-86] Read innodb_lock_wait_timeout"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; mysql_container_name &#125;&#125;"
+    command:
+      - mysql
+      - -uroot
+      - -sN
+      - -e
+      - "SELECT @@innodb_lock_wait_timeout"
+    env:
+      MYSQL_PWD: "&#123;&#123; mysql_root_password &#125;&#125;"
+  register: lock_timeout
+  changed_when: false
+  no_log: true
+  tags: [smoke, media_storage]
+
+- name: "[T-86] Assert innodb_lock_wait_timeout >= 60"
+  ansible.builtin.assert:
+    that:
+      - lock_timeout.stdout | trim | int >= 60
+    fail_msg: >
+      innodb_lock_wait_timeout={{ lock_timeout.stdout | trim }}, expected >= 60.
+      Add innodb_lock_wait_timeout=60 to the MySQL [mysqld] config and restart.
+  tags: [smoke, media_storage]
+```
+
+**T-87 [Manual]** — Full tus upload flow end-to-end: `POST /files/` → `PATCH /files/{id}` × N → final PATCH → `tus_uploads` row transitions `pending → complete`; `probe_jobs` row inserted with `status=queued`; SHA-256 in `assets` row matches `sha256sum` of the original file; `block_size` in `tus_uploads` is non-zero after the first PATCH.
+> Perform with both `tus-js-client` (browser) and iOS `TUSKit`. Verify DB state with `SELECT * FROM tus_uploads WHERE upload_id='...'` and `SELECT * FROM probe_jobs ORDER BY id DESC LIMIT 1`.
+
+**T-88 [Manual]** — Azure only: a single `writeChunk()` call issues exactly one `PUT Block`; the block appears in the Azure portal's uncommitted block list for the upload's blob key; `finalizeUpload()` calls `PUT Block List` and commits the blob; the committed blob is readable via `AzureBlobMediaBackend::getMeta()`.
+> Inspect Azure portal → Storage account → Container → blob → Block list before and after finalize. Azure mode only.
+
+**T-89 [Manual]** — Probe job runs end-to-end: one `queued` row is claimed and transitions `queued → running → done`; `assets.duration_seconds` is updated with a non-null value; for a video upload, the thumbnail blob exists at `video/thumbnails/{sha256}.png` (Azure) or in the local thumbnails directory.
+> Wait up to 60 seconds for the cron to fire. Query: `SELECT status, attempts FROM probe_jobs WHERE asset_id = ?`.
 
 ---
 
@@ -2688,13 +3113,15 @@ The range is forwarded to `AzureBlobMediaBackend::getRangeStream()` which sets t
 **Smoke test requirement:** `post_build_checks/tasks/main.yml` must include:
 
 ```yaml
-- name: "[smoke] media-stream.php returns 401 without auth"
+- name: "[T-90] media-stream.php returns 401 without auth"
   ansible.builtin.uri:
-    url: "https://&#123;&#123; ansible_host &#125;&#125;/api/media-stream.php"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/api/media-stream.php"
     method: GET
-    status_code: 401
-    validate_certs: false
-  tags: [smoke]
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
+    status_code: [400, 401]
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
+  changed_when: false
+  tags: [smoke, media_storage]
 ```
 
 **iOS thumbnail authentication — acceptance criterion for Phase 11 step 9:**
@@ -2720,6 +3147,59 @@ Add this as a checklist item in Phase 11 step 9.
 - **RSPEC-3776 (cognitive complexity):** `media-stream.php` must decompose into `validateKey()`, `authenticateRequest()`, `parseRangeHeader()`, `buildStreamResponse()`. The main file should read as a sequence of four calls with early exits, not nested conditionals.
 - **RSPEC-6426 (null dereference):** `$_SERVER['HTTP_RANGE']` is `string|undefined`; always use `?? null` before passing to the regex. Never pass an unvalidated header string to `header()`.
 - **Range edge case:** A request with `Range: bytes=0-` (open-ended) is valid and must resolve `$end = $meta->size - 1`. The regex `^bytes=(\d+)-(\d*)$` already handles this via `$m[2] !== ''` check; verify in integration test.
+
+#### Validation Checklist — Phase 4
+
+*3 of 7 automated (`post_build_checks`); 4 manual. T-90 YAML snippet is already in the Phase 4 body — consolidate here. Functional correctness of byte delivery, range seeking, and backward-compat requires manual verification against a real asset.*
+
+---
+
+**T-90 [post_build_checks]** — `GET /api/media-stream.php` (no key) returns 401 without auth (PHP endpoint is live; not a 404). *(YAML snippet already in Phase 4 body — move to this checklist.)*
+> *Lifecycle: **permanent** — keep in `post_build_checks`; any Apache config change or missing file would produce a 404 instead.*
+
+**T-91 [post_build_checks]** — `GET /media/audio/` returns 400 or 401 (PHP handler is routing correctly; not a 404 or 502 from a missing file).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects Apache RewriteRule regressions on the canonical media path.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-91] /media/audio/ returns 400 or 401 (PHP handler live)"
+  ansible.builtin.uri:
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/media/audio/"
+    method: GET
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
+    status_code: [400, 401]
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
+  changed_when: false
+  tags: [smoke, media_storage]
+```
+
+**T-92 [post_build_checks]** — Old-path `GET /audio/` returns 401 (PHP-mediated via backward-compat `RewriteRule`; not an Apache static 404 or 403).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; guards the backward-compat routing that existing iOS clients depend on.*
+
+```yaml
+# Add to post_build_checks/tasks/main.yml
+- name: "[T-92] Old /audio/ path returns 401 (PHP-mediated, not Apache static)"
+  ansible.builtin.uri:
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/audio/"
+    method: GET
+    validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
+    status_code: [400, 401]
+    headers: "&#123;&#123; {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit &#125;&#125;"
+  changed_when: false
+  tags: [smoke, media_storage]
+```
+
+**T-93 [Manual]** — Full-file `GET /media/audio/{key}` with a valid auth token returns `200 OK` with the correct `Content-Type`, correct `Content-Length` matching the file size, and `Accept-Ranges: bytes` header; byte content matches the original file.
+> Use `curl -H 'X-Upload-Token: ...' -o /tmp/test.mp3` and compare `sha256sum` against the original.
+
+**T-94 [Manual]** — Range request `GET /media/audio/{key}` with `Range: bytes=0-65535` returns `206 Partial Content` with correct `Content-Range: bytes 0-65535/{total}` and `Content-Length: 65536`; bytes delivered match the corresponding byte range of the original file.
+> Also test a mid-file range and an open-ended `Range: bytes=N-` to exercise the `$m[2] !== ''` edge case.
+
+**T-95 [Manual]** — `GET /audio/{key}` (old path) delivers identical bytes to `GET /media/audio/{key}` for the same asset (backward-compat `RewriteRule` is functioning).
+> Compare `sha256sum` of both responses. A mismatch indicates the backward-compat rule is routing to the wrong handler or key.
+
+**T-96 [Manual]** — A URL with an invalid `$type` segment (e.g. `GET /media/documents/{key}`) returns `400 Bad Request`; a URL with a key that fails the regex returns `400`; neither returns `500`.
+> Verify the key validation guard fires before any `MediaStorageService` call is made (no backend error logged alongside the 400).
 
 ---
 
@@ -2750,6 +3230,7 @@ Once Azure (Phase 11) is confirmed stable:
 ---
 
 **T-64 [post_build_checks]** — `/media/audio/` returns 401 (not 403/500) — `LocalMediaBackend` is live and enforcing auth.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects routing regressions on local/VirtualBox deployments.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -2766,6 +3247,7 @@ Once Azure (Phase 11) is confirmed stable:
 ```
 
 **T-65 [post_build_checks]** — Range request to a known audio asset returns 206 with correct `Content-Range` header.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects regression in the range-request path (when smoke_test_audio_sha256 is set).*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -2803,6 +3285,7 @@ Once Azure (Phase 11) is confirmed stable:
 ```
 
 **T-66 [post_build_checks]** — Direct `/audio/` request returns 401 (PHP-mediated, not Apache static file serving).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; a 403 here would indicate Apache static serving is active again.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -2821,8 +3304,10 @@ Once Azure (Phase 11) is confirmed stable:
 ```
 
 **T-67 [post_build_checks]** — Audio and video bind mounts are present in local mode. *(Covered by T-12.)*
+> *Lifecycle: **permanent** — covered by T-12; no separate task needed.*
 
 **T-68 [post_build_checks]** — `MEDIA_SEARCH_DIRS` env var is absent from the container (retired).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects accidental re-introduction of the retired env var.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -2842,6 +3327,30 @@ Once Azure (Phase 11) is confirmed stable:
 
 **T-70 [Manual]** — iOS `TUSKit` upload completes via `LocalFileTusBackend`; probe job runs; asset appears in the app.
 > Requires a real iOS device or simulator with the GigHive app pointed at the VirtualBox host.
+
+---
+
+### Tranche 1 Cleanup — Remove Phase-Gate Checks from `post_build_checks`
+
+**When:** After Phase 5 is verified stable on all local and VirtualBox inventories (T-69 and T-70 signed off).
+
+**Rationale:** The five checks below confirmed structural integrity of the Phase 2–3 initial deployment. They are one-time validations. Retaining them on every subsequent deploy adds noise without new signal and will produce false failures if class paths or DB schemas are legitimately changed later.
+
+**File to edit:** `ansible/roles/post_build_checks/tasks/main.yml`
+
+Remove the following task pairs — each check consists of a command task and a subsequent `Assert` task; remove both:
+
+| T-N | Task `name:` string to search for and remove |
+|---|---|
+| T-71 | `[T-71] composer dump-autoload succeeds inside Apache container` |
+| T-72 | `[T-72] PHP syntax check on Phase 2 service files` |
+| T-74 | `[T-74] MediaStorageService::make() instantiates without exception (local mode)` |
+| T-80 | `[T-80] Count expected columns in tus_uploads` |
+| T-81 | `[T-81] Count expected columns in probe_jobs` |
+
+**After removal:** Run `ansible-playbook --tags smoke,media_storage` against a local/VirtualBox inventory. Confirm all remaining tasks pass and no task references a variable set only by a removed task.
+
+**Also consider at this step:** Add T-71 and T-72 equivalents to the CI pipeline (lint stage) so they continue to run pre-deploy where they belong.
 
 ---
 
@@ -2875,6 +3384,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 ---
 
 **T-14 [validate_app]** — Most recent completed video probe job has `thumbnail_blob_key` set.
+> *Lifecycle: **permanent** — keep in `validate_app`; ensures the probe job pipeline is running correctly on each deploy.*
 
 ```yaml
 # Add to validate_app/tasks/main.yml
@@ -2905,6 +3415,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 ```
 
 **T-15 [validate_app]** — Thumbnail blob exists in storage at the key recorded in `assets`.
+> *Lifecycle: **permanent** — keep in `validate_app`; confirms the blob written by the probe job is accessible.*
 
 ```yaml
 # Add to validate_app/tasks/main.yml
@@ -2935,8 +3446,10 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 ```
 
 **T-16 [validate_app]** — Downloaded thumbnail is a valid PNG file.
+> *Lifecycle: **permanent** — keep in `validate_app`; detects probe job failures that produce corrupted thumbnails.*
 
 **T-17 [validate_app]** — Thumbnail dimensions are non-zero. *(Runs as part of the same task block as T-16.)*
+> *Lifecycle: **permanent** — keep in `validate_app`; same task block as T-16; runs as part of T-16 YAML.*
 
 ```yaml
 # Add to validate_app/tasks/main.yml
@@ -2978,6 +3491,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 ```
 
 **T-18 [post_build_checks]** — No thumbnail files persist on VM disk in Azure mode.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects probe job writing temp files to disk instead of Blob.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3003,6 +3517,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 ```
 
 **T-19 [post_build_checks]** — `GET /media/video/thumbnails/{sha256}.png` returns 200 with `Content-Type: image/png`.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects thumbnail routing regressions (when smoke_test_video_sha256 is set).*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3038,6 +3553,7 @@ At no point is a thumbnail or its source video written to the `tusd_data` volume
 > Requires a real browser session with cookie authentication. The `uri` module cannot replicate session-cookie auth for the admin panel's same-origin `<img>` requests.
 
 **T-21 [validate_app]** — Audio probe job completes with `duration_seconds` set but `thumbnail_blob_key` remains null.
+> *Lifecycle: **permanent** — keep in `validate_app`; detects if audio processing starts incorrectly generating thumbnails.*
 
 ```yaml
 # Add to validate_app/tasks/main.yml
@@ -3120,8 +3636,10 @@ x-ms-date: <RFC1123>
 ---
 
 **T-22 [post_build_checks]** — IMDS token endpoint returns 200 with a valid JSON body containing `access_token` and `expires_in`.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects IMDS connectivity failures that would silently break all Blob operations.*
 
 **T-23 [post_build_checks]** — `access_token` is a non-empty JWT string (starts with `eyJ`). *(Runs in the same task block as T-22.)*
+> *Lifecycle: **permanent** — keep in `post_build_checks`; same task block as T-22; runs as part of T-22 YAML.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3168,6 +3686,7 @@ x-ms-date: <RFC1123>
 ```
 
 **T-24 [post_build_checks]** — Bearer token is accepted by Azure Blob REST (container-level HEAD returns 200).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects RBAC/identity regressions that would break media access.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3203,6 +3722,7 @@ x-ms-date: <RFC1123>
 > Requires a long-running observation window. Can be approximated in a test environment by temporarily lowering `EXPIRY_BUFFER_SECONDS`, but that requires a code change.
 
 **T-27 [post_build_checks]** — No Bearer token strings in Apache error or access logs.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; ongoing security regression check; a logging change could inadvertently expose tokens.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3228,6 +3748,7 @@ x-ms-date: <RFC1123>
 ```
 
 **T-28 [post_build_checks]** — No SAS query parameters appear in runtime `/files/` or `/media/` access log entries.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects any code path that reverts to SAS-based access for runtime media.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3307,6 +3828,7 @@ The `azure.yml` group vars file is version-controlled but the storage account na
 > Script runs on developer's local machine. Check `echo $?` immediately after the script.
 
 **T-31 [post_build_checks, delegate_to: localhost]** — `azure.yml` has exactly one entry per storage key (no duplicates from repeated runs).
+> *Lifecycle: **permanent** — keep in `post_build_checks`; detects 2bootstrap.sh idempotency failures that would corrupt group vars on re-runs.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3377,10 +3899,12 @@ The `azure.yml` group vars file is version-controlled but the storage account na
 > Destructive operation — must be tested in a non-production environment with a controlled asset set.
 
 **T-39 [post_build_checks]** — `clear_media_files.php` returns non-500 in Azure mode. *(Covered by T-13; duplicate reference here for Phase 10 completeness.)*
+> *Lifecycle: **permanent** — covered by T-13; no separate task needed.*
 
 See T-13 YAML above.
 
 **T-40 [post_build_checks]** — Import worker no longer contains a direct `uploadBlobFromFile()` call.
+> *Lifecycle: **phase gate (Tranche 2)** — remove from `post_build_checks` at Tranche 2 cleanup; one-time code structure check; the abstraction is stable once confirmed.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3398,6 +3922,7 @@ See T-13 YAML above.
 ```
 
 **T-41 [post_build_checks]** — Export worker no longer contains a direct `downloadBlobToFile()` call.
+> *Lifecycle: **phase gate (Tranche 2)** — remove from `post_build_checks` at Tranche 2 cleanup; same rationale as T-40.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3414,6 +3939,7 @@ See T-13 YAML above.
 ```
 
 **T-42 [post_build_checks]** — No `glob()` calls remain in the catalog scan path for media files.
+> *Lifecycle: **phase gate (Tranche 2)** — remove from `post_build_checks` at Tranche 2 cleanup; one-time code structure check; the catalog scan is stable once confirmed.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3611,6 +4137,7 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
 > Covers all Phase 2–4 acceptance criteria (Build Order table items 1–13) on local backends.
 
 **T-47 [post_build_checks]** — `tusd` container is not running; PHP tus handler returns expected status on `/files/`.
+> *Lifecycle: **permanent** — keep in `post_build_checks`; mirrors T-83; keep in post_build_checks for all environments.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3647,6 +4174,7 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
 **Step 5 (azure_blob group vars deployed)**
 
 **T-51 [post_build_checks]** — `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob` confirmed in container after deploy. *(Covered by T-8; run T-8 after the Azure group vars deploy.)*
+> *Lifecycle: **permanent** — covered by T-8; no separate task needed.*
 
 ---
 
@@ -3662,6 +4190,7 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
 > Functional end-to-end upload test on the live Azure deployment during the migration window.
 
 **T-54 [post_build_checks]** — `GIGHIVE_MEDIA_STORAGE_BACKEND` is `azure_blob_with_local_fallback` during the migration window.
+> *Lifecycle: **migration window only** — remove when backend reverts to `azure_blob` at Phase 11 step 9.*
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -3704,13 +4233,43 @@ Add `src/Jobs/backfill_media_to_blob.php` to the Files Under Change → New list
 **Step 10 (bind mounts removed)**
 
 **T-60 [post_build_checks]** — Apache container has no audio/video bind mounts after Step 10. *(Covered by T-11; run T-11 after bind mounts are removed.)*
+> *Lifecycle: **permanent** — covered by T-11; no separate task needed.*
 
 **T-61 [post_build_checks]** — Media endpoint returns 401 (not 403/500) after bind mounts removed. *(Covered by T-6.)*
+> *Lifecycle: **permanent** — covered by T-6; no separate task needed.*
 
 **T-62 [post_build_checks]** — `GIGHIVE_MEDIA_STORAGE_BACKEND` reverted to `azure_blob`. *(Covered by T-8.)*
+> *Lifecycle: **permanent** — covered by T-8; no separate task needed.*
 
 **T-63 [Manual]** — `FallbackMediaBackend` class flagged or deleted from the codebase.
 > Code review / grep check: `grep -r "FallbackMediaBackend" src/` should return only a deletion commit or a `// TODO: remove` comment after Step 10.
+
+---
+
+### Tranche 2 Cleanup — Remove Phase-Gate and Migration-Window Checks from `post_build_checks`
+
+**When:** After Phase 11 step 9 is fully complete — meaning all of: T-56 (`fail=0` on backfill), T-57 (blob count matches DB), T-63 (`FallbackMediaBackend` deleted), and `gighive_media_storage_backend` reverted to `azure_blob` in group vars.
+
+**File to edit:** `ansible/roles/post_build_checks/tasks/main.yml`
+
+Remove the following task pairs (command task + Assert task):
+
+| T-N | Task `name:` string to search for and remove | Reason |
+|---|---|---|
+| T-40 | `[T-40] import_media_zip_worker_azure.php has no direct uploadBlobFromFile() call` | One-time code structure check; storage abstraction stable |
+| T-41 | `[T-41] export_media_worker_azure.php has no direct downloadBlobToFile() call` | One-time code structure check; storage abstraction stable |
+| T-42 | `[T-42] No glob() calls scanning media directories in catalog code` | One-time code structure check; catalog scan stable |
+| T-54 | `[T-54] Backend is azure_blob_with_local_fallback during migration window` | Migration window closed; `when:` guard already skips it but the task is dead weight |
+
+**Also clean up the PHP source tree at this step:**
+
+- Delete `src/Services/FallbackMediaBackend.php` (temporary migration class; see T-63)
+- Delete `src/Jobs/backfill_media_to_blob.php` (one-shot script; not for repeated production use)
+- Remove the `azure_blob_with_local_fallback` branch from `MediaStorageService::make()` (now dead code; do not leave it as a silent back-door)
+
+**After removal:** Run `ansible-playbook --tags smoke,media_storage` against the Azure inventory. Confirm all remaining tasks pass.
+
+**Note on Phase 11 reference items:** T-47, T-51, T-60, T-61, T-62 are reminders to re-run earlier permanent checks (T-83, T-8, T-11, T-6, T-8) at specific step boundaries. They have no standalone YAML tasks — nothing to remove here.
 
 ---
 

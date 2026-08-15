@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
+use Production\Api\Services\GuestCredentialResolver;
 
 $body = json_decode(file_get_contents('php://input'));
 if ($body === null) {
@@ -31,45 +32,20 @@ try {
     exit;
 }
 
+// Step 1: resolve guest credentials via shared helper (nonce path + raw-token fallback)
+$resolver = new GuestCredentialResolver($pdo);
 try {
-    // Step 1: verify nonce is an approved contributor and get event_id
-    $stmt = $pdo->prepare(
-        'SELECT t.event_id
-         FROM anon_upload_attributions a
-         JOIN upload_jobs j_mine ON j_mine.job_id = a.upload_job_id
-         JOIN event_upload_tokens t ON t.token_id = a.token_id
-         WHERE a.status_nonce = ? AND j_mine.moderation_status = \'approved\''
-    );
-    $stmt->execute([$nonce]);
-    $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+    $result = $resolver->resolveNonceOrToken($nonce);
 } catch (\PDOException $e) {
     http_response_code(500);
     exit;
 }
-
-if ($row === false) {
-    try {
-        $tokenHash = hash('sha256', $nonce);
-        $stmt = $pdo->prepare(
-            'SELECT t.event_id
-             FROM event_upload_tokens t
-             WHERE t.token_hash = ? AND t.is_active = 1 AND t.expires_at > NOW()'
-        );
-        $stmt->execute([$tokenHash]);
-        $tokenRow = $stmt->fetch(\PDO::FETCH_ASSOC);
-    } catch (\PDOException $e) {
-        http_response_code(500);
-        exit;
-    }
-    if ($tokenRow === false) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Forbidden']);
-        exit;
-    }
-    $eventId = (int)$tokenRow['event_id'];
-} else {
-    $eventId = (int)$row['event_id'];
+if ($result === false) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
+    exit;
 }
+$eventId = (int)$result['event_id'];
 
 $credentialHash = hash('sha256', $nonce);
 

@@ -291,6 +291,42 @@ The abstraction means the iOS app, the browser, and the PHP admin tools do not k
 
 ---
 
+## Performance Implications
+
+### Upload path — PHP-FPM worker pool pressure
+
+**Before:** Upload PATCH requests proxy through Apache to tusd and never touch PHP-FPM. The tusd Go process handles all chunk I/O in its own container, leaving the PHP-FPM worker pool entirely free during active uploads.
+
+**After:** Each PATCH request runs `api/tus-upload.php`, pinning a PHP-FPM worker for the full duration of receiving the chunk body and forwarding it to `/tmp` (local) or Azure Blob. For an 8 MB chunk on a modest uplink this is several seconds per PATCH. With the default pool ceiling of `pm.max_children = 20`, a handful of concurrent uploads meaningfully reduces headroom for regular API and page requests.
+
+The `request_slowlog_timeout = 10s` in `www.conf.j2` will also trigger on large upload chunks — not a functional problem but worth knowing.
+
+**Tuning lever:** raise `php_fpm_max_children` in group_vars if upload concurrency becomes a concern.
+
+---
+
+### Read/stream path — regression from Apache static to PHP-mediated
+
+**Before:** Apache serves `/audio/{sha}` and `/video/{sha}` as static files via the kernel `sendfile` path. Zero PHP-FPM involvement; Apache handles many concurrent range requests (video seeks, iOS AVPlayer) at minimal cost.
+
+**After:** Every media read routes through `api/media-stream.php`, pinning a PHP-FPM worker for the duration of the stream. This is the larger of the two regressions because reads are far more frequent than uploads — several simultaneous seekers create continuous worker pool pressure rather than occasional spikes.
+
+This trade-off is accepted at current scale. X-Sendfile (`mod_xsendfile`) is the correct mitigation when it becomes a real constraint: PHP authenticates the request and emits an `X-Sendfile` header; Apache handles the actual byte transfer with no worker held.
+
+---
+
+### What is freed
+
+The tusd container consumed ~22 MiB RAM and negligible CPU at idle. Removing it reclaims those resources on the same VM but does not materially offset the PHP-FPM pool pressure described above.
+
+---
+
+### Scale assessment
+
+At GigHive's current deployment model (small number of operators, single server) neither issue is expected to be felt in practice. Uploads are admin-only and infrequent; the concurrent reader count is low. Both concerns are operational tuning levers, not blockers, and require no changes to the implementation plan before rollout.
+
+---
+
 ## Backend Differences: Local vs Azure — Complete Reference
 
 This section consolidates every point of divergence between the two backends in one place. All other code, protocol handling, DB schema, and client behaviour is identical.

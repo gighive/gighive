@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
+use Production\Api\Services\GuestCredentialResolver;
 
 $body = json_decode(file_get_contents('php://input'));
 if ($body === null) {
@@ -32,24 +33,16 @@ try {
     exit;
 }
 
+// Step 1: validate nonce via shared helper (nonce-only path — no raw-token fallback).
+// Gallery expiry intentionally NOT checked: guests may delete their own video at any time.
+$resolver = new GuestCredentialResolver($pdo);
 try {
-    // Step 1: validate nonce (own upload approved) — same access gate as guest-gallery.php Step 1.
-    // Gallery expiry intentionally NOT checked: guests may delete their own video at any time.
-    $stmt = $pdo->prepare(
-        'SELECT t.event_id
-         FROM anon_upload_attributions a
-         JOIN upload_jobs j ON j.job_id = a.upload_job_id
-         JOIN event_upload_tokens t ON t.token_id = a.token_id
-         WHERE a.status_nonce = ? AND j.moderation_status = \'approved\''
-    );
-    $stmt->execute([$nonce]);
-    $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+    $eventId = $resolver->resolveNonceOnly($nonce);
 } catch (\PDOException $e) {
     http_response_code(500);
     exit;
 }
-
-if ($row === false) {
+if ($eventId === false) {
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden']);
     exit;

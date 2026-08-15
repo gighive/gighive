@@ -1,9 +1,9 @@
 Note that small db alter tables were applied to all envs, but rebuilds have not been done
-Next Scope: egrep -A1 'LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
+Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
-releaseNotes20260809.txt
-Changes: hats_checkout.md
+releaseNotes20260815.txt
+Changes: nonce code refactor (duplicate cred validate/event-resolution block), remove unused src/Models
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,41 +12,25 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   docs/hats_checkout.md
-	new file:   docs/images/hat_both_back.jpeg
-	new file:   docs/images/hat_futuristic_left_side.jpeg
-	new file:   docs/images/hat_futuristic_right_side.jpeg
-	new file:   docs/images/hat_modern_left_side.jpeg
-	new file:   docs/images/hat_modern_right_side.jpeg
-	new file:   docs/images/hat_retro_design_sheet copy.png
-	new file:   docs/images/hat_retro_design_sheet.png
-	modified:   docs/index.md
-	new file:   docs/merch_hats_storefront_v1.md
-
-
-*** 
-releaseNotes20260807.txt
-Changes: refactor_storage_media_rest_endpoint*.md unification, deploy task to the `ai-worker` service only fix (Apache could be rebuilt and re-tagged under the same image name while an already-running container), jekyll error 
-Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is ahead of 'origin/master' by 1 commit.
-  (use "git push" to publish your local commits)
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/ai_worker/tasks/main.yml
-	modified:   ansible/roles/post_build_checks/tasks/main.yml
-	new file:   docs/problem_docker_image_retagged_old_tag.md
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-delete.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-gallery.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-report.php
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-stream.php
+	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/FileModel.php
+	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/JamModel.php
+	deleted:    ansible/roles/docker/files/apache/webroot/src/Models/SongModel.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/GuestCredentialResolver.php
+	modified:   ansible/roles/shared_gallery/tasks/main.yml
+	new file:   docs/problem_apple_itunes_podcast_401s.md
+	modified:   docs/refactor_iphone_qr_code_guest_nonce_shared_helper.md
+	new file:   docs/refactor_status_20260812.md
 	modified:   docs/refactor_storage_media_rest_endpoint.md
-	modified:   docs/refactor_storage_media_rest_endpoint_azurite.md
 	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
+	renamed:    docs/refactor_os_add_swap.md -> docs/refactored_os_add_swap.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260726.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260815.log
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260720.log
 # GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
@@ -146,6 +130,49 @@ Issue: investigate vids that didn't produce thumbnails
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
+
+
+*** 
+releaseNotes20260809.txt
+Changes: hats_checkout.md
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/hats_checkout.md
+	new file:   docs/images/hat_both_back.jpeg
+	new file:   docs/images/hat_futuristic_left_side.jpeg
+	new file:   docs/images/hat_futuristic_right_side.jpeg
+	new file:   docs/images/hat_modern_left_side.jpeg
+	new file:   docs/images/hat_modern_right_side.jpeg
+	new file:   docs/images/hat_retro_design_sheet copy.png
+	new file:   docs/images/hat_retro_design_sheet.png
+	modified:   docs/index.md
+	new file:   docs/merch_hats_storefront_v1.md
+
+*** 
+releaseNotes20260807.txt
+Changes: refactor_storage_media_rest_endpoint*.md unification, deploy task to the `ai-worker` service only fix (Apache could be rebuilt and re-tagged under the same image name while an already-running container), jekyll error 
+Scope: egrep -A1 'GIG2' CHANGELOG.md | head -20
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/ai_worker/tasks/main.yml
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   docs/problem_docker_image_retagged_old_tag.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
+	modified:   docs/refactor_storage_media_rest_endpoint_azurite.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 *** 
 releaseNotes20260804.txt

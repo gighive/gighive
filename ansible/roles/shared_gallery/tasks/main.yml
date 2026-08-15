@@ -205,6 +205,50 @@
   changed_when: false
   tags: [shared_gallery, smoke, api]
 
+- name: guest-delete — missing body returns 400
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-delete.php"
+    method: POST
+    body: '{}'
+    body_format: json
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 400
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-delete — unknown nonce returns 403
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-delete.php"
+    method: POST
+    body: '{"nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","upload_job_id":1}'
+    body_format: json
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 403
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-stream — missing nonce returns 400
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-stream.php?job_id=1"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 400
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
+- name: guest-stream — unknown nonce returns 403
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/guest-stream.php?nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&job_id=1"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ _shared_gallery_host_header }}"
+    status_code: 403
+  changed_when: false
+  tags: [shared_gallery, smoke, api]
+
 - name: guest_event_view — unknown nonce returns 403
   ansible.builtin.uri:
     url: "{{ gighive_base_url }}/guest_event_view.php?nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
