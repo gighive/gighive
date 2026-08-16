@@ -386,12 +386,12 @@ final readonly class TusUploadConfig
 
     public static function fromEnv(PDO $pdo): self
     {
-        $backend = getenv('GIGHIVE_MEDIA_STORAGE_BACKEND') ?: 'local';
+        $backend = getenv('GIGHIVE_MEDIA_STORAGE_BACKEND') ?: MediaBackend::LOCAL;
 
         // Only create AzureBlobRestClient in azure_blob mode — avoids unnecessary
         // object construction (and the misleading appearance of an IMDS dependency)
         // when running in local/VirtualBox environments.
-        $restClient = $backend === 'azure_blob'
+        $restClient = $backend === MediaBackend::AZURE_BLOB
             ? new AzureBlobRestClient(
                 account:            getenv('AZURE_BLOB_ACCOUNT_NAME') ?: '',
                 container:          getenv('AZURE_BLOB_CONTAINER')    ?: '',
@@ -428,6 +428,20 @@ final readonly class TusUploadConfig
 > | `MEDIA_LOCAL_AUDIO_DIR` | `TusUploadConfig`, `MediaStorageService` | `/var/www/html/audio` |
 > | `MEDIA_LOCAL_VIDEO_DIR` | `TusUploadConfig`, `MediaStorageService` | `/var/www/html/video` |
 > | `MEDIA_LOCAL_THUMB_DIR` | `MediaStorageService` (LocalMediaBackend only) | `/var/www/html/video/thumbnails` |
+
+> **Pre-implementation checks required before Phase 2/3 coding begins:**
+>
+> **B2 — `MediaTypes::allowedMimes()` existence:** `TusUploadConfig::fromEnv()` calls `MediaTypes::allowedMimes()` (line 415 above). Before implementing Phase 3, confirm whether this class already exists in the codebase:
+> ```bash
+> grep -r "class MediaTypes" ansible/roles/docker/files/apache/webroot/src/
+> ```
+> If absent, create `src/Infrastructure/MediaTypes.php` with the allowed MIME list (see Phase 3 body for the list) as a **Phase 3 prerequisite**, and add it to the Phase 3 Files Under Change. Do not leave `TusUploadConfig::fromEnv()` calling a non-existent class.
+>
+> **B3 — `UploadTokenValidator::$tokenId` property:** `api/tus-upload.php` uses `$tokenResult->tokenId` to obtain the authenticated user ID. Before implementing Phase 3, confirm the property name returned by `UploadTokenValidator::validate()`:
+> ```bash
+> grep -n "tokenId\|user_id\|userId\|return" ansible/roles/docker/files/apache/webroot/src/Auth/UploadTokenValidator.php
+> ```
+> If the return type exposes a different property name (e.g. `userId` or `user_id`), update the `tus-upload.php` skeleton accordingly. Do not assume `tokenId` without verification.
 
 ---
 
@@ -533,9 +547,9 @@ final class MediaStorageService
      */
     public static function make(): self
     {
-        $backend = getenv('GIGHIVE_MEDIA_STORAGE_BACKEND') ?: 'local';
+        $backend = getenv('GIGHIVE_MEDIA_STORAGE_BACKEND') ?: MediaBackend::LOCAL;
 
-        if ($backend === 'azure_blob' || $backend === 'azure_blob_with_local_fallback') {
+        if ($backend === MediaBackend::AZURE_BLOB || $backend === MediaBackend::AZURE_FALLBACK) {
             // Required vars — throw early rather than let a malformed URL fail silently
             // at the first REST call. This surfaces misconfiguration at startup.
             $account   = getenv('AZURE_BLOB_ACCOUNT_NAME')  ?: throw new \RuntimeException('AZURE_BLOB_ACCOUNT_NAME is required in azure_blob mode');
@@ -550,7 +564,7 @@ final class MediaStorageService
             );
             $azureBackend = new AzureBlobMediaBackend($rest);
 
-            if ($backend === 'azure_blob_with_local_fallback') {
+            if ($backend === MediaBackend::AZURE_FALLBACK) {
                 // Phase 11 transition only — tries Blob first, falls back to local
                 // for assets not yet backfilled. Remove after Phase 11 step 9 is verified.
                 $localBackend = new LocalMediaBackend(
@@ -886,7 +900,7 @@ final class TusBlockUploadService
         ?TusChunkBackendInterface           $chunkBackend = null,
     ) {
         $this->chunkBackend = $chunkBackend ?? (
-            $this->config->backend === 'azure_blob'
+            $this->config->backend === MediaBackend::AZURE_BLOB
                 ? new AzureBlobTusBackend($config->restClient
                       ?? throw new \LogicException('restClient must be set for azure_blob backend'))
                 : new LocalFileTusBackend($config)
@@ -1116,6 +1130,13 @@ final class LocalFileTusBackend implements TusChunkBackendInterface
 
     private function stagingPath(string $uploadId): string
     {
+        // Defense-in-depth: validate UUID v4 format before using $uploadId in a path.
+        // upload_id is server-generated, so this should always pass, but an explicit
+        // check prevents path traversal if a future code path accidentally passes
+        // non-UUID input (e.g. a value read back from DB that was corrupted or injected).
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $uploadId)) {
+            throw new \InvalidArgumentException("Invalid upload_id format: {$uploadId}");
+        }
         return rtrim($this->config->localStagingDir, '/') . '/' . $uploadId;
     }
 
@@ -1313,6 +1334,20 @@ $userId = $tokenResult->tokenId;
 $method   = $_SERVER['REQUEST_METHOD'] ?? '';
 $pathInfo = $_SERVER['PATH_INFO'] ?? '';
 $uploadId = trim($pathInfo, '/');
+
+// Validate UUID v4 format on PATCH and HEAD before passing to service methods.
+// PATH_INFO is populated by Apache from the URL; although the client cannot inject
+// arbitrary upload_ids (server-generated only), an unexpected URL pattern could
+// produce a non-UUID string here. Reject early to prevent path traversal in
+// LocalFileTusBackend::stagingPath() and to avoid a misleading 404 from the DB lookup.
+if ($method !== 'POST' && $uploadId !== '') {
+    if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $uploadId)) {
+        http_response_code(400);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Invalid upload ID format']);
+        exit;
+    }
+}
 
 $config  = TusUploadConfig::fromEnv($pdo);
 $service = new TusBlockUploadService($config);
@@ -1616,6 +1651,7 @@ These remain in `post_build_checks` and `validate_app` after the full refactor i
 | T-66 | post_build_checks | local | `/audio/` old path → 401 (PHP-mediated, not Apache static) |
 | T-67 | post_build_checks | local | Bind mounts present *(delegates to T-12)* |
 | T-68 | post_build_checks | local | `MEDIA_SEARCH_DIRS` absent (retired env var) |
+| T-68b | validate_app | all | Warn on orphaned `tus_uploads` rows (complete, no asset_id, >1hr old) |
 | T-73 | post_build_checks | all | APCu extension loaded (required by `AzureIdentityTokenCache`) |
 | T-79 | post_build_checks | all | PHP >= 8.2 (required by `HashContext` serialization) |
 | T-82 | post_build_checks | all | Probe job cron file present in container |
@@ -1623,6 +1659,7 @@ These remain in `post_build_checks` and `validate_app` after the full refactor i
 | T-84 | post_build_checks | all | `GET /files/` → 400 (PHP tus handler live) |
 | T-85 | post_build_checks | all | `POST /files/` unauthenticated → 401 |
 | T-86 | post_build_checks | all | `innodb_lock_wait_timeout >= 60` |
+| T-86b | validate_app | all | Warn on permanently-failed `probe_jobs` rows (status=failed, attempts >= 3) |
 | T-90 | post_build_checks | all | `GET /api/media-stream.php` → 401 without auth |
 | T-91 | post_build_checks | all | `GET /media/audio/` → 400/401 (canonical path routing) |
 | T-92 | post_build_checks | all | `GET /audio/` old path → 401 (backward-compat routing) |
@@ -1800,6 +1837,14 @@ azure_blob_prefix_audio:        "audio/"
 azure_blob_prefix_video:        "video/"
 azure_blob_prefix_thumbnails:   "video/thumbnails/"
 azure_identity_client_id:       ""              # set from Terraform output in Azure group vars
+upload_chunk_size_bytes:        8388608         # 8 MB — must match TUSKit/tus-js-client chunk size
+                                                # used by handlePost() Azure block-limit check
+tus_max_pending_uploads_per_token: 5            # per-token concurrent pending upload limit (POST /files/)
+
+# ai_worker safety gate — set false in Azure group vars until ai_worker is updated to
+# download blobs (Option A in Phase 10). Without this, the ai_worker container will start
+# but silently process no media in Azure mode after Phase 11 step 10 removes bind mounts.
+ai_worker_enabled: true                         # override to false in Azure group vars (Phase 1)
 ```
 
 **`.env.j2` additions:**
@@ -1817,6 +1862,8 @@ MEDIA_LOCAL_AUDIO_DIR=&#123;&#123; media_local_audio_dir | default('/var/www/htm
 MEDIA_LOCAL_VIDEO_DIR=&#123;&#123; media_local_video_dir | default('/var/www/html/video') &#125;&#125;
 MEDIA_LOCAL_THUMB_DIR=&#123;&#123; media_local_thumb_dir | default('/var/www/html/video/thumbnails') &#125;&#125;
 TUS_LOCAL_STAGING_DIR=&#123;&#123; tus_local_staging_dir | default('/tmp/tus-staging') &#125;&#125;
+UPLOAD_CHUNK_SIZE_BYTES=&#123;&#123; upload_chunk_size_bytes | default(8388608) &#125;&#125;
+UPLOAD_MAX_PENDING_PER_TOKEN=&#123;&#123; tus_max_pending_uploads_per_token | default(5) &#125;&#125;
 ```
 
 **`docker-compose.yml.j2` change — conditional bind mounts:**
@@ -1837,7 +1884,13 @@ TUS_LOCAL_STAGING_DIR=&#123;&#123; tus_local_staging_dir | default('/tmp/tus-sta
 
 This is required for Managed Identity token acquisition from inside the Docker bridge network. The Azure IMDS endpoint (`169.254.169.254`) is only reachable from the host. The `host-gateway` alias lets the container reach the VM host's network stack, through which IMDS is accessible. Without this, every call to acquire an Azure AD token silently times out and all Blob operations return 403. The compose already uses this pattern for the telemetry proxy when `gighive_enable_telemetry_proxy` is true; this makes it unconditional for all Azure-mode deployments.
 
-**`MEDIA_SEARCH_DIRS` handling:** When `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob`, the local paths do not exist inside the container. `MEDIA_SEARCH_DIRS` must either be set to a staging temp path or left empty with code updated to tolerate it. The hard-fail in `clear_media_files.php` must be gated on storage backend before this phase is complete.
+**`MEDIA_SEARCH_DIRS` handling and `clear_media_files.php` gate (required in Phase 1):**
+
+When `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob`, the local media directories do not exist inside the container. `clear_media_files.php` currently hard-fails when `MEDIA_SEARCH_DIRS` is absent or points to a non-existent path, producing a 500 response. This must be patched **in Phase 1** — before the new env vars land — because the Phase 1 deploy introduces `GIGHIVE_MEDIA_STORAGE_BACKEND` without a `MEDIA_SEARCH_DIRS` replacement. The minimum required change: gate the hard-fail on `GIGHIVE_MEDIA_STORAGE_BACKEND !== 'azure_blob'`. The full Blob-aware delete UI is a Phase 10 concern. Deploying Phase 1 without this patch will cause the admin page to 500 immediately on all Azure environments.
+
+**`ai_worker` safety gate (required in Phase 1 — Azure group vars only):**
+
+The `ai_worker` role bind-mounts `{{ video_dir }}` and `{{ audio_dir }}` into the container for AI analysis. After Phase 11 step 10 removes the Azure media bind mounts, those host directories will be empty and the ai-worker will silently process no media — container running, no errors, no output. **Set `ai_worker_enabled: false` in the Azure group vars file as part of Phase 1** before any Phase 11 bind-mount removal happens. This prevents the silent operational failure. Remove the gate only when `ai_worker` is updated to download blobs via `MediaStorageService` (Option A in Phase 10 / Phase 11 planning).
 
 #### Validation Checklist — Phase 1
 
@@ -2000,25 +2053,50 @@ This is required for Managed Identity token acquisition from inside the Docker b
 
 **Goal:** Centralize all blob operations in one service so no other code cares whether storage is local or Blob.
 
-**New file:** `src/Services/MediaStorageService.php`
+**New files (Phase 2):**
 
-The service implements a backend-agnostic interface:
+- `src/Infrastructure/MediaBackend.php` — **required deliverable, not optional.** Provides string constants for every backend identifier. Every comparison in PHP must use these constants — never raw string literals. This eliminates the entire class of silent backend-mismatch bugs from typos.
 
 ```php
-interface MediaStorageBackend {
-    public function put(string $type, string $key, string $localPath): void;
-    public function getStream(string $type, string $key): StreamResult;
-    public function getRangeStream(string $type, string $key, int $start, int $end): StreamResult;
-    public function delete(string $type, string $key): void;
-    public function exists(string $type, string $key): bool;
-    public function list(string $type): array;
-    public function getMeta(string $type, string $key): BlobMeta;
+// src/Infrastructure/MediaBackend.php
+namespace Production\Api\Infrastructure;
+
+final class MediaBackend
+{
+    public const LOCAL          = 'local';
+    public const AZURE_BLOB     = 'azure_blob';
+    public const AZURE_FALLBACK = 'azure_blob_with_local_fallback';
+
+    // Non-instantiable
+    private function __construct() {}
 }
 ```
 
-Two concrete implementations:
+- `src/Services/MediaStorageService.php` — storage facade
+
+- `src/Services/FallbackMediaBackend.php` — **stub required at Phase 2.** `MediaStorageService::make()` references this class statically, so the Composer autoloader must be able to resolve it from the moment `MediaStorageService.php` is deployed. At Phase 2 the class file contains the full interface signature and constructor but `/* TODO: Phase 11 — implement split-read logic */` bodies for all methods. The class must implement `MediaStorageBackendInterface` so the type-checker is satisfied; every method may `throw new \LogicException('FallbackMediaBackend not yet active — set backend to azure_blob or local')`. When Phase 11 arrives, the bodies are replaced with the real split-read logic in the same file.
+
+The backend implements the authoritative interface (see implementation reference doc for full body):
+
+```php
+// Authoritative MediaStorageBackendInterface — key is pre-qualified (type prefix included)
+interface MediaStorageBackendInterface {
+    public function put(string $key, string $localPath, string $mimeType): void;
+    public function stream(string $key): void;
+    public function streamRange(string $key, int $start, int $end): void;
+    public function getMeta(string $key): ?MediaMetaDto;   // null on 404
+    public function delete(string $key): void;
+    public function exists(string $key): bool;
+    public function list(string $prefix): array;
+}
+```
+
+`MediaStorageService` is the only caller of the backend interface. It accepts `($type, $key)` separately and builds the qualified key internally via `qualifiedKey($type, $key)` before forwarding to the backend. No code outside `MediaStorageService` ever calls backend methods directly.
+
+Three concrete implementations:
 - `LocalMediaBackend` — reads/writes from `/var/www/html/audio` and `/var/www/html/video`
 - `AzureBlobMediaBackend` — uses REST, acquires identity token via IMDS, caches token until 5 minutes before expiry
+- `FallbackMediaBackend` — Phase 2 stub; Phase 11 split-read implementation
 
 **Token acquisition and caching in `AzureBlobMediaBackend`:**
 
@@ -2043,7 +2121,7 @@ Token is never logged. SAS tokens remain valid only for admin import/export tool
 **`AzureBlobMediaBackend` wraps the existing functions from admin helpers, extracted into the service:**
 
 - `uploadBlobFromFile()` from `export_media_worker_azure.php` becomes the `put()` backend — replace the SAS query param with a `Authorization: Bearer <token>` header
-- `downloadBlobToFile()` from `import_media_zip_worker_azure.php` becomes the `getStream()` backend — same auth swap
+- `downloadBlobToFile()` from `import_media_zip_worker_azure.php` becomes the `stream()` / `streamRange()` backend — same auth swap
 - `listAzureBlobs()` from `admin_media_lib.php` becomes the `list()` backend
 
 Do not reinvent these. Extract, refactor auth, wrap.
@@ -2054,10 +2132,13 @@ Do not reinvent these. Extract, refactor auth, wrap.
 
 ```php
 // MediaStorageService::make() — see implementation reference doc for full body
+// All backend comparisons use MediaBackend:: constants — never raw string literals.
+use Production\Api\Infrastructure\MediaBackend;
+
 final class MediaStorageService {
     public static function make(): self {
-        $backend = getenv('GIGHIVE_MEDIA_STORAGE_BACKEND') ?: 'local';
-        if ($backend === 'azure_blob') {
+        $backend = getenv('GIGHIVE_MEDIA_STORAGE_BACKEND') ?: MediaBackend::LOCAL;
+        if ($backend === MediaBackend::AZURE_BLOB) {
             $rest = new AzureBlobRestClient(
                 account:            getenv('AZURE_BLOB_ACCOUNT_NAME') ?: '',
                 container:          getenv('AZURE_BLOB_CONTAINER')    ?: '',
@@ -2067,6 +2148,15 @@ final class MediaStorageService {
                 curlTimeoutSeconds: 30,
             );
             return new self(new AzureBlobMediaBackend($rest));
+        }
+        if ($backend === MediaBackend::AZURE_FALLBACK) {
+            // Phase 11 only — FallbackMediaBackend stub is present at Phase 2;
+            // full implementation added in Phase 11.
+            $rest = new AzureBlobRestClient(/* ... same as above ... */);
+            return new self(new FallbackMediaBackend(
+                new AzureBlobMediaBackend($rest),
+                new LocalMediaBackend(/* ... */),
+            ));
         }
         return new self(new LocalMediaBackend(
             audioDir: getenv('MEDIA_LOCAL_AUDIO_DIR') ?: '/var/www/html/audio',
@@ -2437,7 +2527,11 @@ CREATE TABLE IF NOT EXISTS tus_uploads (
     user_id       INT UNSIGNED  NOT NULL,           -- authenticated user who initiated the upload
     status        ENUM('pending','complete','failed') NOT NULL DEFAULT 'pending',
     upload_length BIGINT UNSIGNED NOT NULL,         -- total file size from Upload-Length header
-    block_count   SMALLINT UNSIGNED NOT NULL DEFAULT 0,  -- Azure Block Blob: number of PUT Block calls committed so far.
+    block_count   INT UNSIGNED  NOT NULL DEFAULT 0,      -- Azure Block Blob: number of PUT Block calls committed so far.
+                                                         -- INT UNSIGNED (max ~4 billion) chosen over SMALLINT UNSIGNED
+                                                         -- (max 65,535) for forward safety: if maxFileSizeBytes is ever
+                                                         -- raised independently of this schema, SMALLINT would silently
+                                                         -- overflow at 65,535 blocks (~512 GB at 8 MB chunks).
                                                          -- Azure-backend-specific state. A future S3 backend would track
                                                          -- part numbers + ETags via a separate mechanism rather than this column.
     block_size    INT UNSIGNED  NOT NULL DEFAULT 0,      -- set from first PATCH body length; never updated after.
@@ -2484,7 +2578,7 @@ CREATE TABLE IF NOT EXISTS tus_uploads (
     user_id       INT UNSIGNED  NOT NULL,
     status        ENUM('pending','complete','failed') NOT NULL DEFAULT 'pending',
     upload_length BIGINT UNSIGNED NOT NULL,
-    block_count   SMALLINT UNSIGNED NOT NULL DEFAULT 0,  -- Azure Block Blob state; S3 would use part numbers+ETags instead
+    block_count   INT UNSIGNED  NOT NULL DEFAULT 0,      -- Azure Block Blob state; INT not SMALLINT (see schema comments above)
     block_size    INT UNSIGNED  NOT NULL DEFAULT 0,      -- Azure Block Blob state; set from first PATCH body, never updated after
     sha256_ctx    BLOB          NULL,
     file_type     ENUM('audio','video') NOT NULL,
@@ -2551,6 +2645,17 @@ if (!empty($rows)) {
     $ids = implode(',', array_fill(0, count($rows), '?'));
     $pdo->prepare("DELETE FROM tus_uploads WHERE upload_id IN ($ids)")->execute($rows);
 }
+
+// Prune old permanently-failed probe_jobs rows.
+// Rows with status='failed' AND attempts >= 3 will never be retried; they accumulate
+// indefinitely, bloating the table and slowing the idx_queued index scan.
+// LIMIT prevents a long-running delete from blocking PATCH transactions during peak hours.
+$pdo->exec(
+    "DELETE FROM probe_jobs
+     WHERE status = 'failed' AND created_at < NOW() - INTERVAL 30 DAY
+     LIMIT 200"
+);
+
 exit(0);
 ```
 
@@ -2571,9 +2676,18 @@ Azure allows a maximum of 50,000 blocks per blob. At the default 8 MB chunk size
 
 ```php
 // At POST /files/ — after Upload-Length is validated against maxFileSizeBytes:
-$maxChunkSize = $this->config->maxFileSizeBytes;    // upper bound for any single chunk
-$maxBlocks    = 50_000;
-if (ceil($uploadLength / $maxChunkSize) > $maxBlocks) {
+//
+// IMPORTANT: use the configured chunk size (8 MB default), NOT maxFileSizeBytes.
+// maxFileSizeBytes is the total file size limit (e.g. 4 GB).
+// Using maxFileSizeBytes here would make ceil(4 GB / 4 GB) = 1, which always passes
+// regardless of actual chunk size — the check would never fire even if chunks were 1 byte.
+//
+// The chunk size used by TUSKit and tus-js-client is set at client init (default 8 MB).
+// Server-side, use a constant or a `UPLOAD_CHUNK_SIZE_BYTES` env var (default 8 MB)
+// that must be kept in sync with the client chunk size configuration.
+$chunkSizeBytes = (int)(getenv('UPLOAD_CHUNK_SIZE_BYTES') ?: (string)(8 * 1024 * 1024));
+$maxBlocks      = 50_000;
+if ($chunkSizeBytes > 0 && ceil($uploadLength / $chunkSizeBytes) > $maxBlocks) {
     // In practice unreachable at 8 MB chunks + 4 GB max file size, but assert defensively
     http_response_code(413);
     echo json_encode(['error' => 'File too large for Azure Block Blob block limit']);
@@ -2581,7 +2695,7 @@ if (ceil($uploadLength / $maxChunkSize) > $maxBlocks) {
 }
 ```
 
-Add this check to `handlePost()` acceptance criteria in Phase 3.
+Add `UPLOAD_CHUNK_SIZE_BYTES` to the group_vars and `.env.j2` alongside the other Phase 1 env vars (default `8388608` — 8 MB). Add this check to `handlePost()` acceptance criteria in Phase 3.
 
 **Concurrent PATCH protection:** tus clients are single-threaded per upload; however a mobile reconnect scenario can produce two PATCH requests for the same upload ID in flight simultaneously. PHP must protect against this or risk offset corruption and duplicate block IDs. At the start of every PATCH handler:
 
@@ -2712,7 +2826,23 @@ Add a "Probe job queue" row to the Phase 10 admin tooling table so the queue sta
 
 Without rotation this file grows at ~6 runs/minute × log lines/run and will eventually fill the OS disk.
 
-**Rate limiting note:** The `POST /files/` endpoint is auth-gated, limiting upload creation to authenticated users. There is no per-user concurrency limit. An authenticated user could create many concurrent pending uploads, filling `tus_uploads` and (in Azure mode) creating many uncommitted Blob containers that persist for 7 days. This is a low-priority risk for GigHive's current scale but should be revisited if the platform grows. A pragmatic mitigation is a DB check at `POST /files/`: `SELECT COUNT(*) FROM tus_uploads WHERE user_id = ? AND status = 'pending' AND expires_at > NOW()` — reject if count exceeds a configured threshold (e.g., 5 concurrent pending uploads per user).
+**Rate limiting note:** The `POST /files/` endpoint is auth-gated, limiting upload creation to authenticated users. There is no per-user concurrency limit. An authenticated user could create many concurrent pending uploads, filling `tus_uploads` and (in Azure mode) creating many uncommitted Blob containers that persist for 7 days. This is a low-priority risk for GigHive's current scale but should be revisited if the platform grows. A pragmatic mitigation is a DB check at `POST /files/`:
+
+```php
+// In TusBlockUploadService::handlePost() — before inserting the new tus_uploads row:
+$pendingCount = (int)$pdo->prepare(
+    'SELECT COUNT(*) FROM tus_uploads WHERE user_id = ? AND status = ? AND expires_at > NOW()'
+)->execute([$userId, 'pending'])->fetchColumn();
+
+if ($pendingCount >= $this->config->maxPendingUploadsPerToken) {
+    http_response_code(429);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Too many pending uploads']);
+    exit;
+}
+```
+
+The threshold must come from `TusUploadConfig` (sourced from the `UPLOAD_MAX_PENDING_PER_TOKEN` env var, which in turn is set from the `tus_max_pending_uploads_per_token` group_var — **never hardcode the number `5` in PHP**). The group_var and env var are defined in Phase 1 alongside the other tus config vars. Add `UPLOAD_MAX_PENDING_PER_TOKEN={{ tus_max_pending_uploads_per_token | default(5) }}` to `.env.j2`.
 
 ```
 On blob commit (inside TusBlockUploadService::handleFinalPatch()):
@@ -2740,7 +2870,18 @@ The temp file in this step is short-lived (seconds) and lives in `/tmp`, not in 
 
 **`POST /api/uploads/finalize` endpoint update:**
 
-The existing `/api/uploads/finalize` endpoint (routed through `UploadController.php` → `UploadService.php`) previously called `finalizeTusUpload()` which polled for the `tus_hooks` volume notification file. That function is retired. In the new model the upload is already committed in DB by the time the client calls this endpoint. The replacement logic is:
+**Sequencing constraint — validation guards must be ported before `finalizeTusUpload()` is retired:**
+
+`finalizeTusUpload()` currently enforces allowed file types (audio/video only), MIME type checking, and max file size. These guards must not be retired along with the hook-polling logic. The required sequence for Phase 3 is:
+
+1. Implement file-type and max-size guards in `TusBlockUploadService::handlePost()` — enforce at upload creation before any PATCH is accepted.
+2. Implement MIME-sniff guard in `TusBlockUploadService::handlePatch()` — check after the final block is received.
+3. Verify both guards fire correctly (manual test: attempt upload of a disallowed type; confirm 415 at POST, not after full upload).
+4. Only then replace `finalizeTusUpload()` with the simple DB-lookup below.
+
+Do not retire `finalizeTusUpload()` in the same commit that adds `TusBlockUploadService` unless step 3 is confirmed. A window where the guards are absent breaks upload validation across all deployments.
+
+The existing `/api/uploads/finalize` endpoint (routed through `UploadController.php` → `UploadService.php`) previously called `finalizeTusUpload()` which polled for the `tus_hooks` volume notification file. That function is retired once the above sequencing is complete. In the new model the upload is already committed in DB by the time the client calls this endpoint. The replacement logic is:
 
 ```php
 // New finalizeTusUpload() implementation (or renamed method):
@@ -2824,7 +2965,7 @@ The most vulnerable window is the first deploy on a live environment. Deploy to 
 
 #### Validation Checklist — Phase 3
 
-*8 of 11 automated (`post_build_checks`); 3 manual. T-79, T-86, and the pre-task assertions in the Phase 3 body are prerequisites that must pass before deployment; T-80–T-85 run as post-deploy smoke checks.*
+*9 of 12 automated (`post_build_checks` / `validate_app`); 3 manual. T-79, T-86, and the pre-task assertions in the Phase 3 body are prerequisites that must pass before deployment; T-80–T-85 run as post-deploy smoke checks; T-86b is a permanent `validate_app` warning check.*
 
 ---
 
@@ -3016,6 +3157,37 @@ The most vulnerable window is the first deploy on a live environment. Deploy to 
   tags: [smoke, media_storage]
 ```
 
+**T-86b [validate_app]** — `probe_jobs` has no permanently-failed rows (warns, does not fail, so a single odd failure doesn't break a deploy).
+> *Lifecycle: **permanent** — keep in `validate_app`; a non-zero count after a quiet period indicates a systematic probe failure (bad ffprobe binary, wrong media path, missing env var). Warn rather than fail so a single transient failure doesn't block deploys.*
+
+```yaml
+# Add to validate_app/tasks/main.yml
+- name: "[T-86b] Count permanently-failed probe_jobs rows"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; mysql_container_name &#125;&#125;"
+    command:
+      - mysql
+      - -uroot
+      - -sN
+      - -e
+      - "SELECT COUNT(*) FROM probe_jobs WHERE status='failed' AND attempts >= 3"
+    env:
+      MYSQL_PWD: "&#123;&#123; mysql_root_password &#125;&#125;"
+  register: failed_probe_jobs
+  changed_when: false
+  no_log: true
+  tags: [validate, media_storage]
+
+- name: "[T-86b] Warn if permanently-failed probe_jobs rows exist"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: {{ failed_probe_jobs.stdout | trim }} permanently-failed probe_jobs row(s) found
+      (status='failed', attempts >= 3). These will be pruned by cleanup_expired_uploads.php
+      after 30 days. If count is growing, check /var/log/probe_job.log for the failure reason.
+  when: (failed_probe_jobs.stdout | trim | int) > 0
+  tags: [validate, media_storage]
+```
+
 **T-87 [Manual]** — Full tus upload flow end-to-end: `POST /files/` → `PATCH /files/{id}` × N → final PATCH → `tus_uploads` row transitions `pending → complete`; `probe_jobs` row inserted with `status=queued`; SHA-256 in `assets` row matches `sha256sum` of the original file; `block_size` in `tus_uploads` is non-zero after the first PATCH.
 > Perform with both `tus-js-client` (browser) and iOS `TUSKit`. Verify DB state with `SELECT * FROM tus_uploads WHERE upload_id='...'` and `SELECT * FROM probe_jobs ORDER BY id DESC LIMIT 1`.
 
@@ -3061,11 +3233,52 @@ Both old and new paths resolve to the same `media-stream.php` handler. `media-st
 
 **Phase 11 step 10 prerequisite:** Before removing host media bind mounts, verify that both `/audio/{key}` and `/media/audio/{key}` return the correct bytes and correct `Content-Type` headers for a test asset.
 
-**Thumbnail authentication:** Browser `<img>` tags and iOS `UIImageView` do not send custom headers. If thumbnails are served under `/media/video/thumbnails/` with the same auth gate as audio and video, they will return 401 in any `<img>` context unless the auth check also accepts session cookies. The current code skeleton only checks `X-Upload-Token` — this means thumbnail `<img>` rendering in the browser admin panel **will fail as written**. Session-cookie auth must be added to `media-stream.php` as an alternative credential path before browser thumbnails will work (tracked in Remaining — Follow-on Tasks below). For iOS, thumbnail fetch must be done via authenticated `URLSession` (not `UIImageView` with a plain URL) to send session credentials. Document this assumption before deploying Phase 4 to avoid a silent thumbnail breakage in the iOS UI.
+**Guest gallery nonce authentication (required in Phase 4):**
+
+The guest gallery (`api/guest-gallery.php`) serves thumbnail URLs in the form `/video/thumbnails/<sha256>.png?nonce=<nonce>`. Today Apache handles this: `SetEnvIfExpr` detects the `nonce=` query string and sets `gallery_nonce_auth`, satisfying `Require env gallery_nonce_auth` without credentials. After Phase 4 routes `/video/thumbnails/` through `media-stream.php`, the same URL hits PHP instead. PHP currently only checks `X-Upload-Token` — it ignores the nonce — and returns 401. **Every guest user (event attendees, wedding guests) loses thumbnail loading the moment Phase 4 deploys.** This must be fixed in Phase 4.
+
+**Fix:** Add gallery nonce validation as a third credential path in `media-stream.php`, alongside Basic Auth and `X-Upload-Token`. Use `GuestCredentialResolver::resolveNonceOrToken()` — this is the shared service already used by `guest-gallery.php`, `guest-report.php`, and `guest-stream.php` for exactly this purpose. Do not inline a custom SQL query; the resolver handles both nonce auth paths correctly.
+
+```php
+// In media-stream.php — authorization block
+// Credential path 3: gallery nonce (query string) — for guest gallery thumbnail requests.
+// Uses the same shared resolver as guest-gallery.php, guest-report.php, guest-stream.php.
+use Production\Api\Services\GuestCredentialResolver;
+
+$nonce = $_GET['nonce'] ?? '';
+if ($nonce !== '' && !$authorized) {
+    // Validate nonce format before hitting the DB (mirrors guest-gallery.php line 11)
+    if (preg_match('/^[A-Za-z0-9_\-]{30,43}$/', $nonce) === 1) {
+        $resolver = new GuestCredentialResolver($pdo);
+        try {
+            $result = $resolver->resolveNonceOrToken($nonce);
+            if ($result !== false) {
+                // Check expiry (resolver returns expires_at; compare here as guest-gallery.php does)
+                $expiry = new \DateTime($result['expires_at']);
+                if ($expiry > new \DateTime('now')) {
+                    $authorized = true;
+                }
+            }
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            exit;
+        }
+    }
+    // Invalid nonce format or expired/unknown nonce: fall through to 401 below
+}
+```
+
+`GuestCredentialResolver` is in `src/Services/GuestCredentialResolver.php` and requires the `$pdo` instance already constructed earlier in `media-stream.php`. It handles both lookup paths: `status_nonce → approved upload → event_upload_tokens` and `token_hash → active event_upload_tokens`. No custom SQL is needed in `media-stream.php`.
+
+**Also required in Phase 4:** Update `guest-gallery.php` so that when `media-stream.php` is the active handler, the `thumbnail_url` it generates continues to include `?nonce=<nonce>` so `media-stream.php` receives the credential. The current format (`/video/thumbnails/<sha256>.png?nonce=<nonce>`) already does this — no change needed to `guest-gallery.php` itself as long as the backward-compat `RewriteRule` for `/video/thumbnails/` passes the query string through (the `[QSA]` flag on the RewriteRule already does this).
 
 The endpoint must:
 1. Validate `{key}` format against a strict regex before any blob operation
-2. Authorize the request — token auth (`X-Upload-Token`) is implemented in the skeleton; session-cookie auth for browser `<img>` contexts is a required follow-on addition before Phase 4 is deployed (see Remaining — Follow-on Tasks)
+2. Authorize the request — three credential paths in priority order:
+   - Basic Auth (`Authorization: Basic ...`) — authenticated admin/uploader users
+   - Upload token (`X-Upload-Token` header) — upload-event-scoped token
+   - Gallery nonce (`?nonce=` query parameter) — guest gallery thumbnail access (see above); **required for Phase 4**
+   - Session-cookie auth for browser `<img>` admin panel contexts is a follow-on addition (see Remaining — Follow-on Tasks)
 3. Call `MediaStorageService::getMeta()` to get `Content-Type`, `Content-Length`, `ETag`
 4. Parse `Range` header if present
 5. Call `MediaStorageService::getRangeStream()` or `getStream()`
@@ -3108,7 +3321,7 @@ if ($rangeHeader && preg_match('/^bytes=(\d+)-(\d*)$/', $rangeHeader, $m)) {
 }
 ```
 
-The range is forwarded to `AzureBlobMediaBackend::getRangeStream()` which sets the `Range: bytes=X-Y` header on the Blob REST GET request. Azure Blob Storage natively supports byte-range reads; this is not a full-download-then-slice approach.
+The range is forwarded to `AzureBlobMediaBackend::streamRange()` which sets the `Range: bytes=X-Y` header on the Blob REST GET request. Azure Blob Storage natively supports byte-range reads; this is not a full-download-then-slice approach.
 
 **Smoke test requirement:** `post_build_checks/tasks/main.yml` must include:
 
@@ -3124,18 +3337,20 @@ The range is forwarded to `AzureBlobMediaBackend::getRangeStream()` which sets t
   tags: [smoke, media_storage]
 ```
 
-**iOS thumbnail authentication — acceptance criterion for Phase 11 step 9:**
+**Thumbnail authentication — acceptance criteria for Phase 4:**
 
-Browser `<img>` tags and `UIImageView` do not send credentials. Thumbnails are served under the same auth gate as audio and video. The expected behavior **once session-cookie auth is added to `media-stream.php`** (see Remaining — Follow-on Tasks):
+| Context | How auth is satisfied | Status after Phase 4 |
+|---|---|---|
+| Guest gallery iOS app (`URLSession`, `?nonce=` in URL) | Gallery nonce in query string — validated by `media-stream.php` nonce path | **Works — required Phase 4 fix** |
+| Guest gallery browser (`<img src="...?nonce=...">`) | Same nonce path | **Works — required Phase 4 fix** |
+| Browser admin panel `<img src="/media/video/thumbnails/...">` (no nonce) | Session cookie — **not yet implemented** | Returns 401 until cookie auth added (Follow-on Tasks) |
+| iOS `UIImageView` with plain URL, no nonce | No credential — **will return 401** | Not currently used in the iOS app |
 
-| Context | How auth is satisfied |
-|---|---|
-| Browser admin panel `<img src="/media/video/thumbnails/...">` | Session cookie sent automatically (same-origin request) — works **only after cookie auth is added** |
-| iOS `UIImageView` with a plain URL string | No credential sent — **will return 401** |
-| iOS `URLSession` with session cookie / token header | Credential sent — works |
+The guest gallery is the only active thumbnail consumer today; the admin panel thumbnail breakage is a pre-existing gap that exists before this refactor (admin thumbnails are not currently displayed via `<img>` tags in production).
 
 Before proceeding to Phase 11 step 10, verify explicitly:
-1. Session-cookie auth has been added to `media-stream.php` (prerequisite)
+1. Guest gallery thumbnails load correctly via nonce path (Phase 4 acceptance test)
+2. Session-cookie auth has been added to `media-stream.php` if admin panel thumbnail display has been added (prerequisite)
 2. Load the admin panel in a browser — confirm thumbnails render in `<img>` tags (cookie auth)
 3. In the iOS app, confirm thumbnails load via `URLSession` (not `UIImageView` with a raw URL)
 4. If any iOS code uses `UIImageView` + plain URL for thumbnails, update it to use `URLSession` + auth headers before deploying Phase 4
@@ -3223,9 +3438,35 @@ Once Azure (Phase 11) is confirmed stable:
 | Azure storage backend switch | Set `gighive_media_storage_backend: "local"` in group vars; redeploy |
 | Local bind mount removal (Phase 5 step 5) | Restore bind mount lines in compose; redeploy |
 
+**Retire `blobfuse2` Ansible role (Phase 5 step 7):**
+
+The `blobfuse2` role mounts Azure Blob Storage as a FUSE filesystem. It was never applied in production and has no references in `site.yml`. Its continued presence in the repo creates a risk of accidental future inclusion. Remove it in Phase 5 once the new storage abstraction is confirmed stable:
+
+```bash
+git rm -r ansible/roles/blobfuse2/
+git commit -m "Remove retired blobfuse2 Ansible role — replaced by AzureBlobMediaBackend"
+```
+
+Confirm it is gone from the repo and no playbook or `site.yml` imports it:
+
+```bash
+grep -r "blobfuse2" ansible/
+# Expected: no output
+```
+
+**Update `docs/media_file_location_variables.md` (Phase 5 step 8):**
+
+The document currently describes only the `local` model (VM host bind mounts → container). After Phase 5, update it to describe all three models:
+
+- **`local` mode** — bind mounts from VM host (`{{ video_dir }}`, `{{ audio_dir }}`) into the container; PHP reads via `LocalMediaBackend`; `MEDIA_SEARCH_DIRS` retired
+- **`azure_blob` mode** — no local media bind mounts; PHP reads/writes via `AzureBlobMediaBackend` over REST; `MEDIA_LOCAL_*` dirs unused in this mode
+- **`azure_blob_with_local_fallback` mode** — Tranche 2 / Phase 11 only; both bind mounts and Blob configured simultaneously during backfill window
+
+Also update the variable glossary to add the new Phase 1 env vars (`GIGHIVE_MEDIA_STORAGE_BACKEND`, `MEDIA_LOCAL_AUDIO_DIR`, `MEDIA_LOCAL_VIDEO_DIR`, `MEDIA_LOCAL_THUMB_DIR`, `TUS_LOCAL_STAGING_DIR`) and mark `MEDIA_SEARCH_DIRS` as retired.
+
 #### Validation Checklist — Phase 5
 
-*5 of 7 automated (`post_build_checks`); 2 manual. Prerequisite group_var: `smoke_test_audio_sha256` — SHA-256 of a known audio asset present on the VirtualBox host media directory, used by T-65.*
+*6 of 8 automated (`post_build_checks` / `validate_app`); 2 manual. Prerequisite group_var: `smoke_test_audio_sha256` — SHA-256 of a known audio asset present on the VirtualBox host media directory, used by T-65. T-68b is a permanent `validate_app` warning check.*
 
 ---
 
@@ -3273,11 +3514,18 @@ Once Azure (Phase 11) is confirmed stable:
 - name: "[T-65] Assert Content-Range header present in 206 response"
   ansible.builtin.assert:
     that:
+      # ansible.builtin.uri lowercases all response headers and exposes them as direct
+      # keys on the registered result (ansible-core >= 2.14). 'Content-Range' → content_range.
+      # If you see this assertion fail with "content_range is undefined" and the curl
+      # manual check passes, verify Ansible version: ansible --version | grep 'core'.
+      # On older ansible-core (< 2.14) headers are only in range_response.msg; use:
+      #   range_response.msg | regex_search('(?i)content-range: bytes 0-4095/')
       - range_response.content_range is defined
       - range_response.content_range is match("^bytes 0-4095/")
     fail_msg: >
       Content-Range header missing or incorrect.
       Got: &#123;&#123; range_response.content_range | default('none') &#125;&#125;
+      If content_range is 'none', check Ansible version and header key format (see comment above).
   when:
     - gighive_media_storage_backend == 'local'
     - smoke_test_audio_sha256 is defined
@@ -3320,6 +3568,42 @@ Once Azure (Phase 11) is confirmed stable:
   when: gighive_media_storage_backend == 'local'
   tags: [smoke, media_storage]
   # rc=1 means the var is not set — which is the expected (passing) state
+```
+
+**T-68b [validate_app]** — No orphaned `tus_uploads` rows (status=`complete`, `asset_id` IS NULL, older than 1 hour). A non-zero count means a DB write failed after a successful file commit; warns rather than fails so a single transient race doesn't block deploys.
+> *Lifecycle: **permanent** — keep in `validate_app` for both local and Azure modes; detects the broken-pipeline case where a blob or local file is committed but the `assets` row was never written.*
+
+```yaml
+# Add to validate_app/tasks/main.yml
+- name: "[T-68b] Count orphaned tus_uploads rows (complete but no asset_id)"
+  community.docker.docker_container_exec:
+    container: "&#123;&#123; mysql_container_name &#125;&#125;"
+    command:
+      - mysql
+      - -uroot
+      - -sN
+      - -e
+      - "SELECT COUNT(*) FROM tus_uploads WHERE status='complete' AND asset_id IS NULL AND created_at < NOW() - INTERVAL 1 HOUR"
+    env:
+      MYSQL_PWD: "&#123;&#123; mysql_root_password &#125;&#125;"
+  register: orphan_uploads
+  changed_when: false
+  no_log: true
+  tags: [validate, media_storage]
+
+- name: "[T-68b] Warn if orphaned tus_uploads rows exist"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: {{ orphan_uploads.stdout | trim }} orphaned tus_uploads row(s) found
+      (status='complete', asset_id IS NULL, older than 1 hour).
+      This means the final DB write to 'assets' failed after the file/blob was committed.
+      Recovery: for each row, verify the file/blob exists, then manually insert the
+      assets row and update tus_uploads SET asset_id=<new_id> WHERE upload_id=<upload_id>.
+      Diagnostic query:
+        SELECT upload_id, blob_key, created_at FROM tus_uploads
+        WHERE status='complete' AND asset_id IS NULL AND created_at < NOW() - INTERVAL 1 HOUR;
+  when: (orphan_uploads.stdout | trim | int) > 0
+  tags: [validate, media_storage]
 ```
 
 **T-69 [Manual]** — Full regression pass on a VirtualBox deployment: audio upload, video upload, full-file playback, range seek, thumbnail in admin panel.
@@ -4063,6 +4347,24 @@ $dryRun = in_array('--dry-run', $argv, true);
 $pdo    = Database::createFromEnv();
 $storage = MediaStorageService::make();   // must be azure_blob_with_local_fallback mode
 
+/**
+ * Map a MIME type to the file extension used in the stored key.
+ * Must match the extension the asset was originally stored with.
+ * Extend this map if new MIME types are added to the allowlist.
+ */
+function mimeToExt(string $mime): string
+{
+    return match ($mime) {
+        'audio/mpeg', 'audio/mp3' => 'mp3',
+        'audio/wav'               => 'wav',
+        'audio/aac'               => 'aac',
+        'video/mp4'               => 'mp4',
+        'video/quicktime'         => 'mov',
+        'video/webm'              => 'webm',
+        default                   => throw new \RuntimeException("Unknown MIME type for backfill: {$mime}"),
+    };
+}
+
 // Enumerate all assets with a known checksum
 $assets = $pdo->query(
     "SELECT id, file_type, checksum_sha256, mime_type FROM assets
@@ -4072,7 +4374,7 @@ $assets = $pdo->query(
 
 $ok = $fail = $skip = 0;
 foreach ($assets as $asset) {
-    $ext     = mimeToExt($asset['mime_type']);   // helper: 'audio/mpeg' → 'mp3' etc.
+    $ext     = mimeToExt($asset['mime_type']);   // 'audio/mpeg' → 'mp3' etc.
     $type    = $asset['file_type'];              // 'audio' | 'video'
     $key     = $asset['checksum_sha256'] . '.' . $ext;
     $localPath = "/var/www/html/{$type}/{$key}";
@@ -4542,21 +4844,13 @@ _(nothing yet — plan stage)_
 
 ### Remaining — Follow-on Tasks
 
-- Retire `ansible/roles/blobfuse2/` role (remove from repo or mark deprecated)
-- Update `docs/media_file_location_variables.md` to reflect the new model (local-backend / azure-blob-backend / container)
-- Evaluate retiring `AZURE_BLOB_SAS_TOKEN` from `.env.j2` once all admin tooling migrates to `MediaStorageService`
-- Reconciliation query for orphaned blobs (blob exists, no DB row). Until a full reconciliation job is built, operators can detect orphans with:
-
-  ```sql
-  -- Blobs committed by tus (upload complete) with no corresponding asset row
-  SELECT upload_id, blob_key FROM tus_uploads
-  WHERE status = 'complete' AND asset_id IS NULL
-    AND created_at < NOW() - INTERVAL 1 HOUR;
-  ```
-
-  Any row returned means the final DB write failed after a successful blob commit. Resolution: verify the blob exists in Azure, manually insert the asset row, then update `tus_uploads.asset_id`.
-- Evaluate Apache `X-Sendfile` for local-mode read path if PHP file serving becomes a performance concern at scale
-- Delete `src/Services/FallbackMediaBackend.php` after Phase 11 step 9 backfill is verified complete — it is a migration-window-only class and must not persist in the codebase
-- Local-mode orphan files: if the DB write fails after `rename()` in `LocalFileTusBackend`, the file exists in the media directory with no DB record. The same reconciliation pattern as Azure applies — detect with `SELECT upload_id, blob_key FROM tus_uploads WHERE status = 'complete' AND asset_id IS NULL AND created_at < NOW() - INTERVAL 1 HOUR` and manually recover
-- Add logrotate config for `/var/log/probe_job.log` — the cron job appends to this file indefinitely; without rotation it will grow unboundedly as media volume increases. Add a logrotate drop-in via the `docker` role (e.g., `ansible/roles/docker/files/logrotate.d/gighive-probe`) with `daily`, `rotate 14`, `compress`, `missingok`, `notifempty`
-- Confirm streaming endpoint (`media-stream.php`) auth mechanism against the existing API auth pattern: the current skeleton uses `X-Upload-Token` (an upload-event-scoped token). Verify this token is appropriate for read/stream access, or add session-cookie auth as an alternative for browser contexts (particularly relevant for `<img>` thumbnail loading where session cookies are sent automatically but `X-Upload-Token` is not)
+- ~~Retire `ansible/roles/blobfuse2/` role~~ — **moved to Phase 5** (step 7); remove role directory, confirm absent from `site.yml`.
+- ~~Update `docs/media_file_location_variables.md`~~ — **moved to Phase 5** (step 8); update variable glossary for new storage model.
+- ~~Add logrotate config for `/var/log/probe_job.log`~~ — **moved to Phase 3 deliverable** (`ansible/roles/docker/files/logrotate.d/gighive-probe`).
+- ~~`probe_jobs` failed row accumulation~~ — **moved to Phase 3** (`cleanup_expired_uploads.php` prunes rows older than 30 days; T-86b `validate_app` check warns on non-zero count).
+- ~~Orphan row reconciliation query~~ — **moved to Phase 5** (T-68b `validate_app` warns on orphaned `tus_uploads` rows; recovery instructions in task `msg`).
+- ~~`audio/mp3` MIME type in allowlist~~ — **resolved**: `gighive2.yml` group_vars already include both `audio/mp3` and `audio/mpeg`; no change needed.
+- **Session-cookie auth for `media-stream.php`** — guest gallery thumbnails are handled by the gallery nonce path (Phase 4). The remaining gap is the browser admin panel: if admin thumbnail display via `<img>` tags is ever added, session-cookie auth must be added to `media-stream.php` as a fourth credential path. Not blocking for Tranche 1.
+- **Evaluate retiring `AZURE_BLOB_SAS_TOKEN`** — four admin PHP files (`export_media_worker_azure.php`, `import_media_zip_worker_azure.php`, `import_media_zip.php`, `export_media.php`) still read this token directly. Retirement requires migrating all four to use `MediaStorageService` instead of inline SAS calls — that is Phase 10 (Tranche 2) work. Until then, keep the token in `.env.j2`.
+- **Evaluate Apache `X-Sendfile`** for local-mode read path if PHP file serving becomes a CPU or throughput bottleneck under real load. Not a known issue at current scale; revisit if profiling shows it.
+- **Delete `src/Services/FallbackMediaBackend.php`** after Phase 11 step 9 backfill is verified complete — it is a migration-window-only class and must not persist in the codebase beyond Tranche 2.

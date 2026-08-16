@@ -198,18 +198,21 @@ The entire abstraction rests on one interface with two concrete implementations,
 `MediaStorageService` exposes a backend-agnostic API to all PHP application code:
 
 ```php
-interface MediaStorageBackend {
-    public function put(string $type, string $key, string $localPath): void;
-    public function getStream(string $type, string $key): StreamResult;
-    public function getRangeStream(string $type, string $key, int $start, int $end): StreamResult;
-    public function delete(string $type, string $key): void;
-    public function exists(string $type, string $key): bool;
-    public function list(string $type): array;
-    public function getMeta(string $type, string $key): BlobMeta;
+// MediaStorageBackendInterface — authoritative signatures (see implementation doc)
+// Note: the backend interface uses pre-qualified blob keys (type prefix already included).
+// MediaStorageService wraps these with qualifiedKey($type, $key) before calling through.
+interface MediaStorageBackendInterface {
+    public function put(string $key, string $localPath, string $mimeType): void;
+    public function stream(string $key): void;
+    public function streamRange(string $key, int $start, int $end): void;
+    public function getMeta(string $key): ?MediaMetaDto;   // null on 404
+    public function delete(string $key): void;
+    public function exists(string $key): bool;
+    public function list(string $prefix): array;
 }
 ```
 
-No PHP file outside `MediaStorageService` or `TusBlockUploadService` ever calls a disk path or a Blob REST URL directly. `TusBlockUploadService` owns upload-time Blob REST calls (`PUT Block`, `PUT Block List`); `MediaStorageService` owns read, delete, and metadata operations. All other application code uses only the `put`, `getStream`, `getRangeStream` interface.
+No PHP file outside `MediaStorageService` or `TusBlockUploadService` ever calls a disk path or a Blob REST URL directly. `TusBlockUploadService` owns upload-time Blob REST calls (`PUT Block`, `PUT Block List`); `MediaStorageService` owns read, delete, and metadata operations. All other application code uses only the `put`, `stream`, `streamRange`, `getMeta` interface (via the `MediaStorageService` facade which accepts `$type` and `$key` separately and builds the qualified key internally).
 
 ### How the backend is chosen
 
@@ -246,8 +249,8 @@ Both environments route through `api/media-stream.php`. The split is inside the 
 | Step | Local / VirtualBox / Baremetal | Azure |
 |---|---|---|
 | `getMeta()` | `stat()` on local file path | HEAD request to Azure Blob REST |
-| `getStream()` | `fopen()` + `fread()` in 64 KB chunks | GET request to Azure Blob REST, body piped to PHP output |
-| `getRangeStream()` | `fopen()` + `fseek($start)` + `fread($length)` | GET request with `Range: bytes=X-Y` header forwarded to Azure |
+| `stream()` | `fopen()` + `fread()` in 64 KB chunks | GET request to Azure Blob REST, body piped to PHP output |
+| `streamRange()` | `fopen()` + `fseek($start)` + `fread($length)` | GET request with `Range: bytes=X-Y` header forwarded to Azure |
 | PHP response headers | `Content-Type`, `Content-Length`, `Accept-Ranges`, `ETag`, `206` if range | identical — same PHP code sets the headers in both cases |
 | Auth before bytes | PHP checks session/token before calling the backend | same |
 
@@ -270,7 +273,8 @@ From the perspective of any PHP controller, admin script, or API handler:
 
 $storage->put('video', $sha256 . '.mp4', $tempPath);    // local: move file; azure: PUT blob
 
-$stream = $storage->getRangeStream('video', $key, $start, $end); // local: fseek; azure: range GET
+// streamRange() is called via the MediaStorageService facade (which prefixes $type):
+$storage->streamRange('video', $key, $start, $end); // local: fseek; azure: range GET
 ```
 
 There are no `if ($backend === 'azure')` conditionals scattered through the application. The abstraction absorbs all environment differences in one place.
@@ -594,6 +598,7 @@ The following path strings are duplicated across multiple files and must all mig
 - `$dest = '/var/www/html/audio/' . $basename` — `import_media_zip_worker_azure.php:109`
 - `$dest = '/var/www/html/video/' . $basename` — `import_media_zip_worker_azure.php:111`
 - `$destDir = '/var/www/html/video/thumbnails'` — `import_media_zip_worker_azure.php:105`
+- `$thumbPath = '/var/www/html/video/thumbnails/' . $m[1] . '.png'` — `api/guest-gallery.php:83` — used in an `is_file()` existence check before emitting `thumbnail_url`; harmless in local mode (bind mount makes the path valid inside the container) but will always return `false` in Azure mode since there is no local thumbnails directory. **Tranche 2 fix:** replace with a call to `MediaStorageService::exists()` so the check works against whichever backend is active.
 
 ### Existing Terraform infrastructure (already provisioned)
 
@@ -848,9 +853,11 @@ What is missing:
 | Tranche 1 / Phase 1 | `ansible/inventories/group_vars/` | Existing |
 | Tranche 1 / Phase 1 | `ansible/roles/docker/templates/.env.j2` | Existing |
 | Tranche 1 / Phase 2 | `ansible/roles/docker/files/apache/webroot/composer.json` | Existing |
+| Tranche 1 / Phase 2 | `ansible/roles/docker/files/apache/webroot/src/Infrastructure/MediaBackend.php` | New |
 | Tranche 1 / Phase 2 | `ansible/roles/docker/files/apache/webroot/src/Services/AzureBlobRestClient.php` | New |
 | Tranche 1 / Phase 2 | `ansible/roles/docker/files/apache/webroot/src/Services/AzureIdentityTokenCache.php` | New |
 | Tranche 1 / Phase 2 | `ansible/roles/docker/files/apache/webroot/src/Services/MediaStorageService.php` | New |
+| Tranche 1 / Phase 2 | `ansible/roles/docker/files/apache/webroot/src/Services/FallbackMediaBackend.php` | New (stub — required by MediaStorageService autoloader at Phase 2; fully implemented in Tranche 2 / Phase 11) |
 | Tranche 1 / Phase 3 | `ansible/roles/docker/files/apache/webroot/api/tus-upload.php` | New |
 | Tranche 1 / Phase 3 | `ansible/roles/docker/files/apache/webroot/src/Jobs/cleanup_expired_uploads.php` | New |
 | Tranche 1 / Phase 3 | `ansible/roles/docker/files/apache/webroot/src/Jobs/run_probe_job.php` | New |
@@ -862,7 +869,15 @@ What is missing:
 | Tranche 1 / Phase 3 | `ansible/roles/docker/templates/gighive-probe.cron.j2` | New |
 | Tranche 1 / Phase 3 | `ansible/roles/post_build_checks/tasks/main.yml` | Existing |
 | Tranche 1 / Phase 3 | `create_media_db.sql` | Existing |
+| Tranche 1 / Phase 3 | `ansible/roles/db_migrations/tasks/main.yml` | Existing |
+| Tranche 1 / Phase 3 | `ansible/roles/upload_tests/tasks/test_7.yml` | Existing |
+| Tranche 1 / Phase 3 | `ansible/roles/validate_app/tasks/main.yml` | Existing |
+| Tranche 1 / Phase 3 | `ansible/roles/docker/files/logrotate.d/gighive-probe` | New |
+| Tranche 1 / Phase 1 | `ansible/roles/docker/files/apache/webroot/admin/clear_media_files.php` | Existing |
 | Tranche 1 / Phase 4 | `ansible/roles/docker/files/apache/webroot/api/media-stream.php` | New |
+| Tranche 1 / Phase 4 | `ansible/roles/docker/files/apache/webroot/api/guest-gallery.php` | Existing (verify only — no code change expected; confirm `thumbnail_url` format is still compatible with nonce path in `media-stream.php`) |
+| Tranche 1 / Phase 5 | `ansible/roles/blobfuse2/` | Retired — remove role directory entirely; already absent from `site.yml` |
+| Tranche 1 / Phase 5 | `docs/media_file_location_variables.md` | Existing — update to reflect new local-backend/azure-blob-backend/container model |
 | Tranche 2 / Phase 6 | `ansible/playbooks/site.yml` | Existing |
 | Tranche 2 / Phase 6 | `terraform/main.tf` | Existing |
 | Tranche 2 / Phase 6 | `terraform/outputs.tf` | Existing |
@@ -873,11 +888,11 @@ What is missing:
 | Tranche 2 / Phase 10 | `ansible/roles/docker/files/apache/webroot/admin/import_media_zip_worker_azure.php` | Existing |
 | Tranche 2 / Phase 10 | `ansible/roles/docker/files/apache/webroot/admin/mysqlPrep_normalized.py` | Existing |
 | Tranche 2 / Phase 11 | `ansible/roles/docker/files/apache/webroot/src/Jobs/backfill_media_to_blob.php` | New |
-| Tranche 2 / Phase 11 | `ansible/roles/docker/files/apache/webroot/src/Services/FallbackMediaBackend.php` | New |
 
 #### New
 
-1. `ansible/roles/docker/files/apache/webroot/src/Services/MediaStorageService.php` — `gighiveinfra` — new PHP storage service implementing `putMedia`, `getMediaStream`, `getMediaRange`, `deleteMedia`, `existsMedia`, `listMedia`, `putThumbnail`, `getMediaMeta`; initially backed by either local filesystem or Azure Blob depending on `GIGHIVE_MEDIA_STORAGE_BACKEND`; extracts and wraps `uploadBlobFromFile` and `downloadBlobToFile` from existing admin helpers
+1. `ansible/roles/docker/files/apache/webroot/src/Infrastructure/MediaBackend.php` — `gighiveinfra` — **required Phase 2 deliverable** (not optional): constants class exposing `MediaBackend::AZURE_BLOB`, `MediaBackend::LOCAL`, `MediaBackend::AZURE_FALLBACK`; every comparison against the `GIGHIVE_MEDIA_STORAGE_BACKEND` value in PHP code uses these constants — no raw string literals; prevents silent backend mismatch from typos
+2. `ansible/roles/docker/files/apache/webroot/src/Services/MediaStorageService.php` — `gighiveinfra` — new PHP storage service implementing `put`, `stream`, `streamRange`, `getMeta`, `delete`, `exists`, `list`, `putThumbnail`; initially backed by either local filesystem or Azure Blob depending on `GIGHIVE_MEDIA_STORAGE_BACKEND`; extracts and wraps `uploadBlobFromFile` and `downloadBlobToFile` from existing admin helpers
 2. `ansible/roles/docker/files/apache/webroot/api/media-stream.php` — `gighiveinfra` — new PHP endpoint for streaming media and thumbnails to authenticated browser clients; handles `Range` headers; returns `206 Partial Content`; replaces static file serving for audio, video, and thumbnails
 3. `ansible/roles/docker/files/apache/webroot/api/tus-upload.php` — `gighiveinfra` — new PHP tus 1.0 `creation`-extension server endpoint; handles `POST /files/` (create), `PATCH /files/{id}` (stream chunk), `HEAD /files/{id}` (resume query); replaces `tusd` container in **all** deployments; zero VM disk writes in Azure mode; /tmp staging only in local mode
 4. `ansible/roles/docker/files/apache/webroot/src/Services/TusBlockUploadService.php` — `gighiveinfra` — new PHP service implementing the tus server with two concrete backends: `AzureBlobTusBackend` (each PATCH → `PUT Block` to Azure Blob REST, `PUT Block List` on final PATCH, SHA256 in-stream) and `LocalFileTusBackend` (each PATCH body streamed to `/tmp/tus-staging/{id}`, moved to media dir on final PATCH, SHA256 in-stream); both backends track state in DB; both enqueue async probe job on commit
@@ -887,7 +902,7 @@ What is missing:
 8. `ansible/roles/docker/files/apache/webroot/src/Jobs/run_probe_job.php` — `gighiveinfra` — new cron-invoked probe job runner; claims one `queued` row from `probe_jobs` via `SELECT ... FOR UPDATE`, runs ffprobe+thumbnail flow, marks `done` or `failed`; resets stuck `running` rows on startup
 9. `ansible/roles/docker/files/apache/webroot/src/Jobs/cleanup_expired_uploads.php` — `gighiveinfra` — new cron-invoked script; deletes expired `tus_uploads` rows and their `/tmp/tus-staging/{upload_id}` staging files in local mode; no-op in Azure mode (no staging files); run daily via `gighive-probe.cron.j2`
 10. `ansible/roles/docker/files/apache/webroot/src/Jobs/backfill_media_to_blob.php` — `gighiveinfra` — new one-shot Phase 11 migration script; copies VM-disk audio/video/thumbnail files to Azure Blob, verifies SHA256 per file, skips already-present blobs; idempotent; `--dry-run` flag previews without writing; exits non-zero on any checksum failure
-11. `ansible/roles/docker/files/apache/webroot/src/Services/FallbackMediaBackend.php` — `gighiveinfra` — new **temporary** Phase 11 split-read backend; tries Azure Blob first, falls back to local file for assets not yet backfilled; activated via `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob_with_local_fallback`; removed from codebase after Phase 11 step 9 backfill is verified complete
+11. `ansible/roles/docker/files/apache/webroot/src/Services/FallbackMediaBackend.php` — `gighiveinfra` — **created as a stub in Phase 2** (required: `MediaStorageService::make()` references it statically so the autoloader must resolve it from day one); fully implemented in Tranche 2 / Phase 11 as the **temporary** split-read backend that tries Azure Blob first and falls back to local file for assets not yet backfilled; activated via `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob_with_local_fallback`; removed from codebase after Phase 11 step 9 backfill is verified complete
 12. `ansible/roles/docker/templates/gighive-probe.cron.j2` — `gighiveinfra` — new Ansible template for `/etc/cron.d/gighive-probe`; provides ~10-second polling cadence via staggered per-minute entries; includes daily `cleanup_expired_uploads.php` entry; deployed by the `docker` role
 
 #### Modified
@@ -909,6 +924,11 @@ What is missing:
 15. `create_media_db.sql` — `gighiveinfra` — add `CREATE TABLE IF NOT EXISTS tus_uploads` and `CREATE TABLE IF NOT EXISTS probe_jobs` DDL (schemas defined in Phase 3); must be applied on all environments before Phase 3 is deployed
 16. `ansible/roles/docker/files/apache/webroot/admin/mysqlPrep_normalized.py` — `gighiveinfra` — update ffprobe invocation: in Blob-backed mode there is no local file path; download blob to `/tmp/{assetId}.{ext}` via `MediaStorageService`, probe, then delete (mirrors the async probe job pattern from Phase 3); see Phase 10 admin tooling table for full description
 17. `ansible/roles/docker/files/apache/webroot/composer.json` — `gighiveinfra` — raise PHP version constraint from `">=7.4"` to `">=8.2"` to reflect the minimum required by `readonly class`, `HashContext` serialization, and `readonly` promoted constructor properties used in the new service layer; must be updated before Phase 2 implementation begins
+18. `ansible/roles/docker/files/apache/webroot/admin/clear_media_files.php` — `gighiveinfra` — Phase 1: remove hard-fail on absent `MEDIA_SEARCH_DIRS`; add `GIGHIVE_MEDIA_STORAGE_BACKEND` guard so Azure mode does not 500 when local media directories are absent. **Must be done in Phase 1**, before new env vars land without a `MEDIA_SEARCH_DIRS` replacement, or the admin page will return 500 immediately after Phase 1 deploys. Full Blob-aware delete logic is a Phase 10 concern; this change is the minimum guard.
+19. `ansible/roles/db_migrations/tasks/main.yml` — `gighiveinfra` — Phase 3: add idempotent existence checks and `CREATE TABLE IF NOT EXISTS` tasks for `tus_uploads` and `probe_jobs`, following the existing pattern in this role; ensures tables are present on any environment regardless of whether `create_media_db.sql` was manually applied
+20. `ansible/roles/upload_tests/tasks/test_7.yml` — `gighiveinfra` — Phase 3: remove the 3-second pause waiting for the tusd `post-finish` hook (the hook no longer exists; the DB row is committed synchronously during the final PATCH); replace tusd volume artifact cleanup with a DB row delete for the smoke-test `upload_id`; add a comment that `duration_seconds` and `thumbnail` are null until the async probe job completes and must not be asserted as non-null in finalize response checks
+21. `ansible/roles/validate_app/tasks/main.yml` — `gighiveinfra` — Phase 3: remove the `stack_tusd_raw` task (gets tusd version via `docker exec`) and the `tusd:` line from `stack_versions_summary`; add a static `PHP_TUS_Server:` label confirming the PHP block-upload service is the active upload backend
+22. `ansible/roles/docker/files/logrotate.d/gighive-probe` — `gighiveinfra` — Phase 3 (new file deployed by docker role): logrotate config for `/var/log/probe_job.log`; `daily`, `rotate 14`, `compress`, `missingok`, `notifempty`; without this the log grows unboundedly from the moment Phase 3 cron begins running
 
 #### Retired in all deployments
 
@@ -916,6 +936,7 @@ What is missing:
 - `tusd_data` Docker named volume — retired everywhere; no file ever assembled on VM disk during upload
 - `tus_hooks` Docker named volume — retired everywhere; inter-container notification pattern eliminated
 - `tusd` container (`tusproject/tusd:latest`) — retired everywhere; removed from compose; `TusBlockUploadService` replaces it for both Azure and local backends
+- `ansible/roles/blobfuse2/` — retired in Phase 5; the role already has no references in `site.yml` and was never applied in production; remove the directory entirely to prevent future accidental inclusion
 
 #### Unchanged (explicitly)
 
@@ -1009,7 +1030,7 @@ This is the core tus scenario: client sends several PATCHes, connection drops, c
 3. PHP authenticates request
 4. `MediaStorageService::getMeta('video', 'a3f2...c1.mp4')` — HEAD blob → returns size, ETag, Content-Type
 5. PHP sets response headers: `200 OK`, `Content-Type`, `Content-Length`, `Accept-Ranges: bytes`, `ETag`, `Cache-Control`
-6. `MediaStorageService::getStream()` → REST GET blob with identity token
+6. `MediaStorageService::stream()` (via backend `stream()`) → REST GET blob with identity token
 7. PHP pipes bytes to client; calls `exit` after stream completes
 
 ### Read — range request (video seek)
@@ -1018,7 +1039,7 @@ This is the core tus scenario: client sends several PATCHes, connection drops, c
 2. Steps 2–4 same as above
 3. PHP parses Range header; validates start <= end < size
 4. Sets `206 Partial Content`, `Content-Range: bytes X-Y/Z`, `Content-Length: rangeLen`
-5. `MediaStorageService::getRangeStream()` → REST GET blob with `Range: bytes=X-Y` header forwarded
+5. `MediaStorageService::streamRange()` (via backend `streamRange()`) → REST GET blob with `Range: bytes=X-Y` header forwarded
 6. PHP pipes the 1 MB partial response; calls `exit`
 
 ### Read — invalid key
@@ -1080,6 +1101,28 @@ The `backend.tfvars` storage account (for Terraform remote state) is not `var.me
 
 ---
 
+## Deployment Assumptions
+
+The following assumptions govern the scope and sequencing of this refactor. They are recorded here so that changes in circumstance can be evaluated explicitly rather than discovered mid-implementation.
+
+1. **Tranche 1 will be implemented in full in a single session.** All five phases (1–5) deploy together before any production traffic is served against the new code. Phases 3 and 4 in particular must land in the same Ansible run so there is no window where tusd is retired but `media-stream.php` is not yet live.
+
+2. **Local filesystem storage will remain the active backend for 3–6 months** while the SaaS version is prepared for release. Azure Blob (`azure_blob` mode) will not be activated in production until Tranche 2. All Tranche 1 code runs against `GIGHIVE_MEDIA_STORAGE_BACKEND=local`. This means:
+   - Azure credentials, IMDS token acquisition, and `AzureBlobMediaBackend` are implemented but not exercised in production during this window.
+   - The `ai_worker_enabled: false` Azure group_var safety gate (Phase 1) is not relevant until Tranche 2 activates Azure mode.
+   - Phase 11 backfill and `FallbackMediaBackend` are Tranche 2 concerns only.
+   - Any production issue with the new upload or streaming path during this window can be rolled back by reverting the Apache `RewriteRule` changes, with no storage migration required.
+
+3. **The SaaS architecture uses a single MySQL instance as the shared backend for all PHP containers.** Upload state (`tus_uploads`), media metadata (`assets`), probe jobs (`probe_jobs`), and all application data live in one MySQL database. N stateless PHP containers in a load-balanced pool all read and write this same database — no per-container state exists after Tranche 1. This is the correct foundation; MySQL is a genuine distributed shared store for the workloads in this application. It is also the primary vertical scaling constraint: as the PHP layer scales out horizontally, all containers converge on a single MySQL endpoint. A managed, highly available MySQL service (e.g. Azure Database for MySQL Flexible Server) replaces the current single-container MySQL when SaaS launches.
+
+4. **Before migrating to the SaaS model (Tranche 2 activation), the following pre-launch capacity work is required:**
+   - **Traffic estimation** — project concurrent users, uploads per hour, and media streaming requests per hour at anticipated launch scale. Distinguish peak (event day) from baseline (off-peak) traffic patterns, since GigHive workload is bursty by nature.
+   - **Load testing** — run load tests from the existing load test infrastructure (`~/gighive/load_tests/` on pop-os targeting `devvm.gighive.internal`) against the Tranche 1 local-mode implementation to establish baseline PHP throughput, DB connection pool saturation point, and upload chunk handling latency under concurrent load. These results become the sizing inputs.
+   - **Capacity analysis** — determine the required PHP container count, MySQL tier (vCores, IOPS, max connections), and Azure Blob throughput limits for the projected peak load. Pay particular attention to: MySQL `max_connections` vs. PHP-FPM worker count × container count; `innodb_lock_wait_timeout` behaviour under concurrent PATCH requests; and Azure Blob `PUT Block` per-second limits per storage account.
+   - **No SaaS cutover without passing load tests.** The load test results must confirm that the chosen MySQL tier does not saturate under peak concurrent upload load before Tranche 2 is approved for production.
+
+---
+
 ## Non-Goals
 
 - Public direct-to-blob client uploads (no SAS URLs exposed to browsers)
@@ -1098,7 +1141,7 @@ The `backend.tfvars` storage account (for Terraform remote state) is not `var.me
 
 The refactor as designed already does the right thing architecturally. The interface layer is cloud-agnostic:
 
-- `MediaStorageBackendInterface` — `put()`, `getStream()`, `getRangeStream()`, `getMeta()`, `delete()`, `exists()`, `list()`
+- `MediaStorageBackendInterface` — `put()`, `stream()`, `streamRange()`, `getMeta()`, `delete()`, `exists()`, `list()`
 - `TusChunkBackendInterface` — `writeChunk()`, `finalizeUpload()`, `getOffset()`
 
 All Azure-specific logic is isolated in `AzureBlobRestClient`, `AzureBlobMediaBackend`, and `AzureBlobTusBackend`. Adding AWS S3 or GCS tomorrow means writing `S3MediaBackend` and `S3TusBackend` that implement those same interfaces — not restructuring anything above them. The abstraction is done; there are just no unnecessary concrete backends built yet.

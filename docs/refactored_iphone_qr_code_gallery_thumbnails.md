@@ -4,9 +4,9 @@ description: Add video thumbnails to the guest event gallery row
 
 # Refactor: Guest Gallery — Video Thumbnails in Row
 
-## Status — 2026-07-20
+## Status — 2026-08-15 — COMPLETE
 
-Implemented. PHP deployed to devvm; Swift changes built and installed on device. Testing in progress.
+Fully implemented and deployed across all environments. PHP `guest-gallery.php` now emits `thumbnail_url` for each video. Swift `GuestGalleryAPIClient.swift` and `GuestGalleryView.swift` decode and render thumbnails. Apache nonce gate regex fixed from `{30,40}` to `{30,43}`. Verified on device (HTTP 200, image/png).
 
 ## Rationale
 
@@ -237,8 +237,8 @@ After PHP change: run Ansible playbook targeting devvm → verify on staging →
 - Apache query-string nonce gate: replaced broken `SetEnvIf Query_String` with proven `SetEnvIfExpr "%{QUERY_STRING} =~ /(^|&)nonce=/"` — confirmed working via trace logging
 - iOS SwiftUI fix: empty `Group {}` does not fire `.onAppear` in iOS 14; added `else { Color.clear }` so the group always has content — confirmed thumbnails loading on device (HTTP 200, image/png)
 
-### Remaining — This Feature
-- Deploy all changes to staging → prod
+### Completed — This Feature
+- [x] Deploy all changes to staging → prod
 
 ### Remaining — Follow-on Tasks
 - Thumbnail caching: `URLSession` does no disk caching for auth'd requests. If scroll performance is poor, add a simple `NSCache`-backed image cache.

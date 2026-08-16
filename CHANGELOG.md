@@ -2,6 +2,25 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
+releaseNotes20260816.txt
+Changes: prep work for tranche 1 of refactor_storage_media_rest_endpoint.md
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/problem_docker_image_retagged_old_tag.md
+	modified:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
+	renamed:    docs/refactor_azure_blob_export_import_session_storage.md -> docs/refactored_azure_blob_export_import_session_storage.md
+	renamed:    docs/refactor_iphone_qr_code_gallery_thumbnails.md -> docs/refactored_iphone_qr_code_gallery_thumbnails.md
+	renamed:    docs/refactor_qr_code_users_splash_page.md -> docs/refactored_qr_code_users_splash_page.md
+
+*** 
 releaseNotes20260815.txt
 Changes: ai worker retagged redux issue
 

@@ -1,8 +1,8 @@
 # Refactor: Hide Login/Database Buttons for QR Code Guest Users on SplashView
 
-## Status — 2026-07-18
+## Status — 2026-08-15 — COMPLETE
 
-**Complete — implemented 2026-07-18.** `isGuestOnly` computed property added to `SplashView`; login section wrapped in `if !isGuestOnly { }`. Pending device verification.
+Fully implemented and tested on device. `isGuestOnly` computed property added to `SplashView`; login section wrapped in `if !isGuestOnly { }`.
 
 ---
 
@@ -302,9 +302,9 @@ link at the bottom of `SplashView`, independent of `isGuestOnly`.
 - [x] Add `isGuestOnly` computed property to `SplashView`
 - [x] Wrap login section (orange text block + 3 buttons) in `if !isGuestOnly { }`
 
-### Remaining — This Feature
-- [ ] Run Testing Checklist on device
-- [ ] Update Status to Complete after verification
+### Completed — This Feature
+- [x] Run Testing Checklist on device
+- [x] Update Status to Complete after verification
 
 ### Remaining — Follow-on Tasks
 - Consider pre-loading `uploadRecords` in `@State` initializer to eliminate the one-frame

@@ -370,6 +370,25 @@ automatically removed before the deploy runs. The `docker compose images` pre-fl
 check inside `community.docker.docker_compose_v2` then succeeds, and the deploy
 rebuilds and recreates the removed container(s) as normal. No manual intervention required.
 
+### Validation of the automatic recovery
+
+The updated role was first tested in dev, where the recovery tasks detected the
+`sha256:bf04ab...` missing image and removed the stale `ai-worker` container before the
+deploy ran; the playbook completed successfully.
+
+A follow-up run on staging initially failed because the updated role had not yet been
+copied there. Once the updated `main.yml` was in place, the staging run also completed
+cleanly. The role was then promoted and run successfully across lab and production.
+
+| Environment | Date | Result |
+|---|---|---|
+| dev | 2026-08-15 | Recovery tasks executed, stale container removed, deploy succeeded |
+| staging | 2026-08-15 | Succeeded after updated role was copied |
+| lab | 2026-08-15 | Succeeded |
+| production | 2026-08-15 | Succeeded |
+
+All environments now deploy without manual cleanup.
+
 ### Why the Manual Cleanup Commands section above is now superseded
 
 The manual steps in `## Manual Cleanup Commands Used` are retained for historical
