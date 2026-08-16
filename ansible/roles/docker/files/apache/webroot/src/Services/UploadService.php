@@ -258,22 +258,28 @@ final class UploadService
     }
 
     /**
-     * Finalize a completed tusd upload (Option A).
-     * Expects JSON body containing upload_id + same metadata fields used by handleUpload.
+     * Finalize a completed tus upload.
+     *
+     * Looks up the upload in the tus_uploads table (written by TusBlockUploadService).
+     * Returns a map compatible with the existing /api/uploads/finalize response shape.
+     * If the upload is still pending (rare sub-millisecond race), returns status=pending
+     * so the client can retry after a short delay.
+     *
+     * Token-mode: records upload_jobs + anon_upload_attributions for QR guest uploads.
      */
     public function finalizeTusUpload(array $post, ?TokenValidationResult $tokenResult = null): array
     {
         $uploadId = trim((string)($post['upload_id'] ?? ''));
-        if ($uploadId === '' || preg_match('/^[A-Za-z0-9_-]+$/', $uploadId) !== 1) {
+        if ($uploadId === '' || preg_match('/^[0-9a-f-]+$/i', $uploadId) !== 1) {
             throw new \InvalidArgumentException('Missing or invalid upload_id');
         }
 
-        // Token-mode field validation
-        $tokenLabel = null;
+        // Token-mode field validation (unchanged from prior implementation)
+        $tokenLabel       = null;
         $tokenDisplayName = null;
         if ($tokenResult !== null) {
-            $tokenLabel      = trim((string)($post['label'] ?? ''));
-            $tosAccepted     = $post['tos_accepted'] ?? null;
+            $tokenLabel       = trim((string)($post['label'] ?? ''));
+            $tosAccepted      = $post['tos_accepted'] ?? null;
             $tokenDisplayName = isset($post['display_name'])
                 ? substr(strip_tags(trim((string)$post['display_name'])), 0, 100)
                 : null;
@@ -282,134 +288,55 @@ final class UploadService
             }
         }
 
-        // tusd data + hook outputs are mounted into the Apache container under /var/www/private
-        $hookDir = '/var/www/private/tus-hooks/uploads';
-        $finalDir = '/var/www/private/tus-hooks/finalized';
-        $dataDir = '/var/www/private/tus-data';
+        // Look up upload state in the new tus_uploads table
+        $stmt = $this->pdo->prepare(
+            'SELECT tu.status, tu.asset_id, tu.file_type, tu.mime_type,
+                    a.checksum_sha256, a.file_ext, a.size_bytes, a.source_relpath
+             FROM tus_uploads tu
+             LEFT JOIN assets a ON a.asset_id = tu.asset_id
+             WHERE tu.upload_id = ?'
+        );
+        $stmt->execute([$uploadId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        $this->storage->ensureDir($finalDir);
-        $finalMarker = $finalDir . '/' . $uploadId . '.json';
-        if (is_file($finalMarker)) {
-            $raw = @file_get_contents($finalMarker);
-            $decoded = is_string($raw) ? json_decode($raw, true) : null;
-            if (is_array($decoded)) {
-                return $decoded;
-            }
-        }
-
-        $hookFile = $hookDir . '/' . $uploadId . '.json';
-        if (!is_file($hookFile)) {
-            // tusd fires the post-finish hook asynchronously: the final PATCH 204 reaches
-            // the browser (and triggers this finalize call) before the hook subprocess has
-            // finished writing its JSON file.  Poll briefly to absorb that race.
-            $maxAttempts = 10;
-            $sleepUs     = 200000; // 200 ms
-            for ($i = 0; $i < $maxAttempts; $i++) {
-                usleep($sleepUs);
-                if (is_file($hookFile)) {
-                    break;
-                }
-            }
-        }
-        if (!is_file($hookFile)) {
-            $dataFileExists = is_file($dataDir . '/' . $uploadId);
-            $infoFileExists = is_file($dataDir . '/' . $uploadId . '.info');
-            if ($dataFileExists || $infoFileExists) {
-                throw new \RuntimeException(
-                    'Upload data exists on disk but post-finish hook output has not been written yet '
-                    . '(upload_id=' . $uploadId . '). The server may still be processing; retry in a moment.'
-                );
-            }
-            throw new \RuntimeException('Upload not found: no data or hook record for upload_id=' . $uploadId);
-        }
-        $hookRaw = (string)@file_get_contents($hookFile);
-        $hook = json_decode($hookRaw, true);
-        if (!is_array($hook)) {
-            throw new \RuntimeException('Invalid tus hook payload');
+        if ($row === false) {
+            throw new \RuntimeException('Upload not found: upload_id=' . $uploadId);
         }
 
-        $meta = [];
-        if (isset($hook['Event']['Upload']['MetaData']) && is_array($hook['Event']['Upload']['MetaData'])) {
-            $meta = $hook['Event']['Upload']['MetaData'];
-        } elseif (isset($hook['Upload']['MetaData']) && is_array($hook['Upload']['MetaData'])) {
-            $meta = $hook['Upload']['MetaData'];
-        } elseif (isset($hook['MetaData']) && is_array($hook['MetaData'])) {
-            $meta = $hook['MetaData'];
-        }
-        if (!is_array($meta)) $meta = [];
-        $origName = (string)($meta['filename'] ?? 'upload.bin');
-        $origName = $this->probe->sanitizeFilename($origName);
-
-        $mergedPost = $post;
-        $fallbackKeys = [
-            'event_date',
-            'org_name',
-            'event_type',
-            'label',
-            'participants',
-            'keywords',
-            'location',
-            'rating',
-            'notes',
-        ];
-        foreach ($fallbackKeys as $k) {
-            $cur = $mergedPost[$k] ?? null;
-            if ($cur === null || (is_string($cur) && trim($cur) === '')) {
-                if (isset($meta[$k]) && is_string($meta[$k]) && trim($meta[$k]) !== '') {
-                    $mergedPost[$k] = $this->normalizer->normalizeForStorage($meta[$k]);
-                }
-            }
+        if ($row['status'] === 'pending') {
+            // Upload still in progress — very rare race; client should retry
+            return ['status' => 'pending', 'upload_id' => $uploadId];
         }
 
-        // Token-mode: override event context from token; ignore any client-supplied event fields
-        if ($tokenResult !== null) {
-            $mergedPost['event_date'] = $tokenResult->eventDate;
-            $mergedPost['org_name']   = $tokenResult->orgName;
-            $mergedPost['event_type'] = $tokenResult->eventType !== '' ? $tokenResult->eventType : 'band';
-            $mergedPost['label']      = $tokenLabel;
+        if ($row['status'] === 'failed') {
+            throw new \RuntimeException('Upload failed: upload_id=' . $uploadId);
         }
 
-        $srcPath = $dataDir . '/' . $uploadId;
-        if (!is_file($srcPath)) {
-            throw new \RuntimeException('Upload data missing on disk');
-        }
+        // status === 'complete'
+        $assetId  = (int)$row['asset_id'];
+        $fileType = (string)$row['file_type'];
+        $checksum = (string)($row['checksum_sha256'] ?? '');
+        $fileExt  = (string)($row['file_ext'] ?? '');
+        $fileSize = (int)($row['size_bytes'] ?? 0);
+        $mimeType = (string)($row['mime_type'] ?? '');
+        $fileName = $fileExt !== '' ? ($checksum . '.' . $fileExt) : $checksum;
 
-        $size = (int)@filesize($srcPath);
-        if ($size <= 0) {
-            throw new \RuntimeException('Uploaded file is empty');
-        }
-
-        $mime = '';
-        $fi = new \finfo(FILEINFO_MIME_TYPE);
-        $detected = @$fi->file($srcPath);
-        if (is_string($detected) && $detected !== '') {
-            $mime = $detected;
-        }
-
-        $files = [
-            'file' => [
-                'name' => $origName,
-                'type' => $mime,
-                'tmp_name' => $srcPath,
-                'error' => UPLOAD_ERR_OK,
-                'size' => $size,
-            ],
+        $result = [
+            'asset_id'        => $assetId,
+            'file_name'       => $fileName,
+            'file_type'       => $fileType,
+            'size_bytes'      => $fileSize,
+            'mime_type'       => $mimeType,
+            'checksum_sha256' => $checksum,
+            'duration_seconds'=> null, // filled async by probe job
+            'thumbnail_done'  => false, // filled async by probe job
+            'db_done'         => true,
         ];
 
-        try {
-            $result = $this->handleUpload($files, $mergedPost);
-        } catch (DuplicateChecksumException $e) {
-            // If we reject the upload, clean up tusd data to avoid disk accumulation.
-            if (is_file($srcPath)) {
-                @unlink($srcPath);
-            }
-            throw $e;
-        }
-
-        // Token-mode: atomic write of upload_jobs + anon_upload_attributions
+        // Token-mode: record upload_jobs + anon_upload_attributions
         if ($tokenResult !== null) {
             $statusNonce = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
-            $fileRelpath = $result['file_type'] . '/' . $result['file_name'];
+            $fileRelpath = $fileType . '/' . $fileName;
             $tenantId    = (int)(getenv('QR_GUEST_UPLOAD_TENANT_ID') ?: 1);
             $this->pdo->beginTransaction();
             try {
@@ -434,154 +361,76 @@ final class UploadService
             $result['upload_job_id'] = $uploadJobsRowId;
         }
 
-        $markerResult = $result;
-        if (is_array($markerResult) && array_key_exists('delete_token', $markerResult)) {
-            unset($markerResult['delete_token']);
-        }
-        @file_put_contents($finalMarker, json_encode($markerResult));
         return $result;
     }
 
     /**
-     * Finalize a completed TUS upload for a manifest-driven import job.
+     * Finalize a manifest-driven import upload (admin import worker).
      *
-     * Unlike finalizeTusUpload(), this path UPDATES the existing manifest-created
-     * files row identified by checksum instead of rejecting it as a duplicate.
-     * The manifest row must already exist (written by Step 1 / import_manifest_worker).
+     * Looks up the completed tus_uploads row and verifies the stored asset checksum
+     * matches the manifest expectation. The asset row was created by TusBlockUploadService
+     * on the final PATCH; this method just verifies and returns the result map.
      *
-     * @param string $uploadId  The TUS upload ID.
+     * @param string $uploadId  The tus upload ID.
      * @param string $checksum  Expected SHA-256 checksum from the manifest.
-     * @return array            Result map written to upload_status.json.
+     * @return array            Result map.
      */
     public function finalizeManifestTusUpload(string $uploadId, string $checksum): array
     {
         $uploadId = trim($uploadId);
         $checksum = strtolower(trim($checksum));
 
-        if ($uploadId === '' || preg_match('/^[A-Za-z0-9_-]+$/', $uploadId) !== 1) {
+        if ($uploadId === '' || preg_match('/^[0-9a-f-]+$/i', $uploadId) !== 1) {
             throw new \InvalidArgumentException('Missing or invalid upload_id');
         }
         if (!preg_match('/^[0-9a-f]{64}$/', $checksum)) {
             throw new \InvalidArgumentException('Missing or invalid checksum_sha256');
         }
 
-        $hookDir  = '/var/www/private/tus-hooks/uploads';
-        $finalDir = '/var/www/private/tus-hooks/finalized';
-        $dataDir  = '/var/www/private/tus-data';
+        $stmt = $this->pdo->prepare(
+            'SELECT tu.status, tu.asset_id, tu.file_type, tu.mime_type,
+                    a.checksum_sha256, a.file_ext, a.size_bytes
+             FROM tus_uploads tu
+             LEFT JOIN assets a ON a.asset_id = tu.asset_id
+             WHERE tu.upload_id = ?'
+        );
+        $stmt->execute([$uploadId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        $this->storage->ensureDir($finalDir);
-        // Use a distinct marker prefix so manifest finalizations never collide
-        // with normal finalizeTusUpload() markers for the same upload_id.
-        $finalMarker = $finalDir . '/manifest-' . $uploadId . '.json';
-        if (is_file($finalMarker)) {
-            $raw = @file_get_contents($finalMarker);
-            $decoded = is_string($raw) ? json_decode($raw, true) : null;
-            if (is_array($decoded)) {
-                return $decoded;
-            }
+        if ($row === false) {
+            throw new \RuntimeException('Upload not found: upload_id=' . $uploadId);
         }
-
-        $srcPath = $dataDir . '/' . $uploadId;
-        if (!is_file($srcPath)) {
-            throw new \RuntimeException('Upload data missing on disk');
-        }
-        $size = (int)@filesize($srcPath);
-        if ($size <= 0) {
-            throw new \RuntimeException('Uploaded file is empty');
-        }
-
-        // Verify uploaded bytes match the manifest checksum before doing anything else.
-        $actualChecksum = @hash_file('sha256', $srcPath) ?: '';
-        if ($actualChecksum !== $checksum) {
+        if ($row['status'] !== 'complete') {
             throw new \RuntimeException(
-                sprintf('Checksum mismatch: expected %s, got %s', $checksum, $actualChecksum)
+                'Upload not complete (status=' . $row['status'] . '): upload_id=' . $uploadId
             );
         }
 
-        $existing = $this->assetRepo->findByChecksum($checksum);
-        if (!$existing || !isset($existing['asset_id'])) {
+        $storedChecksum = strtolower((string)($row['checksum_sha256'] ?? ''));
+        if ($storedChecksum !== $checksum) {
             throw new \RuntimeException(
-                'No manifest row found for checksum ' . $checksum . '; Step 1 must complete before Step 2'
+                sprintf('Checksum mismatch: expected %s, got %s', $checksum, $storedChecksum)
             );
         }
-        $assetId  = (int)$existing['asset_id'];
-        $fileType = (string)($existing['file_type'] ?? '');
-        if (!in_array($fileType, ['audio', 'video'], true)) {
-            throw new \RuntimeException('Invalid file_type in manifest row: ' . $fileType);
-        }
 
-        // Determine file extension from TUS hook metadata, falling back to the
-        // existing file_name column written by the manifest import in Step 1.
-        $ext = '';
-        $hookFile = $hookDir . '/' . $uploadId . '.json';
-        if (is_file($hookFile)) {
-            $hookRaw = (string)@file_get_contents($hookFile);
-            $hook = json_decode($hookRaw, true);
-            if (is_array($hook)) {
-                $meta = $hook['Event']['Upload']['MetaData']
-                    ?? $hook['Upload']['MetaData']
-                    ?? $hook['MetaData']
-                    ?? [];
-                $origName = isset($meta['filename']) ? $this->probe->sanitizeFilename((string)$meta['filename']) : '';
-                if ($origName !== '') {
-                    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-                }
-            }
-        }
-        if ($ext === '') {
-            $ext = strtolower((string)($existing['file_ext'] ?? ''));
-        }
+        $assetId  = (int)$row['asset_id'];
+        $fileType = (string)$row['file_type'];
+        $fileExt  = (string)($row['file_ext'] ?? '');
+        $fileSize = (int)($row['size_bytes'] ?? 0);
+        $mimeType = (string)($row['mime_type'] ?? '');
+        $storedName = $fileExt !== '' ? ($storedChecksum . '.' . $fileExt) : $storedChecksum;
 
-        // Store as {checksum}.{ext} — matches upload_media_by_hash.py naming convention.
-        $baseDir   = dirname(__DIR__, 2); // .../webroot
-        $targetDir = $baseDir . '/' . $fileType;
-        $this->storage->ensureDir($targetDir);
-        $storedName = $ext !== '' ? ($checksum . '.' . $ext) : $checksum;
-        $targetPath = $targetDir . '/' . $storedName;
-
-        if (!is_file($targetPath)) {
-            if (!@copy($srcPath, $targetPath)) {
-                throw new \RuntimeException('Failed to store uploaded file at ' . $targetPath);
-            }
-            @chmod($targetPath, 0644);
-        }
-
-        // Detect MIME type from the stored file.
-        $mime = '';
-        $fi = new \finfo(FILEINFO_MIME_TYPE);
-        $detected = @$fi->file($targetPath);
-        if (is_string($detected) && $detected !== '') {
-            $mime = $detected;
-        }
-
-        // Delegate probe + UPDATE to UIC (fills in stub asset row written by W1).
-        $uicResult       = $this->uic->ingestComplete($assetId, $targetPath, $storedName, $size, $mime, $fileType, $checksum);
-        $durationSeconds = $uicResult['duration_seconds'];
-
-        $thumbnailDone = false;
-        if ($fileType === 'video') {
-            $thumbPath = $baseDir . '/video/thumbnails/' . $checksum . '.png';
-            $thumbnailDone = is_file($thumbPath);
-        }
-
-        $result = [
+        return [
             'asset_id'         => $assetId,
             'file_name'        => $storedName,
             'file_type'        => $fileType,
-            'size_bytes'       => $size,
-            'mime_type'        => $mime,
-            'checksum_sha256'  => $checksum,
-            'duration_seconds' => $durationSeconds,
-            'thumbnail_done'   => $thumbnailDone,
+            'size_bytes'       => $fileSize,
+            'mime_type'        => $mimeType,
+            'checksum_sha256'  => $storedChecksum,
+            'duration_seconds' => null, // filled async by probe job
+            'thumbnail_done'   => false,
             'db_done'          => true,
         ];
-
-        // Write marker before unlinking source so a retry can succeed if unlink fails.
-        @file_put_contents($finalMarker, json_encode($result, JSON_UNESCAPED_SLASHES));
-        // Clean up TUS source data (best-effort).
-        @unlink($srcPath);
-
-        return $result;
     }
 
     private function uniquePath(string $dir, string $name): string

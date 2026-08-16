@@ -36,9 +36,12 @@ mkdir -p /var/www/private/import_jobs
 chown -R www-data:www-data /var/www/private/import_jobs || true
 chmod 775 /var/www/private/import_jobs || true
 
-# Ensure backup dir is writable by www-data for on-demand backups (full channel)
+# Ensure backup dir is writable by www-data for on-demand backups (full channel).
+# Directory only — do NOT recurse: cron.log and .sql.gz files are owned by the
+# host cron user (ubuntu) and a recursive chown would make cron.log unwritable
+# by ubuntu, silently preventing all scheduled backups.
 if [ -d /var/www/private/mysql_backups ]; then
-  chown -R www-data:www-data /var/www/private/mysql_backups || true
+  chown www-data:www-data /var/www/private/mysql_backups || true
   chmod g+w /var/www/private/mysql_backups || true
 fi
 
@@ -60,6 +63,39 @@ if [[ "${GIGHIVE_INSTALL_CHANNEL:-full}" == "quickstart" ]]; then
 
   service cron start || true
 fi
+
+# Probe job cron — all install channels (not one-shot bundle only).
+# Runs run_probe_job.php every ~10 seconds via sleep offsets within each cron minute.
+{
+  printf 'SHELL=/bin/sh\n'
+  printf 'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n'
+  printf '* * * * * www-data php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'
+  printf '* * * * * www-data sleep 10 && php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'
+  printf '* * * * * www-data sleep 20 && php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'
+  printf '* * * * * www-data sleep 30 && php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'
+  printf '* * * * * www-data sleep 40 && php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'
+  printf '* * * * * www-data sleep 50 && php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'
+  printf '0 3 * * * www-data php /var/www/html/src/Jobs/cleanup_expired_uploads.php >> /var/log/probe_job.log 2>&1\n'
+} > /etc/cron.d/gighive-probe
+chmod 0640 /etc/cron.d/gighive-probe
+
+# Logrotate for probe_job.log
+{
+  printf '/var/log/probe_job.log {\n'
+  printf '    daily\n'
+  printf '    rotate 7\n'
+  printf '    compress\n'
+  printf '    missingok\n'
+  printf '    notifempty\n'
+  printf '    create 0640 www-data www-data\n'
+  printf '}\n'
+} > /etc/logrotate.d/probe-job
+touch /var/log/probe_job.log
+chown www-data:www-data /var/log/probe_job.log
+chmod 0640 /var/log/probe_job.log
+
+# Start cron if not already running (quickstart starts it above; full starts it here)
+service cron start || true
 
 # Ensure php-fpm log files exist and are writable
 mkdir -p /var/log/php-fpm

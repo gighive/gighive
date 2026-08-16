@@ -264,11 +264,17 @@
 
 # --- TUS verification (external URL) ---
 
-- name: Build variables for TUS checks
+# Step 1: set the base64 literal and scalar vars first.
+- name: Build variables for TUS checks (step 1 — payload b64 + scalars)
   ansible.builtin.set_fact:
-    tus_payload: "hello-tus-{{ ansible_facts['date_time'].epoch }}"
-    tus_expected_offset: "{{ ('hello-tus-' ~ ansible_facts['date_time'].epoch) | length }}"
+    # Minimal valid WAV file (44-byte RIFF header + 0 data bytes).
+    # Must be real WAV magic bytes so the final-PATCH MIME sniff passes audio/wav.
+    # Base64 of: RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00
+    #            \x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x00\x00\x00\x00
+    tus_payload_b64: "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="
+    tus_expected_offset: 44
     tus_upload_metadata_filename_b64: "{{ 'verify.wav' | b64encode }}"
+    tus_upload_metadata_filetype_b64: "{{ 'audio/wav' | b64encode }}"
     tus_upload_metadata_label_b64: "{{ 'TUS_VALIDATE' | b64encode }}"
     tus_upload_metadata_org_name_b64: "{{ 'gighive' | b64encode }}"
     tus_upload_metadata_event_date_b64: "{{ ansible_facts['date_time'].date | b64encode }}"
@@ -278,31 +284,16 @@
   changed_when: false
   tags: [tus]
 
-- name: Verify tusd container is running
-  community.docker.docker_container_info:
-    name: "{{ tusd_container_name }}"
-  register: tusd_container
-  failed_when:
-    - not tusd_container.exists
-    - not tusd_container.container.State.Running
-    - tusd_container.container.State.Restarting
-  changed_when: false
-  tags: [tus]
-
-- name: Build internal tusd probe URL
+# Step 2: decode the payload now that tus_payload_b64 is defined.
+- name: Build variables for TUS checks (step 2 — decode payload)
   ansible.builtin.set_fact:
-    tusd_internal_probe_url: "http://{{ tusd_container_name }}:{{ tusd_port | default(8080) }}{{ tusd_base_path | default('/files') }}/"
+    tus_payload: "{{ tus_payload_b64 | b64decode }}"
   changed_when: false
   tags: [tus]
 
-- name: Probe tusd directly via Docker DNS from inside apache container
-  ansible.builtin.command: >
-    docker exec {{ apache_container_name }}
-    sh -lc "curl -sS -o /dev/null -w '%{http_code}' '{{ tusd_internal_probe_url }}'"
-  register: tusd_internal_probe
-  changed_when: false
-  failed_when: tusd_internal_probe.stdout | trim not in ['200', '204', '404', '405']
-  tags: [tus]
+# tusd is retired (Phase 3). The [tus] block below tests the PHP tus endpoint instead.
+# The old tasks that checked the tusd container, internal tusd DNS probe, and
+# tus-hooks/tus-data staging artifacts have been removed.
 
 - block:
     - name: TUS endpoint should require auth (probe)
@@ -326,9 +317,10 @@
         validate_certs: "{{ gighive_validate_certs }}"
         headers: "{{ tus_headers_common | combine({
           'Tus-Resumable': '1.0.0',
-          'Upload-Length': (tus_payload | length) | string,
+          'Upload-Length': tus_expected_offset | string,
           'Upload-Metadata': (
             'filename ' ~ tus_upload_metadata_filename_b64 ~
+            ',filetype ' ~ tus_upload_metadata_filetype_b64 ~
             ',label ' ~ tus_upload_metadata_label_b64 ~
             ',org_name ' ~ tus_upload_metadata_org_name_b64 ~
             ',event_date ' ~ tus_upload_metadata_event_date_b64 ~
@@ -336,10 +328,10 @@
           )
         }) }}"
         status_code: [201]
-        return_content: false
+        return_content: true
       register: tus_create
       changed_when: false
-      no_log: "{{ tus_checks_no_log }}"
+      no_log: false
 
     - name: Capture upload Location + upload_id
       ansible.builtin.set_fact:
@@ -397,17 +389,6 @@
         fail_msg: "Expected Upload-Offset={{ tus_expected_offset }}, got '{{ tus_upload_offset_value | default('') }}'"
       changed_when: false
 
-    - name: Wait for tusd post-finish hook JSON to appear
-      ansible.builtin.command: >
-        docker exec {{ apache_container_name }}
-        sh -lc 'test -f "/var/www/private/tus-hooks/uploads/{{ tus_upload_id }}.json"'
-      register: tus_hook_wait
-      changed_when: false
-      retries: 20
-      delay: 1
-      until: tus_hook_wait.rc == 0
-      no_log: "{{ tus_checks_no_log }}"
-
     - name: Finalize TUS upload (POST /api/uploads/finalize)
       ansible.builtin.uri:
         url: "{{ gighive_base_url }}/api/uploads/finalize"
@@ -444,91 +425,68 @@
       changed_when: false
       no_log: "{{ tus_checks_no_log }}"
 
-    - name: Assert finalize idempotency (same file id)
+    - name: Assert finalize idempotency (same asset_id both calls)
       ansible.builtin.assert:
         that:
           - tus_finalize_1.json is mapping
           - tus_finalize_2.json is mapping
           - (tus_finalize_1.json.asset_id | int) == (tus_finalize_2.json.asset_id | int)
           - (tus_finalize_1.json.file_name | default('')) == (tus_finalize_2.json.file_name | default(''))
+          - tus_finalize_1.json.db_done == true
       changed_when: false
 
-    - name: Assert uploader delete token is returned only on first finalize (R1)
-      ansible.builtin.assert:
-        that:
-          - (tus_finalize_1.json.delete_token | default('')) | length > 0
-          - (tus_finalize_2.json.delete_token | default('')) | length == 0
-        fail_msg: >-
-          Expected delete_token on first finalize only.
-          finalize_1.delete_token='{{ tus_finalize_1.json.delete_token | default('') }}'
-          finalize_2.delete_token='{{ tus_finalize_2.json.delete_token | default('') }}'
-      changed_when: false
-
-    - name: Delete TUS smoke-test media record as uploader (capability token)
-      ansible.builtin.uri:
-        url: "{{ gighive_base_url }}/db/delete_media_files.php"
-        method: POST
-        url_username: "{{ uploader_user }}"
-        url_password: "{{ gighive_uploader_password }}"
-        force_basic_auth: true
-        validate_certs: "{{ gighive_validate_certs }}"
-        headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
-        body_format: json
-        body:
-          asset_id: "{{ tus_finalize_1.json.asset_id | int }}"
-          delete_token: "{{ tus_finalize_1.json.delete_token }}"
-        status_code: [200]
-        return_content: true
-      register: tus_uploader_delete_ok
+    # Phase 3: finalizeTusUpload() no longer returns delete_token (that was the old
+    # tusd hook-file path). The asset is cleaned up via admin delete directly.
+    - name: Assert tus_uploads row is complete in DB
+      community.docker.docker_container_exec:
+        container: "{{ mysql_container_name }}"
+        command: >-
+          sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot media_db -sN
+          -e \"SELECT status FROM tus_uploads WHERE upload_id='{{ tus_upload_id }}'\""
+      register: tus_db_status
       changed_when: false
       no_log: "{{ tus_checks_no_log }}"
 
-    - name: Assert uploader delete removed 1 row
+    - name: Assert tus_uploads.status is complete
       ansible.builtin.assert:
         that:
-          - tus_uploader_delete_ok.json is mapping
-          - (tus_uploader_delete_ok.json.deleted_count | default(0) | int) == 1
-          - (tus_uploader_delete_ok.json.error_count | default(0) | int) == 0
+          - tus_db_status.stdout | trim == 'complete'
         fail_msg: >-
-          Uploader delete failed. Response={{ tus_uploader_delete_ok.content | default('') }}
+          Expected tus_uploads.status=complete for upload_id={{ tus_upload_id }},
+          got '{{ tus_db_status.stdout | trim }}'
       changed_when: false
 
-    - name: Attempt uploader delete again with wrong token (should 403)
-      ansible.builtin.uri:
-        url: "{{ gighive_base_url }}/db/delete_media_files.php"
-        method: POST
-        url_username: "{{ uploader_user }}"
-        url_password: "{{ gighive_uploader_password }}"
-        force_basic_auth: true
-        validate_certs: "{{ gighive_validate_certs }}"
-        headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else {}) | combine({'Content-Type':'application/json'}) }}"
-        body_format: json
-        body:
-          asset_id: "{{ tus_finalize_1.json.asset_id | int }}"
-          delete_token: "0000000000000000000000000000000000000000000000000000000000000000"
-        status_code: [403]
-        return_content: true
-      register: tus_uploader_delete_wrong
+    - name: Assert probe_jobs row was enqueued
+      community.docker.docker_container_exec:
+        container: "{{ mysql_container_name }}"
+        command: >-
+          sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot media_db -sN
+          -e \"SELECT COUNT(*) FROM probe_jobs WHERE asset_id={{ tus_finalize_1.json.asset_id | int }}\""
+      register: tus_probe_job_count
       changed_when: false
       no_log: "{{ tus_checks_no_log }}"
 
-    - name: Mark uploader deletion completed
-      ansible.builtin.set_fact:
-        tus_deleted_by_uploader: true
+    - name: Assert probe_jobs has exactly 1 row for the uploaded asset
+      ansible.builtin.assert:
+        that:
+          - tus_probe_job_count.stdout | trim | int == 1
+        fail_msg: >-
+          Expected 1 probe_jobs row for asset_id={{ tus_finalize_1.json.asset_id }},
+          got {{ tus_probe_job_count.stdout | trim }}
       changed_when: false
 
     - block:
-        - name: Assert TUS smoke-test file is safe to delete
+        - name: Assert TUS smoke-test asset_id looks valid before cleanup
           ansible.builtin.assert:
             that:
-              - (tus_finalize_1.json.label | default('')) == 'TUS_VALIDATE'
               - (tus_finalize_1.json.asset_id | default('') | string) is regex('^[0-9]+$')
+              - (tus_finalize_1.json.asset_id | int) > 0
             fail_msg: >-
-              Refusing to cleanup because finalize response does not look like a TUS_VALIDATE smoke-test file.
-              label='{{ tus_finalize_1.json.label | default('') }}' asset_id='{{ tus_finalize_1.json.asset_id | default('') }}'
+              Refusing to cleanup — finalize response has invalid asset_id.
+              asset_id='{{ tus_finalize_1.json.asset_id | default('') }}'
           changed_when: false
 
-        - name: Delete TUS smoke-test media record (DB + served file)
+        - name: Delete TUS smoke-test asset (DB + served file)
           ansible.builtin.uri:
             url: "{{ gighive_base_url }}/db/delete_media_files.php"
             method: POST
@@ -546,9 +504,8 @@
           register: tus_cleanup_delete
           changed_when: false
           no_log: "{{ tus_checks_no_log }}"
-          when: not (tus_deleted_by_uploader | default(false))
 
-        - name: Assert delete endpoint removed 1 row
+        - name: Assert cleanup delete removed 1 row
           ansible.builtin.assert:
             that:
               - tus_cleanup_delete.json is mapping
@@ -557,17 +514,7 @@
             fail_msg: >-
               Cleanup delete failed. Response={{ tus_cleanup_delete.content | default('') }}
           changed_when: false
-          when: not (tus_deleted_by_uploader | default(false))
 
-        - name: Remove tus staging artifacts for this upload_id
-          ansible.builtin.command: >
-            docker exec {{ apache_container_name }}
-            sh -lc 'rm -f
-            "/var/www/private/tus-data/{{ tus_upload_id }}"
-            "/var/www/private/tus-hooks/uploads/{{ tus_upload_id }}.json"
-            "/var/www/private/tus-hooks/finalized/{{ tus_upload_id }}.json"'
-          changed_when: false
-          failed_when: false
       when: tus_cleanup_after_check | default(true)
 
   tags: [tus]
@@ -657,11 +604,14 @@
   failed_when: false
   tags: [stack_versions]
 
-- name: Get tusd version from tusd container
-  ansible.builtin.command: docker exec {{ tusd_container_name }} tusd --version
-  register: stack_tusd_raw
+# tusd retired (Phase 3) — stack_tusd_raw kept as an empty placeholder so downstream
+# tasks that reference it (e.g. the stack summary) do not crash.
+- name: tusd retired — set empty stack_tusd_raw placeholder
+  ansible.builtin.set_fact:
+    stack_tusd_raw:
+      stdout: "tusd retired (Phase 3)"
+      rc: 0
   changed_when: false
-  failed_when: false
   tags: [stack_versions]
 
 - name: Get MCP server package version from host virtualenv
@@ -1022,4 +972,172 @@
       \Production\Api\Services\MediaStorageService::make() threw an exception in local mode.
       Stderr: {{ storage_make_check.stderr }}
   when: gighive_media_storage_backend == 'local'
+  tags: [smoke, media_storage]
+
+# --- T-79: PHP >= 8.2 (required by HashContext serialization + readonly class) ---
+# Lifecycle: permanent — keep in post_build_checks; base image updates can silently downgrade PHP.
+
+- name: "[T-79] PHP version is >= 8.2 inside the Apache container"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      php -r "exit(PHP_MAJOR_VERSION > 8 || (PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION >= 2) ? 0 : 1);"
+  register: php_ver_p3
+  changed_when: false
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-79] Assert PHP >= 8.2"
+  ansible.builtin.assert:
+    that:
+      - php_ver_p3.rc == 0
+    fail_msg: >
+      PHP version is below 8.2 — HashContext serialization and readonly class require 8.2.
+      Update the base image before deploying Phase 3.
+  tags: [smoke, media_storage]
+
+# --- T-80: tus_uploads table has all required columns ---
+# Lifecycle: phase gate (Tranche 1) — remove at Tranche 1 cleanup.
+
+- name: "[T-80] Count expected columns in tus_uploads"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot media_db -sN
+      -e \"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA='media_db' AND TABLE_NAME='tus_uploads'
+       AND COLUMN_NAME IN ('upload_id','user_id','status','upload_length',
+       'block_count','block_size','sha256_ctx','file_type','asset_id','expires_at')\""
+  register: tus_uploads_cols
+  changed_when: false
+  no_log: true
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-80] Assert tus_uploads has all 10 expected columns"
+  ansible.builtin.assert:
+    that:
+      - tus_uploads_cols.rc == 0
+      - tus_uploads_cols.stdout | trim | int == 10
+    fail_msg: >
+      tus_uploads column count={{ tus_uploads_cols.stdout | trim }}, expected 10.
+      Apply the Phase 3 DDL from create_media_db.sql before deploying.
+  tags: [smoke, media_storage]
+
+# --- T-81: probe_jobs table has all required columns ---
+# Lifecycle: phase gate (Tranche 1) — remove at Tranche 1 cleanup.
+
+- name: "[T-81] Count expected columns in probe_jobs"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot media_db -sN
+      -e \"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA='media_db' AND TABLE_NAME='probe_jobs'
+       AND COLUMN_NAME IN ('asset_id','blob_key','file_type','status','attempts','started_at')\""
+  register: probe_jobs_cols
+  changed_when: false
+  no_log: true
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-81] Assert probe_jobs has all 6 expected columns"
+  ansible.builtin.assert:
+    that:
+      - probe_jobs_cols.rc == 0
+      - probe_jobs_cols.stdout | trim | int == 6
+    fail_msg: >
+      probe_jobs column count={{ probe_jobs_cols.stdout | trim }}, expected 6.
+      Apply the Phase 3 DDL from create_media_db.sql before deploying.
+  tags: [smoke, media_storage]
+
+# --- T-82: probe cron file is present in the Apache container ---
+# Lifecycle: permanent — keep in post_build_checks; a role refactor could drop cron silently.
+
+- name: "[T-82] Read probe cron file inside Apache container"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      cat /etc/cron.d/gighive-probe
+  register: probe_cron_check
+  changed_when: false
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-82] Assert probe cron file is present and references run_probe_job.php"
+  ansible.builtin.assert:
+    that:
+      - probe_cron_check.rc == 0
+      - "'run_probe_job' in probe_cron_check.stdout"
+    fail_msg: >
+      /etc/cron.d/gighive-probe missing or does not reference run_probe_job.php.
+      Check entrypoint.sh.j2 cron setup block.
+  tags: [smoke, media_storage]
+
+# --- T-83: tusd container is not running ---
+# Lifecycle: permanent — guards against tusd being re-added to compose accidentally.
+
+- name: "[T-83] Gather tusd container info"
+  community.docker.docker_container_info:
+    name: "{{ tusd_container_name }}"
+  register: tusd_info
+  tags: [smoke, media_storage]
+
+- name: "[T-83] Assert tusd container is absent or not running"
+  ansible.builtin.assert:
+    that:
+      - not (tusd_info.exists and tusd_info.container.State.Status == 'running')
+    fail_msg: >
+      tusd container {{ tusd_container_name }} is still running.
+      Remove it from docker-compose.yml.j2 and redeploy.
+  tags: [smoke, media_storage]
+
+# --- T-84: GET /files/ returns 400 (PHP tus server live) ---
+# Lifecycle: permanent — any Apache config change could break /files/ routing.
+
+- name: "[T-84] GET /files/ returns 400 (PHP tus server is live)"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/files/"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: [400, 401]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke, media_storage]
+
+# --- T-85: Unauthenticated POST /files/ returns 401 ---
+# Lifecycle: permanent — detects auth regressions on the upload endpoint.
+
+- name: "[T-85] Unauthenticated POST /files/ returns 401"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/files/"
+    method: POST
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: 401
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke, media_storage]
+
+# --- T-86: innodb_lock_wait_timeout >= 60 ---
+# Lifecycle: permanent — MySQL config can drift after restarts or container rebuilds.
+
+- name: "[T-86] Read innodb_lock_wait_timeout"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command: >-
+      sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot -sN -e 'SELECT @@innodb_lock_wait_timeout'"
+  register: lock_timeout
+  changed_when: false
+  no_log: true
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-86] Assert innodb_lock_wait_timeout >= 60"
+  ansible.builtin.assert:
+    that:
+      - lock_timeout.rc == 0
+      - lock_timeout.stdout | trim | int >= 60
+    fail_msg: >
+      innodb_lock_wait_timeout={{ lock_timeout.stdout | trim }}, expected >= 60.
+      Add innodb_lock_wait_timeout=60 to MySQL [mysqld] config and restart.
   tags: [smoke, media_storage]

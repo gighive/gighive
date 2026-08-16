@@ -28,8 +28,6 @@ services:
       - "/home/{{ ansible_user }}/audio:{{ media_search_dir_audio }}"
       - "/home/{{ ansible_user }}/video:{{ media_search_dir_video }}"
 {% endif %}
-      - tusd_data:/var/www/private/tus-data
-      - tus_hooks:/var/www/private/tus-hooks
       - "{{ gighive_htpasswd_host_path }}:{{ gighive_htpasswd_path }}:rw"
       - "{{ gighive_resize_requests_host_path }}:{{ gighive_resize_requests_path }}:rw"
       - "{{ mysql_backups_dir }}:/var/www/private/mysql_backups:rw"
@@ -52,21 +50,6 @@ services:
       - "{{ docker_dir }}/apache/externalConfigs/security2.conf:/etc/apache2/mods-available/security2.conf:ro"
     entrypoint: ["/entrypointapache.sh"]
 
-  {{ tusd_container_name }}:
-    image: tusproject/tusd:latest
-    container_name: "{{ tusd_container_name }}"
-    restart: unless-stopped
-    user: "{{ tusd_user_uid | default(33) }}:{{ tusd_user_gid | default(33) }}"
-    environment:
-      TZ: "{{ gighive_timezone }}"
-    command: ["-host=0.0.0.0", "-upload-dir={{ tusd_upload_dir | default('/data') }}", "-base-path={{ tusd_base_path | default('/files') }}", "-behind-proxy", "-hooks-dir={{ tusd_hooks_dir | default('/hooks') }}", "-hooks-enabled-events=post-finish", "-show-startup-logs"]
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-      - tusd_data:{{ tusd_upload_dir | default('/data') }}
-      - tus_hooks:{{ tusd_hook_out_dir | default('/hook-out') }}
-      - "{{ docker_dir }}/tusd/hooks:{{ tusd_hooks_dir | default('/hooks') }}:ro"
-
   {{ mysql_container_name }}:
     image: mysql:8.4
     container_name: "{{ mysql_container_name }}"
@@ -88,5 +71,3 @@ services:
 
 volumes:
   mysql_data:
-  tusd_data:
-  tus_hooks:

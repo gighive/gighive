@@ -296,8 +296,20 @@
 
     ProxyPreserveHost On
     RequestHeader set X-Forwarded-Proto "https"
-    ProxyPass "/files/" "http://{{ apache_container_name }}_tusd:8080{{ tusd_base_path | default('/files') }}/" nocanon
-    ProxyPassReverse "/files/" "http://{{ apache_container_name }}_tusd:8080{{ tusd_base_path | default('/files') }}/"
+
+    # --- PHP tus upload server (replaces tusd container) ---
+    # All tus protocol requests routed to api/tus-upload.php.
+    # E=TUS_PATH:$1 makes the upload_id available as getenv('TUS_PATH') in PHP.
+    RewriteRule ^/files(/.*)?$ /api/tus-upload.php [L,QSA,E=TUS_PATH:$1]
+
+    # Allow large PATCH bodies for tus chunk uploads.
+    # Default SecRequestBodyLimit is 13 MB — raise above the max chunk size.
+    # SecRuleEngine DetectionOnly prevents ModSecurity from truncating raw binary chunks.
+    <LocationMatch "^/files(?:/|$)">
+        SecRequestBodyLimit        20971520
+        SecRequestBodyNoFilesLimit 20971520
+        SecRuleEngine              DetectionOnly
+    </LocationMatch>
     
     # --- ADMIN DIRECTORY: admin only ---
     # All admin UI pages and admin-only endpoints live under /admin/

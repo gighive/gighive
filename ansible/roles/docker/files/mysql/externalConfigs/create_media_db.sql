@@ -415,3 +415,44 @@ CREATE TABLE IF NOT EXISTS guest_video_reports (
   CONSTRAINT fk_gvr_event      FOREIGN KEY (event_id)      REFERENCES events      (event_id) ON DELETE CASCADE,
   CONSTRAINT fk_gvr_upload_job FOREIGN KEY (upload_job_id) REFERENCES upload_jobs (id)       ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/****************************
+ * PHP Tus Upload State     *
+ ****************************/
+CREATE TABLE IF NOT EXISTS tus_uploads (
+    id            INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    upload_id     VARCHAR(36)   NOT NULL,          -- server-generated UUID v4; never client-provided
+    user_id       INT UNSIGNED  NOT NULL,           -- authenticated user who initiated the upload
+    status        ENUM('pending','complete','failed') NOT NULL DEFAULT 'pending',
+    upload_length BIGINT UNSIGNED NOT NULL,         -- total file size from Upload-Length header
+    block_count   INT UNSIGNED  NOT NULL DEFAULT 0, -- Azure: PUT Block calls committed so far (INT not SMALLINT — forward safety for large chunk counts)
+    block_size    INT UNSIGNED  NOT NULL DEFAULT 0, -- set from first PATCH body length; never updated after
+    sha256_ctx    BLOB          NULL,               -- serialized PHP HashContext (PHP 8.0+); ~1-2 KB
+    file_type     ENUM('audio','video') NOT NULL,
+    mime_type     VARCHAR(128)  NOT NULL DEFAULT '',
+    asset_id      INT UNSIGNED  NULL,               -- populated on final commit
+    created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at    DATETIME      NOT NULL,           -- NOW() + 24h; cron clears expired rows
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_upload_id (upload_id),
+    INDEX idx_user_pending (user_id, status),
+    INDEX idx_expires (expires_at),
+    INDEX idx_status  (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/****************************
+ * Async Probe Job Queue    *
+ ****************************/
+CREATE TABLE IF NOT EXISTS probe_jobs (
+    id         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    asset_id   INT UNSIGNED  NOT NULL,
+    blob_key   VARCHAR(512)  NOT NULL,              -- qualified key e.g. video/abc123.mp4
+    file_type  ENUM('audio','video') NOT NULL,
+    status     ENUM('queued','running','done','failed') NOT NULL DEFAULT 'queued',
+    attempts   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME NULL,                       -- set when cron claims the row; used for stuck-job detection
+    PRIMARY KEY (id),
+    INDEX idx_queued  (status, created_at),
+    INDEX idx_running (status, started_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

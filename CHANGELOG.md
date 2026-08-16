@@ -3,32 +3,7 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260816.txt
-Changes: tranche 1, phase 2
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/ai_worker/tasks/main.yml
-	modified:   ansible/roles/docker/files/apache/webroot/composer.json
-	new file:   ansible/roles/docker/files/apache/webroot/src/Contracts/MediaStorageBackendInterface.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Dto/CurlResult.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Dto/MediaMetaDto.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/AzureBlobMediaBackend.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/AzureBlobRestClient.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/AzureIdentityTokenCache.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/FallbackMediaBackend.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/LocalMediaBackend.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/MediaBackend.php
-	new file:   ansible/roles/docker/files/apache/webroot/src/Services/MediaStorageService.php
-	modified:   ansible/roles/docker/templates/Dockerfile.j2
-	modified:   ansible/roles/post_build_checks/tasks/main.yml
-	modified:   docs/problem_docker_image_retagged_old_tag.md
-	modified:   docs/refactor_status_20260812.md
-	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
+Changes: tranche 1, phase 3 includes db alter
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
@@ -133,6 +108,37 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
 
+
+
+
+*** 
+releaseNotes20260816.txt
+Changes: tranche 1, phase 2
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/ai_worker/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/composer.json
+	new file:   ansible/roles/docker/files/apache/webroot/src/Contracts/MediaStorageBackendInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Dto/CurlResult.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Dto/MediaMetaDto.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/AzureBlobMediaBackend.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/AzureBlobRestClient.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/AzureIdentityTokenCache.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/FallbackMediaBackend.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/LocalMediaBackend.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/MediaBackend.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/MediaStorageService.php
+	modified:   ansible/roles/docker/templates/Dockerfile.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   docs/problem_docker_image_retagged_old_tag.md
+	modified:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 *** 
 releaseNotes20260816.txt

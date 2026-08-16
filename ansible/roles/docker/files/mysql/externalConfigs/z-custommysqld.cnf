@@ -12,3 +12,4 @@ general_log_file = /var/lib/mysql/general.log
 server-id = 1
 secure_file_priv=/var/lib/mysql-files
 local-infile=1
+innodb_lock_wait_timeout=60

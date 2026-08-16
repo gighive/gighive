@@ -183,17 +183,7 @@
 
   tags: docker, compose
 
-- name: Ensure tusd hooks directory exists
-  ansible.builtin.file:
-    path: "{{ docker_dir }}/tusd/hooks"
-    state: directory
-    mode: "0755"
-
-- name: Deploy tusd post-finish hook
-  ansible.builtin.copy:
-    src: "tusd/hooks/post-finish"
-    dest: "{{ docker_dir }}/tusd/hooks/post-finish"
-    mode: "0755"
+# tusd retired (Phase 3) — hooks directory and post-finish hook no longer deployed.
 
 - name: Ensure API spec directory exists
   file:
@@ -251,12 +241,7 @@
   ignore_errors: true
   tags: docker, compose
 
-- name: Stop tusd container for rebuild
-  community.docker.docker_container:
-    name: "{{ tusd_container_name }}"
-    state: absent
-  ignore_errors: true
-  tags: docker, compose
+# tusd retired (Phase 3) — no tusd container to stop during rebuild.
 
 - name: Stop MySQL container for rebuild (when requested)
   community.docker.docker_container:

@@ -51,7 +51,6 @@
   register: project_containers
   loop:
     - "{{ apache_container_name }}"
-    - "{{ tusd_container_name }}"
     - "{{ mysql_container_name }}"
     - ai-worker
   when: ai_worker_enabled | default(false) | bool

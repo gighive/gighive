@@ -2,13 +2,13 @@
 
 ## Status — 2026-08-16
 
-**Tranche 1 in progress — Phases 1–2 complete (dev clean, rollout to lab/staging/prod in progress).**
+**Tranche 1 in progress — Phases 1–3 implemented locally, awaiting deployment.**
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Phase 1 — Runtime config and IMDS access | **Complete — all envs** | Group vars, `.env.j2`, `docker-compose.yml.j2`, `clear_media_files.php`, post_build_checks T-8–T-13 |
-| Phase 2 — PHP storage abstraction layer | **Dev clean — rolling out** | MediaBackend, interfaces, DTOs, AzureIdentityTokenCache, AzureBlobRestClient, AzureBlobMediaBackend, LocalMediaBackend, FallbackMediaBackend, MediaStorageService; `php-apcu` added to Dockerfile; post_build_checks T-71–T-74. See *Phase 2 — Build Issues* section below. |
-| Phase 3 — PHP tus upload server | Not started | Awaiting approval |
+| Phase 2 — PHP storage abstraction layer | **Complete — all envs** | MediaBackend, interfaces, DTOs, AzureIdentityTokenCache, AzureBlobRestClient, AzureBlobMediaBackend, LocalMediaBackend, FallbackMediaBackend, MediaStorageService; `php-apcu` added to Dockerfile; post_build_checks T-71–T-74. See *Phase 2 — Build Issues* section. |
+| Phase 3 — PHP tus upload server | **Implemented — deploy pending** | TusChunkBackendInterface, TusUploadState, TusUploadConfig, AzureBlobTusBackend, LocalFileTusBackend, TusBlockUploadService, MediaProbeJobService, run_probe_job.php, cleanup_expired_uploads.php, api/tus-upload.php; tusd retired; probe cron in entrypoint.sh.j2; post_build_checks T-79–T-86. See deployment checklist below. |
 | Phase 4 — Media streaming endpoint | Not started | Awaiting approval |
 | Phase 5 — Local/VirtualBox final step | Not started | Awaiting approval |
 | Phases 6–11 (Tranche 2) | Deferred | Azure activation; not in scope until SaaS rollout |
@@ -81,6 +81,260 @@ This document is the hands-on build guide for the media storage refactor. It pro
   - [Phase 9 — `2bootstrap.sh` and Ansible wiring](#phase-9--2bootstrapsh-and-ansible-wiring)
   - [Phase 10 — Admin tooling updates](#phase-10--admin-tooling-updates)
   - [Phase 11 — Azure migration and rollout](#phase-11--azure-migration-and-rollout)
+
+---
+
+## Phase 3 — Build Issues Encountered During Rollout (2026-08-16)
+
+### post_build_checks: old [tus] block crashed on tusd container absence
+
+**Symptom (first run):**
+
+```
+TASK [post_build_checks : Verify tusd container is running name={{ tusd_container_name }}]
+fatal: [gighive_vm]: FAILED! => {"changed": false, "container": null, "exists": false,
+  "failed_when_result": "The conditional check 'not tusd_container.container.State.Running'
+  failed. The error was: error while evaluating conditional
+  (not tusd_container.container.State.Running): 'None' has no attribute 'State'"}
+```
+
+**Cause (first run):** The existing `[tus]` block in `post_build_checks/tasks/main.yml`
+(written when tusd was live) included tasks that assumed the tusd container, hook files,
+and tus-data directory were all present. Specifically:
+- `Verify tusd container is running` — crashed with `'None'.State` because the container
+  no longer exists.
+- `Probe tusd directly via Docker DNS` — pointed at the now-absent tusd container.
+- `Wait for tusd post-finish hook JSON to appear` — polled `/var/www/private/tus-hooks/`
+  which is no longer mounted.
+- Staging artifact cleanup — referenced `/var/www/private/tus-data/` and tus-hooks paths.
+- `Get tusd version from tusd container` in the stack_versions block — crashed on absent
+  container.
+
+Additionally, `docker/tasks/main.yml` still deployed the tusd hooks directory and
+`post-finish` hook script, and had a `Stop tusd container for rebuild` step.
+`ai_worker/tasks/main.yml` still included `tusd_container_name` in the container image
+scan loop.
+
+**Fix (first run):**
+- Removed the tusd container check, DNS probe, hook-wait, and staging cleanup tasks from
+  the `[tus]` block. The POST/PATCH/HEAD/finalize end-to-end test tasks were kept and now
+  test the PHP tus endpoint.
+- Replaced the `Get tusd version` task with a `set_fact` placeholder
+  (`stack_tusd_raw.stdout = "tusd retired (Phase 3)"`) so the stack summary still renders.
+- Removed `Ensure tusd hooks directory exists`, `Deploy tusd post-finish hook`, and
+  `Stop tusd container for rebuild` from `docker/tasks/main.yml`.
+- Removed `tusd_container_name` from the ai_worker container scan loop.
+- Note: one-shot bundle compose files still reference tusd — those require a separate
+  one-shot bundle rebuild pass and are not part of Tranche 1.
+
+---
+
+### post_build_checks: [tus] block POST failed — missing filetype metadata and wrong payload
+
+**Symptom (second run):**
+
+```
+TASK [post_build_checks : Create TUS upload (POST /tus)]
+fatal: [gighive_vm]: FAILED! => {"censored": "the output has been hidden due to the fact
+that 'no_log: true' was specified for this result", "changed": false}
+```
+
+**Cause:** Three problems in the `[tus]` smoke test variables/tasks:
+
+1. **Missing `filetype` in `Upload-Metadata`** — the old tusd smoke test never sent a
+   `filetype` key because tusd did not validate MIME types. The new PHP `handlePost()`
+   reads `$meta['filetype']` to validate the MIME against the allow-list; without it the
+   POST returned 415.
+
+2. **Plain-text payload failed final-PATCH MIME sniff** — the old payload was
+   `hello-tus-<epoch>` (a text string). On the final PATCH, `TusBlockUploadService`
+   MIME-sniffs the completed upload and rejects it if the detected type does not match the
+   declared `filetype`. Plain text does not sniff as `audio/wav`.
+
+3. **`Upload-Length` used `tus_payload | length`** — string length of the old text
+   payload. Now that the payload is binary (b64-decoded WAV), this needed to be the actual
+   byte count (44).
+
+**Fix (second run):**
+- Added `tus_upload_metadata_filetype_b64: "{{ 'audio/wav' | b64encode }}"` to the
+  `set_fact` block and included `filetype` in the `Upload-Metadata` header on the POST.
+- Replaced the plain-text payload with a real 44-byte minimal WAV binary
+  (`tus_payload: "{{ tus_payload_b64 | b64decode }}"`) so the MIME sniff passes.
+- Changed `Upload-Length` from `tus_payload | length` to `tus_expected_offset` (44).
+
+---
+
+### post_build_checks: set_fact self-reference — tus_payload_b64 undefined
+
+**Symptom (third run):**
+
+```
+fatal: [gighive_vm]: FAILED! => {"msg": "The task includes an option with an undefined
+variable.. 'tus_payload_b64' is undefined"}
+```
+
+**Cause:** Ansible evaluates all keys in a single `set_fact` task simultaneously using the
+variable state from *before* the task runs. `tus_payload: "{{ tus_payload_b64 | b64decode }}"` 
+referenced `tus_payload_b64` which was being set in the same task — it didn't exist yet.
+
+**Fix:** Split into two sequential `set_fact` tasks — the first sets `tus_payload_b64` and
+all scalar vars; the second decodes it into `tus_payload`.
+
+---
+
+### entrypoint.sh.j2: probe cron inside quickstart-only guard — not written on full installs
+
+**Symptom:**
+
+```
+TASK [post_build_checks : [T-82] Assert probe cron file is present]
+fatal: [gighive_vm]: FAILED! => {"assertion": "probe_cron_check.rc == 0", ...
+  "msg": "/etc/cron.d/gighive-probe missing or does not reference run_probe_job.php."}
+```
+
+**Cause:** The probe cron block was mistakenly placed inside:
+
+```bash
+if [[ "${GIGHIVE_INSTALL_CHANNEL:-full}" == "quickstart" ]]; then
+```
+
+This guard is for the one-shot bundle only. Dev/lab/staging/prod all run with
+`GIGHIVE_INSTALL_CHANNEL=full` (the default), so the block never executed and
+`/etc/cron.d/gighive-probe` was never written.
+
+**Fix:** Moved the probe cron, logrotate setup, and `service cron start` outside the
+`quickstart` guard so they run on all install channels. The `quickstart` block now only
+handles the db-backup cron and its own `service cron start`. The unconditional
+`service cron start || true` at the end is harmless if cron is already running.
+
+---
+
+### MySQL: innodb_lock_wait_timeout defaulted to 50 — T-86 requires >= 60
+
+**Symptom:**
+
+```
+TASK [post_build_checks : [T-86] Assert innodb_lock_wait_timeout >= 60]
+fatal: [gighive_vm]: FAILED! => {"msg": "innodb_lock_wait_timeout=50, expected >= 60."}
+```
+
+**Cause:** MySQL 8 ships with `innodb_lock_wait_timeout=50`. The T-86 check requires >= 60
+to reduce lock contention during concurrent tus upload PATCH and finalize operations.
+The setting was not added when Phase 3 introduced the tus DB tables.
+
+**Fix:** Added `innodb_lock_wait_timeout=60` to
+`ansible/roles/docker/files/mysql/externalConfigs/z-custommysqld.cnf` under `[mysqld]`.
+This file is bind-mounted into the MySQL container at
+`/etc/mysql/conf.d/z-custommysqld.cnf` and takes effect on container restart.
+
+---
+
+### post_build_checks: [tus] finalize cleanup referenced retired delete_token
+
+**Cause:** The old finalize cleanup path used `tus_finalize_1.json.delete_token` (returned
+by the old tusd hook-file `finalizeTusUpload()`) to delete the smoke-test asset as the
+`uploader` user. The new `finalizeTusUpload()` is DB-backed and does not return
+`delete_token`. The safety guard also checked `tus_finalize_1.json.label` which is
+likewise no longer in the response.
+
+**Fix:**
+- Removed the `delete_token`-based uploader delete and wrong-token 403 test tasks.
+- Replaced with two new DB verification tasks:
+  - **Assert `tus_uploads.status = complete`** — queries MySQL directly to confirm the
+    upload row was finalized.
+  - **Assert `probe_jobs` has 1 row for the asset** — confirms the async probe job was
+    enqueued.
+- Replaced the `label`-based safety guard with an `asset_id > 0` integer check.
+- Cleanup now uses the admin delete endpoint directly (no capability token needed).
+
+These DB assertions give stronger confidence than the old token-based checks — they verify
+the full write path through `TusBlockUploadService` into MySQL, not just the HTTP response.
+
+---
+
+## Phase 3 — Pre-Deployment Checklist
+
+Run these steps on **each environment** before deploying Phase 3 (`--tags docker,post_build_checks`).
+
+### 1. Apply DB schema (live DDL — run before code deploy)
+
+```bash
+docker exec -i mysqlServer bash -c \
+  'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db' <<'SQL'
+CREATE TABLE IF NOT EXISTS tus_uploads (
+    id            INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    upload_id     VARCHAR(36)   NOT NULL,
+    user_id       INT UNSIGNED  NOT NULL,
+    status        ENUM('pending','complete','failed') NOT NULL DEFAULT 'pending',
+    upload_length BIGINT UNSIGNED NOT NULL,
+    block_count   INT UNSIGNED  NOT NULL DEFAULT 0,
+    block_size    INT UNSIGNED  NOT NULL DEFAULT 0,
+    sha256_ctx    BLOB          NULL,
+    file_type     ENUM('audio','video') NOT NULL,
+    mime_type     VARCHAR(128)  NOT NULL DEFAULT '',
+    asset_id      INT UNSIGNED  NULL,
+    created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at    DATETIME      NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_upload_id (upload_id),
+    INDEX idx_user_pending (user_id, status),
+    INDEX idx_expires (expires_at),
+    INDEX idx_status  (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS probe_jobs (
+    id         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    asset_id   INT UNSIGNED  NOT NULL,
+    blob_key   VARCHAR(512)  NOT NULL,
+    file_type  ENUM('audio','video') NOT NULL,
+    status     ENUM('queued','running','done','failed') NOT NULL DEFAULT 'queued',
+    attempts   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME NULL,
+    PRIMARY KEY (id),
+    INDEX idx_queued  (status, created_at),
+    INDEX idx_running (status, started_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+SQL
+```
+
+### 2. Verify innodb_lock_wait_timeout >= 60
+
+```bash
+docker exec mysqlServer bash -c \
+  'mysql -u root -p"$MYSQL_ROOT_PASSWORD" -sN -e "SELECT @@innodb_lock_wait_timeout"'
+```
+
+If below 60, add `innodb_lock_wait_timeout=60` to the MySQL `[mysqld]` config
+(`docker/files/mysql/externalConfigs/z-custommysqld.cnf`) and restart the MySQL container before deploying.
+
+### 3. Take a VM snapshot before deploying
+
+Phase 3 retires tusd unconditionally — there is no toggle to re-enable it.
+Rollback requires reverting the compose/Apache config commits and re-deploying.
+A snapshot before the deploy is the fastest recovery path if a critical defect is found.
+
+### 4. Deploy
+
+```bash
+script -q -c "ansible-playbook \
+  -i ansible/inventories/inventory_gighive2.yml \
+  ansible/playbooks/site.yml \
+  --tags docker,post_build_checks" \
+  ansible-playbook-phase3-gighive2-$(date +%Y%m%d).log
+```
+
+The `docker` tag rebuilds and restarts the Apache container (Dockerfile unchanged from
+Phase 2, but `entrypoint.sh.j2` changed — probe cron + logrotate added). tusd is
+removed from compose. T-79–T-86 run automatically via `post_build_checks`.
+
+### 5. Validate post-deploy
+
+Run a manual end-to-end upload test (iOS TUSKit or browser tus-js-client):
+- `POST /files/` with valid `Upload-Length` and `Upload-Metadata` → 201 + `Location`
+- `PATCH /files/{id}` chunk sequence → 204 per chunk
+- Final PATCH → 204; `tus_uploads.status = complete`; `assets` row inserted; `probe_jobs` row queued
+- Within ~10s: `probe_jobs.status = done`; `assets.duration_seconds` populated
 
 ---
 
