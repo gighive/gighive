@@ -1193,3 +1193,50 @@
       innodb_lock_wait_timeout={{ lock_timeout.stdout | trim }}, expected >= 60.
       Add innodb_lock_wait_timeout=60 to MySQL [mysqld] config and restart.
   tags: [smoke, media_storage]
+
+# --- T-90: media-stream.php returns 400 or 401 without auth (Phase 4) ---
+# Lifecycle: permanent — keep in post_build_checks; any Apache config change or missing
+# file would produce a 404 instead, proving the endpoint is live and routing correctly.
+
+- name: "[T-90] media-stream.php returns 400 or 401 without auth"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/api/media-stream.php"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: [400, 401]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke, media_storage]
+
+# --- T-91: /media/audio/{key} returns 400 or 401 (Phase 4 canonical path) ---
+# Lifecycle: permanent — keep in post_build_checks; detects Apache RewriteRule regressions
+# on the canonical media path (/media/audio/{key} → media-stream.php).
+# A key-shaped path is required — the RewriteRule uses (.+) which requires at least one
+# character after the type segment. A bare /media/audio/ with no key does not match the
+# rule and returns a static 404. The synthetic key below is all-zeros (not a real asset);
+# PHP will return 401 (no auth) before it ever attempts a blob lookup.
+
+- name: "[T-91] /media/audio/{key} returns 400 or 401 (PHP handler live)"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/media/audio/0000000000000000000000000000000000000000000000000000000000000000.mp3"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: [400, 401]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke, media_storage]
+
+# --- T-92: old /audio/{key} path returns 400 or 401 (backward-compat RewriteRule) ---
+# Lifecycle: permanent — keep in post_build_checks; guards the backward-compat routing
+# that existing iOS clients and stored DB URLs depend on.
+# Same rationale as T-91: bare /audio/ with no key does not match ^/(audio|video)/(.+)$.
+
+- name: "[T-92] Old /audio/{key} path returns 400 or 401 (PHP-mediated, not Apache static)"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/audio/0000000000000000000000000000000000000000000000000000000000000000.mp3"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: [400, 401]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke, media_storage]

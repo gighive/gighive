@@ -35,33 +35,40 @@ with `MODULE_STRICT_UTF8_RESPONSE` enabled by default. The same task ran silentl
 
 ### Current known state (2026-08-16)
 
-| Controller machine | Ansible core | Python | Jinja2 |
-|--------------------|-------------|--------|--------|
-| dev (`/Users/sodo` macOS — runs via pipx) | 2.18.8 | 3.12.11 (macOS) | 3.1.6 |
-| lab (`sodo@lab.gighive.internal` — runs via pipx) | **2.20.1** | 3.12.3 | 3.1.6 |
-| staging (`sodo@staging.gighive.internal` — runs via pipx) | **2.20.4** | 3.12.7 | 3.1.6 |
-| prod (`sodo@pop-os` — runs via `~/.local/bin/ansible`, pip not pipx) | **2.17.12** | 3.10.12 | 3.1.6 |
+| Controller machine | Ansible core | Python | Jinja2 | Environments controlled |
+|--------------------|-------------|--------|--------|------------------------|
+| `sodo@pop-os` `/home/sodo` — pipx (upgraded 2026-08-16) | **2.20.4** | 3.12.13 | 3.1.6 | **dev + prod** |
+| `sodo@lab.gighive.internal` — pipx (upgraded 2026-08-16) | **2.20.4** | 3.12.3 | 3.1.6 | lab |
+| `sodo@staging.gighive.internal` — pipx | **2.20.4** | 3.12.7 | 3.1.6 | staging |
 
-All four environments are now audited. The version spread is **2.17.12 → 2.20.4** — nearly
+Note: the macOS machine (`/Users/sodo`) is the IDE/workstation only — it does not run
+Ansible playbooks against any environment.
+
+pop-os was upgraded on 2026-08-16: old pip-installed ansible-core 2.17.12 (Python 3.10)
+replaced with pipx-installed ansible-core==2.20.4 under Python 3.12 via pipx.
+
+All three controllers are now at **2.20.4**. Standardisation complete (2026-08-16).
+
+All controllers are now audited. The version spread is **2.17.12 → 2.20.4** — nearly
 three minor versions. `MODULE_STRICT_UTF8_RESPONSE` became `true` by default in Ansible
 core 2.19, which is why the binary PATCH body was accepted on dev and rejected on lab/staging.
 
-- **prod** (`pop-os`, 2.17.12) — oldest and most permissive; the worst place to be lenient
-- **dev** (macOS, 2.18.8) — also pre-2.19; same permissive behaviour as prod
+- **dev + prod** (`pop-os`, 2.17.12) — oldest and most permissive; also on Python 3.10
+  which caps ansible-core upgrades at 2.17.x via pip (2.18+ requires Python ≥ 3.11)
 - **lab** (2.20.1) — first environment with strict UTF-8 enforcement; where the bug surfaced
-- **staging** (2.20.4) — strictest; same behaviour as lab
+- **staging** (2.20.4) — strictest; already at target
 
 Any task that passes on dev/prod may silently fail on lab/staging. The target
-standardisation version should be **≥ 2.20.4** to ensure the strictest behaviour is the
-baseline everywhere, catching issues on dev before they reach lab.
+standardisation version is **2.20.4**. Reaching it on pop-os requires upgrading Python
+to 3.11+ first (Python 3.10 is the blocking constraint, not Ansible itself).
 
 ---
 
 ## Root cause
 
-Ansible is installed via `pipx` on the control machine (`/Users/sodo/.local/pipx/`),
-and via whatever system package or manual install was used on lab/staging. There is no
-shared version pin and no mechanism to enforce parity across machines.
+Ansible is installed via `pip --user` on pop-os (`/home/sodo/.local/bin/ansible`,
+Python 3.10), and via `pipx` on lab and staging (Python 3.12). There is no shared version
+pin and no mechanism to enforce parity across machines.
 
 The `installprerequisites` role (`ansible/roles/installprerequisites/`) provisions
 controller packages but does not pin Ansible to a specific version, and it is not

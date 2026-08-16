@@ -85,6 +85,21 @@
   failed_when: false
   when: ai_worker_enabled | default(false) | bool
 
+# Remove the ai-worker container by name unconditionally before deploy.
+# docker_compose_v2 state=absent only removes containers it can find via its
+# own project-label tracking. A stopped container that was created under a
+# different compose run (or manually) is invisible to Compose but still holds
+# the container_name, causing "container name already in use" on the next
+# deploy. docker_container state=absent does a direct docker rm regardless of
+# compose project membership, so it catches this case.
+- name: Remove ai-worker container by name before deploy (catches Compose-invisible stopped containers)
+  community.docker.docker_container:
+    name: ai-worker
+    state: absent
+    force_kill: true
+  failed_when: false
+  when: ai_worker_enabled | default(false) | bool
+
 - name: Deploy ai-worker container
   community.docker.docker_compose_v2:
     project_src: "{{ docker_dir }}"

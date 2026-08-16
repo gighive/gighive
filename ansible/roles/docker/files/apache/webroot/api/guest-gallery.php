@@ -6,6 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Production\Api\Infrastructure\Database;
 use Production\Api\Services\GuestCredentialResolver;
+use Production\Api\Services\MediaStorageService;
 
 $nonce = $_GET['nonce'] ?? '';
 if (preg_match('/^[A-Za-z0-9_\-]{30,43}$/', $nonce) !== 1) {
@@ -80,8 +81,10 @@ foreach ($rows as $r) {
     $streamUrl    = '/api/guest-stream.php?nonce=' . urlencode($nonce) . '&job_id=' . (int)$r['upload_job_id'];
     $thumbnailUrl = null;
     if (preg_match('@^video/([0-9a-f]{64})\.@', (string)($r['file_relpath'] ?? ''), $m)) {
-        $thumbPath = '/var/www/html/video/thumbnails/' . $m[1] . '.png';
-        if (is_file($thumbPath)) {
+        // Use MediaStorageService::exists() rather than is_file() so this works
+        // in both local mode (bind-mounted filesystem) and Azure Blob mode
+        // (no local file; existence must be checked against Blob Storage).
+        if (MediaStorageService::make()->exists('video/thumbnails', $m[1] . '.png')) {
             $thumbnailUrl = '/video/thumbnails/' . $m[1] . '.png?nonce=' . urlencode($nonce);
         }
     }

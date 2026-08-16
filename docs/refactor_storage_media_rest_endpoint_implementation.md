@@ -2,14 +2,14 @@
 
 ## Status — 2026-08-16
 
-**Tranche 1 in progress — Phases 1–3 implemented locally, awaiting deployment.**
+**Tranche 1 in progress — Phases 1–3 complete all envs (2026-08-16). Phases 4–5 awaiting approval.**
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Phase 1 — Runtime config and IMDS access | **Complete — all envs** | Group vars, `.env.j2`, `docker-compose.yml.j2`, `clear_media_files.php`, post_build_checks T-8–T-13 |
 | Phase 2 — PHP storage abstraction layer | **Complete — all envs** | MediaBackend, interfaces, DTOs, AzureIdentityTokenCache, AzureBlobRestClient, AzureBlobMediaBackend, LocalMediaBackend, FallbackMediaBackend, MediaStorageService; `php-apcu` added to Dockerfile; post_build_checks T-71–T-74. See *Phase 2 — Build Issues* section. |
-| Phase 3 — PHP tus upload server | **Implemented — deploy pending** | TusChunkBackendInterface, TusUploadState, TusUploadConfig, AzureBlobTusBackend, LocalFileTusBackend, TusBlockUploadService, MediaProbeJobService, run_probe_job.php, cleanup_expired_uploads.php, api/tus-upload.php; tusd retired; probe cron in entrypoint.sh.j2; post_build_checks T-79–T-86. See deployment checklist below. |
-| Phase 4 — Media streaming endpoint | Not started | Awaiting approval |
+| Phase 3 — PHP tus upload server | **Complete — all envs (2026-08-16)** | TusChunkBackendInterface, TusUploadState, TusUploadConfig, AzureBlobTusBackend, LocalFileTusBackend, TusBlockUploadService, MediaProbeJobService, run_probe_job.php, cleanup_expired_uploads.php, api/tus-upload.php; tusd retired; probe cron in entrypoint.sh.j2; post_build_checks T-79–T-86; BABRR DDL applied and restored on dev/lab/staging/prod. See *Phase 3 — Build Issues* section. |
+| Phase 4 — Media streaming endpoint | **Complete — dev (2026-08-16)** | media-stream.php, Apache RewriteRules + Location block, T-90/T-91/T-92, guest-gallery.php is_file() fix, ai_worker stale-container fix; lab/staging/prod pending |
 | Phase 5 — Local/VirtualBox final step | Not started | Awaiting approval |
 | Phases 6–11 (Tranche 2) | Deferred | Azure activation; not in scope until SaaS rollout |
 
@@ -2088,8 +2088,8 @@ These remain in `post_build_checks` and `validate_app` after the full refactor i
 | T-86 | post_build_checks | all | `innodb_lock_wait_timeout >= 60` |
 | T-86b | validate_app | all | Warn on permanently-failed `probe_jobs` rows (status=failed, attempts >= 3) |
 | T-90 | post_build_checks | all | `GET /api/media-stream.php` → 401 without auth |
-| T-91 | post_build_checks | all | `GET /media/audio/` → 400/401 (canonical path routing) |
-| T-92 | post_build_checks | all | `GET /audio/` old path → 401 (backward-compat routing) |
+| T-91 | post_build_checks | all | `GET /media/audio/{synthetic-key}` → 400/401 (canonical path routing; key required to match RewriteRule) |
+| T-92 | post_build_checks | all | `GET /audio/{synthetic-key}` old path → 401 (backward-compat routing; key required to match RewriteRule) |
 
 ### Phase-Gate Checks — Remove After Tranche 1
 
@@ -3628,6 +3628,17 @@ The most vulnerable window is the first deploy on a live environment. Deploy to 
 
 ### Phase 4 — Application-mediated media streaming
 
+**iOS / client impact summary:**
+
+Phase 4 introduces a new PHP streaming layer between Apache and the blob backend. The table below records which active iOS and browser consumers are affected and why, so that future readers can verify at a glance that the deployment is safe before proceeding.
+
+| Consumer | Phase 4 impact | Reason |
+|---|---|---|
+| Guest gallery thumbnails (iOS URLSession / browser `<img>`) | **Fixed** — would have broken without the nonce fix | Phase 4 RewriteRules route `/video/thumbnails/` through `media-stream.php`; nonce auth path is required and included in Phase 4 |
+| Guest video streaming (`guest-stream.php`) | **Unchanged** — still reads local disk | Not in scope until Phase 5/11; endpoint untouched |
+| Admin uploader (Basic Auth) | **No change** — continues to work | RewriteRules forward to PHP; Basic Auth credential passed through |
+| Old stored URLs (`/audio/`, `/video/`) | **No change** — backward-compat rules active | Both old and new path prefixes route to `media-stream.php` |
+
 **Goal:** Replace static Apache file serving with PHP-proxied streaming so Apache remains the only public surface and Blob stays private.
 
 **New endpoint:** `api/media-stream.php`
@@ -3799,14 +3810,15 @@ Add this as a checklist item in Phase 11 step 9.
 **T-90 [post_build_checks]** — `GET /api/media-stream.php` (no key) returns 401 without auth (PHP endpoint is live; not a 404). *(YAML snippet already in Phase 4 body — move to this checklist.)*
 > *Lifecycle: **permanent** — keep in `post_build_checks`; any Apache config change or missing file would produce a 404 instead.*
 
-**T-91 [post_build_checks]** — `GET /media/audio/` returns 400 or 401 (PHP handler is routing correctly; not a 404 or 502 from a missing file).
+**T-91 [post_build_checks]** — `GET /media/audio/{key}` returns 400 or 401 (PHP handler is routing correctly; not a 404 or 502 from a missing file).
 > *Lifecycle: **permanent** — keep in `post_build_checks`; detects Apache RewriteRule regressions on the canonical media path.*
+> **Note:** A key segment is required in the probe URL. The RewriteRule uses `(.+)` which requires at least one character after the type prefix. A bare `/media/audio/` with no key does not match the rule and returns a static Apache 404. The all-zeros synthetic key below matches the rule; PHP returns 401 (no auth) before attempting any blob lookup.
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
-- name: "[T-91] /media/audio/ returns 400 or 401 (PHP handler live)"
+- name: "[T-91] /media/audio/{key} returns 400 or 401 (PHP handler live)"
   ansible.builtin.uri:
-    url: "&#123;&#123; gighive_base_url &#125;&#125;/media/audio/"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/media/audio/0000000000000000000000000000000000000000000000000000000000000000.mp3"
     method: GET
     validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: [400, 401]
@@ -3815,14 +3827,15 @@ Add this as a checklist item in Phase 11 step 9.
   tags: [smoke, media_storage]
 ```
 
-**T-92 [post_build_checks]** — Old-path `GET /audio/` returns 401 (PHP-mediated via backward-compat `RewriteRule`; not an Apache static 404 or 403).
+**T-92 [post_build_checks]** — Old-path `GET /audio/{key}` returns 401 (PHP-mediated via backward-compat `RewriteRule`; not an Apache static 404 or 403).
 > *Lifecycle: **permanent** — keep in `post_build_checks`; guards the backward-compat routing that existing iOS clients depend on.*
+> **Note:** Same rationale as T-91 — bare `/audio/` with no key does not match `^/(audio|video)/(.+)$`.
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
-- name: "[T-92] Old /audio/ path returns 401 (PHP-mediated, not Apache static)"
+- name: "[T-92] Old /audio/{key} path returns 401 (PHP-mediated, not Apache static)"
   ansible.builtin.uri:
-    url: "&#123;&#123; gighive_base_url &#125;&#125;/audio/"
+    url: "&#123;&#123; gighive_base_url &#125;&#125;/audio/0000000000000000000000000000000000000000000000000000000000000000.mp3"
     method: GET
     validate_certs: "&#123;&#123; gighive_validate_certs &#125;&#125;"
     status_code: [400, 401]
@@ -3842,6 +3855,22 @@ Add this as a checklist item in Phase 11 step 9.
 
 **T-96 [Manual]** — A URL with an invalid `$type` segment (e.g. `GET /media/documents/{key}`) returns `400 Bad Request`; a URL with a key that fails the regex returns `400`; neither returns `500`.
 > Verify the key validation guard fires before any `MediaStorageService` call is made (no backend error logged alongside the 400).
+
+---
+
+### Phase 4 — Build Issues (2026-08-16, dev)
+
+**Issue 1: ai_worker role failed with "container name already in use"**
+
+On the first playbook run after the pop-os Ansible upgrade, the `ai_worker` role failed deploying the `ai-worker` container because a stopped container from a prior partial run still held the name `/ai-worker`. The existing "Tear down" task uses `docker_compose_v2 state: absent`, which only removes containers it can find via compose project-label tracking. A stopped container created under different project metadata is invisible to Compose but still blocks a new `docker create` with the same name.
+
+Fix: added a `community.docker.docker_container state: absent` task immediately before the deploy in `ansible/roles/ai_worker/tasks/main.yml`. This does a direct `docker rm` by name regardless of compose project membership, so it catches any stopped container holding the name. `failed_when: false` makes it a no-op when no container exists.
+
+**Issue 2: T-91 and T-92 probe URLs did not match RewriteRule — returned 404**
+
+The original T-91 probe URL was `/media/audio/` and T-92 was `/audio/`. Both RewriteRules use `(.+)` which requires at least one character after the type prefix — a bare trailing slash with no key segment does not match, so Apache returned a static 404 instead of routing to PHP.
+
+Fix: updated T-91 and T-92 probe URLs to include a 64-character all-zeros synthetic key (`000...000.mp3`). This matches the RewriteRule, reaches `media-stream.php`, and PHP returns 401 (no auth) before any blob lookup. The YAML snippets and summary table above have been updated accordingly.
 
 ---
 

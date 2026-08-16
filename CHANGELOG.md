@@ -3,7 +3,7 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260816.txt
-Changes: tranche 1, phase 3 ansible version gotcha
+Changes: tranche 1, phase 4
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,9 +12,12 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
+	modified:   ansible/roles/ai_worker/tasks/main.yml
+	modified:   ansible/roles/docker/files/apache/webroot/api/guest-gallery.php
+	new file:   ansible/roles/docker/files/apache/webroot/api/media-stream.php
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
 	modified:   ansible/roles/post_build_checks/tasks/main.yml
-	modified:   docs/process_backup_alter_backup_rebuild_restore.md
-	new file:   docs/refactor_ansible_host_versions_across_environments.md
+	modified:   docs/refactor_ansible_host_versions_across_environments.md
 	modified:   docs/refactor_status_20260812.md
 	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
@@ -121,6 +124,23 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
 
+
+*** 
+releaseNotes20260816.txt
+Changes: tranche 1, phase 3 ansible version gotcha
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   docs/process_backup_alter_backup_rebuild_restore.md
+	new file:   docs/refactor_ansible_host_versions_across_environments.md
+	modified:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 *** 
 releaseNotes20260816.txt

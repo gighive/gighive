@@ -40,10 +40,9 @@ Confirmed version spread (2026-08-16):
 
 | Controller | Environment(s) | Ansible core |
 |------------|----------------|-------------|
-| `/Users/sodo` macOS (pipx) | dev | 2.18.8 |
-| `sodo@lab.gighive.internal` (pipx) | lab | 2.20.1 |
+| `sodo@pop-os` /home/sodo (pip) | dev + prod | 2.17.12 |
+| `sodo@lab.gighive.internal` (pipx) | lab | 2.20.4 |
 | `sodo@staging.gighive.internal` (pipx) | staging | 2.20.4 |
-| `sodo@pop-os` (pip, `~/.local/bin`) | prod | **2.17.12** |
 
 Target: standardise all controllers to **≥ 2.20.4**. See
 `refactor_ansible_host_versions_across_environments.md` for implementation options.
@@ -52,7 +51,7 @@ Target: standardise all controllers to **≥ 2.20.4**. See
 
 ### 1. `refactor_storage_media_rest_endpoint.md` — Tranche 1 — Score: 10/10
 
-**Status:** In progress — Phases 1–2 complete all envs (2026-08-16); Phase 3 implemented (tusd retired, PHP tus server, probe job queue), deploy pending. Phases 4–5 awaiting approval.  
+**Status:** In progress — Phases 1–3 complete all envs (2026-08-16); tusd retired, PHP tus server live, probe job queue live, BABRR DDL applied and restored on dev/lab/staging/prod. Phases 4–5 awaiting approval.  
 **Effort:** Phases 1–5 / 2 PRs. This tranche is the near-term build: it creates the abstraction layer, removes the `tusd` container, and keeps local storage as the backend for now.  
 **Impact:** Moves the media stack toward a clean separation of compute and storage by putting the media path behind PHP service classes instead of direct filesystem coupling. Tranche 1 does **not** switch Azure Blob on yet; it keeps the local storage model while preparing the codebase for the later SaaS rollout.
 

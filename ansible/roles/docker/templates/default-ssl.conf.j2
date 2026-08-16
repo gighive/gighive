@@ -294,8 +294,29 @@
         Require all granted
     </Location>
 
+    # --- MEDIA STREAM ENDPOINT: unauthenticated at Apache level; PHP handles all three auth paths ---
+    # (Basic Auth, X-Upload-Token, gallery nonce). AuthMerging Off prevents the catch-all
+    # LocationMatch from blocking nonce-authenticated thumbnail requests before PHP can validate them.
+    <Location "/api/media-stream.php">
+        AuthMerging Off
+        Require all granted
+    </Location>
+
     ProxyPreserveHost On
     RequestHeader set X-Forwarded-Proto "https"
+
+    # --- Phase 4: Application-mediated media streaming ---
+    # All media read requests routed to api/media-stream.php.
+    # E= flags make MEDIA_TYPE and MEDIA_KEY available as $_SERVER['REDIRECT_MEDIA_TYPE']
+    # and $_SERVER['REDIRECT_MEDIA_KEY'] inside PHP.
+    # Thumbnail rule must be listed BEFORE the general audio|video rule (more specific path wins).
+    # Only video/thumbnails/ ever existed — audio thumbnails were never produced.
+    # Backward-compat aliases keep existing stored URLs and cached iOS URLs working
+    # without a DB migration.
+    RewriteRule ^/media/video/thumbnails/(.+)$  /api/media-stream.php [L,QSA,E=MEDIA_TYPE:video/thumbnails,E=MEDIA_KEY:$1]
+    RewriteRule ^/media/(audio|video)/(.+)$     /api/media-stream.php [L,QSA,E=MEDIA_TYPE:$1,E=MEDIA_KEY:$2]
+    RewriteRule ^/video/thumbnails/(.+)$        /api/media-stream.php [L,QSA,E=MEDIA_TYPE:video/thumbnails,E=MEDIA_KEY:$1]
+    RewriteRule ^/(audio|video)/(.+)$           /api/media-stream.php [L,QSA,E=MEDIA_TYPE:$1,E=MEDIA_KEY:$2]
 
     # --- PHP tus upload server (replaces tusd container) ---
     # All tus protocol requests routed to api/tus-upload.php.
