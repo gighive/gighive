@@ -16,7 +16,39 @@
 
 ---
 
-## Top 7 — Bang for Buck
+## Top 8 — Bang for Buck
+
+### 0. `refactor_ansible_host_versions_across_environments.md` — Score: 10/10 (operational blocker)
+
+**Status:** Open — surfaced 2026-08-16 during Phase 3 rollout.  
+**Effort:** Option C (version assertion in `site.yml`) is a single task — under 30 minutes.
+Option A (pinned `controller-requirements.txt` + `installprerequisites` update) is 1–2 hours across all four controller machines.  
+**Impact:** Version skew across the four controller machines (2.17.12 on prod → 2.20.4 on
+staging) caused a silent failure on lab that did not appear on dev. Any playbook task that
+relies on a behavioural default that changed between Ansible versions will pass on one
+environment and fail on another — with no warning. This has already cost multiple deploy
+cycles during Phase 3.
+
+**Why it is ranked #0 (above everything else):**
+Every other refactor in this list is deployed via Ansible. If the Ansible version is not
+consistent, the test signal from dev is unreliable and failures surface unpredictably in
+later environments. This is a **force multiplier on all other work** — fixing it makes
+every subsequent rollout safer. The Option C assertion takes minutes and should be done
+before the next Ansible run on any environment.
+
+Confirmed version spread (2026-08-16):
+
+| Controller | Environment(s) | Ansible core |
+|------------|----------------|-------------|
+| `/Users/sodo` macOS (pipx) | dev | 2.18.8 |
+| `sodo@lab.gighive.internal` (pipx) | lab | 2.20.1 |
+| `sodo@staging.gighive.internal` (pipx) | staging | 2.20.4 |
+| `sodo@pop-os` (pip, `~/.local/bin`) | prod | **2.17.12** |
+
+Target: standardise all controllers to **≥ 2.20.4**. See
+`refactor_ansible_host_versions_across_environments.md` for implementation options.
+
+---
 
 ### 1. `refactor_storage_media_rest_endpoint.md` — Tranche 1 — Score: 10/10
 
@@ -127,6 +159,7 @@ Files to change:
 
 | Category | Items | Notes |
 |----------|-------|-------|
+| Operational blocker (< 1 hour) | #0 | Force multiplier — fix before next Ansible run |
 | Strategic platform tranche | #1 | Compute/storage separation now; full SaaS rollout later |
 | Trivial code change (< 1 day) | #2, #3, #4 | Measured in lines, not files |
 | Small focused refactor (1–3 days) | #5 | Clear plan, no coordination overhead |

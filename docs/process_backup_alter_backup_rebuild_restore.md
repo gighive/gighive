@@ -16,6 +16,10 @@ The five steps are:
 > with the matching DDL change and **committed + pushed** before Step 4 runs. The Ansible
 > rebuild pulls from the repo; if the SQL file is stale the schema will be wrong after Step 4.
 
+> **Important:** `rebuild_mysql_data` must be set back to `false` immediately after Step 4
+> (the Ansible rebuild) completes — before the restore and before any subsequent Ansible run.
+> Leaving it `true` will wipe the database on the next routine playbook execution.
+
 ---
 
 ## Step 1 — Pre-migration backup

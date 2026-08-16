@@ -164,6 +164,38 @@ that 'no_log: true' was specified for this result", "changed": false}
 
 ---
 
+### post_build_checks: PATCH binary body — Ansible uri module rejects non-UTF-8
+
+**Symptom:**
+
+```
+[ERROR]: Task failed: Refusing to deserialize an invalid UTF8 string value:
+'utf-8' codec can't encode character '\udcac' in position 25: surrogates not allowed
+```
+
+**Cause:** The 44-byte WAV binary (b64-decoded) was passed as `body` to Ansible's `uri`
+module. Ansible serializes all task parameters as UTF-8 JSON before handing them off to
+the module; binary bytes containing surrogates (e.g. `\xac`) cause a codec error before
+the HTTP request is even sent. This is an Ansible architectural constraint — `uri` cannot
+send raw binary bodies constructed in-memory from `b64decode`.
+
+**Fix:** Replaced the `uri` PATCH task with `ansible.builtin.command` using `docker exec`
+into the Apache container. Two steps:
+
+1. `printf "%s"` writes the base64 string to `/tmp/tus_smoke_payload.b64` and a netrc
+   credentials file to `/tmp/tus_smoke.netrc` (mode 600) inside the container — no binary
+   ever touches Ansible's serialization, no password appears in the process argument list.
+2. `base64 -d /tmp/tus_smoke_payload.b64` pipes exact binary bytes (no trailing newline,
+   unlike a herestring) into `curl --data-binary @- --netrc-file /tmp/tus_smoke.netrc`.
+
+A cleanup task removes both temp files afterward (`failed_when: false` so a cleanup
+failure never masks the real result). The initial `ansible.builtin.shell` approach was
+rejected because: herestrings add a trailing newline (45 bytes sent vs 44 declared),
+`environment:` on `command` sets vars on the controller not inside `docker exec`, and
+shell metacharacter quoting of passwords is fragile.
+
+---
+
 ### post_build_checks: set_fact self-reference — tus_payload_b64 undefined
 
 **Symptom (third run):**

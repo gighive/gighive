@@ -3,7 +3,20 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260816.txt
-Changes: tranche 1, phase 3 includes db alter
+Changes: tranche 1, phase 3 ansible version gotcha
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   docs/process_backup_alter_backup_rebuild_restore.md
+	new file:   docs/refactor_ansible_host_versions_across_environments.md
+	modified:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
@@ -108,6 +121,42 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
 
+
+*** 
+releaseNotes20260816.txt
+Changes: tranche 1, phase 3 includes db alter
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/ai_worker/tasks/main.yml
+	new file:   ansible/roles/docker/files/apache/webroot/api/tus-upload.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Config/TusUploadConfig.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Contracts/TusChunkBackendInterface.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Dto/TusUploadState.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Jobs/cleanup_expired_uploads.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Jobs/run_probe_job.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/AzureBlobTusBackend.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/LocalFileTusBackend.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/MediaProbeJobService.php
+	new file:   ansible/roles/docker/files/apache/webroot/src/Services/TusBlockUploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	deleted:    ansible/roles/docker/files/mysql/dbScripts/dbDump.sh
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/z-custommysqld.cnf
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   ansible/roles/docker/templates/entrypoint.sh.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   docs/problem_backup_mysql_backups_dir_perms.md
+	renamed:    docs/process_backup_alter_backup.md -> docs/process_backup_alter_backup_rebuild_restore.md
+	modified:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 
 

@@ -347,26 +347,78 @@
           - tus_upload_id | length > 0
       changed_when: false
 
+    # The PATCH body is binary (WAV magic bytes). Ansible's uri module serializes task
+    # parameters as UTF-8 JSON and chokes on raw binary bytes. We work around this by:
+    #   1. Writing the base64 string into a temp file inside the apache container.
+    #   2. Decoding it to binary in-place with `base64 -d`.
+    #   3. Sending it with curl --data-binary @<file> — no shell quoting of binary,
+    #      no herestring trailing-newline, no password on the Ansible command line.
+    # The PATCH body is binary (WAV magic bytes). Strategy:
+    #   1. Write payload b64 to a temp file via docker exec with -e env vars so that
+    #      credentials and the b64 string never appear in single-quoted shell arguments
+    #      (avoids breakage if values contain single quotes).
+    #   2. Decode b64 to binary inside the container and pipe to curl.
+    #   3. Use a netrc file (mode 600) so credentials stay off the curl argument list.
+    - name: Write TUS PATCH payload and netrc into apache container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - -e
+          - TUS_PAYLOAD_B64={{ tus_payload_b64 }}
+          - -e
+          - TUS_USER={{ uploader_user }}
+          - -e
+          - TUS_PASS={{ gighive_uploader_password }}
+          - "{{ apache_container_name }}"
+          - sh
+          - -c
+          - |
+            printf '%s' "$TUS_PAYLOAD_B64" > /tmp/tus_smoke_payload.b64
+            printf 'default login %s password %s\n' "$TUS_USER" "$TUS_PASS" > /tmp/tus_smoke.netrc
+            chmod 600 /tmp/tus_smoke.netrc
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
     - name: Upload a small payload via TUS (PATCH)
-      ansible.builtin.uri:
-        url: "{{ tus_public_upload_url }}"
-        method: PATCH
-        url_username: "{{ uploader_user }}"
-        url_password: "{{ gighive_uploader_password }}"
-        force_basic_auth: true
-        validate_certs: "{{ gighive_validate_certs }}"
-        headers: "{{ tus_headers_common | combine({
-          'Tus-Resumable': '1.0.0',
-          'Upload-Offset': '0',
-          'Content-Type': 'application/offset+octet-stream'
-        }) }}"
-        body: "{{ tus_payload }}"
-        body_format: raw
-        status_code: [204]
-        return_content: false
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - "{{ apache_container_name }}"
+          - sh
+          - -c
+          - >-
+            base64 -d /tmp/tus_smoke_payload.b64 |
+            curl -sS --http1.1 --netrc-file /tmp/tus_smoke.netrc
+            {{ "-k" if not (gighive_validate_certs | default(true)) else "" }}
+            -X PATCH
+            -H "Tus-Resumable: 1.0.0"
+            -H "Upload-Offset: 0"
+            -H "Content-Type: application/offset+octet-stream"
+            -H "Content-Length: {{ tus_expected_offset }}"
+            {{ ('-H "Host: ' ~ gighive_hostname_for_host_header ~ '"') if (gighive_hostname_for_host_header | length) > 0 else "" }}
+            --data-binary @-
+            -o /dev/null
+            -w "%{http_code}"
+            "{{ tus_public_upload_url }}"
       register: tus_patch
       changed_when: false
       no_log: "{{ tus_checks_no_log }}"
+
+    - name: Assert PATCH returned 204
+      ansible.builtin.assert:
+        that:
+          - tus_patch.stdout | trim == '204'
+        fail_msg: "TUS PATCH expected 204, got '{{ tus_patch.stdout | trim }}'"
+      changed_when: false
+
+    - name: Remove TUS PATCH payload and netrc temp files from apache container
+      ansible.builtin.command: >
+        docker exec {{ apache_container_name }}
+        sh -c 'rm -f /tmp/tus_smoke_payload.b64 /tmp/tus_smoke.netrc'
+      changed_when: false
+      failed_when: false
 
     - name: Verify upload offset via TUS (HEAD)
       ansible.builtin.command: >
