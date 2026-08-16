@@ -22,7 +22,7 @@ RUN apt-get update && \
     default-mysql-client \
     cron \
     net-tools nfs-common \
-    php-curl php-fpm php-mbstring php-mysql php-xml \
+    php-apcu php-curl php-fpm php-mbstring php-mysql php-xml \
     pkg-config \
     python3-pandas \
     tzdata \
@@ -38,7 +38,9 @@ RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = {{ (upload_max_byte
     sed -i 's/post_max_size = .*/post_max_size = {{ (upload_max_bytes | int / 1048576 * 1.04) | round | int }}M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
     sed -i 's/max_execution_time = .*/max_execution_time = 7200/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
     sed -i 's/max_input_time = .*/max_input_time = 7200/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
-    sed -i 's/memory_limit = .*/memory_limit = 512M/' /etc/php/${PHP_VERSION}/fpm/php.ini
+    sed -i 's/memory_limit = .*/memory_limit = 512M/' /etc/php/${PHP_VERSION}/fpm/php.ini && \
+    echo "apc.enable_cli=1" >> /etc/php/${PHP_VERSION}/mods-available/apcu.ini && \
+    phpenmod -v ${PHP_VERSION} apcu
 
 # Remove default website
 # Ensure Apache log, certs, modsecurity and private for htpasswd directores exist

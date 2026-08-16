@@ -395,6 +395,107 @@ The manual steps in `## Manual Cleanup Commands Used` are retained for historica
 reference, but the automatic pre-flight tasks make them unnecessary for future
 occurrences. The playbook self-heals on the next run.
 
+## Third Occurrence — Compose Project State Stale SHA (2026-08-16)
+
+A third `No such image: sha256:fb34ec...` failure was observed on 2026-08-16 during the
+Phase 2 media storage refactor rollout on `gighive2` (dev VM).
+
+### Why the 2026-08-15 automatic recovery did not prevent this
+
+The 2026-08-15 fix removes containers whose `.Image` SHA is absent from the live image
+store. The check uses `docker_container_info` and filters for `exists: true` before
+inspecting `.Image`.
+
+This occurrence was different: **no running or stopped container held the stale SHA**.
+The stale reference lived only in Docker's compose project state — an internal compose
+record from a prior deploy cycle that was never cleaned up. In that state,
+`docker_container_info` returns `exists: false` for the service, so
+`selectattr('exists', 'equalto', true)` excludes it from the removal loop. The stale
+reference persists, and the next `docker compose images --format json` pre-flight call
+inside `community.docker.docker_compose_v2` fails trying to resolve it.
+
+### Exact error seen
+
+```text
+TASK [ai_worker : Deploy ai-worker container ...]
+fatal: [gighive_vm]: FAILED! => {
+  "msg": "Error while parsing JSON output of docker compose ... images --format json:
+          Expecting value: line 1 column 1 (char 0)\n
+          Error output: {\"error\":true,\"message\":\"Error response from daemon:
+          No such image: sha256:fb34ec3582b5f7eeb7dceef0995dd965e427d82a900ed499922d37844dc5e161\"}"
+}
+```
+
+The playbook was run with `--skip-tags vbox_provision,db_migrations,...` against
+`inventory_gighive2.yml` as the first Phase 2 validation run.
+
+### Root cause
+
+The Apache container was rebuilt by the `docker` role earlier in the same playbook run
+(expected — the Phase 2 deploy updates the webroot files). That rebuild moved the
+`ubuntu-apache-img:1.00` tag to a new SHA. Docker's compose project state still held
+an `ai-worker` service record referencing the prior SHA. The `ai-worker` container itself
+did not exist by name (`docker_container_info` → `exists: false`), so the existing
+stale-container removal loop did not remove anything. The stale SHA reference in compose
+project state was enough to cause `docker compose images` to fail.
+
+### Fix implemented (2026-08-16)
+
+A `docker compose down --remove-orphans` step was added immediately before the `Deploy
+ai-worker container` task in `ansible/roles/ai_worker/tasks/main.yml`. This explicitly
+tears down the compose service state for `ai-worker` before rebuilding, unconditionally
+clearing any stale SHA reference regardless of whether a named container exists.
+
+`failed_when: false` is set on the tear-down task so it is safe on first-ever deploys
+where no prior compose state exists.
+
+```yaml
+- name: Tear down ai-worker compose state to clear any stale image references
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    files:
+      - docker-compose.yml
+      - docker-compose-ai-worker.yml
+    services:
+      - ai-worker
+    state: absent
+    remove_orphans: true
+  failed_when: false
+  when: ai_worker_enabled | default(false) | bool
+
+- name: Deploy ai-worker container
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    files:
+      - docker-compose.yml
+      - docker-compose-ai-worker.yml
+    services:
+      - ai-worker
+    state: present
+    build: always
+  when: ai_worker_enabled | default(false) | bool
+```
+
+### Why this is correct and safe
+
+- `state: absent` on a service-scoped task removes only the `ai-worker` compose state
+  and container, not the rest of the project (`apacheWebServer`, `mysqlServer`, etc.).
+- The subsequent `state: present` + `build: always` immediately rebuilds and recreates
+  the service.
+- The pre-flight container-info removal loop from the 2026-08-15 fix is still in place
+  and still covers the case where a named stale container does exist. The two mechanisms
+  are complementary, not redundant.
+- `failed_when: false` is intentional: on a brand-new host where no prior compose state
+  exists, `state: absent` would otherwise exit non-zero.
+
+### Summary of all three failure variants
+
+| Date | Stale reference lived in | Detected by | Fixed by |
+|---|---|---|---|
+| 2026-08-06 | Running container pointing at old SHA | Manual diagnosis | Service-scoping the deploy task |
+| 2026-08-15 | Stopped/named container pointing at old SHA | Pre-flight `docker_container_info` loop | Automatic container removal loop |
+| 2026-08-16 | Compose project state only (no named container) | Not caught by container-info loop | `state: absent` tear-down before deploy |
+
 ## Related Files
 
 - `ansible/roles/ai_worker/tasks/main.yml` — the failing `docker_compose_v2` task

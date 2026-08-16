@@ -73,6 +73,19 @@
     - ai_worker_enabled | default(false) | bool
     - item.container.Image not in (_available_image_ids | default([]))
 
+- name: Tear down ai-worker compose state to clear any stale image references
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    files:
+      - docker-compose.yml
+      - docker-compose-ai-worker.yml
+    services:
+      - ai-worker
+    state: absent
+    remove_orphans: true
+  failed_when: false
+  when: ai_worker_enabled | default(false) | bool
+
 - name: Deploy ai-worker container
   community.docker.docker_compose_v2:
     project_src: "{{ docker_dir }}"

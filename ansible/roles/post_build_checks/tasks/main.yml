@@ -923,3 +923,103 @@
   changed_when: false
   when: gighive_media_storage_backend == 'azure_blob'
   tags: [smoke, media_storage]
+
+# ============================================================
+# Phase 2 — Storage abstraction layer checks
+# ============================================================
+
+# --- T-71: PHP syntax check on all Phase 2 service files ---
+
+- name: "[T-71] PHP syntax check all Phase 2 service files"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      php -l {{ item }}
+  loop:
+    - /var/www/html/src/Services/MediaBackend.php
+    - /var/www/html/src/Contracts/MediaStorageBackendInterface.php
+    - /var/www/html/src/Dto/MediaMetaDto.php
+    - /var/www/html/src/Dto/CurlResult.php
+    - /var/www/html/src/Services/AzureIdentityTokenCache.php
+    - /var/www/html/src/Services/AzureBlobRestClient.php
+    - /var/www/html/src/Services/AzureBlobMediaBackend.php
+    - /var/www/html/src/Services/LocalMediaBackend.php
+    - /var/www/html/src/Services/FallbackMediaBackend.php
+    - /var/www/html/src/Services/MediaStorageService.php
+  register: php_syntax_p2
+  changed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-71] Assert all Phase 2 service files pass php -l"
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+    fail_msg: "PHP syntax error in {{ item.item }}: {{ item.stderr }}"
+  loop: "{{ php_syntax_p2.results }}"
+  tags: [smoke, media_storage]
+
+# --- T-72: composer dump-autoload resolves all Phase 2 classes ---
+
+- name: "[T-72] composer dump-autoload succeeds (Phase 2 classes are autoloadable)"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      /usr/local/bin/composer dump-autoload --working-dir=/var/www/html --no-interaction --quiet
+  register: composer_autoload_p2
+  changed_when: false
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-72] Assert composer dump-autoload exited 0"
+  ansible.builtin.assert:
+    that:
+      - composer_autoload_p2.rc == 0
+    fail_msg: >
+      composer dump-autoload failed — check for missing files or namespace mismatches.
+      Stderr: {{ composer_autoload_p2.stderr }}
+  tags: [smoke, media_storage]
+
+# --- T-73: APCu extension is loaded (required by AzureIdentityTokenCache) ---
+
+- name: "[T-73] APCu extension is loaded inside the Apache container"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      php -r "exit(function_exists('apcu_store') ? 0 : 1);"
+  register: apcu_check
+  changed_when: false
+  failed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-73] Assert APCu is available"
+  ansible.builtin.assert:
+    that:
+      - apcu_check.rc == 0
+    fail_msg: >
+      APCu extension not loaded — AzureIdentityTokenCache will fail to cache tokens.
+      Ensure the php-apcu package is installed in the Apache container image.
+  tags: [smoke, media_storage]
+
+# --- T-74: MediaStorageService::make() instantiates without error in local mode ---
+# Lifecycle: phase gate (Tranche 1) — remove at Tranche 1 cleanup.
+
+- name: "[T-74] MediaStorageService::make() instantiates without exception (local mode)"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      php -r "require '/var/www/html/vendor/autoload.php'; \Production\Api\Services\MediaStorageService::make(); echo 'ok';"
+  register: storage_make_check
+  changed_when: false
+  failed_when: false
+  when: gighive_media_storage_backend == 'local'
+  tags: [smoke, media_storage]
+
+- name: "[T-74] Assert MediaStorageService::make() printed ok"
+  ansible.builtin.assert:
+    that:
+      - storage_make_check.stdout | trim == 'ok'
+    fail_msg: >
+      \Production\Api\Services\MediaStorageService::make() threw an exception in local mode.
+      Stderr: {{ storage_make_check.stderr }}
+  when: gighive_media_storage_backend == 'local'
+  tags: [smoke, media_storage]

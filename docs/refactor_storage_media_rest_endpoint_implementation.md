@@ -1,13 +1,13 @@
 # Storage Media REST Endpoint — Implementation Reference
 
-## Status — 2026-08-12
+## Status — 2026-08-16
 
-**Tranche 1 in progress — Phase 1 complete.**
+**Tranche 1 in progress — Phases 1–2 complete (dev clean, rollout to lab/staging/prod in progress).**
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| Phase 1 — Runtime config and IMDS access | **Complete** | Group vars, `.env.j2`, `docker-compose.yml.j2`, `clear_media_files.php`, post_build_checks T-8–T-13 |
-| Phase 2 — PHP storage abstraction layer | Not started | Awaiting approval |
+| Phase 1 — Runtime config and IMDS access | **Complete — all envs** | Group vars, `.env.j2`, `docker-compose.yml.j2`, `clear_media_files.php`, post_build_checks T-8–T-13 |
+| Phase 2 — PHP storage abstraction layer | **Dev clean — rolling out** | MediaBackend, interfaces, DTOs, AzureIdentityTokenCache, AzureBlobRestClient, AzureBlobMediaBackend, LocalMediaBackend, FallbackMediaBackend, MediaStorageService; `php-apcu` added to Dockerfile; post_build_checks T-71–T-74. See *Phase 2 — Build Issues* section below. |
 | Phase 3 — PHP tus upload server | Not started | Awaiting approval |
 | Phase 4 — Media streaming endpoint | Not started | Awaiting approval |
 | Phase 5 — Local/VirtualBox final step | Not started | Awaiting approval |
@@ -81,6 +81,138 @@ This document is the hands-on build guide for the media storage refactor. It pro
   - [Phase 9 — `2bootstrap.sh` and Ansible wiring](#phase-9--2bootstrapsh-and-ansible-wiring)
   - [Phase 10 — Admin tooling updates](#phase-10--admin-tooling-updates)
   - [Phase 11 — Azure migration and rollout](#phase-11--azure-migration-and-rollout)
+
+---
+
+## Phase 2 — Build Issues Encountered During Rollout (2026-08-16)
+
+Three problems surfaced when deploying Phase 2 on gighive2 (dev). All are fixed in the
+current codebase. This section documents each for reference if symptoms recur on other
+environments.
+
+---
+
+### Issue A — `docker_container_exec` YAML list command form fails with `exec: "[php,": executable file not found`
+
+**Symptom (T-71 through T-74):**
+```text
+OCI runtime exec failed: exec: "[php,": executable file not found in $PATH
+```
+
+**Root cause:** The `community.docker.docker_container_exec` module received a YAML
+list for the `command` parameter. The module or the Docker runtime on this version
+serialised the list into the literal string `[php, -l, /path]` and attempted to exec
+that as a single binary name instead of tokenising it.
+
+**Fix:** All four exec tasks (T-71–T-74) changed from YAML list form to scalar shell
+string form (`command: >-`), which is the convention every other exec task in
+`post_build_checks/tasks/main.yml` already uses:
+
+```yaml
+# Wrong — list form:
+command:
+  - php
+  - -l
+  - "{{ item }}"
+
+# Correct — shell string form (matches project convention):
+command: >-
+  php -l {{ item }}
+```
+
+**Rule for future checks:** Always use `command: >-` (scalar string) with
+`community.docker.docker_container_exec` in this project. Never use the YAML list form.
+
+---
+
+### Issue B — T-72 `composer dump-autoload` failed: `Could not open input file: /var/www/html/vendor/bin/composer`
+
+**Symptom:**
+```text
+Could not open input file: /var/www/html/vendor/bin/composer
+```
+
+**Root cause:** The T-72 task was constructed as `php /var/www/html/vendor/bin/composer
+...`. That path is the project's own `vendor/bin/` symlink tree (project dependencies),
+not the Composer binary. The Composer binary is installed at `/usr/local/bin/composer`
+by the Dockerfile's `curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin` step.
+
+**Fix:** T-72 command changed to invoke `/usr/local/bin/composer` directly:
+```yaml
+command: >-
+  /usr/local/bin/composer dump-autoload --working-dir=/var/www/html --no-interaction --quiet
+```
+
+---
+
+### Issue C — T-73 APCu not loaded: `php-apcu` missing from Dockerfile, `apcu.enable_cli` not set
+
+**Symptom:**
+```text
+APCu extension not loaded — AzureIdentityTokenCache will fail to cache tokens.
+```
+
+**Root cause:** `php-apcu` was not in the `apt-get install` line of `Dockerfile.j2`.
+The `AzureIdentityTokenCache` class requires APCu for token caching in both web
+requests (FPM) and cron (`run_probe_job.php`, CLI). Without `apc.enable_cli=1`, APCu
+is silently disabled under CLI even when the package is installed.
+
+**Fix:** Two changes to `ansible/roles/docker/templates/Dockerfile.j2`:
+
+1. Add `php-apcu` to the `apt-get install` block alongside the other PHP extensions:
+```dockerfile
+php-apcu php-curl php-fpm php-mbstring php-mysql php-xml \
+```
+
+2. After the existing `php.ini` `sed` block, append `apc.enable_cli=1` and activate
+   the extension:
+```dockerfile
+echo "apc.enable_cli=1" >> /etc/php/${PHP_VERSION}/mods-available/apcu.ini && \
+phpenmod -v ${PHP_VERSION} apcu
+```
+
+This change requires a full Apache image rebuild (`--tags docker`). The image rebuild
+is automatic on the next `site.yml` run because the Dockerfile template changed.
+
+---
+
+### Issue D — Stale Docker compose project state: `No such image: sha256:fb34ec...`
+
+**Symptom:**
+```text
+Error response from daemon: No such image: sha256:fb34ec3582b5f7eeb7dceef0995dd965e427d82a900ed499922d37844dc5e161
+```
+at `TASK [ai_worker : Deploy ai-worker container ...]`
+
+**Root cause:** A prior Apache image rebuild moved the `ubuntu-apache-img:1.00` tag to
+a new SHA. Docker's compose project state still held an `ai-worker` service record
+referencing the old SHA. The `ai-worker` container did not exist by name (so
+`docker_container_info` returned `exists: false` and the existing stale-container
+removal loop skipped it), but the stale SHA reference in compose project state was
+enough to cause `docker compose images --format json` to fail.
+
+This is a third variant of the stale-image problem documented in full in
+`docs/problem_docker_image_retagged_old_tag.md`.
+
+**Fix:** A `state: absent` tear-down step was added immediately before the ai-worker
+deploy task in `ansible/roles/ai_worker/tasks/main.yml`:
+```yaml
+- name: Tear down ai-worker compose state to clear any stale image references
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    files:
+      - docker-compose.yml
+      - docker-compose-ai-worker.yml
+    services:
+      - ai-worker
+    state: absent
+    remove_orphans: true
+  failed_when: false
+  when: ai_worker_enabled | default(false) | bool
+```
+
+`failed_when: false` makes it safe on first-ever deploys where no prior compose state
+exists.
 
 ---
 
