@@ -1,8 +1,17 @@
 # Storage Media REST Endpoint — Implementation Reference
 
-## Status — 2026-08-02
+## Status — 2026-08-12
 
-**Draft / Initial plan — not yet approved for implementation.**
+**Tranche 1 in progress — Phase 1 complete.**
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1 — Runtime config and IMDS access | **Complete** | Group vars, `.env.j2`, `docker-compose.yml.j2`, `clear_media_files.php`, post_build_checks T-8–T-13 |
+| Phase 2 — PHP storage abstraction layer | Not started | Awaiting approval |
+| Phase 3 — PHP tus upload server | Not started | Awaiting approval |
+| Phase 4 — Media streaming endpoint | Not started | Awaiting approval |
+| Phase 5 — Local/VirtualBox final step | Not started | Awaiting approval |
+| Phases 6–11 (Tranche 2) | Deferred | Azure activation; not in scope until SaaS rollout |
 
 ---
 

@@ -1,0 +1,31 @@
+# --------------------------------------------------------------------
+# Azure-specific group vars — media storage refactor (Tranche 1/2)
+# --------------------------------------------------------------------
+# This file is loaded for all hosts in the 'gighive' group.
+# On Azure deployments (inventory_azure.yml), these values override the
+# 'local' defaults in gighive.yml. On non-Azure deployments this file
+# is still loaded but the empty/false values have no effect because
+# gighive_media_storage_backend stays 'local'.
+#
+# HOW TO USE:
+#   Tranche 1 (current): leave gighive_media_storage_backend as 'local' below
+#     (commented out) — all environments run local mode. Fill in Azure
+#     connection vars from Terraform output when Tranche 2 begins.
+#   Tranche 2: uncomment gighive_media_storage_backend: "azure_blob" and
+#     populate azure_blob_account_name, azure_blob_container,
+#     azure_identity_client_id from Terraform outputs.
+# --------------------------------------------------------------------
+
+# Storage backend switch — uncomment to activate Azure Blob mode (Tranche 2 only)
+# gighive_media_storage_backend: "azure_blob"
+
+# Azure Blob Storage connection — populate from Terraform output before Tranche 2
+# azure_blob_account_name:  ""   # azurerm_storage_account.media.name
+# azure_blob_container:     ""   # azurerm_storage_container.media.name
+# azure_identity_client_id: ""   # azurerm_user_assigned_identity.media.client_id
+
+# ai_worker safety gate — set false in Azure group vars until ai_worker is updated
+# to download blobs (Option A in Phase 10). Without this the ai_worker container
+# starts but silently processes no media after Phase 11 removes bind mounts.
+# Uncomment when activating Azure Blob mode (Phase 1 of Tranche 2).
+# ai_worker_enabled: false

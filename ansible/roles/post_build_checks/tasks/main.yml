@@ -797,3 +797,129 @@
     headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
   changed_when: false
   tags: [smoke]
+
+# ============================================================
+# Media Storage Backend checks (Phase 1 — Tranche 1)
+# ============================================================
+
+# --- T-8: GIGHIVE_MEDIA_STORAGE_BACKEND matches group vars ---
+
+- name: "[T-8] Read GIGHIVE_MEDIA_STORAGE_BACKEND from Apache container"
+  ansible.builtin.command: >
+    docker exec -i "{{ apache_container_name }}" printenv GIGHIVE_MEDIA_STORAGE_BACKEND
+  register: media_backend_env
+  changed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-8] Assert GIGHIVE_MEDIA_STORAGE_BACKEND equals gighive_media_storage_backend"
+  ansible.builtin.assert:
+    that:
+      - media_backend_env.stdout | trim == gighive_media_storage_backend
+    fail_msg: >
+      Container GIGHIVE_MEDIA_STORAGE_BACKEND={{ media_backend_env.stdout | trim }},
+      expected {{ gighive_media_storage_backend }}
+  tags: [smoke, media_storage]
+
+- name: "[T-8] Assert Azure Blob env vars are non-empty (Azure mode only)"
+  ansible.builtin.command: >
+    docker exec -i "{{ apache_container_name }}"
+      sh -c 'test -n "$(printenv {{ item }})"'
+  loop:
+    - AZURE_BLOB_ACCOUNT_NAME
+    - AZURE_BLOB_CONTAINER
+    - AZURE_IDENTITY_CLIENT_ID
+  changed_when: false
+  when: gighive_media_storage_backend == 'azure_blob'
+  tags: [smoke, media_storage]
+
+# --- T-9: host.docker.internal extra_host present ---
+
+- name: "[T-9] Read Apache container ExtraHosts"
+  ansible.builtin.command: >
+    docker inspect
+      -f '{% raw %}{{range .HostConfig.ExtraHosts}}{{.}}{{"\n"}}{{end}}{% endraw %}'
+      "{{ apache_container_name }}"
+  register: container_extra_hosts
+  changed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-9] Assert host.docker.internal extra host is present"
+  ansible.builtin.assert:
+    that:
+      - "'host.docker.internal' in container_extra_hosts.stdout"
+    fail_msg: >
+      host.docker.internal not found in ExtraHosts.
+      Current ExtraHosts: {{ container_extra_hosts.stdout }}
+  tags: [smoke, media_storage]
+
+# --- T-10: IMDS reachable from Apache container (Azure mode only) ---
+
+- name: "[T-10] IMDS instance endpoint reachable from Apache container (Azure mode only)"
+  ansible.builtin.command: >
+    docker exec -i "{{ apache_container_name }}"
+      curl -sf -o /dev/null -w "%{http_code}"
+        "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
+        -H "Metadata: true" --connect-timeout 5
+  register: imds_instance_code
+  changed_when: false
+  when: gighive_media_storage_backend == 'azure_blob'
+  tags: [smoke, media_storage]
+
+- name: "[T-10] Assert IMDS returns 200 (Azure mode only)"
+  ansible.builtin.assert:
+    that:
+      - imds_instance_code.stdout | trim == "200"
+    fail_msg: >
+      IMDS returned {{ imds_instance_code.stdout | trim }} (expected 200).
+      Check extra_hosts host-gateway config and Azure VM identity assignment.
+  when: gighive_media_storage_backend == 'azure_blob'
+  tags: [smoke, media_storage]
+
+# --- T-11 / T-12: bind mount presence checks ---
+
+- name: "[T-11/T-12] Read Apache container mount sources"
+  ansible.builtin.command: >
+    docker inspect
+      -f '{% raw %}{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}{% endraw %}'
+      "{{ apache_container_name }}"
+  register: container_mounts
+  changed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-11] Assert no local audio/video bind mounts present (Azure mode)"
+  ansible.builtin.assert:
+    that:
+      - container_mounts.stdout | regex_search('/audio') is none
+      - container_mounts.stdout | regex_search('/video') is none
+    fail_msg: >
+      Local media bind mounts found in Azure mode.
+      Mounts: {{ container_mounts.stdout }}
+  when: gighive_media_storage_backend == 'azure_blob'
+  tags: [smoke, media_storage]
+
+- name: "[T-12] Assert audio and video host dirs are mounted (local mode)"
+  ansible.builtin.assert:
+    that:
+      - container_mounts.stdout | regex_search('/audio') is not none
+      - container_mounts.stdout | regex_search('/video') is not none
+    fail_msg: >
+      Expected audio/video bind mounts not found in local mode.
+      Mounts: {{ container_mounts.stdout }}
+  when: gighive_media_storage_backend != 'azure_blob'
+  tags: [smoke, media_storage]
+
+# --- T-13: clear_media_files.php does not 500 in Azure mode ---
+
+- name: "[T-13] clear_media_files.php does not 500 without local media dirs (Azure mode)"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/admin/clear_media_files.php"
+    method: GET
+    url_username: "{{ admin_user }}"
+    url_password: "{{ gighive_admin_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: [200, 302, 401, 403, 405]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  when: gighive_media_storage_backend == 'azure_blob'
+  tags: [smoke, media_storage]

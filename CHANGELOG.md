@@ -3,7 +3,7 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260816.txt
-Changes: prep work for tranche 1 of refactor_storage_media_rest_endpoint.md
+Changes: tranche 1, phase 1 
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,33 +12,21 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   docs/problem_docker_image_retagged_old_tag.md
+	new file:   ansible/inventories/group_vars/gighive/azure.yml
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin/clear_media_files.php
+	modified:   ansible/roles/docker/templates/.env.j2
+	modified:   ansible/roles/docker/templates/docker-compose.yml.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
 	modified:   docs/refactor_status_20260812.md
 	modified:   docs/refactor_storage_media_rest_endpoint.md
 	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
-	renamed:    docs/refactor_azure_blob_export_import_session_storage.md -> docs/refactored_azure_blob_export_import_session_storage.md
-	renamed:    docs/refactor_iphone_qr_code_gallery_thumbnails.md -> docs/refactored_iphone_qr_code_gallery_thumbnails.md
-	renamed:    docs/refactor_qr_code_users_splash_page.md -> docs/refactored_qr_code_users_splash_page.md
-
-*** 
-releaseNotes20260815.txt
-Changes: ai worker retagged redux issue
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/ai_worker/tasks/main.yml
-	modified:   docs/problem_docker_image_retagged_old_tag.md
-	modified:   docs/refactor_status_20260812.md
-	renamed:    docs/refactor_iphone_qr_code_guest_nonce_shared_helper.md -> docs/refactored_iphone_qr_code_guest_nonce_shared_helper.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260815.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260816.log
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260720.log
 # GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
@@ -139,6 +127,41 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
 
+
+*** 
+releaseNotes20260816.txt
+Changes: prep work for tranche 1 of refactor_storage_media_rest_endpoint.md
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/problem_docker_image_retagged_old_tag.md
+	modified:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
+	renamed:    docs/refactor_azure_blob_export_import_session_storage.md -> docs/refactored_azure_blob_export_import_session_storage.md
+	renamed:    docs/refactor_iphone_qr_code_gallery_thumbnails.md -> docs/refactored_iphone_qr_code_gallery_thumbnails.md
+	renamed:    docs/refactor_qr_code_users_splash_page.md -> docs/refactored_qr_code_users_splash_page.md
+
+*** 
+releaseNotes20260815.txt
+Changes: ai worker retagged redux issue
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/ai_worker/tasks/main.yml
+	modified:   docs/problem_docker_image_retagged_old_tag.md
+	modified:   docs/refactor_status_20260812.md
+	renamed:    docs/refactor_iphone_qr_code_guest_nonce_shared_helper.md -> docs/refactored_iphone_qr_code_guest_nonce_shared_helper.md
 
 *** 
 releaseNotes20260815.txt

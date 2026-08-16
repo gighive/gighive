@@ -19,15 +19,15 @@ services:
       - 127.0.0.11
       - 8.8.8.8
       - 1.1.1.1
-{% if gighive_enable_telemetry_proxy | default(false) %}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-{% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+{% if gighive_media_storage_backend | default('local') != 'azure_blob' %}
       - "/home/{{ ansible_user }}/audio:{{ media_search_dir_audio }}"
       - "/home/{{ ansible_user }}/video:{{ media_search_dir_video }}"
+{% endif %}
       - tusd_data:/var/www/private/tus-data
       - tus_hooks:/var/www/private/tus-hooks
       - "{{ gighive_htpasswd_host_path }}:{{ gighive_htpasswd_path }}:rw"

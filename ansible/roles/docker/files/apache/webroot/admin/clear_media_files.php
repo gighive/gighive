@@ -26,6 +26,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+/** ---- Azure Blob mode guard ---- */
+// In Azure Blob mode there are no local media directories to clear.
+// Return a successful no-op rather than failing with 500 because MEDIA_SEARCH_DIRS
+// is absent. Full Blob-aware delete UI is a Phase 10 (Tranche 2) concern.
+$storageBackend = getenv('GIGHIVE_MEDIA_STORAGE_BACKEND') ?: 'local';
+if ($storageBackend === 'azure_blob') {
+    http_response_code(200);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success'       => true,
+        'total_deleted' => 0,
+        'message'       => 'Azure Blob mode: local media directories are not present; no files to clear. Use the Blob admin tools to manage media in Blob Storage.',
+    ]);
+    exit;
+}
+
 /** ---- Derive target dirs from MEDIA_SEARCH_DIRS ---- */
 $mediaDirsEnv = getenv('MEDIA_SEARCH_DIRS');
 if ($mediaDirsEnv === false || trim($mediaDirsEnv) === '') {

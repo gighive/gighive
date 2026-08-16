@@ -20,7 +20,7 @@
 
 ### 1. `refactor_storage_media_rest_endpoint.md` — Tranche 1 — Score: 10/10
 
-**Status:** Draft / initial plan — not yet approved for implementation.  
+**Status:** In progress — Phase 1 complete (2026-08-12). Phases 2–5 approved and awaiting implementation.  
 **Effort:** Phases 1–5 / 2 PRs. This tranche is the near-term build: it creates the abstraction layer, removes the `tusd` container, and keeps local storage as the backend for now.  
 **Impact:** Moves the media stack toward a clean separation of compute and storage by putting the media path behind PHP service classes instead of direct filesystem coupling. Tranche 1 does **not** switch Azure Blob on yet; it keeps the local storage model while preparing the codebase for the later SaaS rollout.
 

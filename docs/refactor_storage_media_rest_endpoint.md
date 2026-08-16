@@ -1,8 +1,10 @@
 # Refactor: Media Storage via Private Azure Blob REST Endpoint
 
-## Status — 2026-08-02
+## Status — 2026-08-12
 
-**Draft / Initial plan — not yet approved for implementation.**
+**Tranche 1 in progress — Phase 1 complete.**
+
+Phase 1 (runtime configuration, IMDS access, storage backend env vars, Compose plumbing) is implemented in `gighiveinfra`. Phases 2–5 are approved and awaiting implementation.
 
 ---
 
