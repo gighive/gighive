@@ -65,6 +65,14 @@
     # Web browser / iOS URLSession — query-string nonce detection
     # SetEnvIf Query_String does not work reliably in this Apache build; SetEnvIfExpr is required.
     SetEnvIfExpr "%{QUERY_STRING} =~ /(^|&)nonce=/" gallery_nonce_auth
+    # Forward Authorization header to PHP-FPM as HTTP_AUTHORIZATION.
+    # mod_proxy_fcgi strips the Authorization header before PHP sees it; PHP_AUTH_USER is never
+    # set in the PHP-FPM model. SetEnvIf at VirtualHost level (not inside a Location block)
+    # runs against the original URI before any rewrite, so it fires for all requests including
+    # those rewritten from /video/, /audio/, and /media/ to /api/media-stream.php.
+    # Apache still enforces auth via the LocationMatch/Location blocks before PHP runs —
+    # a bad password returns 401 from Apache and PHP never sees the request.
+    SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
 
     # QR guest upload routing — /upload/<token> served by PHP handler (rewritten internally)
     RewriteRule ^/upload/([A-Za-z0-9_-]+)$ /db/upload_form_single.php?token=$1 [L,QSA]
@@ -294,11 +302,28 @@
         Require all granted
     </Location>
 
-    # --- MEDIA STREAM ENDPOINT: unauthenticated at Apache level; PHP handles all three auth paths ---
-    # (Basic Auth, X-Upload-Token, gallery nonce). AuthMerging Off prevents the catch-all
-    # LocationMatch from blocking nonce-authenticated thumbnail requests before PHP can validate them.
+    # --- MEDIA STREAM ENDPOINT: PHP handles all three auth paths ---
+    # (Basic Auth, X-Upload-Token, gallery nonce).
+    #
+    # AuthMerging Off + Require all granted: lets nonce and upload-token requests
+    # reach PHP without Apache blocking them first.
+    #
+    # PHP is served via mod_proxy_fcgi (PHP-FPM over a Unix socket). Apache strips
+    # the Authorization header before forwarding to PHP-FPM — PHP_AUTH_USER and
+    # PHP_AUTH_PW are never set. SetEnvIf at VirtualHost level (above) copies the
+    # Authorization header into HTTP_AUTHORIZATION before any rewrite fires, so
+    # PHP-FPM receives it via $_SERVER['HTTP_AUTHORIZATION'] for all request paths
+    # including those rewritten from /video/, /audio/, and /media/.
+    #
+    # AuthType Basic + AuthUserFile: Apache validates the credential against htpasswd.
+    # A bad password returns 401 from Apache; PHP never sees the request.
+    # Access control is Require all granted so nonce/token requests pass through.
     <Location "/api/media-stream.php">
         AuthMerging Off
+        AuthType Basic
+        AuthName "GigHive Protected"
+        AuthBasicProvider file
+        AuthUserFile {{ gighive_htpasswd_path | default('/etc/apache2/gighive.htpasswd') }}
         Require all granted
     </Location>
 

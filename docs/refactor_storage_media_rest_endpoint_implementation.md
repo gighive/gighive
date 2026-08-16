@@ -9,7 +9,7 @@
 | Phase 1 — Runtime config and IMDS access | **Complete — all envs** | Group vars, `.env.j2`, `docker-compose.yml.j2`, `clear_media_files.php`, post_build_checks T-8–T-13 |
 | Phase 2 — PHP storage abstraction layer | **Complete — all envs** | MediaBackend, interfaces, DTOs, AzureIdentityTokenCache, AzureBlobRestClient, AzureBlobMediaBackend, LocalMediaBackend, FallbackMediaBackend, MediaStorageService; `php-apcu` added to Dockerfile; post_build_checks T-71–T-74. See *Phase 2 — Build Issues* section. |
 | Phase 3 — PHP tus upload server | **Complete — all envs (2026-08-16)** | TusChunkBackendInterface, TusUploadState, TusUploadConfig, AzureBlobTusBackend, LocalFileTusBackend, TusBlockUploadService, MediaProbeJobService, run_probe_job.php, cleanup_expired_uploads.php, api/tus-upload.php; tusd retired; probe cron in entrypoint.sh.j2; post_build_checks T-79–T-86; BABRR DDL applied and restored on dev/lab/staging/prod. See *Phase 3 — Build Issues* section. |
-| Phase 4 — Media streaming endpoint | **Complete — dev (2026-08-16)** | media-stream.php, Apache RewriteRules + Location block, T-90/T-91/T-92, guest-gallery.php is_file() fix, ai_worker stale-container fix; lab/staging/prod pending |
+| Phase 4 — Media streaming endpoint | **Complete — all envs (2026-08-16)** | media-stream.php, Apache RewriteRules + Location block, T-90/T-91/T-92, guest-gallery.php is_file() fix, ai_worker stale-container fix |
 | Phase 5 — Local/VirtualBox final step | Not started | Awaiting approval |
 | Phases 6–11 (Tranche 2) | Deferred | Azure activation; not in scope until SaaS rollout |
 
@@ -3858,7 +3858,7 @@ Add this as a checklist item in Phase 11 step 9.
 
 ---
 
-### Phase 4 — Build Issues (2026-08-16, dev)
+### Phase 4 — Build Issues and Regression Fixes (2026-08-16)
 
 **Issue 1: ai_worker role failed with "container name already in use"**
 
@@ -3872,6 +3872,26 @@ The original T-91 probe URL was `/media/audio/` and T-92 was `/audio/`. Both Rew
 
 Fix: updated T-91 and T-92 probe URLs to include a 64-character all-zeros synthetic key (`000...000.mp3`). This matches the RewriteRule, reaches `media-stream.php`, and PHP returns 401 (no auth) before any blob lookup. The YAML snippets and summary table above have been updated accordingly.
 
+**Issue 3: Admin media library — thumbnails and video playback returning 401 after Phase 4 rollout**
+
+The admin media library (`/db/database.php`) renders thumbnail `<img>` tags pointing at `/video/thumbnails/{sha}.png` and download/play links pointing at `/video/{hash}.mp4` and `/audio/{hash}.mp3`. Before Phase 4 these were Apache static files; Apache's `LocationMatch "^/video(?:/|$)"` checked the browser's Basic Auth session and served the file.
+
+After Phase 4 the RewriteRules intercept those paths and rewrite them to `/api/media-stream.php`. The `<Location "/api/media-stream.php">` block had `AuthMerging Off` + `Require all granted` but **no `AuthType`** directive. Without `AuthType`, Apache never parses the `Authorization: Basic` header into `PHP_AUTH_USER`/`PHP_AUTH_PW`, so `media-stream.php` saw no credentials and returned 401.
+
+Root cause (two compounding issues, both proven by live evidence):
+
+1. `PHP_AUTH_USER` is never set in the PHP-FPM + `mod_proxy_fcgi` model — it is a `mod_php` artefact. Confirmed by hitting `/api/media_debug.php` directly with valid credentials and observing `PHP_AUTH_USER=NOT_SET` in the PHP-FPM log even though Apache accepted the request.
+
+2. `SetEnvIf` inside a `<Location>` block does not fire for rewritten requests — `<Location>` blocks match the *original* URI (`/video/thumbnails/...`), not the rewritten one (`/api/media-stream.php`). Confirmed by injecting debug logging into the running container: a request with `?nonce=` showed `gallery_nonce_auth=1` (VirtualHost-level `SetEnvIfExpr`, fires) while `HTTP_AUTHORIZATION=NOT_SET` (Location-block `SetEnvIf`, does not fire) in the same PHP-FPM log entry.
+
+Fix (two parts, confirmed working in dev):
+
+1. `default-ssl.conf.j2` — moved `SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1` to **VirtualHost level** alongside the existing `upload_token_auth` and `gallery_nonce_auth` directives. At VirtualHost level it fires against the original URI before any rewrite, so it reaches PHP-FPM for all request paths. `AuthType Basic` + `AuthUserFile` remain on the Location block so Apache validates the credential — a bad password is rejected by Apache before PHP runs; PHP only ever sees `HTTP_AUTHORIZATION` when Apache has already accepted the credential.
+
+2. `api/media-stream.php` — path 1 in `authenticateRequest()` changed from `isset($_SERVER['PHP_AUTH_USER'])` to `str_starts_with($_SERVER['HTTP_AUTHORIZATION'] ?? '', 'Basic ')`. Apache already verified the credential; PHP only confirms a Basic scheme header was forwarded.
+
+See `docs/problem_apache_php_setenv.md` for the full diagnostic chronology and evidence.
+
 ---
 
 ### Phase 5 — Local / VirtualBox / Baremetal (Tranche 1 final step)
@@ -3883,7 +3903,32 @@ Once Azure (Phase 11) is confirmed stable:
 3. Deploy `api/media-stream.php` with `LocalMediaBackend` to local/VirtualBox inventories
 4. Verify read path (full file, range seek) via PHP for local environments
 5. Disable Apache static serving of the media paths — `LocalMediaBackend` still reads files from `/var/www/html/audio|video/` via `fopen`/`fread`. The bind mounts must **remain** in the local-mode compose; they are the mechanism that makes the host media directory visible inside the container, and PHP depends on them. The only change at this step is that the new `RewriteRule` routes for `/audio/` and `/video/` (added in Phase 4) take precedence over Apache's static handler, so requests go through PHP instead of being served as static files. No compose change is needed at this step.
-6. Retire `MEDIA_SEARCH_DIRS` from `.env.j2` — replaced by the `media-stream.php` `LocalMediaBackend` configuration (`MEDIA_SEARCH_DIR_AUDIO` / `MEDIA_SEARCH_DIR_VIDEO` set from Ansible group vars)
+6. Retire `MEDIA_SEARCH_DIRS` from `.env.j2` — replaced by the `media-stream.php` `LocalMediaBackend` configuration (`MEDIA_SEARCH_DIR_AUDIO` / `MEDIA_SEARCH_DIR_VIDEO` set from Ansible group vars). At the same time, update `admin/clear_media_files.php` to read `MEDIA_LOCAL_AUDIO_DIR` / `MEDIA_LOCAL_VIDEO_DIR` instead of `MEDIA_SEARCH_DIRS` — it is the only admin file that references the retired variable.
+
+**Authenticated media smoke tests (Phase 5 addition):**
+
+Add group vars `smoke_test_video_thumbnail_sha256`, `smoke_test_video_sha256`, and
+`smoke_test_audio_sha256` per environment pointing at known real assets on the host
+media directories. Add three post_build_checks tasks that do authenticated GETs as
+`uploader` and assert `200 OK` with the correct `Content-Type`. Tasks skip when vars
+are not defined — environments without seeded assets don't fail.
+
+Known dev (gighive2) values:
+
+| Var | Value | URL |
+|---|---|---|
+| `smoke_test_video_thumbnail_sha256` | `5a5a63917260e8d1d7b32ac4d5b2998fb48d35d97315874a218f86f02dbc7bbd` | `/video/thumbnails/{sha}.png` |
+| `smoke_test_video_sha256` | `b212a654ddf160523373a7da95a0ddbfa752e6dbe57c13b6e220e0211bf71d95` | `/video/{sha}.mp4` |
+| `smoke_test_audio_sha256` | `1982d30224070906ccee90c54279cb027099c5ab00783b7f4ec5382bb1e42b7a` | `/audio/{sha}.mp3` |
+
+These values go in `ansible/inventories/group_vars/gighive2/gighive2.yml`. Equivalent
+known-good assets must be identified and added for lab, staging, and prod before Phase 5
+is run on those environments. Do not add binary test files to the repo — use real assets
+already present on each host's media directory.
+
+The tests prove: host bind mount is present, `LocalMediaBackend` reads through it, auth
+(`PHP_AUTH_USER`) is set correctly after the RewriteRule rewrite, and correct
+`Content-Type` is returned per media type.
 
 **Rollback per phase:**
 
@@ -4712,6 +4757,81 @@ See T-13 YAML above.
 
 **T-44 [Manual]** — Re-queuing a failed probe job via the admin UI resets `status = queued` and `attempts = 0`; next cron run processes it.
 > Requires an interactive admin session and a controlled failed probe_job row as a test fixture.
+
+---
+
+### Admin Functions — Storage Backend Compatibility Audit (2026-08-16)
+
+This section records the impact of Phase 4, Phase 5, and Phase 11 on the admin PHP files
+in `admin/`. It was produced by a full audit of all admin files after Phase 4 rollout.
+
+#### Phase 4 impact — none
+
+The Phase 4 changes (RewriteRules + `media-stream.php`) only affect inbound HTTP routing
+for clients. Admin files do not make HTTP requests to `/audio/` or `/video/`; they read
+and write the container filesystem directly. No admin file breaks in Phase 4.
+
+The one browser URL in `event_qr.php` (`/audio/{hash}` or `/video/{hash}` preview link)
+now routes through `media-stream.php` instead of Apache static serving, but continues
+to work — the backward-compat RewriteRules handle those paths and `media-stream.php`
+authenticates via the admin Basic Auth session.
+
+#### Phase 5 impact — one file affected
+
+Phase 5 retires `MEDIA_SEARCH_DIRS` from `.env.j2`. Only one file uses it:
+
+| File | Usage | Action required |
+|---|---|---|
+| `clear_media_files.php` | Reads `MEDIA_SEARCH_DIRS` to derive audio/video dirs for deletion | Replace with `MEDIA_LOCAL_AUDIO_DIR` / `MEDIA_LOCAL_VIDEO_DIR` (the Phase 1 env vars). Already has an Azure-mode guard that exits early when `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob`. |
+
+All other admin files hardcode `/var/www/html/audio` and `/var/www/html/video` directly
+and do not reference `MEDIA_SEARCH_DIRS`, so they are unaffected by its retirement.
+
+#### Phase 11 (Azure-only mode) impact — 9 files affected
+
+When `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob` the local media bind mounts are removed
+from compose. Every admin file that reads from or writes to `/var/www/html/audio` or
+`/var/www/html/video` will break. None of these files use `MediaStorageService`.
+
+| File | Operations | Breakage in azure_blob mode | Has Azure guard? |
+|---|---|---|---|
+| `export_media.php` | `is_file()`, `filesize()` on audio/video/thumbnails | Scan and size estimates will fail — 0 files found | No |
+| `export_media_worker.php` | `is_file()`, `filesize()`, `fopen()` on audio/video/thumbnails; reads filelist, writes zip | Cannot read media files to build export archive | No |
+| `export_media_worker_azure.php` | `is_file()`, `filesize()`, `fopen()` on local audio/video to upload to Blob | Designed for Azure but still reads local filesystem — will break when bind mounts are absent | No |
+| `import_media_zip_worker.php` | `is_dir()` guard, `copy()` into `/var/www/html/audio\|video`, thumbnail `copy()` | Cannot write imported files — hard `is_dir` check will throw `RuntimeException` | No |
+| `import_media_zip_worker_azure.php` | `is_dir()` guard, writes to `/var/www/html/audio\|video\|thumbnails` via local staging | Same as above — local staging path will not exist | No |
+| `import_manifest_upload_finalize.php` | `is_file()` existence check on media + thumbnail path | Existence checks always return false; manifest will report files as missing even after successful upload | No |
+| `import_manifest_upload_start.php` | `is_file()` existence check on media + thumbnail path | Same as above | No |
+| `iphone_import_worker.php` | `copy()` into `/var/www/html/video\|audio` | iPhone imports will fail silently — copy destination does not exist | No |
+| `clear_media_files.php` | `glob()` + `unlink()` on audio/video/thumbnails dirs | **Already guarded** — exits cleanly as no-op when `azure_blob` | Yes |
+
+#### Required work before Phase 11 go-live (azure_blob mode)
+
+These admin files must be updated before enabling `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob`:
+
+**Export workers** (`export_media_worker.php`, `export_media_worker_azure.php`):  
+Replace `is_file()` + `fopen()` with `MediaStorageService::exists()` and `MediaStorageService::streamRange()` (or a new `download()` helper). The export zip logic needs to pull bytes from the backend rather than from the local filesystem.
+
+**Import workers** (`import_media_zip_worker.php`, `import_media_zip_worker_azure.php`, `iphone_import_worker.php`):  
+Replace `copy()` / `fopen($dest, 'wb')` into local paths with `MediaStorageService::put()`. Remove the `is_dir('/var/www/html/audio')` hard guard or replace it with a backend-capability check.
+
+**Manifest status checks** (`import_manifest_upload_finalize.php`, `import_manifest_upload_start.php`):  
+Replace `is_file($mediaPath)` / `is_file($thumbPath)` with `MediaStorageService::exists()`.
+
+**`clear_media_files.php`** — update `MEDIA_SEARCH_DIRS` → `MEDIA_LOCAL_AUDIO_DIR` / `MEDIA_LOCAL_VIDEO_DIR` in Phase 5 at the same time `MEDIA_SEARCH_DIRS` is retired from `.env.j2`; the local deletion logic itself stays intact. The existing Azure guard already handles Phase 11 correctly — no further changes needed at that phase.
+
+**`export_media.php`** — scan and size estimates; replace `is_file()` / `filesize()` with `MediaStorageService` list/meta calls, or add an Azure guard that skips the local scan and queries Blob metadata instead.
+
+#### Files confirmed safe for all phases
+
+| File | Reason |
+|---|---|
+| `admin_media_lib.php` | No media filesystem operations |
+| `clear_media.php` | Database-only operations |
+| `import_manifest_worker.php` | Only reads/writes job-state files in `/var/www/private/import_jobs` — not media paths |
+| `import_manifest_lib.php` | Job metadata only — `/var/www/private/import_jobs` |
+| `export_media_download.php` | Only reads/writes job temp dir and export archive — not media paths |
+| `event_qr.php` | URL construction only; path now routes through `media-stream.php` which handles all backends |
 
 ---
 

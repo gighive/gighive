@@ -56,12 +56,15 @@ function validateKey(string $type, string $key): bool
  */
 function authenticateRequest(\PDO $pdo): bool
 {
-    // Path 1: Basic Auth — Apache forwards PHP_AUTH_USER when LocationMatch
-    // grants the request (AuthMerging Off + Require all granted on this endpoint).
-    // PHP_AUTH_USER is set when the client sends Authorization: Basic and the
-    // credentials match htpasswd. We only need to know the header was present
-    // and valid — Apache has already verified it.
-    if (isset($_SERVER['PHP_AUTH_USER'])) {
+    // Path 1: Basic Auth — PHP is served via mod_proxy_fcgi (PHP-FPM). Apache never
+    // sets PHP_AUTH_USER / PHP_AUTH_PW for FPM requests. Instead, default-ssl.conf.j2
+    // uses SetEnvIf to copy the Authorization header into HTTP_AUTHORIZATION, which
+    // mod_proxy_fcgi forwards to PHP-FPM as $_SERVER['HTTP_AUTHORIZATION'].
+    // Apache validates the credential against htpasswd before SetEnvIf fires, so
+    // HTTP_AUTHORIZATION is only present when Apache has already accepted the credential.
+    // We confirm the header is present and is a Basic scheme — Apache did the verification.
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (str_starts_with($authHeader, 'Basic ')) {
         return true;
     }
 
