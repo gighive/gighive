@@ -310,10 +310,12 @@ tus_client_retry_delays: [0, 1000, 3000, 10000, 30000]
 tus_client_remove_fingerprint_on_success: true
 
 # Parallel chunk streams per file (tus-js-client parallelUploads).
-# Splits one file into N concurrent TUS sub-uploads then concatenates server-side.
-# Requires HTTP/2 (already enabled) and tusd concatenation extension (supported).
-# 1 = sequential (default). 3 = recommended for LAN. 2 = recommended for WAN.
-tus_client_parallel_uploads: 3
+# Parallel chunk streams per file (tus-js-client parallelUploads).
+# Must be 1 — TusBlockUploadService (Phase 3) does not implement the tus
+# concatenation extension. Values > 1 cause tus-js-client to issue
+# Upload-Concat: partial POSTs with no Upload-Metadata, which the server
+# rejects with 415. Was 3 when tusd (which supported concatenation) was in use.
+tus_client_parallel_uploads: 1
 
 # --------------------------------------------------------------------
 # upload log tuning
@@ -527,4 +529,9 @@ tus_local_staging_dir: "/tmp/tus-staging"
 
 # PHP TUS server tunables
 upload_chunk_size_bytes:           8388608  # 8 MB — must match TUSKit/tus-js-client chunk size
-tus_max_pending_uploads_per_token: 5        # per-token concurrent pending upload limit
+# Max concurrent in-flight tus uploads per user token before POST /files/ returns 429.
+# Rationale: uploads are admin-only and infrequent; 5 in-flight uploads per token is
+# generous for normal use while preventing a stuck client or bug from holding unbounded
+# staging disk space. Failed uploads are immediately transitioned to status=failed by
+# TusBlockUploadService so they do not consume this quota.
+tus_max_pending_uploads_per_token: 5

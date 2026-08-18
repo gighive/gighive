@@ -69,6 +69,26 @@
     enabled: yes
   tags: docker
 
+# Stop the compose stack before rendering bind-mounted config files.
+# On a reboot, Docker auto-starts and attempts to restore containers. If any
+# bind-mount source paths are absent (e.g. because rsync deleted the
+# Jinja2-rendered files earlier in the same playbook run), Docker creates
+# root-owned directories at those paths. The guard tasks in
+# render_guarded_template.yml run as ansible_user and cannot remove root-owned
+# directories, so the subsequent template render fails.
+# Stopping the stack here eliminates the race: Docker is not running when the
+# render tasks execute, so it cannot create directories under our feet.
+# failed_when: false is required for first-ever deploys where no prior compose
+# state exists.
+- name: Stop compose stack before rendering bind-mounted config files
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_dir }}"
+    state: stopped
+  become: true
+  become_user: "{{ ansible_user }}"
+  failed_when: false
+  tags: docker, compose
+
 - name: Render bind-mounted docker config files
   block:
     # Ensure the host path exists where docker-compose will mount from

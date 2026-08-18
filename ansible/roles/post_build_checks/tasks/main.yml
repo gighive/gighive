@@ -295,6 +295,33 @@
 # The old tasks that checked the tusd container, internal tusd DNS probe, and
 # tus-hooks/tus-data staging artifacts have been removed.
 
+# Pre-flight: warn if stale pending tus_uploads rows exist from a previous failed run.
+# These count against UPLOAD_MAX_PENDING_PER_TOKEN and will cause the TUS POST below
+# to return 429 if the count reaches the limit. The markFailed() fix in
+# TusBlockUploadService prevents this under normal conditions; this check catches any
+# edge cases (e.g. container killed mid-request before markFailed ran).
+- name: Count stale pending tus_uploads rows (pre-flight)
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name }}"
+    command:
+      - sh
+      - -c
+      - "MYSQL_PWD={{ mysql_root_password }} mysql -uroot {{ mysql_database }} -sN -e \"SELECT COUNT(*) FROM tus_uploads WHERE status='pending' AND expires_at > NOW()\""
+  register: stale_pending_count
+  changed_when: false
+  no_log: true
+  tags: [smoke, tus]
+
+- name: Warn if stale pending tus_uploads rows exist
+  ansible.builtin.debug:
+    msg: >
+      WARNING: {{ stale_pending_count.stdout | trim }} stale pending tus_uploads row(s)
+      found. These may cause the TUS smoke test to return 429 if the
+      UPLOAD_MAX_PENDING_PER_TOKEN limit is reached. To clear:
+      UPDATE tus_uploads SET status='failed' WHERE status='pending' AND expires_at > NOW();
+  when: (stale_pending_count.stdout | trim | int) > 0
+  tags: [smoke, tus]
+
 - block:
     - name: TUS endpoint should require auth (probe)
       ansible.builtin.uri:
@@ -820,6 +847,28 @@
     fail_msg: >
       Container GIGHIVE_MEDIA_STORAGE_BACKEND={{ media_backend_env.stdout | trim }},
       expected {{ gighive_media_storage_backend }}
+  tags: [smoke, media_storage]
+
+# TusBlockUploadService does not implement the tus concatenation extension.
+# parallelUploads > 1 causes tus-js-client to issue Upload-Concat: partial POSTs
+# with no Upload-Metadata, which the server rejects with 415 on every upload.
+# See docs/problem_tus_415_bare_type_label_in_filetype_metadata.md
+- name: "[T-8] Read TUS_CLIENT_PARALLEL_UPLOADS from Apache container"
+  ansible.builtin.command: >
+    docker exec -i "{{ apache_container_name }}" printenv TUS_CLIENT_PARALLEL_UPLOADS
+  register: tus_parallel_env
+  changed_when: false
+  tags: [smoke, media_storage]
+
+- name: "[T-8] Assert TUS_CLIENT_PARALLEL_UPLOADS is 1"
+  ansible.builtin.assert:
+    that:
+      - tus_parallel_env.stdout | trim == '1'
+    fail_msg: >
+      Container TUS_CLIENT_PARALLEL_UPLOADS={{ tus_parallel_env.stdout | trim }},
+      expected 1. Values > 1 activate the tus concatenation extension in tus-js-client,
+      which TusBlockUploadService does not implement — every upload POST returns 415.
+      Set tus_client_parallel_uploads: 1 in the environment group_vars and redeploy.
   tags: [smoke, media_storage]
 
 - name: "[T-8] Assert Azure Blob env vars are non-empty (Azure mode only)"

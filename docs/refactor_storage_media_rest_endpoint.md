@@ -525,7 +525,11 @@ No `concatenation`, no `checksum` extension (SHA256 is computed internally), no 
 | Concurrent PATCH to same upload ID | `SELECT FOR UPDATE` row lock on the upload row at the start of every PATCH handler; second concurrent PATCH blocks until first completes |
 | Partial failure on final commit | `PUT Block List` is idempotent on Azure; retry of final PATCH commits the same block list to the same result; documented in Phase 3 failure table |
 | Duplicate final PATCH | Upload `status=complete` check at PATCH entry point; if already committed, return 204 with final offset immediately |
+| Re-upload of a file already in `assets` | `INSERT ... ON DUPLICATE KEY UPDATE asset_id = LAST_INSERT_ID(asset_id)` on final commit — makes re-upload idempotent; existing asset row is reused, probe job is skipped if one already exists |
+| Failed upload leaving `status=pending` and consuming quota | `markFailed()` called in `handlePatch` `\Throwable` catch before `respond(500)` — transitions row to `failed` immediately so it no longer counts against `UPLOAD_MAX_PENDING_PER_TOKEN` |
+| Runaway pending upload accumulation per user | `checkPendingLimit()` on every POST: counts `status=pending AND expires_at > NOW()` rows per `user_id`; returns 429 if count ≥ `UPLOAD_MAX_PENDING_PER_TOKEN` (default 5). Rationale: uploads are admin-only and infrequent; 5 concurrent in-flight uploads per token is generous for normal use, prevents a stuck client or bug from holding unbounded staging disk. The limit only bites if uploads genuinely fail without being marked failed — fixed by the `markFailed` mitigation above. |
 | Client header/status code expectations | Explicit compatibility tests against TUSKit and tus-js-client before Phase 11 cutover |
+| tus-js-client `parallelUploads > 1` triggering concatenation extension | Server implements only the `creation` extension; `parallelUploads > 1` causes tus-js-client to issue `Upload-Concat: partial` POSTs with no `Upload-Metadata`, which the server rejects with 415. `tus_client_parallel_uploads` must remain `1` unless `TusBlockUploadService` is extended to handle the concatenation extension. See `docs/problem_tus_415_bare_type_label_in_filetype_metadata.md`. |
 
 #### Why existing PHP tus libraries are not used directly
 
@@ -1024,6 +1028,90 @@ This is the core tus scenario: client sends several PATCHes, connection drops, c
 - Asset is accessible and streamable immediately
 - Duration and thumbnail are absent until job succeeds or is retried
 - Admin can re-trigger probe job per asset
+
+---
+
+### Bugs discovered and fixed during Phases 3–5 integration testing (2026-08-17)
+
+These failures were caught during `playwright_admin_tests` and `upload_tests` on gighive2
+and fixed before any production deployment.
+
+#### F1 — tus-js-client `parallelUploads > 1` triggers concatenation extension → 415
+
+**Symptom:** Every `POST /files/` from the browser returned 415 during Playwright tests.
+PHP was never reached — the 415 came before `handlePost` executed.
+
+**Root cause:** `tus_client_parallel_uploads: 3` was carried over from the tusd era.
+When `parallelUploads > 1`, tus-js-client activates the tus concatenation extension and
+issues `Upload-Concat: partial` POSTs with no `Upload-Metadata`. `TusBlockUploadService`
+does not implement the concatenation extension and rejected every partial POST with 415.
+tusd implemented concatenation natively; the PHP replacement does not.
+
+**Diagnostic path:** Temporary `error_log` in `handlePost` never fired → PHP not reached.
+ModSecurity audit log showed `Upload-Concat: partial` with no `Upload-Metadata` on every
+415 request. `printenv TUS_CLIENT_PARALLEL_UPLOADS` in the container returned `3`.
+
+**Fix:** `tus_client_parallel_uploads: 1` in all environment group_vars.
+
+**Constraint:** `parallelUploads` must remain `1` unless `TusBlockUploadService` is
+extended to handle `Upload-Concat: partial` (skip metadata validation, accumulate chunk)
+and `Upload-Concat: final` (validate combined metadata, commit asset). See
+`docs/problem_tus_415_bare_type_label_in_filetype_metadata.md`.
+
+---
+
+#### F2 — Re-upload of existing checksum → unhandled duplicate key → 500 cascade
+
+**Symptom:** After fixing F1, PATCH requests returned 500. FPM log showed
+`SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry` as the first
+error per upload, followed by staging file size mismatch errors on all subsequent retries.
+
+**Root cause:** `finalizeUpload()` called `backend->finalizeUpload()` (which moves the
+staging file via `rename()`) before the `INSERT INTO assets`. When the INSERT failed on
+`CONSTRAINT uq_assets_tenant_checksum UNIQUE (tenant_id, checksum_sha256)`, the
+transaction rolled back — but the staging file was already moved. Every subsequent retry
+PATCH found the staging file missing and threw a size mismatch error. This happened
+because `upload_tests` and `playwright_admin_tests` ran in the same playbook and
+uploaded identical files, so assets were already present from the first suite.
+
+**Fix:** `INSERT INTO assets ... ON DUPLICATE KEY UPDATE asset_id = LAST_INSERT_ID(asset_id)` —
+makes re-upload of a known checksum idempotent. MySQL returns the existing `asset_id`
+via `LAST_INSERT_ID()`; the transaction commits cleanly; the upload is marked complete
+against the existing asset row. The staging file (which was already moved to its final
+destination) remains valid at its destination path.
+
+---
+
+#### F3 — Failed uploads stayed `pending`, consuming quota → 429 on next run
+
+**Symptom:** After the 500 cascade (F2), the next `POST /files/` from `post_build_checks`
+returned 429 "Too many pending uploads".
+
+**Root cause:** `handlePatch`'s `\Throwable` catch block rolled back the transaction and
+called `respond(500)` but did not call `markFailed()`. The failed upload rows stayed as
+`status=pending` and continued counting against `UPLOAD_MAX_PENDING_PER_TOKEN` (5).
+Five failed uploads hit the limit exactly.
+
+**Fix:** `markFailed($uploadId)` called in the `\Throwable` catch before `respond(500)`.
+Runs outside the rolled-back transaction using its own statement. Transitions the row to
+`failed` immediately, releasing the quota slot.
+
+---
+
+#### F4 — Redundant probe jobs queued on re-upload
+
+**Symptom:** Not a runtime failure, but a quality issue identified during F2 investigation.
+Re-uploading a file whose `asset_id` already exists (via `ON DUPLICATE KEY`) would
+enqueue a second `probe_jobs` row for the same asset, causing unnecessary re-probing.
+
+**Root cause:** `probe_jobs` has no unique constraint on `asset_id`; a plain `INSERT`
+always succeeds.
+
+**Fix:** Replaced the `INSERT INTO probe_jobs` with a conditional
+`INSERT ... SELECT ... WHERE NOT EXISTS (SELECT 1 FROM probe_jobs WHERE asset_id = ?)`.
+Probe job is skipped silently if one already exists for the asset.
+
+---
 
 ### Read — full file
 

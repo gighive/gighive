@@ -2,8 +2,8 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
-releaseNotes20260816.txt
-Changes: SetEnvIf authN at vhost, HTTP_AUTH'N check instead of PHP_AUTH_USER
+releaseNotes20260817.txt
+Changes: Post-phase 4 upload/playwright tests fixes 
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,10 +12,19 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/api/media-stream.php
-	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
-	new file:   docs/problem_apache_php_setenv.md
-	modified:   docs/refactor_ansible_host_versions_across_environments.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_promote.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/TusBlockUploadService.php
+	modified:   ansible/roles/docker/tasks/main.yml
+	modified:   ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/upload_tests/tasks/test_7.yml
+	new file:   docs/problem_docker_bind_mount_dirs_on_reboot.md
+	new file:   docs/problem_tus_415_bare_type_label_in_filetype_metadata.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
 	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
@@ -121,6 +130,23 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
 
+
+*** 
+releaseNotes20260816.txt
+Changes: SetEnvIf authN at vhost, HTTP_AUTH'N check instead of PHP_AUTH_USER
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/api/media-stream.php
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
+	new file:   docs/problem_apache_php_setenv.md
+	modified:   docs/refactor_ansible_host_versions_across_environments.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 *** 
 releaseNotes20260816.txt

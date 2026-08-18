@@ -21,6 +21,38 @@ This document is the hands-on build guide for the media storage refactor. It pro
 
 ---
 
+## Why the Upload Pipeline Changed: Single POST → Three-Step Tus
+
+### Before Phase 3 — single direct POST
+
+The original upload path was one synchronous HTTP request:
+
+1. Client sends `POST /api/uploads` with the entire file in the request body.
+2. Server writes the file, inserts `assets`, `events`, and `event_items` rows, runs probe/thumbnail, and returns all IDs in one JSON response.
+
+**Problems:**
+- Cloudflare's free tier enforces a **100 MB per-request limit**. Any concert recording larger than that is rejected at the edge — no workaround short of a paid plan.
+- A dropped connection means starting from zero. There is no resume.
+- The server must buffer the entire file before doing anything with it.
+
+### After Phase 3 — three-step tus protocol
+
+| Step | Request | What happens |
+|---|---|---|
+| 1 | `POST /files/` | Server allocates an upload slot; returns a `Location: /files/{uuid}` header |
+| 2 | `PATCH /files/{uuid}` × N | Client streams chunks (8 MiB web / 5 MiB iOS); server checksums and stores each chunk; on the final PATCH, creates the `assets` row and enqueues a probe job |
+| 3 | `POST /api/uploads/finalize` | Client calls after the last PATCH; server looks up the completed upload and returns asset metadata |
+
+**Benefits:**
+- Each PATCH is 8 MiB — **12.5× under Cloudflare's 100 MB limit**. Arbitrarily large files pass through the free tier.
+- **Resumable** — if the connection drops, the client resumes from the last confirmed `Upload-Offset`. Nothing is re-sent.
+- Server processes and checksums incrementally; no full-file buffering.
+- Web (`tus-js-client`) and iOS (`TUSKit`) share the same upload path — one implementation, two clients.
+
+**Response shape change:** Because ingestion is split across steps, the finalize response no longer contains `event_id` or `event_item_id`. Those were artifacts of the old synchronous pipeline that created events and event_items in the same transaction as the file write. The tus path creates only the `assets` row on the final PATCH; event/event_item creation is a separate downstream concern. The finalize response contains: `asset_id`, `file_name`, `file_type`, `size_bytes`, `mime_type`, `checksum_sha256`, `duration_seconds` (null until probe job completes), `thumbnail_done`, `db_done`.
+
+---
+
 > **Companion documents:**
 > - [`refactor_storage_media_rest_endpoint.md`](refactor_storage_media_rest_endpoint.md) — architecture, rationale, decisions, execution traces, risks
 > - [`refactor_storage_media_rest_endpoint_azurite.md`](refactor_storage_media_rest_endpoint_azurite.md) — local Azurite testing setup
@@ -3124,6 +3156,21 @@ if ($chunkSizeBytes > 0 && ceil($uploadLength / $chunkSizeBytes) > $maxBlocks) {
 
 Add `UPLOAD_CHUNK_SIZE_BYTES` to the group_vars and `.env.j2` alongside the other Phase 1 env vars (default `8388608` — 8 MB). Add this check to `handlePost()` acceptance criteria in Phase 3.
 
+**Rationale for 8 MB chunk size:**
+
+| Factor | Constraint | How 8 MB satisfies it |
+|---|---|---|
+| PHP `post_max_size` | Default is 8 MB; chunk must be strictly less or PHP silently truncates the body | Container sets `post_max_size=16MB`; 8 MB chunk fits with 2× headroom |
+| Azure Block Blob block limit | Max 50,000 blocks per blob | 50,000 × 8 MB = ~390 GB — effectively unlimited for GigHive |
+| Azure minimum block size | 1 byte (no minimum enforced) | Not a constraint at 8 MB |
+| Cloudflare free tier | 100 MB per request | 8 MB = 12.5× safety margin |
+| PHP-FPM worker pinning | Each PATCH pins a worker for the chunk receive duration | At 8 MB on modest uplink ~2–5 s per chunk; acceptable at GigHive's upload concurrency |
+| Mobile resume granularity | Smaller chunks = more resume points = shorter retry penalty on dropped connection | 8 MB loses at most 8 MB on reconnect; larger chunks increase retry cost proportionally |
+| Round-trip overhead | Smaller chunks = more PATCH requests = more per-request HTTP overhead | 8 MB keeps round-trip count low for typical 100 MB–4 GB GigHive files |
+| TUSKit / tus-js-client alignment | iOS TUSKit defaults to 5 MB; web client is independently configurable | 8 MB for web is in the same 5–10 MB range used by commercial platforms (Vimeo, YouTube); both are controlled independently via group vars |
+
+If chunk size is ever changed: (a) update `tus_client_chunk_size_bytes` in group_vars, (b) verify `50,000 × newChunkSize >= maxAllowedFileSize`, (c) update `post_max_size` in the PHP container config to at least `2 × newChunkSize`, (d) confirm the new size is still under Cloudflare's per-request limit.
+
 **Concurrent PATCH protection:** tus clients are single-threaded per upload; however a mobile reconnect scenario can produce two PATCH requests for the same upload ID in flight simultaneously. PHP must protect against this or risk offset corruption and duplicate block IDs. At the start of every PATCH handler:
 
 ```php
@@ -3896,6 +3943,8 @@ See `docs/problem_apache_php_setenv.md` for the full diagnostic chronology and e
 
 ### Phase 5 — Local / VirtualBox / Baremetal (Tranche 1 final step)
 
+**iOS app compatibility:** Phase 5 does not break the iPhone app. The iOS app uses URLs like `/audio/{hash}.mp3`, `/video/{hash}.mp4`, and `/video/thumbnails/{hash}.png`. These URLs were already routed through `media-stream.php` by the Phase 4 RewriteRules and confirmed working across all environments. Phase 5 only changes what happens *inside PHP* when `media-stream.php` handles the request — it adds `LocalMediaBackend` to serve the file bytes. The URL surface, gallery nonce auth path, and `AVPlayer` range request handling are all unchanged. Media files do not move on disk — they stay on the VM host, bind-mounted into the container exactly as before.
+
 Once Azure (Phase 11) is confirmed stable:
 
 1. `LocalFileTusBackend` is already deployed and running from Phase 3 — no new upload code
@@ -3903,7 +3952,7 @@ Once Azure (Phase 11) is confirmed stable:
 3. Deploy `api/media-stream.php` with `LocalMediaBackend` to local/VirtualBox inventories
 4. Verify read path (full file, range seek) via PHP for local environments
 5. Disable Apache static serving of the media paths — `LocalMediaBackend` still reads files from `/var/www/html/audio|video/` via `fopen`/`fread`. The bind mounts must **remain** in the local-mode compose; they are the mechanism that makes the host media directory visible inside the container, and PHP depends on them. The only change at this step is that the new `RewriteRule` routes for `/audio/` and `/video/` (added in Phase 4) take precedence over Apache's static handler, so requests go through PHP instead of being served as static files. No compose change is needed at this step.
-6. Retire `MEDIA_SEARCH_DIRS` from `.env.j2` — replaced by the `media-stream.php` `LocalMediaBackend` configuration (`MEDIA_SEARCH_DIR_AUDIO` / `MEDIA_SEARCH_DIR_VIDEO` set from Ansible group vars). At the same time, update `admin/clear_media_files.php` to read `MEDIA_LOCAL_AUDIO_DIR` / `MEDIA_LOCAL_VIDEO_DIR` instead of `MEDIA_SEARCH_DIRS` — it is the only admin file that references the retired variable.
+6. Retire `MEDIA_SEARCH_DIRS` from `.env.j2` — see full impact audit in the *MEDIA_SEARCH_DIRS retirement full audit* section below. Update the 3 affected PHP files (`clear_media_files.php`, `admin_system.php`, `admin_system_stats.php`) and the 2 OpenAPI description strings at the same time. Python DB load tools are host-side and unaffected. No database loading, import, catalog, or DB initialization functions are affected.
 
 **Authenticated media smoke tests (Phase 5 addition):**
 
@@ -3925,6 +3974,16 @@ These values go in `ansible/inventories/group_vars/gighive2/gighive2.yml`. Equiv
 known-good assets must be identified and added for lab, staging, and prod before Phase 5
 is run on those environments. Do not add binary test files to the repo — use real assets
 already present on each host's media directory.
+
+**Note — overlap with playwright_admin_tests assets (gighive2):** All three gighive2
+smoke test SHA values above are also present in `ansible/roles/playwright_admin_tests/
+assets/` and are uploaded to the DB by `playwright_admin_tests` during every full
+playbook run. This overlap is intentional and safe: the smoke tests run in
+`post_build_checks` which executes after `playwright_admin_tests`, so the assets are
+already in the `assets` table and on disk. The `ON DUPLICATE KEY UPDATE` fix in
+`TusBlockUploadService::finalizeUpload()` ensures re-upload does not 500. For other
+environments (lab, staging, prod), choose assets that are already present on the host
+media directories independently of the playwright test assets.
 
 The tests prove: host bind mount is present, `LocalMediaBackend` reads through it, auth
 (`PHP_AUTH_USER`) is set correctly after the RewriteRule rewrite, and correct
@@ -4776,16 +4835,57 @@ now routes through `media-stream.php` instead of Apache static serving, but cont
 to work — the backward-compat RewriteRules handle those paths and `media-stream.php`
 authenticates via the admin Basic Auth session.
 
-#### Phase 5 impact — one file affected
+#### Phase 5 impact — MEDIA_SEARCH_DIRS retirement full audit
 
-Phase 5 retires `MEDIA_SEARCH_DIRS` from `.env.j2`. Only one file uses it:
+Phase 5 retires `MEDIA_SEARCH_DIRS` from `.env.j2`. A full grep of the codebase found
+the following consumers. Each is classified by action required:
 
-| File | Usage | Action required |
+**PHP admin files — 3 files reference MEDIA_SEARCH_DIRS:**
+
+| File | Usage | Failure mode when var absent | Action required in Phase 5 |
+|---|---|---|---|
+| `admin/clear_media_files.php` | Reads `MEDIA_SEARCH_DIRS` to derive audio/video dirs for deletion | Hard-fails with 500 (already guarded in Phase 1 for azure_blob mode only) | Replace `MEDIA_SEARCH_DIRS` parse with `getenv('MEDIA_LOCAL_AUDIO_DIR')` / `getenv('MEDIA_LOCAL_VIDEO_DIR')` directly — no colon-split parsing needed |
+| `admin/admin_system.php` | Reads `MEDIA_SEARCH_DIRS` to populate media file counts and disk stats on the admin dashboard | Stats section silently returns null — no crash, just missing counts | Replace `MEDIA_SEARCH_DIRS` parse with `MEDIA_LOCAL_AUDIO_DIR` / `MEDIA_LOCAL_VIDEO_DIR` directly |
+| `admin/admin_system_stats.php` | Same as above — separate stats API endpoint | Same — null response for media/disk section | Same replacement |
+
+**Does this break any database loading or import functions?** No. A full search confirms
+that no import, catalog, or database initialization admin files (`import_*.php`,
+`catalog_*.php`, `admin_database_*.php`, `iphone_import_*.php`, `restore_database.php`)
+reference `MEDIA_SEARCH_DIRS`. Those files either hardcode container paths
+(`/var/www/html/audio`, `/var/www/html/video`) or use unrelated DB-sourced paths.
+`MEDIA_SEARCH_DIRS` retirement does not affect them.
+
+**Python DB load tools — 3 scripts reference MEDIA_SEARCH_DIRS:**
+
+| File | Usage | Nature of usage | Action required |
+|---|---|---|---|
+| `tools/mysqlPrep_normalized.py` | `os.getenv("MEDIA_SEARCH_DIRS")` in `resolve_media_path()` | One-time DB import tool run manually on the host, not inside the container. Falls back gracefully to hardcoded legacy paths when env var is absent. | **No change needed.** These tools run on the host (pop-os, not inside the container), so `.env.j2` retirement does not affect them. They can still be passed `MEDIA_SEARCH_DIRS` manually at the command line when needed. |
+| `tools/mysqlPrep_full.py` | Same pattern | Same | Same — no change needed |
+| `mysql/dbScripts/loadutilities/mysqlPrep_full.py` | Same pattern | Same | Same — no change needed |
+| `tools/convert_legacy_database_csv_to_normalized.py` | CLI argument default from `os.getenv("MEDIA_SEARCH_DIRS")` | Same — host-side tool | Same — no change needed |
+| `mysql/dbScripts/loadutilities/mysqlPrep_sample.py` | Same pattern | Same | Same — no change needed |
+
+**Other references (docs/OpenAPI — no code change needed):**
+
+| File | Reference type | Action |
 |---|---|---|
-| `clear_media_files.php` | Reads `MEDIA_SEARCH_DIRS` to derive audio/video dirs for deletion | Replace with `MEDIA_LOCAL_AUDIO_DIR` / `MEDIA_LOCAL_VIDEO_DIR` (the Phase 1 env vars). Already has an Azure-mode guard that exits early when `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob`. |
+| `docs/openapi.yaml` | Description string only | Update description to reference `MEDIA_LOCAL_AUDIO_DIR` / `MEDIA_LOCAL_VIDEO_DIR` in Phase 5 |
+| `src/OpenApi.php` | Same description string | Same |
+| `docs/media_file_location_variables.md` | Variable glossary | Mark `MEDIA_SEARCH_DIRS` as retired; add replacement vars |
+| `docs/audioVideoFullReducedLogic.md` | Historical reference | No change needed — historical doc |
+| `docs/convert_legacy_database.md` | CLI usage example | No change needed — references host-side tool |
+| `docs/process_mysql_init.md` | Process description | No change needed — describes host-side tool |
 
-All other admin files hardcode `/var/www/html/audio` and `/var/www/html/video` directly
-and do not reference `MEDIA_SEARCH_DIRS`, so they are unaffected by its retirement.
+**Summary — Phase 5 code changes for MEDIA_SEARCH_DIRS retirement:**
+
+1. `ansible/roles/docker/templates/.env.j2` — remove `MEDIA_SEARCH_DIRS` line
+2. `admin/clear_media_files.php` — replace `MEDIA_SEARCH_DIRS` parse with `MEDIA_LOCAL_AUDIO_DIR` / `MEDIA_LOCAL_VIDEO_DIR`
+3. `admin/admin_system.php` — same replacement
+4. `admin/admin_system_stats.php` — same replacement
+5. `docs/openapi.yaml` + `src/OpenApi.php` — update description strings
+6. `docs/media_file_location_variables.md` — mark retired, add replacements
+
+No database loading, import, catalog, or DB initialization functions are affected.
 
 #### Phase 11 (Azure-only mode) impact — 9 files affected
 
@@ -4810,10 +4910,10 @@ from compose. Every admin file that reads from or writes to `/var/www/html/audio
 These admin files must be updated before enabling `GIGHIVE_MEDIA_STORAGE_BACKEND=azure_blob`:
 
 **Export workers** (`export_media_worker.php`, `export_media_worker_azure.php`):  
-Replace `is_file()` + `fopen()` with `MediaStorageService::exists()` and `MediaStorageService::streamRange()` (or a new `download()` helper). The export zip logic needs to pull bytes from the backend rather than from the local filesystem.
+Replace `is_file()` + `fopen()` with `MediaStorageService::exists()` and `MediaStorageService::streamRange()` (or a new `download()` helper). The export zip logic needs to pull bytes from the backend rather than from the local filesystem. At the same time, replace the hardcoded `$audioDir = '/var/www/html/audio'` / `$videoDir = '/var/www/html/video'` literals with `getenv('MEDIA_LOCAL_AUDIO_DIR')` / `getenv('MEDIA_LOCAL_VIDEO_DIR')` — env vars already exist in `.env.j2` and group_vars. Do not replace these separately in Phase 5: the hardcoded paths and the `fopen()` filesystem calls are one coupled problem; fixing paths without fixing the filesystem calls creates false confidence and the files still break in Azure mode.
 
 **Import workers** (`import_media_zip_worker.php`, `import_media_zip_worker_azure.php`, `iphone_import_worker.php`):  
-Replace `copy()` / `fopen($dest, 'wb')` into local paths with `MediaStorageService::put()`. Remove the `is_dir('/var/www/html/audio')` hard guard or replace it with a backend-capability check.
+Replace `copy()` / `fopen($dest, 'wb')` into local paths with `MediaStorageService::put()`. Replace the `is_dir('/var/www/html/audio')` hard guard and all hardcoded container paths with `getenv('MEDIA_LOCAL_AUDIO_DIR')` / `getenv('MEDIA_LOCAL_VIDEO_DIR')` / `getenv('MEDIA_LOCAL_THUMB_DIR')`. Same rationale — fix paths and filesystem calls together, not separately.
 
 **Manifest status checks** (`import_manifest_upload_finalize.php`, `import_manifest_upload_start.php`):  
 Replace `is_file($mediaPath)` / `is_file($thumbPath)` with `MediaStorageService::exists()`.
@@ -4840,6 +4940,8 @@ Replace `is_file($mediaPath)` / `is_file($thumbPath)` with `MediaStorageService:
 **Goal:** Transition safely; Azure first to validate; then extend unified path to all deployments.
 
 #### Phase 11 — Azure (primary validation target)
+
+**Cloudflare free tier compatibility (confirmed):** Tus PATCH requests (upload chunks) pass through Cloudflare on each upload. Chunk size is 8 MB for web (`TUS_CLIENT_CHUNK_SIZE_BYTES=8388608`) and 5 MB for iOS (TUSKit default). Both are well under Cloudflare's 100 MB free tier per-request limit. Adding `AzureBlobTusBackend` in step 4 does not change chunk size — chunks still arrive at Apache as individual PATCH requests of the same size; PHP then forwards the assembled data to Blob Storage over the internal network, bypassing Cloudflare entirely. No chunk size change is needed for Phase 11.
 
 1. Build `TusBlockUploadService` with `LocalFileTusBackend` only — no Azure changes yet
 2. Replace tusd with PHP tus server in all compose/Apache configs; verify uploads work via `LocalFileTusBackend`

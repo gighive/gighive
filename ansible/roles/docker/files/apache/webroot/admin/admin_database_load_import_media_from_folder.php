@@ -1005,7 +1005,10 @@ async function uploadOneFile(id, fileInfo, localFile, jobId){
     size_bytes: Number(localFile&&localFile.size)||null,
   });
 
-  const metadata={filename:localFile.name,checksum_sha256:fileInfo.checksum_sha256,job_id:jobId,filetype:fileInfo.file_type};
+  // filetype is intentionally omitted: the server classifies by filename extension.
+  // Sending the GigHive type label ('audio'/'video') is not a valid MIME type and
+  // causes TusBlockUploadService::validateFileType() to return 415.
+  const metadata={filename:localFile.name,checksum_sha256:fileInfo.checksum_sha256,job_id:jobId};
 
   await new Promise((resolve)=>{
     const upload=new tus.Upload(localFile,{

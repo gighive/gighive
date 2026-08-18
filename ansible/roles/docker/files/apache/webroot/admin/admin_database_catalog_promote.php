@@ -213,11 +213,13 @@ async function writeBack(pathHash, checksum, uploadJobId) {
 // ── uploadOneFile ──────────────────────────────────────────────────────────
 async function uploadOneFile(fileInfo, localFile, jobId, relpathToPathHash) {
   setRowState(fileInfo.checksum_sha256, 'uploading');
+  // filetype is intentionally omitted: the server classifies by filename extension.
+  // Sending the GigHive type label ('audio'/'video') is not a valid MIME type and
+  // causes TusBlockUploadService::validateFileType() to return 415.
   const metadata = {
     filename:        localFile.name,
     checksum_sha256: fileInfo.checksum_sha256,
     job_id:          jobId,
-    filetype:        fileInfo.file_type,
   };
   await new Promise(resolve => {
     const upload = new tus.Upload(localFile, {

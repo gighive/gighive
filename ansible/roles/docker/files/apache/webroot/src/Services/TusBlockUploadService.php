@@ -236,6 +236,9 @@ final class TusBlockUploadService
                 $pdo->rollBack();
             }
             error_log('[TusBlockUploadService] PATCH error for upload=' . $uploadId . ': ' . $e->getMessage());
+            // Mark the row failed so it no longer consumes the per-user pending quota.
+            // Must run outside the rolled-back transaction — markFailed() uses its own statement.
+            $this->markFailed($uploadId);
             $this->respond(500, [], '');
         }
 
@@ -301,12 +304,15 @@ final class TusBlockUploadService
             $upload->uploadLength,
         );
 
-        // Insert asset row — source_relpath stores the storage key (blob key or local rel path)
+        // Insert asset row — source_relpath stores the storage key (blob key or local rel path).
+        // If a row already exists for this tenant+checksum (re-upload of a known file),
+        // return the existing asset_id rather than crashing. This makes re-upload idempotent.
         $assetStmt = $pdo->prepare(
             'INSERT INTO assets
              (tenant_id, checksum_sha256, file_type, file_ext, source_relpath, size_bytes, mime_type,
               created_at, updated_at)
-             VALUES (1, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+             VALUES (1, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE asset_id = LAST_INSERT_ID(asset_id)'
         );
         $assetStmt->execute([
             $checksum,
@@ -318,11 +324,15 @@ final class TusBlockUploadService
         ]);
         $assetId = (int)$pdo->lastInsertId();
 
-        // Enqueue probe job (ffprobe + thumbnail)
+        // Enqueue probe job (ffprobe + thumbnail) only if no job already exists for
+        // this asset. On re-upload of a known file the asset row is reused (ON DUPLICATE
+        // KEY above) — avoid queuing a redundant probe job in that case.
         $pdo->prepare(
             'INSERT INTO probe_jobs (asset_id, blob_key, file_type, status, created_at)
-             VALUES (?, ?, ?, \'queued\', NOW())'
-        )->execute([$assetId, $storageKey, $upload->fileType]);
+             SELECT ?, ?, ?, \'queued\', NOW()
+             FROM DUAL
+             WHERE NOT EXISTS (SELECT 1 FROM probe_jobs WHERE asset_id = ?)'
+        )->execute([$assetId, $storageKey, $upload->fileType, $assetId]);
 
         // Mark upload complete
         $pdo->prepare(
@@ -371,9 +381,13 @@ final class TusBlockUploadService
         $audioExts    = MediaTypes::audioExts();
         $videoExts    = MediaTypes::videoExts();
 
-        if ($mimeType === '' || (!empty($allowedMimes) && !in_array($mimeType, $allowedMimes, true))) {
+        // If mimeType is present, validate it against the allow-list.
+        // If mimeType is absent (client did not send filetype in Upload-Metadata),
+        // skip the MIME check and rely solely on extension classification below.
+        // Web upload forms (tus-js-client) do not send filetype by default.
+        if ($mimeType !== '' && !empty($allowedMimes) && !in_array($mimeType, $allowedMimes, true)) {
             $this->respond(415, ['Content-Type' => 'application/json'],
-                json_encode(['error' => 'Unsupported or missing file type']));
+                json_encode(['error' => 'Unsupported file type']));
         }
 
         $isAudio = in_array($fileExt, $audioExts, true)
@@ -383,7 +397,12 @@ final class TusBlockUploadService
 
         if (!$isAudio && !$isVideo) {
             $this->respond(415, ['Content-Type' => 'application/json'],
-                json_encode(['error' => 'File type is neither audio nor video']));
+                json_encode(['error' => 'File type is neither audio nor video — check filename extension']));
+        }
+
+        // If MIME was absent, derive it from the extension for storage metadata.
+        if ($mimeType === '') {
+            $mimeType = in_array($fileExt, $audioExts, true) ? 'audio/' . $fileExt : 'video/' . $fileExt;
         }
 
         $fileType = $isVideo ? 'video' : 'audio';

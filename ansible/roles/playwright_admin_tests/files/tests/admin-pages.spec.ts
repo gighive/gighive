@@ -125,6 +125,9 @@ test('Admin pages full regression — all 13 steps', async ({ page }) => {
           ).length === 0,
     { timeout: 300_000 }
   );
+  // Assert no upload rows failed — waitForFunction above only checks badges cleared,
+  // not that they cleared successfully. badge-failed is set by uploadBadge('failed').
+  await expect(page.locator('#b-upload-panel .badge-failed')).toHaveCount(0);
 
   // ── Step 10: Import Media — Section C: Single File Upload (new tab) ──────────
   const [uploadTab] = await Promise.all([
@@ -151,6 +154,8 @@ test('Admin pages full regression — all 13 steps', async ({ page }) => {
           ).length === 0,
     { timeout: 300_000 }
   );
+  // Assert no upload rows failed — same rationale as Section B check above.
+  await expect(page.locator('#a-upload-panel .badge-failed')).toHaveCount(0);
 
   // ── Step 12: CSV Import — Section A: Legacy single-CSV ───────────────────────
   await page.goto('/admin/admin_database_load_import_csv.php');

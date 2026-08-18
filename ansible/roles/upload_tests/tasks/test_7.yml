@@ -129,27 +129,32 @@
 - name: Upload tests 7 - debug finalize response
   ansible.builtin.debug:
     msg:
-      id:              "{{ upload_tests_7_finalize_resp.id | default('') }}"
+      # Phase 3 tus split pipeline: id/event_id/event_item_id are not returned by
+      # finalize — the tus path creates only the assets row on the final PATCH.
+      # Events/event_items are a separate downstream concern.
+      # See docs/refactor_storage_media_rest_endpoint_implementation.md —
+      # "Why the Upload Pipeline Changed: Single POST → Three-Step Tus"
       asset_id:        "{{ upload_tests_7_finalize_resp.asset_id | default('') }}"
-      event_id:        "{{ upload_tests_7_finalize_resp.event_id | default('') }}"
-      event_item_id:   "{{ upload_tests_7_finalize_resp.event_item_id | default('') }}"
       file_name:       "{{ upload_tests_7_finalize_resp.file_name | default('') }}"
       file_type:       "{{ upload_tests_7_finalize_resp.file_type | default('') }}"
+      mime_type:       "{{ upload_tests_7_finalize_resp.mime_type | default('') }}"
+      size_bytes:      "{{ upload_tests_7_finalize_resp.size_bytes | default('') }}"
       checksum_sha256: "{{ upload_tests_7_finalize_resp.checksum_sha256 | default('') }}"
+      db_done:         "{{ upload_tests_7_finalize_resp.db_done | default('') }}"
 
 - name: Upload tests 7 - assert finalize response fields
   ansible.builtin.assert:
     that:
-      - upload_tests_7_finalize_resp.id is defined
-      - upload_tests_7_finalize_resp.id | int > 0
+      # Phase 3 tus split pipeline response shape — see implementation doc section
+      # "Why the Upload Pipeline Changed: Single POST → Three-Step Tus"
+      # id/event_id/event_item_id are NOT present: tus finalize creates only the
+      # assets row; event/event_item creation is a separate downstream concern.
       - upload_tests_7_finalize_resp.asset_id is defined
       - upload_tests_7_finalize_resp.asset_id | int > 0
-      - upload_tests_7_finalize_resp.event_id is defined
-      - upload_tests_7_finalize_resp.event_id | int > 0
-      - upload_tests_7_finalize_resp.event_item_id is defined
-      - upload_tests_7_finalize_resp.event_item_id | int > 0
       - upload_tests_7_finalize_resp.file_type in ['audio', 'video']
       - upload_tests_7_finalize_resp.checksum_sha256 is defined
+      - upload_tests_7_finalize_resp.checksum_sha256 | length > 0
+      - upload_tests_7_finalize_resp.db_done == true
     fail_msg: "Finalize response missing expected fields: {{ upload_tests_7_finalize_resp }}"
 
 - name: Upload tests 7 - capture DB counts after
