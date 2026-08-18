@@ -1,5 +1,0 @@
-# roles/blobfuse2/meta/main.yml
----
-collections:
-  - azure.azcollection
-

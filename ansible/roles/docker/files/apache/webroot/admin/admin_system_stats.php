@@ -50,53 +50,46 @@ try {
     } catch (Throwable) {}
 
     // ── Media + disk stats ────────────────────────────────────────────────────
-    $media = null;
-    $disk  = null;
-    $mdirsEnv = getenv('MEDIA_SEARCH_DIRS');
-    if (is_string($mdirsEnv) && $mdirsEnv !== '') {
-        $mdirs  = array_filter(array_map('trim', explode(':', $mdirsEnv)));
-        $audioD = null;
-        $videoD = null;
-        foreach ($mdirs as $d) {
-            $d = rtrim($d, '/');
-            if ($audioD === null && str_ends_with($d, '/audio'))     { $audioD = $d; }
-            elseif ($videoD === null && str_ends_with($d, '/video')) { $videoD = $d; }
-        }
-        $mscan = [
-            'audio'      => $audioD,
-            'video'      => $videoD,
-            'thumbnails' => $videoD !== null ? $videoD . '/thumbnails' : null,
-        ];
-        $media = [];
-        foreach ($mscan as $lbl => $path) {
-            $cnt = 0; $bytes = 0;
-            if ($path !== null && is_dir($path) && is_readable($path)) {
-                foreach (glob($path . '/*') ?: [] as $f) {
-                    if (is_file($f)) { $cnt++; $bytes += (int) (@filesize($f) ?: 0); }
-                }
+    // Phase 5: MEDIA_SEARCH_DIRS retired — dirs read from MEDIA_LOCAL_* env vars
+    $media  = null;
+    $disk   = null;
+    $audioD = rtrim(getenv('MEDIA_LOCAL_AUDIO_DIR') ?: '/var/www/html/audio', '/');
+    $videoD = rtrim(getenv('MEDIA_LOCAL_VIDEO_DIR') ?: '/var/www/html/video', '/');
+    $thumbD = rtrim(getenv('MEDIA_LOCAL_THUMB_DIR') ?: '/var/www/html/video/thumbnails', '/');
+    $mscan = [
+        'audio'      => $audioD,
+        'video'      => $videoD,
+        'thumbnails' => $thumbD,
+    ];
+    $media = [];
+    foreach ($mscan as $lbl => $path) {
+        $cnt = 0; $bytes = 0;
+        if (is_dir($path) && is_readable($path)) {
+            foreach (glob($path . '/*') ?: [] as $f) {
+                if (is_file($f)) { $cnt++; $bytes += (int) (@filesize($f) ?: 0); }
             }
-            $media[$lbl] = ['count' => $cnt, 'bytes' => $bytes];
         }
-        $media['total'] = [
-            'count' => array_sum(array_column($media, 'count')),
-            'bytes' => array_sum(array_column($media, 'bytes')),
-        ];
-        $diskPaths = array_filter([$audioD, $videoD], fn($p) => $p !== null && is_dir($p));
-        if (!empty($diskPaths)) {
-            $diskSeen = [];
-            foreach ($diskPaths as $dp) {
-                $st    = @stat($dp);
-                $dev   = ($st !== false && isset($st['dev'])) ? (int)$st['dev'] : null;
-                $dfree = @disk_free_space($dp);
-                $dtot  = @disk_total_space($dp);
-                if ($dfree === false || $dtot === false || (int)$dtot <= 0) continue;
-                $dkey = $dev !== null ? $dev : $dp;
-                if (!isset($diskSeen[$dkey])) {
-                    $diskSeen[$dkey] = ['free_bytes' => (int)$dfree, 'total_bytes' => (int)$dtot];
-                }
+        $media[$lbl] = ['count' => $cnt, 'bytes' => $bytes];
+    }
+    $media['total'] = [
+        'count' => array_sum(array_column($media, 'count')),
+        'bytes' => array_sum(array_column($media, 'bytes')),
+    ];
+    $diskPaths = array_filter([$audioD, $videoD], fn($p) => is_dir($p));
+    if (!empty($diskPaths)) {
+        $diskSeen = [];
+        foreach ($diskPaths as $dp) {
+            $st    = @stat($dp);
+            $dev   = ($st !== false && isset($st['dev'])) ? (int)$st['dev'] : null;
+            $dfree = @disk_free_space($dp);
+            $dtot  = @disk_total_space($dp);
+            if ($dfree === false || $dtot === false || (int)$dtot <= 0) continue;
+            $dkey = $dev !== null ? $dev : $dp;
+            if (!isset($diskSeen[$dkey])) {
+                $diskSeen[$dkey] = ['free_bytes' => (int)$dfree, 'total_bytes' => (int)$dtot];
             }
-            if (!empty($diskSeen)) $disk = array_values($diskSeen);
         }
+        if (!empty($diskSeen)) $disk = array_values($diskSeen);
     }
 
     // ── Memory stats ──────────────────────────────────────────────────────────

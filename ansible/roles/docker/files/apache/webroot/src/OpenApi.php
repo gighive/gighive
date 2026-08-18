@@ -637,7 +637,7 @@ use OpenApi\Attributes as OA;
             property: 'media',
             type: 'object',
             nullable: true,
-            description: 'File counts and byte totals per media type. Null if MEDIA_SEARCH_DIRS is unset.',
+            description: 'File counts and byte totals per media type. Derived from MEDIA_LOCAL_AUDIO_DIR / MEDIA_LOCAL_VIDEO_DIR / MEDIA_LOCAL_THUMB_DIR env vars (MEDIA_SEARCH_DIRS retired in Phase 5).',
             properties: [
                 new OA\Property(property: 'audio',      type: 'object', properties: [new OA\Property(property: 'count', type: 'integer'), new OA\Property(property: 'bytes', type: 'integer', format: 'int64')]),
                 new OA\Property(property: 'video',      type: 'object', properties: [new OA\Property(property: 'count', type: 'integer'), new OA\Property(property: 'bytes', type: 'integer', format: 'int64')]),

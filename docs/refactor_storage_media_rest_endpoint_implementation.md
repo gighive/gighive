@@ -3975,6 +3975,8 @@ known-good assets must be identified and added for lab, staging, and prod before
 is run on those environments. Do not add binary test files to the repo — use real assets
 already present on each host's media directory.
 
+**Deployment status (2026-08-18):** All three environment group_vars files (`gighive2.yml`, `gighive/gighive.yml`, `prod/prod.yml`) are populated with the identical SHA values above. The same three asset files are already present in `gighiveinfra/assets/audio/`, `gighiveinfra/assets/video/`, and `gighiveinfra/assets/video/thumbnails/` — the repo's `audio_reduced`/`video_reduced` source — so they sync to every environment on a reduced playbook run, making the same SHAs valid across all hosts.
+
 **Note — overlap with playwright_admin_tests assets (gighive2):** All three gighive2
 smoke test SHA values above are also present in `ansible/roles/playwright_admin_tests/
 assets/` and are uploaded to the DB by `playwright_admin_tests` during every full
@@ -4049,6 +4051,8 @@ Also update the variable glossary to add the new Phase 1 env vars (`GIGHIVE_MEDI
 
 **T-65 [post_build_checks]** — Range request to a known audio asset returns 206 with correct `Content-Range` header.
 > *Lifecycle: **permanent** — keep in `post_build_checks`; detects regression in the range-request path (when smoke_test_audio_sha256 is set).*
+
+> **Environment scoping note:** T-65 is gated by two independent `when` conditions that stack. First, `gighive_media_storage_backend == 'local'` — all current environments satisfy this. Second, `smoke_test_audio_sha256 is defined` — this is the effective environment discriminator. Because the SHA vars are commented out (undefined) in `gighive/gighive.yml` and `prod/prod.yml`, Ansible evaluates the condition as false and skips the task entirely on those hosts. The task currently runs only on gighive2, where the vars are populated. T-64, T-66, and T-68 are not affected by this scoping — they use the zero-padded synthetic key or `printenv` and are environment-agnostic routing/configuration checks that run on all local-mode environments regardless of whether SHA vars are defined.
 
 ```yaml
 # Add to post_build_checks/tasks/main.yml
@@ -4171,6 +4175,49 @@ Also update the variable glossary to add the new Phase 1 env vars (`GIGHIVE_MEDI
 
 **T-70 [Manual]** — iOS `TUSKit` upload completes via `LocalFileTusBackend`; probe job runs; asset appears in the app.
 > Requires a real iOS device or simulator with the GigHive app pointed at the VirtualBox host.
+
+---
+
+### Phase 5 — Build Issues and Implementation Fixes (2026-08-18)
+
+**Issue 1: T-64 and T-66 — `test.mp3` key fails `validateKey()` regex; returns 400 not 401**
+
+The original T-64 and T-66 YAML snippets above used `/audio/test.mp3` as the probe URL. `validateKey()` in `media-stream.php` enforces `/^[a-f0-9]{64}\.[a-z0-9]{2,5}$/` — a 64-character lowercase hex SHA-256 followed by an extension. `test.mp3` fails this regex and PHP returns `400 Bad Request` before reaching `authenticateRequest()`, so the test could never return `401` as written.
+
+Fix: replaced `test.mp3` with the same all-zeros 64-character synthetic key already used by T-91 and T-92 (`0000…0000.mp3`). This key passes `validateKey()`, reaches `authenticateRequest()`, and returns `401` (no credentials). Both tasks now assert `status_code: [401]` exclusively — the 400 branch is removed because it can no longer be reached with a valid key shape.
+
+Corrected T-64 probe URL:
+```
+{{ gighive_base_url }}/media/audio/0000000000000000000000000000000000000000000000000000000000000000.mp3
+```
+Corrected T-66 probe URL:
+```
+{{ gighive_base_url }}/audio/0000000000000000000000000000000000000000000000000000000000000000.mp3
+```
+
+Both tasks gate on `when: gighive_media_storage_backend == 'local'` and `tags: [smoke, media_storage]`.
+
+**Issue 2: T-68b — `community.docker.docker_container_exec` replaced with `ansible.builtin.command: docker exec`**
+
+The spec YAML for T-68b used `community.docker.docker_container_exec`. In practice the `validate_app` role uses `ansible.builtin.command: docker exec` exclusively throughout (verified by inspection). `docker_container_exec` with the YAML list form of `command:` has previously caused `exec: "[mysql,": executable file not found` failures in this project (see Phase 2 Issue A). To stay consistent with the established pattern and avoid that failure mode, T-68b was implemented using `ansible.builtin.command: docker exec -i` with the password passed inline via `sh -c "MYSQL_PWD=... mysql ..."`, matching the established pattern in both `post_build_checks` and `validate_app`.
+
+**Issue 3: "Count stale pending tus_uploads rows" — YAML list `command:` form caused "No closing quotation" parse error**
+
+The pre-existing task at line 303 of `post_build_checks/tasks/main.yml` used `community.docker.docker_container_exec` with the YAML list form of `command:`. The SQL string contains single-quoted literals (`status='pending'`) inside a double-quoted shell string, which caused a "No closing quotation" parse error at runtime — the same class of failure documented in Phase 2 Issue A.
+
+Fix: converted to `ansible.builtin.command: docker exec -i` with `sh -c "MYSQL_PWD=... mysql ..."` inline, matching the established pattern already used by every other MySQL task in the same file.
+
+**Issue 4: MySQL password not reaching the container — `environment:` key on `ansible.builtin.command` sets controller env, not container env**
+
+Both the stale-pending task (post_build_checks) and T-68b (validate_app) were initially written with `environment: MYSQL_PWD: ...` on the `ansible.builtin.command` task. This sets the variable in the Ansible controller process — it is not forwarded into the `docker exec` subprocess inside the container. MySQL received no password and returned `ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: NO)`.
+
+Root cause confirmed via `no_log: false` diagnostic run: `stderr: "ERROR 1045 (28000): Access denied ... (using password: NO)"`.
+
+Fix: removed `environment:` entirely and moved the password inline using the established pattern `sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot ..."`. This sets `MYSQL_PWD` inside the container's shell process where MySQL can read it.
+
+**Lesson recorded in SKILL.md:** Always inspect existing working code in the same file for the established pattern before writing new code. The `sh -c "MYSQL_PWD=..."` pattern was present at multiple locations in both `post_build_checks` and `validate_app` before any Phase 5 changes were made.
+
+**gighive2 / dev playbook result:** All tasks passed after the above four fixes were applied. Phase 5 verified on gighive2 (2026-08-18).
 
 ---
 

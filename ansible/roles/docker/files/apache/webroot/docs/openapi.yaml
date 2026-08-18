@@ -1255,7 +1255,7 @@ components:
           type: object
           nullable: true
         media:
-          description: 'File counts and byte totals per media type. Null if MEDIA_SEARCH_DIRS is unset.'
+          description: 'File counts and byte totals per media type. Derived from MEDIA_LOCAL_AUDIO_DIR / MEDIA_LOCAL_VIDEO_DIR / MEDIA_LOCAL_THUMB_DIR env vars (MEDIA_SEARCH_DIRS retired in Phase 5).'
           properties:
             audio:
               properties:

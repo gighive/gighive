@@ -2,8 +2,8 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
-releaseNotes20260817.txt
-Changes: Post-phase 4 upload/playwright tests fixes 
+releaseNotes20260818.txt
+Changes: Post-phase 4 upload/playwright tests fixes plus phase 5 changes
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -15,16 +15,19 @@ Changes to be committed:
 	modified:   ansible/inventories/group_vars/gighive/gighive.yml
 	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
 	modified:   ansible/inventories/group_vars/prod/prod.yml
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_promote.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/TusBlockUploadService.php
-	modified:   ansible/roles/docker/tasks/main.yml
-	modified:   ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts
+	deleted:    ansible/roles/blobfuse2/defaults/main.yml
+	deleted:    ansible/roles/blobfuse2/meta/main.yml
+	deleted:    ansible/roles/blobfuse2/tasks/main.yml
+	deleted:    ansible/roles/blobfuse2/templates/blobfuse2-config.yaml.j2
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system_stats.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/clear_media_files.php
+	modified:   ansible/roles/docker/files/apache/webroot/docs/openapi.yaml
+	modified:   ansible/roles/docker/files/apache/webroot/src/OpenApi.php
+	modified:   ansible/roles/docker/templates/.env.j2
 	modified:   ansible/roles/post_build_checks/tasks/main.yml
-	modified:   ansible/roles/upload_tests/tasks/test_7.yml
-	new file:   docs/problem_docker_bind_mount_dirs_on_reboot.md
-	new file:   docs/problem_tus_415_bare_type_label_in_filetype_metadata.md
-	modified:   docs/refactor_storage_media_rest_endpoint.md
+	modified:   ansible/roles/validate_app/tasks/main.yml
+	modified:   docs/media_file_location_variables.md
 	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update

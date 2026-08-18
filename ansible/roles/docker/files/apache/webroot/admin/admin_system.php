@@ -118,61 +118,53 @@ try {
     unset($__spdo, $__dsn, $__szStmt, $__tbl, $__tbls, $__ignored, $__ver, $__dbName, $__dbBytes, $__counts);
 } catch (Throwable $__ignored) { unset($__ignored); }
 
+// Phase 5: MEDIA_SEARCH_DIRS retired — dirs read from MEDIA_LOCAL_* env vars
 $__media_stats = null;
 $__media_disk = null;
-$__mdirsEnv = getenv('MEDIA_SEARCH_DIRS');
-if (is_string($__mdirsEnv) && $__mdirsEnv !== '') {
-    $__mdirs  = array_filter(array_map('trim', explode(':', $__mdirsEnv)));
-    $__audioD = null;
-    $__videoD = null;
-    foreach ($__mdirs as $__d) {
-        $__d = rtrim($__d, '/');
-        if ($__audioD === null && str_ends_with($__d, '/audio'))     { $__audioD = $__d; }
-        elseif ($__videoD === null && str_ends_with($__d, '/video')) { $__videoD = $__d; }
-    }
-    $__mscan = [
-        'audio'      => $__audioD,
-        'video'      => $__videoD,
-        'thumbnails' => $__videoD !== null ? $__videoD . '/thumbnails' : null,
-    ];
-    $__media_stats = [];
-    foreach ($__mscan as $__mlbl => $__mpath) {
-        $__mc = 0; $__mb = 0;
-        if ($__mpath !== null && is_dir($__mpath) && is_readable($__mpath)) {
-            foreach (glob($__mpath . '/*') ?: [] as $__mf) {
-                if (is_file($__mf)) { $__mc++; $__mb += (int) (@filesize($__mf) ?: 0); }
-            }
+$__audioD = rtrim(getenv('MEDIA_LOCAL_AUDIO_DIR') ?: '/var/www/html/audio', '/');
+$__videoD = rtrim(getenv('MEDIA_LOCAL_VIDEO_DIR') ?: '/var/www/html/video', '/');
+$__thumbD = rtrim(getenv('MEDIA_LOCAL_THUMB_DIR') ?: '/var/www/html/video/thumbnails', '/');
+$__mscan = [
+    'audio'      => $__audioD,
+    'video'      => $__videoD,
+    'thumbnails' => $__thumbD,
+];
+$__media_stats = [];
+foreach ($__mscan as $__mlbl => $__mpath) {
+    $__mc = 0; $__mb = 0;
+    if (is_dir($__mpath) && is_readable($__mpath)) {
+        foreach (glob($__mpath . '/*') ?: [] as $__mf) {
+            if (is_file($__mf)) { $__mc++; $__mb += (int) (@filesize($__mf) ?: 0); }
         }
-        $__media_stats[$__mlbl] = ['count' => $__mc, 'bytes' => $__mb];
     }
-    $__media_stats['total'] = [
-        'count' => array_sum(array_column($__media_stats, 'count')),
-        'bytes' => array_sum(array_column($__media_stats, 'bytes')),
-    ];
-    $__disk_paths = array_filter([$__audioD, $__videoD], fn($p) => $p !== null && is_dir($p));
-    if (!empty($__disk_paths)) {
-        $__disk_seen = [];
-        foreach ($__disk_paths as $__dp) {
-            $__st    = @stat($__dp);
-            $__dev   = ($__st !== false && isset($__st['dev'])) ? (int)$__st['dev'] : null;
-            $__dfree = @disk_free_space($__dp);
-            $__dtot  = @disk_total_space($__dp);
-            if ($__dfree === false || $__dtot === false || (int)$__dtot <= 0) continue;
-            $__dkey = $__dev !== null ? $__dev : $__dp;
-            if (!isset($__disk_seen[$__dkey])) {
-                $__disk_seen[$__dkey] = ['free' => (int)$__dfree, 'total' => (int)$__dtot];
-            }
-        }
-        if (!empty($__disk_seen)) {
-            $__media_disk = array_values($__disk_seen);
-        }
-        unset($__disk_paths, $__dp, $__st, $__dev, $__dfree, $__dtot, $__dkey, $__disk_seen);
-    } else {
-        unset($__disk_paths);
-    }
-    unset($__mdirs, $__d, $__audioD, $__videoD, $__mscan, $__mlbl, $__mpath, $__mc, $__mb, $__mf);
+    $__media_stats[$__mlbl] = ['count' => $__mc, 'bytes' => $__mb];
 }
-unset($__mdirsEnv);
+$__media_stats['total'] = [
+    'count' => array_sum(array_column($__media_stats, 'count')),
+    'bytes' => array_sum(array_column($__media_stats, 'bytes')),
+];
+$__disk_paths = array_filter([$__audioD, $__videoD], fn($p) => is_dir($p));
+if (!empty($__disk_paths)) {
+    $__disk_seen = [];
+    foreach ($__disk_paths as $__dp) {
+        $__st    = @stat($__dp);
+        $__dev   = ($__st !== false && isset($__st['dev'])) ? (int)$__st['dev'] : null;
+        $__dfree = @disk_free_space($__dp);
+        $__dtot  = @disk_total_space($__dp);
+        if ($__dfree === false || $__dtot === false || (int)$__dtot <= 0) continue;
+        $__dkey = $__dev !== null ? $__dev : $__dp;
+        if (!isset($__disk_seen[$__dkey])) {
+            $__disk_seen[$__dkey] = ['free' => (int)$__dfree, 'total' => (int)$__dtot];
+        }
+    }
+    if (!empty($__disk_seen)) {
+        $__media_disk = array_values($__disk_seen);
+    }
+    unset($__disk_paths, $__dp, $__st, $__dev, $__dfree, $__dtot, $__dkey, $__disk_seen);
+} else {
+    unset($__disk_paths);
+}
+unset($__audioD, $__videoD, $__thumbD, $__mscan, $__mlbl, $__mpath, $__mc, $__mb, $__mf);
 
 $__os_cpu = null;
 $__container_cpu = null;

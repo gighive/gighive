@@ -271,3 +271,34 @@
       assets={{ __core_table_counts.stdout_lines[1] | default('?') }}
       event_items={{ __core_table_counts.stdout_lines[2] | default('?') }}
       See docs/problem_mysql_not_null_silent_failure.md
+
+# --- T-68b: No orphaned tus_uploads rows (complete but asset_id IS NULL, older than 1 hour) ---
+# Lifecycle: permanent — keep in validate_app for both local and Azure modes.
+# A non-zero count means a DB write to 'assets' failed after the file/blob was committed.
+# Warns rather than fails so a single transient race does not block deploys.
+# Recovery: for each row, verify the file/blob exists, then manually insert the assets row
+# and UPDATE tus_uploads SET asset_id=<new_id> WHERE upload_id=<upload_id>.
+
+- name: "[T-68b] Count orphaned tus_uploads rows (complete but no asset_id, older than 1 hour)"
+  ansible.builtin.command: >
+    docker exec -i "{{ mysql_container_name }}"
+    sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot {{ mysql_database }} -sN
+    -e \"SELECT COUNT(*) FROM tus_uploads WHERE status='complete' AND asset_id IS NULL AND created_at < NOW() - INTERVAL 1 HOUR\""
+  register: orphan_uploads
+  changed_when: false
+  no_log: true
+  tags: [validate, media_storage]
+
+- name: "[T-68b] Warn if orphaned tus_uploads rows exist"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: {{ orphan_uploads.stdout | trim }} orphaned tus_uploads row(s) found
+      (status='complete', asset_id IS NULL, older than 1 hour).
+      This means the final DB write to 'assets' failed after the file/blob was committed.
+      Recovery: for each row, verify the file/blob exists, then manually insert the
+      assets row and UPDATE tus_uploads SET asset_id=<new_id> WHERE upload_id=<upload_id>.
+      Diagnostic query:
+        SELECT upload_id, blob_key, created_at FROM tus_uploads
+        WHERE status='complete' AND asset_id IS NULL AND created_at < NOW() - INTERVAL 1 HOUR;
+  when: (orphan_uploads.stdout | trim | int) > 0
+  tags: [validate, media_storage]

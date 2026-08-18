@@ -301,12 +301,10 @@
 # TusBlockUploadService prevents this under normal conditions; this check catches any
 # edge cases (e.g. container killed mid-request before markFailed ran).
 - name: Count stale pending tus_uploads rows (pre-flight)
-  community.docker.docker_container_exec:
-    container: "{{ mysql_container_name }}"
-    command:
-      - sh
-      - -c
-      - "MYSQL_PWD={{ mysql_root_password }} mysql -uroot {{ mysql_database }} -sN -e \"SELECT COUNT(*) FROM tus_uploads WHERE status='pending' AND expires_at > NOW()\""
+  ansible.builtin.command: >
+    docker exec -i "{{ mysql_container_name }}"
+    sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot {{ mysql_database }} -sN
+    -e \"SELECT COUNT(*) FROM tus_uploads WHERE status='pending' AND expires_at > NOW()\""
   register: stale_pending_count
   changed_when: false
   no_log: true
@@ -1289,3 +1287,102 @@
     headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
   changed_when: false
   tags: [smoke, media_storage]
+
+# =============================================================================
+# Phase 5 — Local / VirtualBox / Baremetal (Tranche 1 final step)
+# =============================================================================
+
+# --- T-64: /media/audio/{key} returns 401 without auth (LocalMediaBackend live) ---
+# Lifecycle: permanent — keep in post_build_checks; detects routing regressions on
+# local/VirtualBox deployments. A 404 here means the RewriteRule is missing or broken;
+# a 400 means the key did not pass validateKey() (shouldn't happen with a zero-padded key).
+# The synthetic all-zeros key passes the SHA-256 regex so PHP reaches authenticateRequest()
+# and returns 401 before any filesystem access.
+
+- name: "[T-64] /media/audio/{key} returns 401 without auth (LocalMediaBackend live)"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/media/audio/0000000000000000000000000000000000000000000000000000000000000000.mp3"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: [401]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  when: gighive_media_storage_backend == 'local'
+  tags: [smoke, media_storage]
+
+# --- T-65: Range request returns 206 for known audio asset (local mode) ---
+# Lifecycle: permanent — keep in post_build_checks; detects regression in the range-request
+# path. Skipped when smoke_test_audio_sha256 is not defined (environments without seeded
+# assets don't fail). gighive2 values are in group_vars/gighive2/gighive2.yml.
+
+- name: "[T-65] Range request returns 206 for known audio asset (local mode)"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/media/audio/{{ smoke_test_audio_sha256 }}.mp3"
+    method: GET
+    url_username: "{{ uploader_user }}"
+    url_password: "{{ gighive_uploader_password }}"
+    force_basic_auth: yes
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers:
+      Range: "bytes=0-4095"
+      Host: "{{ gighive_hostname_for_host_header if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+    status_code: [206]
+  register: range_response
+  changed_when: false
+  when:
+    - gighive_media_storage_backend == 'local'
+    - smoke_test_audio_sha256 is defined
+  tags: [smoke, media_storage]
+
+- name: "[T-65] Assert Content-Range header present in 206 response"
+  ansible.builtin.assert:
+    that:
+      # ansible.builtin.uri lowercases all response headers and exposes them as direct
+      # keys on the registered result (ansible-core >= 2.14). 'Content-Range' → content_range.
+      # If you see this assertion fail with "content_range is undefined" and the curl
+      # manual check passes, verify Ansible version: ansible --version | grep 'core'.
+      # On older ansible-core (< 2.14) headers are only in range_response.msg; use:
+      #   range_response.msg | regex_search('(?i)content-range: bytes 0-4095/')
+      - range_response.content_range is defined
+      - range_response.content_range is match("^bytes 0-4095/")
+    fail_msg: >
+      Content-Range header missing or incorrect.
+      Got: {{ range_response.content_range | default('none') }}
+      If content_range is 'none', check Ansible version and header key format (see comment above).
+  when:
+    - gighive_media_storage_backend == 'local'
+    - smoke_test_audio_sha256 is defined
+  tags: [smoke, media_storage]
+
+# --- T-66: /audio/{key} returns 401 — PHP handler active, not Apache static serving ---
+# Lifecycle: permanent — keep in post_build_checks; a 403 here would indicate Apache is
+# still serving the path as a static directory listing (static serving active).
+# A 404 means the backward-compat RewriteRule is missing. 401 confirms PHP is handling it.
+# The all-zeros synthetic key passes validateKey() so PHP reaches authenticateRequest().
+
+- name: "[T-66] /audio/{key} returns 401 — PHP handler active, not Apache static serving"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/audio/0000000000000000000000000000000000000000000000000000000000000000.mp3"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    status_code: [401]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  when: gighive_media_storage_backend == 'local'
+  tags: [smoke, media_storage]
+
+# --- T-68: MEDIA_SEARCH_DIRS env var is absent from the container (retired) ---
+# Lifecycle: permanent — keep in post_build_checks; detects accidental re-introduction
+# of the retired env var. rc=1 from printenv means the var is not set — the expected
+# (passing) state. failed_when: rc == 0 inverts this: the task fails only if the var
+# IS present.
+
+- name: "[T-68] MEDIA_SEARCH_DIRS env var is not set in container (retired)"
+  ansible.builtin.command: >
+    docker exec -i "{{ apache_container_name }}" printenv MEDIA_SEARCH_DIRS
+  register: media_search_dirs_check
+  changed_when: false
+  failed_when: media_search_dirs_check.rc == 0
+  when: gighive_media_storage_backend == 'local'
+  tags: [smoke, media_storage]
+  # rc=1 means the var is not set — which is the expected (passing) state

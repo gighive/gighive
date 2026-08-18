@@ -28,8 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 /** ---- Azure Blob mode guard ---- */
 // In Azure Blob mode there are no local media directories to clear.
-// Return a successful no-op rather than failing with 500 because MEDIA_SEARCH_DIRS
-// is absent. Full Blob-aware delete UI is a Phase 10 (Tranche 2) concern.
+// Full Blob-aware delete UI is a Phase 10 (Tranche 2) concern.
 $storageBackend = getenv('GIGHIVE_MEDIA_STORAGE_BACKEND') ?: 'local';
 if ($storageBackend === 'azure_blob') {
     http_response_code(200);
@@ -42,55 +41,17 @@ if ($storageBackend === 'azure_blob') {
     exit;
 }
 
-/** ---- Derive target dirs from MEDIA_SEARCH_DIRS ---- */
-$mediaDirsEnv = getenv('MEDIA_SEARCH_DIRS');
-if ($mediaDirsEnv === false || trim($mediaDirsEnv) === '') {
-    error_log('clear_media_files.php: MEDIA_SEARCH_DIRS env var is absent or empty — aborting');
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'error'   => 'Configuration Error',
-        'message' => 'MEDIA_SEARCH_DIRS is not configured; cannot determine media directories',
-    ]);
-    exit;
-}
+/** ---- Derive target dirs from MEDIA_LOCAL_* env vars (Phase 5: MEDIA_SEARCH_DIRS retired) ---- */
+$audioDir = rtrim(getenv('MEDIA_LOCAL_AUDIO_DIR') ?: '/var/www/html/audio', '/');
+$videoDir = rtrim(getenv('MEDIA_LOCAL_VIDEO_DIR') ?: '/var/www/html/video', '/');
+$thumbDir = rtrim(getenv('MEDIA_LOCAL_THUMB_DIR') ?: '/var/www/html/video/thumbnails', '/');
 
-// MEDIA_SEARCH_DIRS is colon-separated: /var/www/html/audio:/var/www/html/video
-$mediaDirs = array_filter(array_map('trim', explode(':', $mediaDirsEnv)));
-
-// Locate audio and video dirs by convention (audio first, video second)
-$audioDir = null;
-$videoDir = null;
-foreach ($mediaDirs as $dir) {
-    if ($audioDir === null && str_ends_with(rtrim($dir, '/'), '/audio')) {
-        $audioDir = rtrim($dir, '/');
-    } elseif ($videoDir === null && str_ends_with(rtrim($dir, '/'), '/video')) {
-        $videoDir = rtrim($dir, '/');
-    }
-}
-
-// Build the explicit list of paths to wipe (thumbnails is a subdir of video)
-$targets = [];
-if ($audioDir !== null) {
-    $targets['audio'] = $audioDir;
-}
-if ($videoDir !== null) {
-    $targets['video']      = $videoDir;
-    $targets['thumbnails'] = $videoDir . '/thumbnails';
-}
-
-if (empty($targets)) {
-    error_log('clear_media_files.php: Could not identify audio or video dirs from MEDIA_SEARCH_DIRS="' . $mediaDirsEnv . '"');
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'error'   => 'Configuration Error',
-        'message' => 'Could not identify audio or video directories from MEDIA_SEARCH_DIRS',
-    ]);
-    exit;
-}
+// Build the explicit list of paths to wipe
+$targets = [
+    'audio'      => $audioDir,
+    'video'      => $videoDir,
+    'thumbnails' => $thumbDir,
+];
 
 /** ---- Delete files ---- */
 error_log('clear_media_files.php: Starting file deletion across ' . count($targets) . ' path(s)');

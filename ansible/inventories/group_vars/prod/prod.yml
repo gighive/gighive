@@ -535,3 +535,20 @@ upload_chunk_size_bytes:           8388608  # 8 MB — must match TUSKit/tus-js-
 # staging disk space. Failed uploads are immediately transitioned to status=failed by
 # TusBlockUploadService so they do not consume this quota.
 tus_max_pending_uploads_per_token: 5
+
+# Phase 5 smoke test assets — SHA-256 of known real assets present on this host's media
+# directories. Used by T-65 (range request) and the authenticated GET smoke tests in
+# post_build_checks. Tasks skip when these vars are not defined — do NOT define them
+# until you have identified real assets on this host's audio/video dirs and confirmed
+# their SHA-256 values. Do NOT copy the gighive2 values here; they reference gighive2-
+# specific files. See docs/refactor_storage_media_rest_endpoint_implementation.md §Phase 5.
+#
+# To populate: on this host, run:
+#   sha256sum /home/ubuntu/audio/<file>.mp3
+#   sha256sum /home/ubuntu/video/<file>.mp4
+#   sha256sum /home/ubuntu/video/thumbnails/<file>.png
+# then set the vars below (filename only, without extension).
+#
+smoke_test_video_thumbnail_sha256: "5a5a63917260e8d1d7b32ac4d5b2998fb48d35d97315874a218f86f02dbc7bbd"
+smoke_test_video_sha256:           "b212a654ddf160523373a7da95a0ddbfa752e6dbe57c13b6e220e0211bf71d95"
+smoke_test_audio_sha256:           "1982d30224070906ccee90c54279cb027099c5ab00783b7f4ec5382bb1e42b7a"
