@@ -66,9 +66,14 @@ fi
 
 # Probe job cron — all install channels (not one-shot bundle only).
 # Runs run_probe_job.php every ~10 seconds via sleep offsets within each cron minute.
+# DB env vars must be explicit — cron does not inherit the Docker container environment.
 {
   printf 'SHELL=/bin/sh\n'
   printf 'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n'
+  printf 'DB_HOST=%s\n'        "${DB_HOST:-mysqlServer}"
+  printf 'MYSQL_DATABASE=%s\n' "${MYSQL_DATABASE:-}"
+  printf 'MYSQL_USER=%s\n'     "${MYSQL_USER:-}"
+  printf 'MYSQL_PASSWORD=%s\n' "${MYSQL_PASSWORD:-}"
   printf '* * * * * www-data php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'
   printf '* * * * * www-data sleep 10 && php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'
   printf '* * * * * www-data sleep 20 && php /var/www/html/src/Jobs/run_probe_job.php >> /var/log/probe_job.log 2>&1\n'

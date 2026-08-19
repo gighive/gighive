@@ -16,15 +16,19 @@ final readonly class TusUploadState
         public readonly int     $id,
         public readonly string  $uploadId,
         public readonly int     $userId,
-        public readonly string  $status,       // 'pending' | 'complete' | 'failed'
+        public readonly string  $status,           // 'pending' | 'complete' | 'failed'
         public readonly int     $uploadLength,
         public readonly int     $blockCount,
         public readonly int     $blockSize,
-        public readonly ?string $sha256Ctx,    // serialized HashContext or null before first PATCH
-        public readonly string  $fileType,     // 'audio' | 'video'
+        public readonly ?string $sha256Ctx,        // serialized HashContext or null before first PATCH
+        public readonly string  $fileType,         // 'audio' | 'video'
         public readonly string  $mimeType,
-        public readonly ?int    $assetId,      // null until final commit
-        public readonly string  $expiresAt,    // DATETIME string
+        public readonly ?string $uploadOrgName,    // org_name from Upload-Metadata; null for non-QR uploads
+        public readonly ?string $uploadEventDate,  // event_date from Upload-Metadata; null for non-QR uploads
+        public readonly ?string $uploadEventType,  // event_type from Upload-Metadata; null for non-QR uploads
+        public readonly ?string $uploadLabel,      // label from Upload-Metadata; null for non-QR uploads
+        public readonly ?int    $assetId,          // null until final commit
+        public readonly string  $expiresAt,        // DATETIME string
     ) {}
 
     /**
@@ -35,18 +39,22 @@ final readonly class TusUploadState
     public static function fromRow(array $row): self
     {
         return new self(
-            id:           (int)$row['id'],
-            uploadId:     (string)$row['upload_id'],
-            userId:       (int)$row['user_id'],
-            status:       (string)$row['status'],
-            uploadLength: (int)$row['upload_length'],
-            blockCount:   (int)$row['block_count'],
-            blockSize:    (int)$row['block_size'],
-            sha256Ctx:    isset($row['sha256_ctx']) ? (string)$row['sha256_ctx'] : null,
-            fileType:     (string)$row['file_type'],
-            mimeType:     (string)$row['mime_type'],
-            assetId:      isset($row['asset_id']) ? (int)$row['asset_id'] : null,
-            expiresAt:    (string)$row['expires_at'],
+            id:              (int)$row['id'],
+            uploadId:        (string)$row['upload_id'],
+            userId:          (int)$row['user_id'],
+            status:          (string)$row['status'],
+            uploadLength:    (int)$row['upload_length'],
+            blockCount:      (int)$row['block_count'],
+            blockSize:       (int)$row['block_size'],
+            sha256Ctx:       isset($row['sha256_ctx']) ? (string)$row['sha256_ctx'] : null,
+            fileType:        (string)$row['file_type'],
+            mimeType:        (string)$row['mime_type'],
+            uploadOrgName:   isset($row['upload_org_name'])   ? (string)$row['upload_org_name']   : null,
+            uploadEventDate: isset($row['upload_event_date']) ? (string)$row['upload_event_date'] : null,
+            uploadEventType: isset($row['upload_event_type']) ? (string)$row['upload_event_type'] : null,
+            uploadLabel:     isset($row['upload_label'])      ? (string)$row['upload_label']      : null,
+            assetId:         isset($row['asset_id']) ? (int)$row['asset_id'] : null,
+            expiresAt:       (string)$row['expires_at'],
         );
     }
 

@@ -9,6 +9,8 @@ use Production\Api\Config\MediaTypes;
 use Production\Api\Config\TusUploadConfig;
 use Production\Api\Contracts\TusChunkBackendInterface;
 use Production\Api\Dto\TusUploadState;
+use Production\Api\Repositories\EventRepository;
+use Production\Api\Repositories\EventItemRepository;
 
 /**
  * PHP tus 1.0 upload server — handles POST, PATCH, and HEAD requests.
@@ -30,9 +32,15 @@ use Production\Api\Dto\TusUploadState;
  */
 final class TusBlockUploadService
 {
+    // Defaults match iOS client: UploadPayload+GuestUpload.swift resolvedLabel + TUSUploadClient.swift context["event_type"]
+    private const DEFAULT_EVENT_TYPE = 'band';
+    private const DEFAULT_LABEL      = 'Untitled clip';
+
     public function __construct(
         private readonly TusUploadConfig          $config,
         private readonly TusChunkBackendInterface $backend,
+        private readonly EventRepository          $eventRepo,
+        private readonly EventItemRepository      $eventItemRepo,
     ) {}
 
     // -------------------------------------------------------------------------
@@ -74,10 +82,24 @@ final class TusBlockUploadService
         }
 
         // --- Parse Upload-Metadata ---
-        $meta     = $this->parseUploadMetadata($requestHeaders['upload-metadata'] ?? '');
-        $mimeType = strtolower(trim($meta['filetype'] ?? ''));
-        $fileName = trim($meta['filename'] ?? '');
-        $fileExt  = strtolower(ltrim(pathinfo($fileName, PATHINFO_EXTENSION), '.'));
+        $meta      = $this->parseUploadMetadata($requestHeaders['upload-metadata'] ?? '');
+        $mimeType  = strtolower(trim($meta['filetype'] ?? ''));
+        $fileName  = trim($meta['filename'] ?? '');
+        $fileExt   = strtolower(ltrim(pathinfo($fileName, PATHINFO_EXTENSION), '.'));
+
+        // Event metadata — stored for use at finalize time.
+        // orgName is NFC-normalized to match the uq_events_tenant_date_org unique constraint
+        // (same normalization applied by UploadService.php line 79 via TextNormalizer).
+        $normalizer = new TextNormalizer();
+        $orgName    = $normalizer->normalizeForStorage(trim($meta['org_name']   ?? ''));
+        $eventDate  = trim($meta['event_date'] ?? '');
+        $eventType  = trim($meta['event_type'] ?? self::DEFAULT_EVENT_TYPE);
+        $label      = trim($meta['label']      ?? '');
+
+        // Reject malformed dates — store NULL rather than an invalid DATE value.
+        if ($eventDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $eventDate)) {
+            $eventDate = '';
+        }
 
         // --- MIME + extension allow-list validation ---
         [$fileType, $mimeType] = $this->validateFileType($mimeType, $fileExt);
@@ -91,10 +113,18 @@ final class TusBlockUploadService
         // --- Insert tus_uploads row ---
         $stmt = $this->config->pdo->prepare(
             'INSERT INTO tus_uploads
-             (upload_id, user_id, status, upload_length, file_type, mime_type, created_at, expires_at)
-             VALUES (?, ?, \'pending\', ?, ?, ?, NOW(), NOW() + INTERVAL 24 HOUR)'
+             (upload_id, user_id, status, upload_length, file_type, mime_type,
+              upload_org_name, upload_event_date, upload_event_type, upload_label,
+              created_at, expires_at)
+             VALUES (?, ?, \'pending\', ?, ?, ?, ?, ?, ?, ?, NOW(), NOW() + INTERVAL 24 HOUR)'
         );
-        $stmt->execute([$uploadId, $userId, $uploadLength, $fileType, $mimeType]);
+        $stmt->execute([
+            $uploadId, $userId, $uploadLength, $fileType, $mimeType,
+            $orgName   !== '' ? $orgName                  : null,
+            $eventDate !== '' ? $eventDate                : null,
+            $eventType !== '' ? $eventType                : self::DEFAULT_EVENT_TYPE,
+            $label     !== '' ? $label                    : null,
+        ]);
 
         $this->respond(201, [
             'Location'          => '/files/' . $uploadId,
@@ -265,6 +295,7 @@ final class TusBlockUploadService
         $stmt = $this->config->pdo->prepare(
             'SELECT id, upload_id, user_id, status, upload_length,
                     block_count, block_size, sha256_ctx, file_type, mime_type,
+                    upload_org_name, upload_event_date, upload_event_type, upload_label,
                     asset_id, expires_at
              FROM tus_uploads WHERE upload_id = ?'
         );
@@ -339,6 +370,21 @@ final class TusBlockUploadService
             'UPDATE tus_uploads SET status = \'complete\', asset_id = ? WHERE upload_id = ?'
         )->execute([$assetId, $upload->uploadId]);
 
+        // Create event linkage if event metadata was stored at POST time.
+        // Guard: skip if org_name or event_date absent (Basic Auth / non-QR uploads store NULL).
+        // Matches UploadService.php pattern (lines 94, 214).
+        $orgName   = $upload->uploadOrgName;
+        $eventDate = $upload->uploadEventDate;
+        $eventType = $upload->uploadEventType ?? self::DEFAULT_EVENT_TYPE;
+        $label     = $upload->uploadLabel     ?? self::DEFAULT_LABEL;
+
+        if ($orgName !== null && $orgName !== '' && $eventDate !== null && $eventDate !== '') {
+            $eventId  = $this->eventRepo->ensureEvent($eventDate, $orgName, $eventType);
+            $itemType = ($eventType === 'wedding') ? 'clip' : 'song';
+            $position = $this->eventItemRepo->nextPosition($eventId);
+            $this->eventItemRepo->ensureEventItem($eventId, $assetId, $itemType, $label, $position);
+        }
+
         return $assetId;
     }
 
@@ -348,6 +394,7 @@ final class TusBlockUploadService
         $stmt = $pdo->prepare(
             'SELECT id, upload_id, user_id, status, upload_length,
                     block_count, block_size, sha256_ctx, file_type, mime_type,
+                    upload_org_name, upload_event_date, upload_event_type, upload_label,
                     asset_id, expires_at
              FROM tus_uploads WHERE upload_id = ? FOR UPDATE'
         );

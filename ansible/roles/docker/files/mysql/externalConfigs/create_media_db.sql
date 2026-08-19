@@ -428,8 +428,12 @@ CREATE TABLE IF NOT EXISTS tus_uploads (
     block_count   INT UNSIGNED  NOT NULL DEFAULT 0, -- Azure: PUT Block calls committed so far (INT not SMALLINT — forward safety for large chunk counts)
     block_size    INT UNSIGNED  NOT NULL DEFAULT 0, -- set from first PATCH body length; never updated after
     sha256_ctx    BLOB          NULL,               -- serialized PHP HashContext (PHP 8.0+); ~1-2 KB
-    file_type     ENUM('audio','video') NOT NULL,
-    mime_type     VARCHAR(128)  NOT NULL DEFAULT '',
+    file_type          ENUM('audio','video') NOT NULL,
+    mime_type          VARCHAR(128)  NOT NULL DEFAULT '',
+    upload_org_name    VARCHAR(255)  NULL,           -- org_name from Upload-Metadata; NULL for non-QR uploads
+    upload_event_date  DATE          NULL,            -- event_date from Upload-Metadata; NULL for non-QR uploads
+    upload_event_type  VARCHAR(64)   NULL DEFAULT 'band', -- event_type from Upload-Metadata; defaults to 'band'
+    upload_label       VARCHAR(255)  NULL,           -- label from Upload-Metadata; NULL for non-QR uploads
     asset_id      INT UNSIGNED  NULL,               -- populated on final commit
     created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at    DATETIME      NOT NULL,           -- NOW() + 24h; cron clears expired rows

@@ -4219,6 +4219,36 @@ Fix: removed `environment:` entirely and moved the password inline using the est
 
 **gighive2 / dev playbook result:** All tasks passed after the above four fixes were applied. Phase 5 verified on gighive2 (2026-08-18).
 
+**Issue 5: QR code guest upload returned 500 — `UploadTokenValidator` constructor injection missing in `tus-upload.php`**
+
+Discovered via live iPhone test against gighive2 after the successful playbook run. The guest QR upload flow (iOS app → POST `/files/` with `X-Upload-Token` header) returned `500 Failed request` immediately.
+
+Root cause confirmed from FPM log (`docker exec apacheWebServer tail /var/log/fpm-php.www.log`):
+
+```
+PHP Fatal error: Uncaught ArgumentCountError:
+Too few arguments to function
+Production\Api\Services\UploadTokenValidator::__construct(),
+0 passed in /var/www/html/api/tus-upload.php on line 64
+and exactly 1 expected in
+/var/www/html/src/Services/UploadTokenValidator.php:15
+```
+
+`tus-upload.php` line 64 called `new UploadTokenValidator()` with zero arguments. The Phase 2/3 refactor changed `UploadTokenValidator::__construct()` to require a `\PDO` instance via dependency injection, but the call site in `tus-upload.php` was never updated to match. Basic Auth admin/uploader uploads were unaffected because they skip the token block entirely (`$rawToken` is empty); only the QR guest upload path hit line 64.
+
+Fix (`api/tus-upload.php`):
+- Added `use Production\Api\Infrastructure\Database;`
+- Created `$pdo = Database::createFromEnv()` inside the token block (wrapped in try/catch → 500 on DB failure)
+- Changed `new UploadTokenValidator()` → `new UploadTokenValidator($pdo)`
+
+Note: `TusUploadConfig::fromEnv()` also calls `Database::createFromEnv()` unconditionally later in the request. For invalid tokens the second connection is never opened (PHP exits at 401 before reaching `fromEnv()`). For valid tokens two connections exist briefly; this is an acceptable minor inefficiency for a low-frequency path — a larger refactor to hoist `$pdo` and pass it through `TusUploadConfig` is out of scope for Phase 5.
+
+Regression test added (`post_build_checks/tasks/main.yml` — **T-93b**, permanent):
+- POSTs to `/files/` with a syntactically valid but database-unknown `X-Upload-Token`
+- Apache passes the request (`SetEnvIf X-Upload-Token .+ upload_token_auth` + `Require env upload_token_auth`)
+- Asserts `401` — proves `UploadTokenValidator` was constructed successfully and `validate()` ran to completion
+- A `500` here means the constructor injection is broken again
+
 ---
 
 ### Tranche 1 Cleanup — Remove Phase-Gate Checks from `post_build_checks`
@@ -5569,13 +5599,4 @@ _(nothing yet — plan stage)_
 
 ### Remaining — Follow-on Tasks
 
-- ~~Retire `ansible/roles/blobfuse2/` role~~ — **moved to Phase 5** (step 7); remove role directory, confirm absent from `site.yml`.
-- ~~Update `docs/media_file_location_variables.md`~~ — **moved to Phase 5** (step 8); update variable glossary for new storage model.
-- ~~Add logrotate config for `/var/log/probe_job.log`~~ — **moved to Phase 3 deliverable** (`ansible/roles/docker/files/logrotate.d/gighive-probe`).
-- ~~`probe_jobs` failed row accumulation~~ — **moved to Phase 3** (`cleanup_expired_uploads.php` prunes rows older than 30 days; T-86b `validate_app` check warns on non-zero count).
-- ~~Orphan row reconciliation query~~ — **moved to Phase 5** (T-68b `validate_app` warns on orphaned `tus_uploads` rows; recovery instructions in task `msg`).
-- ~~`audio/mp3` MIME type in allowlist~~ — **resolved**: `gighive2.yml` group_vars already include both `audio/mp3` and `audio/mpeg`; no change needed.
-- **Session-cookie auth for `media-stream.php`** — guest gallery thumbnails are handled by the gallery nonce path (Phase 4). The remaining gap is the browser admin panel: if admin thumbnail display via `<img>` tags is ever added, session-cookie auth must be added to `media-stream.php` as a fourth credential path. Not blocking for Tranche 1.
-- **Evaluate retiring `AZURE_BLOB_SAS_TOKEN`** — four admin PHP files (`export_media_worker_azure.php`, `import_media_zip_worker_azure.php`, `import_media_zip.php`, `export_media.php`) still read this token directly. Retirement requires migrating all four to use `MediaStorageService` instead of inline SAS calls — that is Phase 10 (Tranche 2) work. Until then, keep the token in `.env.j2`.
-- **Evaluate Apache `X-Sendfile`** for local-mode read path if PHP file serving becomes a CPU or throughput bottleneck under real load. Not a known issue at current scale; revisit if profiling shows it.
-- **Delete `src/Services/FallbackMediaBackend.php`** after Phase 11 step 9 backfill is verified complete — it is a migration-window-only class and must not persist in the codebase beyond Tranche 2.
+See `docs/refactor_storage_media_rest_endpoint_followons.md`.

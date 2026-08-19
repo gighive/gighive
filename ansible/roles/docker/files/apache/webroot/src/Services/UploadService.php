@@ -322,6 +322,7 @@ final class UploadService
         $fileName = $fileExt !== '' ? ($checksum . '.' . $fileExt) : $checksum;
 
         $result = [
+            'id'              => $assetId,
             'asset_id'        => $assetId,
             'file_name'       => $fileName,
             'file_type'       => $fileType,

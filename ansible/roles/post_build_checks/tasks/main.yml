@@ -592,6 +592,29 @@
               Cleanup delete failed. Response={{ tus_cleanup_delete.content | default('') }}
           changed_when: false
 
+        # delete_media_files.php cascades to event_items and unlinks the file on disk,
+        # but probe_jobs and tus_uploads have no FK cascade from assets — delete explicitly
+        # so they do not accumulate across playbook runs and pollute backups/restores.
+        - name: Delete TUS smoke-test probe_jobs row
+          community.docker.docker_container_exec:
+            container: "{{ mysql_container_name }}"
+            command: >-
+              sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot media_db -sN
+              -e \"DELETE FROM probe_jobs WHERE asset_id={{ tus_finalize_1.json.asset_id | int }};\""
+          changed_when: false
+          no_log: "{{ tus_checks_no_log }}"
+          tags: [tus]
+
+        - name: Delete TUS smoke-test tus_uploads row
+          community.docker.docker_container_exec:
+            container: "{{ mysql_container_name }}"
+            command: >-
+              sh -c "MYSQL_PWD={{ mysql_root_password | quote }} mysql -uroot media_db -sN
+              -e \"DELETE FROM tus_uploads WHERE upload_id='{{ tus_upload_id }}';\""
+          changed_when: false
+          no_log: "{{ tus_checks_no_log }}"
+          tags: [tus]
+
       when: tus_cleanup_after_check | default(true)
 
   tags: [tus]
@@ -1288,6 +1311,32 @@
   changed_when: false
   tags: [smoke, media_storage]
 
+# --- T-93b: POST /files/ with invalid X-Upload-Token returns 401, not 500 ---
+# Lifecycle: permanent — keep in post_build_checks.
+# Regression guard for the UploadTokenValidator constructor injection bug
+# (2026-08-18): tus-upload.php called new UploadTokenValidator() with zero
+# args; the constructor requires a PDO instance. Any QR-code upload attempt
+# returned 500 (ArgumentCountError) instead of 401. This test exercises the
+# QR token code path with a syntactically valid but database-unknown token
+# and asserts 401 — proving the constructor receives PDO and validate() runs
+# to completion. A 500 here means the constructor injection is broken again.
+
+- name: "[T-93b] POST /files/ with invalid X-Upload-Token returns 401 (QR token path, not 500)"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/files/"
+    method: POST
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ ({'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | default('') | length) > 0 else {}) | combine({
+      'Tus-Resumable': '1.0.0',
+      'X-Upload-Token': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1',
+      'Upload-Length': '1024',
+      'Upload-Metadata': 'filetype dmlkZW8=,org_name Z2lnaGl2ZQ==,event_date ' + (ansible_facts['date_time'].date | b64encode)
+    }) }}"
+    status_code: [401]
+    return_content: false
+  changed_when: false
+  tags: [smoke, tus]
+
 # =============================================================================
 # Phase 5 — Local / VirtualBox / Baremetal (Tranche 1 final step)
 # =============================================================================
@@ -1386,3 +1435,397 @@
   when: gighive_media_storage_backend == 'local'
   tags: [smoke, media_storage]
   # rc=1 means the var is not set — which is the expected (passing) state
+
+# --- M-01: Delete probe_jobs rows whose asset no longer exists ---
+# Lifecycle: permanent — keep in post_build_checks until a dedicated maintenance role exists.
+# Runs before T-94/T-95 so those tests assert against a clean state.
+# probe_jobs has no ON DELETE CASCADE from assets — orphaned rows accumulate after any
+# asset delete (delete_media_files.php, Section A/B in admin_system.php, BABRR restore).
+# Orphaned queued rows cause spurious probe log noise and can trigger false T-94 failures.
+# NOT EXISTS pattern matches T-95's established subquery style.
+
+- name: "[M-01] Delete probe_jobs rows whose asset no longer exists"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+      "DELETE FROM probe_jobs
+       WHERE NOT EXISTS (
+           SELECT 1 FROM assets a WHERE a.asset_id = probe_jobs.asset_id
+       );"'
+  changed_when: false
+  tags: [smoke, maintenance]
+
+# --- M-02: Delete tus_uploads rows whose asset no longer exists ---
+# Lifecycle: permanent — keep in post_build_checks until a dedicated maintenance role exists.
+# tus_uploads has no ON DELETE CASCADE from assets — complete rows with a dangling asset_id
+# accumulate after restores and admin deletes. Only targets status=complete rows; pending
+# rows are excluded as a safety margin for any in-flight uploads.
+
+- name: "[M-02] Delete tus_uploads rows whose asset no longer exists"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+      "DELETE FROM tus_uploads
+       WHERE status = '\''complete'\''
+       AND asset_id IS NOT NULL
+       AND NOT EXISTS (
+           SELECT 1 FROM assets a WHERE a.asset_id = tus_uploads.asset_id
+       );"'
+  changed_when: false
+  tags: [smoke, maintenance]
+
+# --- T-94: No probe_jobs rows stuck in queued for more than 5 minutes ---
+# Lifecycle: permanent — keep in post_build_checks.
+# Regression guard for the probe cron DB environment bug (2026-08-18): the gighive-probe
+# cron file was missing DB_HOST/MYSQL_USER/MYSQL_PASSWORD/MYSQL_DATABASE, causing every
+# cron invocation to crash with SQLSTATE[HY000] [2002] before claiming any job.
+# A non-zero count here means the cron cannot connect to MySQL.
+
+- name: "[T-94] probe_jobs has no rows stuck in queued status for more than 5 minutes"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+      "SELECT COUNT(*) FROM probe_jobs
+       WHERE status = '\''queued'\''
+       AND created_at < NOW() - INTERVAL 5 MINUTE;"'
+  register: _probe_stuck_count
+  changed_when: false
+  tags: [smoke, probe]
+
+- name: "[T-94] Assert no probe_jobs stuck in queued"
+  ansible.builtin.assert:
+    that:
+      - (_probe_stuck_count.stdout | trim) == '0'
+    fail_msg: >-
+      {{ _probe_stuck_count.stdout | trim }} probe_jobs row(s) have been queued
+      for more than 5 minutes — probe cron may not be connecting to MySQL.
+      Check /etc/cron.d/gighive-probe for DB_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE.
+  changed_when: false
+  tags: [smoke, probe]
+
+# --- T-95: All complete TUS uploads with event metadata have an event_items row ---
+# Lifecycle: permanent — keep in post_build_checks.
+# Regression guard for the TUS finalize event-linkage gap (2026-08-18): finalizeUpload()
+# never called ensureEvent()/ensureEventItem(), leaving QR-uploaded assets orphaned from
+# their event. Rows without org_name/event_date (Basic Auth / non-QR uploads) are
+# correctly excluded by the IS NOT NULL filter.
+#
+# Why this is safe to run in environments with active QR uploads:
+#   finalizeUpload() runs entirely inside the transaction opened by handlePatch().
+#   The sequence within that transaction is:
+#     INSERT assets → INSERT probe_jobs → UPDATE tus_uploads SET status='complete' →
+#     ensureEvent() → ensureEventItem()
+#   pdo->commit() fires after all of the above. If ensureEvent() or ensureEventItem()
+#   throws, the catch(\Throwable) handler rolls back the entire transaction, including
+#   the status='complete' update. tus_uploads therefore never reaches status='complete'
+#   without a corresponding event_items row through the normal code path.
+#
+# The only scenario where T-95 fires legitimately is if the event linkage code is broken.
+# Stale orphaned rows can appear after a nuclear DB wipe (rebuild_mysql_data: true)
+# restores a backup that contains tus_uploads rows whose assets were wiped — those rows
+# must be manually deleted before re-running post_build_checks in that recovery scenario.
+#
+# INNER JOIN assets: the query uses INNER JOIN rather than checking asset_id IS NOT NULL
+# so that rows where the asset was intentionally deleted (e.g. smoke test cleanup, or
+# admin delete) are excluded. The ON DELETE CASCADE on event_items removes the event_items
+# row when the asset is deleted; the tus_uploads row remains but is no longer a real orphan
+# because the asset is also gone. Only rows where the asset still exists but has no
+# event_items row represent a genuine event-linkage failure in finalizeUpload().
+
+- name: "[T-95] All complete TUS uploads with event metadata have an event_items row"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+      "SELECT COUNT(*) FROM tus_uploads tu
+       INNER JOIN assets a ON a.asset_id = tu.asset_id
+       WHERE tu.status = '\''complete'\''
+       AND tu.upload_org_name IS NOT NULL
+       AND tu.upload_event_date IS NOT NULL
+       AND NOT EXISTS (
+           SELECT 1 FROM event_items ei WHERE ei.asset_id = tu.asset_id
+       );"'
+  register: _tus_no_event_item_count
+  changed_when: false
+  tags: [smoke, tus]
+
+- name: "[T-95] Assert no orphaned TUS uploads (complete + metadata but no event_items)"
+  ansible.builtin.assert:
+    that:
+      - (_tus_no_event_item_count.stdout | trim) == '0'
+    fail_msg: >-
+      {{ _tus_no_event_item_count.stdout | trim }} TUS upload(s) have status=complete
+      and event metadata but no event_items row — event linkage in finalizeUpload() is broken.
+  changed_when: false
+  tags: [smoke, tus]
+
+# --- T-96: Probe cron file contains DB environment variables ---
+# Lifecycle: permanent — keep in post_build_checks.
+# Closes the gap left by T-82 (which only checks the cron file exists and references
+# run_probe_job.php). Without DB vars in the cron file, PHP falls back to localhost
+# and crashes with SQLSTATE[HY000] [2002] No such file or directory.
+
+- name: "[T-96] Read probe cron file and verify DB env vars are present"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: cat /etc/cron.d/gighive-probe
+  register: _probe_cron_file
+  changed_when: false
+  tags: [smoke, probe]
+
+- name: "[T-96] Assert probe cron file contains DB_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE"
+  ansible.builtin.assert:
+    that:
+      - "'DB_HOST=' in _probe_cron_file.stdout"
+      - "'MYSQL_USER=' in _probe_cron_file.stdout"
+      - "'MYSQL_PASSWORD=' in _probe_cron_file.stdout"
+      - "'MYSQL_DATABASE=' in _probe_cron_file.stdout"
+    fail_msg: >-
+      /etc/cron.d/gighive-probe is missing one or more DB environment variables —
+      probe jobs will fail with SQLSTATE[HY000] [2002] No such file or directory.
+  changed_when: false
+  tags: [smoke, probe]
+
+# --- T-97: finalizeTusUpload() in token-mode returns id, status_nonce, upload_job_id ---
+# Lifecycle: permanent — keep in post_build_checks.
+# Root cause guard: the iOS FinalizeResponse struct requires "id" (non-optional Int).
+# finalizeTusUpload() historically returned only "asset_id". If "id" is absent,
+# JSONDecoder throws, GuestUploadRecord is never saved, and Issues 3 and 4 recur
+# (approval alerts not shown; delete icon absent in guest gallery).
+#
+# Design: fully self-contained fixture — generates its own raw token, events row,
+# and event_upload_tokens row. Reasons:
+#   1. tus_upload_id from the earlier Basic Auth smoke block is deleted by that
+#      block's cleanup before T-97 runs → finalizeTusUpload() returns 500.
+#   2. upload_jobs.job_id has UNIQUE KEY uq_upload_jobs_job_id — reusing the same
+#      UUID across runs causes a duplicate-key 500 on finalize.
+#   3. event_upload_tokens.token_hash stores SHA-256(rawToken); the raw token is
+#      never stored. Fetching the hash and sending it as X-Upload-Token double-hashes
+#      it and never matches — the TUS POST/PATCH/finalize all return 401.
+#      T-97 must generate the raw token itself.
+# Reuses tus_payload_b64, tus_expected_offset, tus_headers_common (play-scoped facts).
+# See docs/problem_iphone_qr_code_shared_gallery_notifications.md for full design rationale.
+
+- name: "[T-97] Create T-97 fixture: events row, raw token, and event_upload_tokens row"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+      "SET @t97_raw = TO_BASE64(RANDOM_BYTES(24));
+       INSERT INTO events (tenant_id, event_key, event_date, org_name, event_type)
+         VALUES (1, UUID(), CURDATE(), '\''T97_SMOKE_TEST'\'', '\''band'\'');
+       SET @t97_event_id = LAST_INSERT_ID();
+       INSERT INTO event_upload_tokens (event_id, token_hash, expires_at)
+         VALUES (@t97_event_id, SHA2(@t97_raw, 256),
+                 DATE_ADD(NOW(), INTERVAL 1 HOUR));
+       SELECT @t97_raw, @t97_event_id;"'
+  register: _t97_fixture
+  changed_when: false
+  no_log: "{{ tus_checks_no_log }}"
+  tags: [smoke, tus]
+
+- name: "[T-97] Parse raw token and event_id from fixture output"
+  ansible.builtin.set_fact:
+    _t97_raw_token: "{{ (_t97_fixture.stdout | trim).split('\t')[0] }}"
+    _t97_event_id:  "{{ (_t97_fixture.stdout | trim).split('\t')[1] }}"
+  changed_when: false
+  tags: [smoke, tus]
+
+- name: "[T-97] Assert fixture rows were created"
+  ansible.builtin.assert:
+    that:
+      - _t97_raw_token | length > 0
+      - (_t97_event_id | string) is regex('^[0-9]+$')
+      - (_t97_event_id | int) > 0
+    fail_msg: >-
+      T-97 fixture creation failed.
+      raw_token='{{ _t97_raw_token }}' event_id='{{ _t97_event_id }}'
+  changed_when: false
+  tags: [smoke, tus]
+
+- name: "[T-97] Run token-mode TUS upload + finalize and assert response shape"
+  block:
+
+    - name: "[T-97] Create TUS upload with X-Upload-Token (POST /files/)"
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/files/"
+        method: POST
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ tus_headers_common | combine({
+          'Tus-Resumable': '1.0.0',
+          'Upload-Length': tus_expected_offset | string,
+          'X-Upload-Token': _t97_raw_token,
+          'Upload-Metadata': (
+            'filename ' ~ ('t97.wav' | b64encode) ~
+            ',filetype ' ~ ('audio/wav' | b64encode) ~
+            ',label ' ~ ('T-97 token test' | b64encode) ~
+            ',org_name ' ~ ('gighive' | b64encode) ~
+            ',event_date ' ~ (ansible_facts['date_time'].date | b64encode) ~
+            ',event_type ' ~ ('band' | b64encode)
+          )
+        }) }}"
+        status_code: [201]
+        return_content: true
+      register: _t97_create
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: "[T-97] Capture T-97 upload_id from Location header"
+      ansible.builtin.set_fact:
+        _t97_upload_id:  "{{ (_t97_create.location | default('')).split('/')[-1] }}"
+        _t97_upload_url: "{{ gighive_base_url }}/files/{{ (_t97_create.location | default('')).split('/')[-1] }}"
+      changed_when: false
+
+    - name: "[T-97] Assert T-97 upload_id was captured"
+      ansible.builtin.assert:
+        that:
+          - _t97_upload_id | length > 0
+        fail_msg: "T-97 TUS POST did not return a Location header with an upload_id"
+      changed_when: false
+
+    - name: "[T-97] Write PATCH payload into apache container"
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - -e
+          - TUS_PAYLOAD_B64={{ tus_payload_b64 }}
+          - -e
+          - T97_RAW_TOKEN={{ _t97_raw_token }}
+          - "{{ apache_container_name }}"
+          - sh
+          - -c
+          - |
+            printf '%s' "$TUS_PAYLOAD_B64" > /tmp/t97_payload.b64
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: "[T-97] Upload payload via TUS PATCH with X-Upload-Token"
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - -e
+          - T97_RAW_TOKEN={{ _t97_raw_token }}
+          - "{{ apache_container_name }}"
+          - sh
+          - -c
+          - >-
+            base64 -d /tmp/t97_payload.b64 |
+            curl -sS --http1.1
+            {{ "-k" if not (gighive_validate_certs | default(true)) else "" }}
+            -X PATCH
+            -H "Tus-Resumable: 1.0.0"
+            -H "Upload-Offset: 0"
+            -H "Content-Type: application/offset+octet-stream"
+            -H "Content-Length: {{ tus_expected_offset }}"
+            -H "X-Upload-Token: $T97_RAW_TOKEN"
+            {{ ('-H "Host: ' ~ gighive_hostname_for_host_header ~ '"') if (gighive_hostname_for_host_header | default('') | length) > 0 else "" }}
+            --data-binary @-
+            -o /dev/null
+            -w "%{http_code}"
+            "{{ _t97_upload_url }}"
+      register: _t97_patch
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: "[T-97] Remove T-97 temp files from apache container"
+      ansible.builtin.command: >
+        docker exec {{ apache_container_name }}
+        sh -c 'rm -f /tmp/t97_payload.b64'
+      changed_when: false
+      failed_when: false
+
+    - name: "[T-97] Assert PATCH returned 204"
+      ansible.builtin.assert:
+        that:
+          - _t97_patch.stdout | trim == '204'
+        fail_msg: "T-97 TUS PATCH expected 204, got '{{ _t97_patch.stdout | trim }}'"
+      changed_when: false
+
+    - name: "[T-97] POST /api/uploads/finalize with X-Upload-Token (token-mode)"
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/api/uploads/finalize"
+        method: POST
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ tus_headers_common | combine({
+          'Content-Type': 'application/json',
+          'X-Upload-Token': _t97_raw_token
+        }) }}"
+        body_format: json
+        body:
+          upload_id: "{{ _t97_upload_id }}"
+          label: "T-97 token-mode test"
+          tos_accepted: true
+          display_name: "Ansible T-97"
+        status_code: [201]
+        return_content: true
+      register: _t97_finalize
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: "[T-97] Assert finalize response contains id, status_nonce, upload_job_id"
+      ansible.builtin.assert:
+        that:
+          - _t97_finalize.json is mapping
+          - (_t97_finalize.json.id | default('') | string) is regex('^[0-9]+$')
+          - (_t97_finalize.json.id | int) > 0
+          - (_t97_finalize.json.status_nonce | default('')) | length > 0
+          - (_t97_finalize.json.upload_job_id | default('') | string) is regex('^[0-9]+$')
+          - (_t97_finalize.json.upload_job_id | int) > 0
+        fail_msg: >-
+          finalizeTusUpload() token-mode response is missing one or more required fields.
+          id='{{ _t97_finalize.json.id | default("ABSENT") }}'
+          status_nonce='{{ _t97_finalize.json.status_nonce | default("ABSENT") }}'
+          upload_job_id='{{ _t97_finalize.json.upload_job_id | default("ABSENT") }}'
+          Full response: {{ _t97_finalize.json | to_json }}
+      changed_when: false
+
+    # Cleanup split into two tasks:
+    # Task 1 (guarded): probe_jobs and assets are keyed on _t97_finalize.json.id —
+    #   only attempted if finalize ran successfully.
+    # Task 2 (unconditional): tus_uploads and upload_jobs are keyed on _t97_upload_id —
+    #   always cleaned up regardless of whether finalize ran.
+    # events cleanup is in the always: block via event_id, cascading event_upload_tokens
+    # and anon_upload_attributions automatically.
+    - name: "[T-97] Cleanup — delete probe_jobs and assets (finalize-dependent rows)"
+      when: _t97_finalize is defined and (_t97_finalize.json | default({})) is mapping and (_t97_finalize.json.id | default(0) | int) > 0
+      community.docker.docker_container_exec:
+        container: "{{ mysql_container_name | default('mysqlServer') }}"
+        command: >-
+          sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+          "DELETE FROM probe_jobs WHERE asset_id = {{ _t97_finalize.json.id | int }};
+           DELETE FROM assets      WHERE asset_id = {{ _t97_finalize.json.id | int }};"'
+      changed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+    - name: "[T-97] Cleanup — delete tus_uploads and upload_jobs (upload-id-keyed rows)"
+      community.docker.docker_container_exec:
+        container: "{{ mysql_container_name | default('mysqlServer') }}"
+        command: >-
+          sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+          "DELETE FROM tus_uploads WHERE upload_id = '\''{{ _t97_upload_id }}'\'';
+           DELETE FROM upload_jobs WHERE job_id    = '\''{{ _t97_upload_id }}'\'';"'
+      changed_when: false
+      failed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+  always:
+    # Belt-and-suspenders: delete the fixture events row whether the block succeeded
+    # or failed. Cascades to event_upload_tokens (fk_eut_event) and
+    # anon_upload_attributions (fk_aua_token). failed_when: false so a missing row
+    # (already cleaned) does not itself fail the play.
+    - name: "[T-97] Safety cleanup — remove fixture events row if still present"
+      community.docker.docker_container_exec:
+        container: "{{ mysql_container_name | default('mysqlServer') }}"
+        command: >-
+          sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+          "DELETE FROM events WHERE event_id = {{ _t97_event_id | int }};"'
+      changed_when: false
+      failed_when: false
+      no_log: "{{ tus_checks_no_log }}"
+
+  tags: [smoke, tus]

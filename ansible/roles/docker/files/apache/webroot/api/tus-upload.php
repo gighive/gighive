@@ -24,6 +24,9 @@ ignore_user_abort(true);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Production\Api\Config\TusUploadConfig;
+use Production\Api\Infrastructure\Database;
+use Production\Api\Repositories\EventRepository;
+use Production\Api\Repositories\EventItemRepository;
 use Production\Api\Services\MediaBackend;
 use Production\Api\Services\AzureBlobTusBackend;
 use Production\Api\Services\LocalFileTusBackend;
@@ -60,8 +63,15 @@ $userId = 0; // default: basic-auth (admin/uploader)
 
 $rawToken = $_SERVER['HTTP_X_UPLOAD_TOKEN'] ?? '';
 if ($rawToken !== '') {
-    // QR token upload — validate and use tokenId as userId
-    $validator = new UploadTokenValidator();
+    // QR token upload — validate and use tokenId as userId.
+    // PDO must be created here; UploadTokenValidator requires it via constructor injection.
+    try {
+        $pdo = Database::createFromEnv();
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        exit;
+    }
+    $validator = new UploadTokenValidator($pdo);
     $tokenResult = $validator->validate($rawToken);
     if ($tokenResult === null) {
         http_response_code(401);
@@ -85,7 +95,10 @@ $backend = $config->isAzure()
         localVideoDir:   $config->localVideoDir,
     );
 
-$service = new TusBlockUploadService($config, $backend);
+$eventRepo     = new EventRepository($config->pdo);
+$eventItemRepo = new EventItemRepository($config->pdo);
+
+$service = new TusBlockUploadService($config, $backend, $eventRepo, $eventItemRepo);
 
 // -------------------------------------------------------------------------
 // Normalize request headers (lowercase keys)
