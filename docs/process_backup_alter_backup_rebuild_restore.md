@@ -1,24 +1,25 @@
-# Process: Backup → Alter → Backup → Rebuild → Restore (BABRR)
+# Process: Backup → Alter → Backup → Rebuild → Restore → Reset (BABRRR)
 
 Use this process whenever a schema change must be applied to an existing live database across
 environments (dev, lab, staging, prod). It ensures data is safe at every step and that the
 running schema is consistent with `create_media_db.sql` (the canonical source of truth).
 
-The five steps are:
+The six steps are:
 
 1. **Backup** — dump the live database before touching anything (pre-migration backup)
 2. **Alter** — apply the DDL change against the live database
 3. **Backup** — dump again after the DDL (post-migration backup; this is the restore target)
 4. **Rebuild** — wipe the MySQL volume and reinitialise from the updated `create_media_db.sql`
 5. **Restore** — restore the Step 3 backup into the fresh container via the Admin UI
+6. **Reset** — set `rebuild_mysql_data` back to `false` after the restore is confirmed
 
 > **Important:** Steps 2 and 4 require that `create_media_db.sql` has already been updated
 > with the matching DDL change and **committed + pushed** before Step 4 runs. The Ansible
 > rebuild pulls from the repo; if the SQL file is stale the schema will be wrong after Step 4.
 
-> **Important:** `rebuild_mysql_data` must be set back to `false` immediately after Step 4
-> (the Ansible rebuild) completes — before the restore and before any subsequent Ansible run.
-> Leaving it `true` will wipe the database on the next routine playbook execution.
+> **Important:** Step 6 (Reset) must be done before any subsequent Ansible run.
+> Leaving `rebuild_mysql_data: true` will wipe the database on the next routine
+> playbook execution.
 
 ---
 
@@ -59,7 +60,7 @@ MIGRATION
 
 - **`ADD COLUMN IF NOT EXISTS` and `DROP COLUMN IF EXISTS` are MariaDB-only syntax** — they
   cause a `1064` syntax error in MySQL 8. Use plain `ADD COLUMN` / `DROP COLUMN` instead.
-  Since BABRR verifies schema state upfront (via MCP or `SHOW CREATE TABLE`), idempotency
+  Since BABRRR verifies schema state upfront (via MCP or `SHOW CREATE TABLE`), idempotency
   guards are not needed — confirm the target columns/indexes are absent before running.
 - `DROP INDEX IF EXISTS idx_name ON tbl_name` (standalone statement) is supported in MySQL 8.0+;
   `ALTER TABLE t DROP INDEX IF EXISTS idx_name` is not — use the standalone form when a
@@ -153,15 +154,6 @@ script -q -c "ansible-playbook \
   ansible-playbook-prod-$(date +%Y%m%d).log
 ```
 
-### 4c — Revert the rebuild flag immediately after Ansible completes
-
-```yaml
-rebuild_mysql_data: false
-```
-
-> **Warning:** Leaving `rebuild_mysql_data: true` will wipe the database on the next routine
-> Ansible run. Revert it before doing anything else.
-
 ---
 
 ## Step 5 — Restore
@@ -179,6 +171,20 @@ from `create_media_db.sql` and the schema embedded in the backup will both conta
 altered columns.
 
 After restore, run `validate_app` and `upload_tests` to confirm the environment is healthy.
+
+---
+
+## Step 6 — Reset `rebuild_mysql_data`
+
+Set the flag back to `false` after the restore is confirmed complete — before any subsequent
+Ansible run.
+
+```yaml
+rebuild_mysql_data: false
+```
+
+> **Warning:** Leaving `rebuild_mysql_data: true` will wipe the database on the next routine
+> Ansible run. Do not skip this step.
 
 ---
 

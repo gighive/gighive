@@ -3,6 +3,26 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260819.txt
+Changes: Doc changes
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/problem_iphone_qr_code_shared_gallery_notifications.md
+	modified:   docs/process_backup_alter_backup_rebuild_restore.md
+	modified:   docs/process_database_mysql_init_prod_differences.md
+	modified:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint_followons.md
+	renamed:    docs/refactor_iphone_qr_code_extend_time.md -> docs/refactored_iphone_qr_code_extend_time.md
+	renamed:    docs/refactor_iphone_qr_code_gallery_access_for_all.md -> docs/refactored_iphone_qr_code_gallery_access_for_all.md
+	renamed:    docs/refactor_iphone_qr_code_gallery_notifications.md -> docs/refactored_iphone_qr_code_gallery_notifications.md
+
+*** 
+releaseNotes20260819.txt
 Changes: Post-phase 5 changes, issues 1-4
 
 On branch master

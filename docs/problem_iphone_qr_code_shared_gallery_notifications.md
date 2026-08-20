@@ -295,7 +295,7 @@ Four problems with simpler approaches were identified and resolved:
 
 **Constraint 1 — `tus_upload_id` after cleanup (fatal).**
 The existing TUS smoke block cleanup (`main.yml` lines 608–616) runs
-`DELETE FROM tus_uploads WHERE upload_id='{{ tus_upload_id }}'` before its
+`DELETE FROM tus_uploads WHERE upload_id='{% raw %}{{ tus_upload_id }}{% endraw %}'` before its
 block closes at line 620. T-97 is placed after T-96, which is after that
 cleanup. `finalizeTusUpload()` looks up the `tus_uploads` row first
 (`UploadService.php` lines 291–303) and throws `'Upload not found'` when the
@@ -382,6 +382,7 @@ variable to avoid shell-quoting problems with `+` and `=`.
 Reuses `tus_payload_b64`, `tus_expected_offset`, and `tus_headers_common`
 (play-scoped facts set at lines 274–282 of `main.yml`).
 
+{% raw %}
 ```yaml
 # --- T-97: finalizeTusUpload() in token-mode returns id, status_nonce, upload_job_id ---
 # Lifecycle: permanent — keep in post_build_checks.
@@ -624,6 +625,7 @@ Reuses `tus_payload_b64`, `tus_expected_offset`, and `tus_headers_common`
 
   tags: [smoke, tus]
 ```
+{% endraw %}
 
 **Why cleanup is split into two tasks and ordered this way:**
 

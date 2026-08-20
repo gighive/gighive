@@ -49,7 +49,7 @@ any live data created after the last CSV generation run, such as:
 - AI jobs, tags, taggings (`ai_jobs`, `tags`, `taggings`, `derived_assets`)
 - Any events or assets created via the app after the last CSV sync
 
-This is why BABRR Step 5 (restore from the post-migration backup) is **always
+This is why BABRRR Step 5 (restore from the post-migration backup) is **always
 required on prod** — even though the catalog data appears to come back from the
 CSV seed, any live transactional data is missing until the restore is applied.
 
@@ -110,6 +110,6 @@ SELECT
 
 ## Related Documentation
 
-- `docs/process_backup_alter_backup.md` — BABRR process (Backup → Alter → Backup → Rebuild → Restore)
+- `docs/process_backup_alter_backup_rebuild_restore.md` — BABRRR process (Backup → Alter → Backup → Rebuild → Restore → Reset)
 - `docs/process_mysql_init.md` — how MySQL initialisation works internally
 - `docs/guide_docker_compose_behavior.md` — `rebuild_mysql_data` flag mechanics

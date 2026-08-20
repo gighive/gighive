@@ -1,6 +1,7 @@
 # Refactor Status — Bang for Buck Analysis (2026-08-12)
 
 **Scope:** The `gighiveinfra/docs` refactor-candidate set was reviewed and ranked as of 2026-08-12.  
+**Last updated:** 2026-08-19 — Tranche 1 Phases 1–4 complete; #1 status updated accordingly.  
 **Method:** Impact divided by effort — highest ratio wins. Strategic value is a second driver for foundational work that unlocks larger architecture changes, and status of already-completed work is factored in (an already-built feature waiting for deployment scores very high).
 
 ---
@@ -51,16 +52,23 @@ Target: standardise all controllers to **≥ 2.20.4**. See
 
 ### 1. `refactor_storage_media_rest_endpoint.md` — Tranche 1 — Score: 10/10
 
-**Status:** In progress — Phases 1–3 complete all envs (2026-08-16); tusd retired, PHP tus server live, probe job queue live, BABRR DDL applied and restored on dev/lab/staging/prod. Phases 4–5 awaiting approval.  
+**Status:** Nearly complete — Phases 1–4 complete all envs (2026-08-16); Phase 5 (Local/VirtualBox final step) awaiting approval.  
+- Phase 1 (runtime config, IMDS access): **Complete — all envs**  
+- Phase 2 (PHP storage abstraction layer): **Complete — all envs**  
+- Phase 3 (PHP tus upload server, tusd retired): **Complete — all envs**  
+- Phase 4 (media streaming endpoint, `media-stream.php`): **Complete — all envs**  
+- Phase 5 (Local/VirtualBox final step): **Not started — awaiting approval**  
+- Phases 6–11 (Tranche 2): Deferred — Azure activation, not in scope until SaaS rollout  
+
 **Effort:** Phases 1–5 / 2 PRs. This tranche is the near-term build: it creates the abstraction layer, removes the `tusd` container, and keeps local storage as the backend for now.  
 **Impact:** Moves the media stack toward a clean separation of compute and storage by putting the media path behind PHP service classes instead of direct filesystem coupling. Tranche 1 does **not** switch Azure Blob on yet; it keeps the local storage model while preparing the codebase for the later SaaS rollout.
 
 **Why it wins:** This is the strongest strategic lever in the ranking because it creates the compute/storage boundary needed for the multi-client SaaS model without forcing the full Azure migration yet. It delivers the architectural separation now, while the Azure Blob activation stays deferred until the SaaS rollout is ready in roughly 3–6 months.
 
-Tranche 1 files to change:
+Tranche 1 docs:
 - `refactor_storage_media_rest_endpoint.md` (architecture and decision doc)
 - `refactor_storage_media_rest_endpoint_implementation.md` (build guide)
-- Tranche 1 implementation across PHP and Ansible phases only
+- `refactor_storage_media_rest_endpoint_followons.md` (deferred cleanup items)
 
 **Deferred follow-on:** Tranche 2 (Azure activation, private endpoint, IMDS auth, Blob cutover, backfill) is intentionally not counted in this ranking and will be revisited when the SaaS rollout is ready.
 
@@ -133,24 +141,39 @@ Files to change:
 
 ## What Did Not Make the Cut
 
+### Completed — removed from active ranking
+
+| File | Completed |
+|------|-----------|
+| `refactored_iphone_qr_code_extend_time.md` | 2026-07-17 |
+| `refactored_iphone_qr_code_gallery_access_for_all.md` | 2026-07-15 |
+| `refactored_iphone_qr_code_gallery_notifications.md` | Core work complete; optional cleanup deferred to `refactor_storage_media_rest_endpoint_followons.md` |
+| `refactored_iphone_qr_code_gallery_thumbnails.md` | Completed; date not recorded |
+| `refactored_qr_code_users_splash_page.md` | Completed; date not recorded |
+| `refactored_azure_blob_export_import_session_storage.md` | Completed; date not recorded |
+| `refactor_os_add_swap.md` | Completed; date not recorded |
+
+### Deferred — intentionally out of scope
+
 | File | Primary Reason |
-|------|---------------|
-| `refactored_qr_code_users_splash_page.md` | Completed already; removed from active bang-for-buck ranking |
-| `refactored_iphone_qr_code_gallery_thumbnails.md` | Completed already; removed from active bang-for-buck ranking |
-| `refactored_azure_blob_export_import_session_storage.md` | Completed already; removed from active bang-for-buck ranking |
+|------|----------------|
 | `refactor_security.md` | Strategic OIDC/JWT roadmap; large and complex |
 | `refactor_security_recommendations_20260530.md` | Useful planning doc; concrete items covered by individual refactor docs already ranked |
-| `refactor_os_add_swap.md` | Completed already; removed from active bang-for-buck ranking |
 | `refactor_preasset_librarian_db_ui_based_on_personas.md` | High long-term value; 5-phase architectural refactor, high effort |
-| `refactor_navigation_user_flow.md` | Stub with open questions — not actionable yet |
+| `refactor_version_number_to_semantic.md` | Explicitly deferred; not required for current telemetry |
+| `refactor_edge_aware_authentication_model.md` | Future planning only; current bypass-Cloudflare approach is correct for now |
+| `refactor_db_fix_event_metadata_example_clarity.md` | Documentation clarification only, no implementation work |
+
+### Not actionable — blocked or workaround in place
+
+| File | Primary Reason |
+|------|----------------|
 | `refactor_iphone_tuskit_inject_deprecation.md` | Not actionable until TUSKit adds delegate support or CA is deployed |
 | `refactor_security_password_unification.md` | Option C already done; A/B explicitly deferred as cosmetic |
 | `refactor_security_ssl_cert_lifetime.md` | Dev-only concern; `dev.gighive.app` is the recommended workaround and it works |
-| `refactor_edge_aware_authentication_model.md` | Future planning only; current bypass-Cloudflare approach is correct for now |
-| `refactor_version_number_to_semantic.md` | Explicitly deferred; not required for current telemetry |
-| `refactor_db_fix_event_metadata_example_clarity.md` | Documentation clarification only, no implementation work |
 | `refactor_ansible_www_group_vars.md` | Remaining hardcoded `www-data` instances are inside containers where the value is always correct |
 | `refactor_iphone_security_insecure_tls_breaks_on_names.md` | Dev-only; workaround (use IP or `dev.gighive.app`) is functional |
+| `refactor_navigation_user_flow.md` | Stub with open questions — not actionable yet |
 
 ---
 

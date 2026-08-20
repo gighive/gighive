@@ -1,18 +1,19 @@
 ---
-description: "Follow-on tasks deferred from the MediaStorageService / storage REST endpoint refactor and related QR-upload work — not blocking for Tranche 1"
+description: "Miscellaneous follow-on and cleanup tasks deferred from completed refactors — not blocking for current work"
 ---
 
-# Follow-on Tasks — Storage REST Endpoint Refactor
+# Follow-on Tasks — Miscellaneous Refactor Cleanup
 
-These items were identified during the `MediaStorageService` refactor (Tranche 1) and
-the QR-upload shared gallery work but deferred as non-blocking. They are collected here
-so they are not lost across refactor and problem docs.
+This file is the bit bucket for deferred follow-on and cleanup items from completed
+refactors. Items are added here rather than left in the originating doc so the source
+docs can be closed out cleanly.
 
 Source docs:
 
-- `docs/refactor_storage_media_rest_endpoint_implementation.md` → Progress → Remaining — Follow-on Tasks
+- `docs/refactored_storage_media_rest_endpoint_implementation.md` → Progress → Remaining — Follow-on Tasks
 - `docs/problem_storage_media_endpoint_upload_field_miss.md` → Follow-on: Standing DB cruft cleanup
 - `docs/problem_iphone_qr_code_shared_gallery_notifications.md` → Preventative Actions item 5
+- `docs/refactored_iphone_qr_code_gallery_notifications.md` → Remaining Refactor Opportunities (items 2–4)
 
 ---
 
@@ -91,3 +92,30 @@ Delete after Phase 11 step 9 backfill is verified complete.
 env var is absent. The env var is set in `.env.j2` via
 `{{ tus_local_staging_dir | default('/tmp/tus-staging') }}` but `tus_local_staging_dir` is
 not declared in any group_vars file. Not introduced by this fix; tracked here to avoid loss.
+
+---
+
+## GuestGalleryView — Optional Cleanup
+
+**Source:** `docs/refactored_iphone_qr_code_gallery_notifications.md` → Remaining Refactor Opportunities
+
+Core behavior and bug fixes are complete. The items below are cleanup-only; none are
+blockers or missing functionality.
+
+#### GG-01 — Remove inline logging from ViewBuilder body  (MEDIUM)
+
+`let _ = logWithTimestamp(...)` expressions in `GuestGalleryView`'s `@ViewBuilder` body
+fire on every re-render. Move to `.onAppear` on the relevant row, or remove entirely
+once debugging is confirmed done.
+
+#### GG-02 — Remove `VideoPlayer` init logging  (LOW)
+
+`logWithTimestamp(...)` in `VideoPlayerView.init` fires on every SwiftUI re-render that
+reconstructs the destination view. Remove once debugging is done.
+
+#### GG-03 — Split `loadGallery` responsibilities  (LOW / optional)
+
+`loadGallery` currently handles multiple concerns. Only worth splitting if the function
+grows further. Candidate extraction:
+- `refreshViewState(from: [GuestUploadRecord])` — sets `viewedIds`, `ownUploadIds`
+- `persistLastSeen(vc: Int)` — updates `lastSeenVideoCount` across all event records
