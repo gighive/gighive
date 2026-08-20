@@ -173,7 +173,7 @@ img { background: transparent !important; }
     object-fit: contain;
     background: #111827;
     padding: 1rem;
-    cursor: default;
+    cursor: zoom-in;
     box-sizing: border-box;
 }
 
@@ -460,9 +460,10 @@ img { background: transparent !important; }
          CARD 3 — Retro Bee Hat (Coming Soon)
     ═════════════════════════════════════════════════ -->
     <div class="hat-card coming-soon-card">
-      <img class="hat-hero contain-fit"
+      <img id="hero-retro" class="hat-hero contain-fit"
            src="/images/hat_retro_design_sheet.png"
-           alt="GigHive Retro Bee Hat — design preview">
+           alt="GigHive Retro Bee Hat — design preview"
+           onclick="openLightbox(this)">
       <div class="hat-card-body">
         <h2>Retro Bee Hat
           <span style="font-size:0.7em; color:#667; font-weight:normal; margin-left:4px;">Coming Soon</span>

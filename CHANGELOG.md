@@ -2,6 +2,22 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
+releaseNotes20260820.txt
+Changes: Hat #3 zoom fix
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   docs/hats_checkout.md
+	new file:   docs/milestone_20260819_storage_media_endpoint.md
+	renamed:    docs/refactor_status_20260812.md -> docs/refactor_status_20260819.md
+
+*** 
 releaseNotes20260819.txt
 Changes: Doc changes
 
@@ -21,31 +37,9 @@ Changes to be committed:
 	renamed:    docs/refactor_iphone_qr_code_gallery_access_for_all.md -> docs/refactored_iphone_qr_code_gallery_access_for_all.md
 	renamed:    docs/refactor_iphone_qr_code_gallery_notifications.md -> docs/refactored_iphone_qr_code_gallery_notifications.md
 
-*** 
-releaseNotes20260819.txt
-Changes: Post-phase 5 changes, issues 1-4
-
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/api/tus-upload.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Dto/TusUploadState.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/TusBlockUploadService.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
-	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql
-	modified:   ansible/roles/docker/templates/entrypoint.sh.j2
-	modified:   ansible/roles/post_build_checks/tasks/main.yml
-	new file:   docs/problem_iphone_qr_code_shared_gallery_notifications.md
-	new file:   docs/problem_storage_media_endpoint_upload_field_miss.md
-	new file:   docs/refactor_storage_media_rest_endpoint_followons.md
-	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
-
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260818.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260819.log
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260720.log
 # GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
@@ -53,22 +47,22 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # GIG2 EVERYTHING make sure playwright_admin_tests = true in group_var
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive -e allow_destructive=true -K"
 # PROD ROLLOUT
-Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260818.log
+Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260819.log
 # LAB PUSH: 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260818.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260819.log
 # LAB ALL TESTS: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
 # LAB, rebuild 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
 # GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260818.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260819.log
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
-Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260818.log
+Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260820.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT PUSH (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260726.log 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260820.log 
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
@@ -147,6 +141,28 @@ Infra: rebuild prod baremetal with same ansible scripts as staging
 
 
 
+
+*** 
+releaseNotes20260819.txt
+Changes: Post-phase 5 changes, issues 1-4
+
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/api/tus-upload.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Dto/TusUploadState.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/TusBlockUploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql
+	modified:   ansible/roles/docker/templates/entrypoint.sh.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   docs/problem_iphone_qr_code_shared_gallery_notifications.md
+	new file:   docs/problem_storage_media_endpoint_upload_field_miss.md
+	new file:   docs/refactor_storage_media_rest_endpoint_followons.md
+	modified:   docs/refactor_storage_media_rest_endpoint_implementation.md
 
 *** 
 releaseNotes20260818.txt

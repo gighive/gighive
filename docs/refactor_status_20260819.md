@@ -1,7 +1,7 @@
 # Refactor Status — Bang for Buck Analysis (2026-08-12)
 
 **Scope:** The `gighiveinfra/docs` refactor-candidate set was reviewed and ranked as of 2026-08-12.  
-**Last updated:** 2026-08-19 — Tranche 1 Phases 1–4 complete; #1 status updated accordingly.  
+**Last updated:** 2026-08-19 — Tranche 1 Phases 1–5 complete across all environments; #1 moved to completed.  
 **Method:** Impact divided by effort — highest ratio wins. Strategic value is a second driver for foundational work that unlocks larger architecture changes, and status of already-completed work is factored in (an already-built feature waiting for deployment scores very high).
 
 ---
@@ -52,12 +52,12 @@ Target: standardise all controllers to **≥ 2.20.4**. See
 
 ### 1. `refactor_storage_media_rest_endpoint.md` — Tranche 1 — Score: 10/10
 
-**Status:** Nearly complete — Phases 1–4 complete all envs (2026-08-16); Phase 5 (Local/VirtualBox final step) awaiting approval.  
+**Status:** **Complete — all phases, all environments (2026-08-19).**  
 - Phase 1 (runtime config, IMDS access): **Complete — all envs**  
 - Phase 2 (PHP storage abstraction layer): **Complete — all envs**  
 - Phase 3 (PHP tus upload server, tusd retired): **Complete — all envs**  
 - Phase 4 (media streaming endpoint, `media-stream.php`): **Complete — all envs**  
-- Phase 5 (Local/VirtualBox final step): **Not started — awaiting approval**  
+- Phase 5 (Local/VirtualBox final step): **Complete — all envs**  
 - Phases 6–11 (Tranche 2): Deferred — Azure activation, not in scope until SaaS rollout  
 
 **Effort:** Phases 1–5 / 2 PRs. This tranche is the near-term build: it creates the abstraction layer, removes the `tusd` container, and keeps local storage as the backend for now.  
@@ -145,6 +145,7 @@ Files to change:
 
 | File | Completed |
 |------|-----------|
+| `refactor_storage_media_rest_endpoint.md` (Tranche 1, Phases 1–5) | 2026-08-19 — all envs verified |
 | `refactored_iphone_qr_code_extend_time.md` | 2026-07-17 |
 | `refactored_iphone_qr_code_gallery_access_for_all.md` | 2026-07-15 |
 | `refactored_iphone_qr_code_gallery_notifications.md` | Core work complete; optional cleanup deferred to `refactor_storage_media_rest_endpoint_followons.md` |
@@ -182,7 +183,7 @@ Files to change:
 | Category | Items | Notes |
 |----------|-------|-------|
 | Operational blocker (< 1 hour) | #0 | Force multiplier — fix before next Ansible run |
-| Strategic platform tranche | #1 | Compute/storage separation now; full SaaS rollout later |
+| Strategic platform tranche | #1 ✓ | Tranche 1 complete all envs 2026-08-19; Tranche 2 deferred to SaaS rollout |
 | Trivial code change (< 1 day) | #2, #3, #4 | Measured in lines, not files |
 | Small focused refactor (1–3 days) | #5 | Clear plan, no coordination overhead |
 | Medium refactor (1–2 weeks) | #6, #7 | Schema / endpoints / UI / client coordination |
