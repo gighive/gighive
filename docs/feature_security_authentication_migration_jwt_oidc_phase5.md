@@ -800,6 +800,7 @@ All secrets have empty-string PHP defaults — missing secrets fail at runtime r
 
 ### `.env.j2` additions
 
+{% raw %}
 ```jinja2
 # ── OIDC (Phase 5) ────────────────────────────────────────────────────────────
 OIDC_GOOGLE_CLIENT_ID={{ oidc_google_client_id | default('') }}
@@ -812,6 +813,7 @@ OIDC_ROLE_MAP_JSON={{ oidc_role_map | default({}) | to_json }}
 OIDC_DEFAULT_ROLE={{ oidc_default_role | default('viewer') }}
 OIDC_GROUPS_CLAIM={{ oidc_groups_claim | default('groups') }}
 ```
+{% endraw %}
 
 **Note on `OIDC_REDIRECT_URI`:** This variable was previously listed here but has been removed. The browser-flow redirect URI (rendered as `{% raw %}{{ gighive_base_url }}{% endraw %}/oidc/callback`) is rendered directly into the Apache VirtualHost config as the `OIDCRedirectURI` directive — Apache reads it from the `.conf` file, not from the PHP environment. PHP code does not need this value: `token-exchange.php` validates the iOS redirect URI (`gighive://oidc/callback`) against a hardcoded allowlist, not an env var. Including it in `.env.j2` would only create a misleading dead variable.
 
