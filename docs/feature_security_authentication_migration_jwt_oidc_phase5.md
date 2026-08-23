@@ -183,6 +183,7 @@ This requires a container **rebuild and restart** — the only container change 
 
 Add inside `<VirtualHost *:443>`, before any `<Location>` blocks:
 
+{% raw %}
 ```apache
 {% if gighive_auth_mode == 'oidc' %}
 # ── OIDC global config ────────────────────────────────────────────────
@@ -209,12 +210,15 @@ OIDCAuthNHeader             X-OIDC-Remote-User
 </Location>
 {% endif %}
 ```
+{% endraw %}
 
 **Microsoft requires a second provider entry.** `mod_auth_openidc` supports multiple providers via `OIDCMetadataDir`. The Microsoft discovery URL is:
 
+{% raw %}
 ```
 https://login.microsoftonline.com/{{ oidc_ms_tenant_id }}/v2.0/.well-known/openid-configuration
 ```
+{% endraw %}
 
 For multi-provider support, replace the single `OIDCProviderMetadataURL`/`OIDCClientID`/`OIDCClientSecret` directives with:
 
@@ -846,6 +850,7 @@ oidc_role_map:
 
 Add to `ansible/roles/docker/tasks/main.yml` (or a new `oidc_setup.yml` task file):
 
+{% raw %}
 ```yaml
 # Use ansible.builtin.command + docker exec — consistent with project convention in
 # ansible/roles/docker/tasks/main.yml and post_build_checks/tasks/main.yml.
@@ -876,6 +881,7 @@ Add to `ansible/roles/docker/tasks/main.yml` (or a new `oidc_setup.yml` task fil
   no_log: true
   changed_when: true
 ```
+{% endraw %}
 
 `no_log: true` is required on both write tasks — client secrets must not appear in Ansible output or logs. `changed_when: true` is required because `ansible.builtin.shell` with `docker exec` always exits 0 and Ansible would otherwise always report `ok` rather than `changed`.
 
@@ -1337,6 +1343,7 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
 
 ## Smoke Tests (`post_build_checks/tasks/main.yml`)
 
+{% raw %}
 ```yaml
 # --- Phase 5 OIDC Smoke Tests ---
 
@@ -1545,6 +1552,7 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
   when: gighive_auth_mode != 'oidc'
   tags: [smoke, rollback]
 ```
+{% endraw %}
 
 ---
 
