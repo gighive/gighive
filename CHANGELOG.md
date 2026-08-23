@@ -2,8 +2,8 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
-releaseNotes20260820.txt
-Changes: Hat #3 zoom fix
+releaseNotes20260823.txt
+Changes: docs/feature_security_authentication_migration_jwt_oidc_*.md
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,30 +12,15 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	modified:   docs/hats_checkout.md
-	new file:   docs/milestone_20260819_storage_media_endpoint.md
-	renamed:    docs/refactor_status_20260812.md -> docs/refactor_status_20260819.md
-
-*** 
-releaseNotes20260819.txt
-Changes: Doc changes
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   docs/problem_iphone_qr_code_shared_gallery_notifications.md
-	modified:   docs/process_backup_alter_backup_rebuild_restore.md
-	modified:   docs/process_database_mysql_init_prod_differences.md
-	modified:   docs/refactor_status_20260812.md
-	modified:   docs/refactor_storage_media_rest_endpoint_followons.md
-	renamed:    docs/refactor_iphone_qr_code_extend_time.md -> docs/refactored_iphone_qr_code_extend_time.md
-	renamed:    docs/refactor_iphone_qr_code_gallery_access_for_all.md -> docs/refactored_iphone_qr_code_gallery_access_for_all.md
-	renamed:    docs/refactor_iphone_qr_code_gallery_notifications.md -> docs/refactored_iphone_qr_code_gallery_notifications.md
+	deleted:    SKILL.md
+	new file:   docs/feature_security_authentication_migration_jwt.md
+	new file:   docs/feature_security_authentication_migration_jwt_implementation.md
+	new file:   docs/feature_security_authentication_migration_jwt_oidc_benefits.md
+	new file:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
+	renamed:    docs/pr_librarianAsset_musicianEvent_completed.md -> docs/pr_completed_librarianAsset_musicianEvent.md
+	renamed:    docs/pr_librarianAsset_musicianEvent_completed_example.md -> docs/pr_completed_librarianAsset_musicianEvent_example.md
+	renamed:    docs/pr_librarianAsset_musicianEvent_completed_implementation.md -> docs/pr_completed_librarianAsset_musicianEvent_implementation.md
+	renamed:    docs/refactor_preasset_librarian_db_ui_based_on_personas.md -> docs/refactored_preasset_librarian_db_ui_based_on_personas.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
@@ -141,6 +126,42 @@ Infra: rebuild prod baremetal with same ansible scripts as staging
 
 
 
+
+*** 
+releaseNotes20260820.txt
+Changes: Hat #3 zoom fix
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   docs/hats_checkout.md
+	new file:   docs/milestone_20260819_storage_media_endpoint.md
+	renamed:    docs/refactor_status_20260812.md -> docs/refactor_status_20260819.md
+
+*** 
+releaseNotes20260819.txt
+Changes: Doc changes
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   docs/problem_iphone_qr_code_shared_gallery_notifications.md
+	modified:   docs/process_backup_alter_backup_rebuild_restore.md
+	modified:   docs/process_database_mysql_init_prod_differences.md
+	modified:   docs/refactor_status_20260812.md
+	modified:   docs/refactor_storage_media_rest_endpoint_followons.md
+	renamed:    docs/refactor_iphone_qr_code_extend_time.md -> docs/refactored_iphone_qr_code_extend_time.md
+	renamed:    docs/refactor_iphone_qr_code_gallery_access_for_all.md -> docs/refactored_iphone_qr_code_gallery_access_for_all.md
+	renamed:    docs/refactor_iphone_qr_code_gallery_notifications.md -> docs/refactored_iphone_qr_code_gallery_notifications.md
 
 *** 
 releaseNotes20260819.txt
