@@ -1582,7 +1582,7 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
 gighive_auth_mode: "local"
 ```
 
-Run Ansible. Apache `mod_auth_openidc` blocks are disabled (they are inside `{% if gighive_auth_mode == 'oidc' %}`). Local-user login via `api/login.php` continues. The `api/oidc/token-exchange.php` and `api/oidc/config.php` endpoints become unreachable from the iOS app (but are still deployed — they just don't matter).
+Run Ansible. Apache `mod_auth_openidc` blocks are disabled (they are inside `{% raw %}{% if gighive_auth_mode == 'oidc' %}{% endraw %}`). Local-user login via `api/login.php` continues. The `api/oidc/token-exchange.php` and `api/oidc/config.php` endpoints become unreachable from the iOS app (but are still deployed — they just don't matter).
 
 **OIDC-only users after rollback:** Any user whose `users` row has `password_hash = NULL` (i.e. they never set a local password) cannot log in after rollback. Recovery: the operator runs:
 
