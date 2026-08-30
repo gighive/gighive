@@ -362,6 +362,19 @@ final class UploadService
             $result['upload_job_id'] = $uploadJobsRowId;
         }
 
+        // Authenticated upload: generate and store a delete token, mirroring processUpload().
+        // Guest/QR uploads ($tokenResult !== null) do not receive a delete token.
+        // For genuine deduplication the asset already has a token hash, so
+        // setDeleteTokenHashIfNull returns false and no token is added — the iOS
+        // dedup alert fires correctly in that case.
+        if ($tokenResult === null) {
+            $rawToken = bin2hex(random_bytes(32));
+            $hash     = hash('sha256', $rawToken);
+            if ($this->assetRepo->setDeleteTokenHashIfNull($assetId, $hash)) {
+                $result['delete_token'] = $rawToken;
+            }
+        }
+
         return $result;
     }
 

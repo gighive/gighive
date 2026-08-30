@@ -63,6 +63,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'file_type', type: 'string', enum: ['audio', 'video']),
         new OA\Property(property: 'file_name', type: 'string'),
         new OA\Property(property: 'url', type: 'string', description: 'Relative URL to the media file'),
+        new OA\Property(property: 'can_delete', type: 'boolean', description: 'Server-authoritative flag: true when the authenticated caller may delete this entry. admin: always true. uploader: true only for authenticated-path uploads with a valid delete_token_hash and no upload_jobs row.'),
+        new OA\Property(property: 'upload_source', type: 'string', enum: ['authenticated', 'guest'], description: 'Identifies the upload path: "authenticated" (iPhone authenticated path, no upload_jobs row) or "guest" (QR code path, upload_jobs row present).'),
     ]
 )]
 #[OA\Schema(

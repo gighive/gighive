@@ -3,29 +3,7 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260830.txt
-Changes: delete eligibility change documentation + mediacontroller fix to add a thumbnail column for new ios media database page
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
-	modified:   docs/feature_completed_iphone_qr_code_shared_gallery.md
-	modified:   docs/feature_security_authentication_migration_jwt.md
-	modified:   docs/feature_security_authentication_migration_jwt_implementation.md
-	new file:   docs/feature_security_authentication_migration_jwt_ios_auth_cred_type.md
-	modified:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
-	new file:   docs/problem_ios_testing_media_player_unification.md
-	modified:   docs/refactor_storage_media_rest_endpoint.md
-	new file:   docs/refactor_video_player_page.md
-	new file:   docs/refactor_video_player_page_delete_eligibility.md
-	new file:   docs/testing_ios.md
-
-*** 
-releaseNotes20260823.txt
-Changes: docs/feature_security_authentication_migration_jwt_oidc_*.md
+Changes: delete eligibility changes and fixes
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -34,19 +12,40 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	deleted:    SKILL.md
-	new file:   docs/feature_security_authentication_migration_jwt.md
-	new file:   docs/feature_security_authentication_migration_jwt_implementation.md
-	new file:   docs/feature_security_authentication_migration_jwt_oidc_benefits.md
-	new file:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
-	renamed:    docs/pr_librarianAsset_musicianEvent_completed.md -> docs/pr_completed_librarianAsset_musicianEvent.md
-	renamed:    docs/pr_librarianAsset_musicianEvent_completed_example.md -> docs/pr_completed_librarianAsset_musicianEvent_example.md
-	renamed:    docs/pr_librarianAsset_musicianEvent_completed_implementation.md -> docs/pr_completed_librarianAsset_musicianEvent_implementation.md
-	renamed:    docs/refactor_preasset_librarian_db_ui_based_on_personas.md -> docs/refactored_preasset_librarian_db_ui_based_on_personas.md
+	modified:   ansible/roles/docker/files/apache/webroot/docs/openapi.yaml
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/OpenApi.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/AssetRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/index.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   docs/problem_tus_finalize_missing_delete_token.md
+	new file:   docs/refactor_not_needed_schema_assets_created_at.md
+	new file:   docs/refactor_schema_upload_jobs_token_attribution.md
+	modified:   docs/refactor_video_player_page_delete_eligibility.md
+	modified:   docs/testing_ios.md
+
+Add server-authoritative can_delete and upload_source to database.php (Phase 2)
+ 
+- MediaController::listJson() LEFT JOINs upload_jobs on file_relpath to
+  derive upload_source (authenticated/guest); computes can_delete in PHP
+  from PHP_AUTH_USER after the query (not as a SQL CASE bind parameter).
+  Admin → always true; uploader → true only for authenticated uploads;
+  other/unauthenticated → false.
+- AssetRepository::fetchUploadMeta() performs the upload-jobs lookup in
+  one query per list call.
+- OpenApi.php: added can_delete (boolean) and upload_source (string) to
+  MediaEntry schema annotation; openapi.yaml regenerated.
+- create_media_db.sql: added idx_upload_jobs_file_relpath index on
+  upload_jobs.file_relpath (live ALTER applied to dev via BABRRR).
+- post_build_checks: added smoke tests T-134–T-139 (unauthenticated 401;
+  admin all-true; uploader guest-false / auth-true; upload_source values).
+- docs: refactor plan status updated; testing_ios.md Phase 4/5 tables updated
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260819.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260830.log
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260720.log
 # GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
@@ -146,8 +145,48 @@ Issue: investigate vids that didn't produce thumbnails
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
+*** 
+releaseNotes20260830.txt
+Changes: delete eligibility change documentation + mediacontroller fix to add a thumbnail column for new ios media database page
 
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
 
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   docs/feature_completed_iphone_qr_code_shared_gallery.md
+	modified:   docs/feature_security_authentication_migration_jwt.md
+	modified:   docs/feature_security_authentication_migration_jwt_implementation.md
+	new file:   docs/feature_security_authentication_migration_jwt_ios_auth_cred_type.md
+	modified:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
+	new file:   docs/problem_ios_testing_media_player_unification.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
+	new file:   docs/refactor_video_player_page.md
+	new file:   docs/refactor_video_player_page_delete_eligibility.md
+	new file:   docs/testing_ios.md
+
+*** 
+releaseNotes20260823.txt
+Changes: docs/feature_security_authentication_migration_jwt_oidc_*.md
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	deleted:    SKILL.md
+	new file:   docs/feature_security_authentication_migration_jwt.md
+	new file:   docs/feature_security_authentication_migration_jwt_implementation.md
+	new file:   docs/feature_security_authentication_migration_jwt_oidc_benefits.md
+	new file:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
+	renamed:    docs/pr_librarianAsset_musicianEvent_completed.md -> docs/pr_completed_librarianAsset_musicianEvent.md
+	renamed:    docs/pr_librarianAsset_musicianEvent_completed_example.md -> docs/pr_completed_librarianAsset_musicianEvent_example.md
+	renamed:    docs/pr_librarianAsset_musicianEvent_completed_implementation.md -> docs/pr_completed_librarianAsset_musicianEvent_implementation.md
+	renamed:    docs/refactor_preasset_librarian_db_ui_based_on_personas.md -> docs/refactored_preasset_librarian_db_ui_based_on_personas.md
 
 *** 
 releaseNotes20260820.txt

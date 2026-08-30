@@ -339,6 +339,52 @@ SQL;
         return $stmt->rowCount() === 1;
     }
 
+    /**
+     * For a list of asset IDs, returns per-asset upload metadata needed by
+     * MediaController::listJson() to compute can_delete and upload_source.
+     *
+     * upload_source is 'guest' when a matching upload_jobs row exists (QR code path)
+     * and 'authenticated' when no upload_jobs row exists (iPhone authenticated path).
+     * has_delete_token is true when assets.delete_token_hash is non-null/non-empty.
+     *
+     * Uses EXISTS to avoid row duplication if an asset has multiple upload_jobs rows.
+     * Requires idx_upload_jobs_file_relpath on upload_jobs.file_relpath for efficiency.
+     *
+     * @param  int[]  $assetIds
+     * @return array<int, array{upload_source: string, has_delete_token: bool}>
+     */
+    public function fetchUploadMeta(array $assetIds): array
+    {
+        if (empty($assetIds)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($assetIds), '?'));
+        $stmt = $this->pdo->prepare(
+            "SELECT
+                 a.asset_id,
+                 (a.delete_token_hash IS NOT NULL AND a.delete_token_hash != '') AS has_delete_token,
+                 CASE WHEN EXISTS (
+                     SELECT 1 FROM upload_jobs uj
+                     WHERE uj.file_relpath = CONCAT(
+                         a.file_type, '/',
+                         a.checksum_sha256,
+                         IF(COALESCE(a.file_ext, '') != '', CONCAT('.', a.file_ext), '')
+                     )
+                 ) THEN 'guest' ELSE 'authenticated' END AS upload_source
+             FROM assets a
+             WHERE a.asset_id IN ($placeholders)"
+        );
+        $stmt->execute(array_values($assetIds));
+        $result = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $result[(int)$row['asset_id']] = [
+                'upload_source'    => (string)$row['upload_source'],
+                'has_delete_token' => (bool)(int)$row['has_delete_token'],
+            ];
+        }
+        return $result;
+    }
+
     public function updateProbeMetadata(
         int $assetId,
         string $fileExt,

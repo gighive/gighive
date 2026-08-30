@@ -243,10 +243,11 @@ CREATE TABLE IF NOT EXISTS upload_jobs (
         COMMENT 'Guest self-delete flag; moderation_status unchanged; physical file retained on disk',
     guest_deleted_at  DATETIME NULL,
     UNIQUE KEY uq_upload_jobs_job_id (job_id),
-    INDEX        idx_upload_jobs_started    (started_at),
-    INDEX        idx_upload_jobs_status     (status),
-    INDEX        idx_upload_jobs_moderation (moderation_status),
-    KEY          idx_upload_jobs_tenant     (tenant_id),
+    INDEX        idx_upload_jobs_started      (started_at),
+    INDEX        idx_upload_jobs_status       (status),
+    INDEX        idx_upload_jobs_moderation   (moderation_status),
+    KEY          idx_upload_jobs_tenant       (tenant_id),
+    KEY          idx_upload_jobs_file_relpath (file_relpath),
     CONSTRAINT   fk_upload_jobs_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

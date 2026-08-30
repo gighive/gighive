@@ -1020,6 +1020,15 @@ components:
         url:
           description: 'Relative URL to the media file'
           type: string
+        can_delete:
+          description: 'Server-authoritative flag: true when the authenticated caller may delete this entry. admin: always true. uploader: true only for authenticated-path uploads with a valid delete_token_hash and no upload_jobs row.'
+          type: boolean
+        upload_source:
+          description: 'Identifies the upload path: "authenticated" (iPhone authenticated path, no upload_jobs row) or "guest" (QR code path, upload_jobs row present).'
+          type: string
+          enum:
+            - authenticated
+            - guest
       type: object
     Error:
       properties:

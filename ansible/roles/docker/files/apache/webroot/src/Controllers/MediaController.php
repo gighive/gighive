@@ -571,6 +571,26 @@ final class MediaController
             }
         }
 
+        // Collect asset IDs for the upload-source / can_delete lookup.
+        // done before the main loop so we can call fetchUploadMeta() once.
+        $allAssetIds = [];
+        foreach ($rows as $row) {
+            $rowId = isset($row['id']) ? (int)$row['id'] : 0;
+            if ($rowId > 0) {
+                $allAssetIds[] = $rowId;
+            }
+        }
+        $uploadMeta = $this->assetRepo->fetchUploadMeta($allAssetIds);
+
+        // Resolve the authenticated user for can_delete computation.
+        // Same fallback chain used by delete_media_files.php and admin endpoints.
+        $authUser   = $_SERVER['PHP_AUTH_USER']
+                   ?? $_SERVER['REMOTE_USER']
+                   ?? $_SERVER['REDIRECT_REMOTE_USER']
+                   ?? null;
+        $isAdmin    = ($authUser === 'admin');
+        $isUploader = ($authUser === 'uploader');
+
         $counter = $paginationEnabled ? ($offset + 1) : 1;
         $entries = [];
         foreach ($rows as $row) {
@@ -602,6 +622,21 @@ final class MediaController
                 $thumbUrl = '/images/audiofile.png';
             }
 
+            // can_delete and upload_source:
+            //   admin    → always true (unconditional, consistent with delete_media_files.php admin path)
+            //   uploader → true only when: delete_token_hash IS set AND asset has no upload_jobs row
+            //              (i.e. it was uploaded via the authenticated iPhone path, not QR guest path)
+            //   other    → false (defensive default; database.php already requires auth)
+            $meta         = $uploadMeta[$id] ?? ['upload_source' => 'authenticated', 'has_delete_token' => false];
+            $uploadSource = $meta['upload_source'];
+            if ($isAdmin) {
+                $canDelete = true;
+            } elseif ($isUploader && $meta['has_delete_token'] && $uploadSource === 'authenticated') {
+                $canDelete = true;
+            } else {
+                $canDelete = false;
+            }
+
             $entries[] = [
                 'id'               => $id,
                 'index'            => $counter++,
@@ -616,6 +651,8 @@ final class MediaController
                 'thumbnail_url'    => $thumbUrl,
                 'media_summary'    => $mediaSummary,
                 'media_created_at' => (string)($row['media_created_at'] ?? ''),
+                'can_delete'       => $canDelete,
+                'upload_source'    => $uploadSource,
             ];
         }
 

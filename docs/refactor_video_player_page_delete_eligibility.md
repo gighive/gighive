@@ -2,9 +2,15 @@
 
 ## Status — 2026-08-29
 
-**Planning only — not implemented.**
+**Phase 2 (server) — implemented, pending deploy + smoke test run from pop-os.**
+**Phase 3 (iOS) — implemented, pending Xcode build and UI test run against deployed server.**
 
-Update this status line and date when implementation begins (`In progress — Phase N`) and when all phases verify clean (`Complete — <date>`).
+Phase 1 (guest-token mitigation) — complete.
+Phase 4 (delete grants) — not started.
+Phase 3 Step 7 (uploader performDelete via JWT role-claim) — deferred to JWT migration.
+Unit tests 31–32 — blocked on creating a `GigHiveTests` Xcode unit-test target.
+
+---
 
 Short-term mitigation already shipped (see P15 in `problem_ios_testing_media_player_unification.md`):
 - `GuestUploadView` no longer writes tokens into `UploaderDeleteTokenStore`.
@@ -249,12 +255,17 @@ CASE WHEN uj.id IS NULL THEN 'authenticated' ELSE 'guest' END AS upload_source
 
 #### Steps
 
-- [ ] **Step 1** — Verify `file_relpath` format in `UploadService.php` and confirm `upload_jobs.file_relpath` has an index before writing the JOIN.
-- [ ] **Step 2** — Extend `MediaController::listJson()` query with LEFT JOIN on `upload_jobs` to derive `upload_source`; compute `can_delete` in PHP from `$_SERVER['PHP_AUTH_USER']` and the returned row values (not as a SQL CASE bind parameter).
-- [ ] **Step 3** — Add `can_delete` (bool) and `upload_source` (string) to the per-entry response mapping in `MediaController.php`.
-- [ ] **Step 4** — Update `OpenApi.php` to add the two new fields to the `MediaEntry` schema annotation.
-- [ ] **Step 5** — Regenerate `openapi.yaml` per `docs/process_api_swagger_generation.md`.
-- [ ] **Step 6** — Add smoke tests to `ansible/roles/post_build_checks/tasks/main.yml`: (a) unauthenticated GET `/db/database.php` returns 401; (b) `can_delete: true` for `admin` caller on any entry; (c) `can_delete: true` for `uploader` caller on a known authenticated upload; (d) `can_delete: false` for `uploader` caller on a known guest upload.
+- [x] **Step 1** — Verify `file_relpath` format in `UploadService.php` (confirmed `<file_type>/<checksum>.<ext>`); add `idx_upload_jobs_file_relpath` to `create_media_db.sql`. **Live ALTER command (BABRR Step 2) — run on each existing environment before deploying Phase 2.** Verify the index is absent first (`SHOW INDEX FROM upload_jobs WHERE Key_name = 'idx_upload_jobs_file_relpath';`), then:
+
+  ```bash
+  docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db -e "ALTER TABLE upload_jobs ADD KEY idx_upload_jobs_file_relpath (file_relpath);"'
+  ```
+
+- [x] **Step 2** — Extended `MediaController::listJson()` with LEFT JOIN on `upload_jobs`; `can_delete` computed in PHP from `$_SERVER['PHP_AUTH_USER']` (not as a SQL CASE bind parameter).
+- [x] **Step 3** — Added `can_delete` (bool) and `upload_source` (string) to the per-entry response mapping in `MediaController.php`.
+- [x] **Step 4** — Updated `OpenApi.php` to add the two new fields to the `MediaEntry` schema annotation.
+- [ ] **Step 5** — Regenerate `openapi.yaml` per `docs/process_api_swagger_generation.md` (manual step; run `composer openapi` from `ansible/roles/docker/files/apache/webroot/`).
+- [x] **Step 6** — Added smoke tests T-134 through T-139 to `ansible/roles/post_build_checks/tasks/main.yml`.
 
 ---
 
@@ -294,12 +305,12 @@ If the same file was uploaded via both the authenticated iPhone path AND the gue
 
 #### Steps
 
-- [ ] **Step 1** — Add `canDelete: Bool` to `MediaEntry` in `DatabaseModels.swift` using `decodeIfPresent` with a default of `false`. A plain `let canDelete: Bool` will cause a decode failure on any response from a pre-Phase-2 server that does not include the field.
-- [ ] **Step 2** — Add `canDelete: Bool` to `UnifiedVideo` in `VideoListContext.swift`.
-- [ ] **Step 3** — Map `entry.canDelete` → `video.canDelete` in `loadAuthenticatedVideos` in `UnifiedVideoListView.swift`.
-- [ ] **Step 4** — Update `showDeleteButton(for: .uploaderAndAdmin)` in `UnifiedVideoListView.swift`: for `admin`, return `video.canDelete` (server-authoritative, delete path works); for `uploader`, return `false` regardless of `video.canDelete` — the server may return `can_delete: true` for authenticated uploads, but the uploader delete action is deferred to JWT migration (Step 7). Showing ✕ before the action is implemented would produce a button that silently fails.
-- [ ] **Step 5** — Remove `authDeleteTokens` / `tokenMap` / `UploaderDeleteTokenStore` loading from `loadAuthenticatedVideos` in `UnifiedVideoListView.swift`. Also update the 403 handler in `performDelete` — it currently calls `authDeleteTokens.removeValue(forKey: video.id)`, which will not compile once `authDeleteTokens` is removed. Uploader delete remains suppressed (no ✕ shown for uploader) until JWT migration delivers the role-claim delete path.
-- [ ] **Step 6** — Assess whether `UploaderDeleteTokenStore` can be narrowed or removed entirely now that it no longer drives the Media Database. `UploadView`'s "My Uploads" path must be reviewed before removal — see Follow-on Work.
+- [x] **Step 1** — Added `canDelete: Bool` to `MediaEntry` in `DatabaseModels.swift` with `decodeIfPresent` defaulting to `false`.
+- [x] **Step 2** — Added `canDelete: Bool` to `UnifiedVideo` in `VideoListContext.swift`.
+- [x] **Step 3** — Mapped `entry.canDelete` → `video.canDelete` in `loadAuthenticatedVideos` in `UnifiedVideoListView.swift`.
+- [x] **Step 4** — Updated `showDeleteButton(for: .uploaderAndAdmin)`: admin returns `video.canDelete`; uploader returns `false`.
+- [x] **Step 5** — Removed `authDeleteTokens` / `tokenMap` / `UploaderDeleteTokenStore` loading from `loadAuthenticatedVideos`; updated `performDelete` 403 handler and success handler to remove all `authDeleteTokens` references.
+- [x] **Step 6** — `UploaderDeleteTokenStore` assessed: still actively used by `UploadView` "My Uploads" tab; cannot be removed. Scope is now limited to `UploadView` only — `UnifiedVideoListView` no longer touches it.
 - [ ] **Step 7** — *(Deferred to JWT migration)* Implement `performDelete` uploader path using JWT role-claim ownership verification; no per-asset delete token required. Confirm this is a named deliverable in `feature_security_authentication_migration_jwt_implementation.md` before closing this phase.
 
 #### Backward compatibility
@@ -324,6 +335,15 @@ This phase is explicitly deferred. Admin-delete-on-behalf-of is the interim solu
 - [ ] **Step 2** — Add grant-creation endpoint (owner-only); wire into `admin/users.php` (requires JWT Phase 6 of `feature_security_authentication_migration_jwt_implementation.md`).
 - [ ] **Step 3** — Extend `MediaController::listJson()` to join `delete_grants` and include granted assets in the `can_delete: true` set for contributor callers.
 - [ ] **Step 4** — Add smoke tests: grant creation; `can_delete: true` on a granted guest asset; rejection of ungrant attempts by non-owners.
+
+#### Related schema work
+
+Before or alongside Phase 4, consider `refactor_schema_upload_jobs_token_attribution.md`:
+`upload_jobs` currently has no FK back to `event_upload_tokens`, so there is no
+database-level record of which QR code authorized which upload. That attribution
+would be useful for the grant model (e.g. surfacing all uploads from a specific QR
+token so an admin can grant bulk delete rights). Review that refactor's risk section
+before implementing, as it has cascade and JWT-migration dependencies.
 
 ---
 
@@ -412,7 +432,12 @@ Server-side delete mechanics are unchanged; these tests validate that the iOS cl
 | `database.php` must never be accessible without authentication | T-134 (Ansible) |
 | Option A response must never be served from a cache (if Option A is chosen) | T-140 (Ansible, conditional) |
 
-**Existing Phase 4 tests 24–27 must be updated when Phase 3 ships.** Those tests drive ✕ visibility via `--uitest-inject-delete-token` (Keychain token injection). After Phase 3, `showDeleteButton` uses `video.canDelete` from the server response — the injection mechanism no longer affects ✕ visibility. See the supersession note in `testing_ios.md` Phase 4 inventory.
+**Phase 4 tests 24–27 were updated when Phase 3 shipped.** Those tests drove ✕ visibility via `--uitest-inject-delete-token` (Keychain token injection). After Phase 3, `showDeleteButton` uses `video.canDelete` from the server response — the injection mechanism no longer affects ✕ visibility.
+
+- Tests 24 (`testAuthDeleteButtonAbsentWithoutToken`), 25 (`testAuthDeleteButtonVisibleForOwnUpload`), and 27 (`testAuthDelete403ClearsToken`) were replaced with `XCTSkip` bodies. Rationale: admin always receives `can_delete: true` (so the "absent" assertion is inverted), token injection no longer drives visibility, and the uploader's `showDeleteButton` always returns `false` (deferred to JWT migration) so the 403 path is unreachable from the list UI.
+- Test 26 (`testAuthDeleteConfirmDialogAppears`) was updated to remove token injection (`injectToken: false`); admin sees delete buttons without injection via server-provided `can_delete`.
+
+See the supersession detail in `testing_ios.md` Phase 4 inventory.
 
 ### Phase 4 tests — admin-granted delete (add only if Phase 4 is implemented)
 
@@ -450,5 +475,6 @@ Verify that fixture cleanup uses `failed_when: false` on the delete tasks so a c
 - [ ] Phase 4 — Admin-granted delete rights (explicitly deferred; implement only if demand justifies; tests T-141 through T-144)
 - [ ] `UploaderDeleteTokenStore` cleanup audit after Phase 3 ships
 - [ ] `UploadView` "My Uploads" token-staleness review under deduplication edge case
+- [ ] Add `upload_jobs.token_id → event_upload_tokens.token_id` FK — `upload_jobs` currently has no reference back to the QR authorization that permitted each upload; see `refactor_schema_upload_jobs_token_attribution.md`
 - [ ] Document deduplication edge case in server OpenAPI spec
 - [ ] JWT cutover — update `MediaController::listJson()` `can_delete` logic when Basic Auth is retired

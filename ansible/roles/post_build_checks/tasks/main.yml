@@ -502,7 +502,7 @@
       changed_when: false
       no_log: "{{ tus_checks_no_log }}"
 
-    - name: Assert finalize idempotency (same asset_id both calls)
+    - name: Assert finalize idempotency and delete_token presence
       ansible.builtin.assert:
         that:
           - tus_finalize_1.json is mapping
@@ -510,10 +510,14 @@
           - (tus_finalize_1.json.asset_id | int) == (tus_finalize_2.json.asset_id | int)
           - (tus_finalize_1.json.file_name | default('')) == (tus_finalize_2.json.file_name | default(''))
           - tus_finalize_1.json.db_done == true
+          - (tus_finalize_1.json.delete_token | default('')) | length == 64
+          - (tus_finalize_1.json.delete_token | default('')) is regex('^[0-9a-f]{64}$')
+        fail_msg: >-
+          finalizeTusUpload() authenticated response is missing delete_token or it is not a
+          64-character hex string.
+          delete_token='{{ tus_finalize_1.json.delete_token | default("ABSENT") }}'
       changed_when: false
 
-    # Phase 3: finalizeTusUpload() no longer returns delete_token (that was the old
-    # tusd hook-file path). The asset is cleaned up via admin delete directly.
     - name: Assert tus_uploads row is complete in DB
       community.docker.docker_container_exec:
         container: "{{ mysql_container_name }}"
@@ -1829,3 +1833,233 @@
       no_log: "{{ tus_checks_no_log }}"
 
   tags: [smoke, tus]
+
+# ============================================================
+# Phase 2 — Server-authoritative delete eligibility (database.php)
+# Ref: docs/refactor_video_player_page_delete_eligibility.md
+# ============================================================
+
+# --- T-134: Unauthenticated GET /db/database.php returns 401 ---
+# Verifies the endpoint remains protected after the Phase 2 query change.
+# Lifecycle: permanent — keep in post_build_checks.
+
+- name: "[T-134] Unauthenticated GET /db/database.php returns 401"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/db/database.php?format=json"
+    method: GET
+    validate_certs: "{{ gighive_validate_certs }}"
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+    status_code: [401]
+  changed_when: false
+  tags: [smoke, database]
+
+# --- T-135 through T-139: can_delete and upload_source field validation ---
+# Design: self-contained fixture — two fake assets (one guest-uploaded via QR code,
+# one authenticated iPhone upload) linked to a throwaway events row.
+# guest asset: upload_jobs row present → upload_source='guest', can_delete=false for uploader.
+# auth  asset: delete_token_hash set, no upload_jobs row → upload_source='authenticated',
+#              can_delete=true for uploader.
+# Seed before tests; clean up unconditionally in always:.
+# See T-97 for the fixture/block/always reference pattern.
+
+- name: "[T-135..T-139] Create smoke test fixture: events, assets, event_items, upload_jobs"
+  community.docker.docker_container_exec:
+    container: "{{ mysql_container_name | default('mysqlServer') }}"
+    command: >-
+      sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+      "SET @t134_gcks  = LOWER(HEX(RANDOM_BYTES(32)));
+       SET @t134_acks  = LOWER(HEX(RANDOM_BYTES(32)));
+       SET @t134_atokh = SHA2(CONCAT(@t134_acks, '\''tok'\''), 256);
+       INSERT INTO events (tenant_id, event_key, event_date, org_name, event_type)
+         VALUES (1, UUID(), CURDATE(), '\''T134_SMOKE_TEST'\'', '\''band'\'');
+       SET @t134_eid = LAST_INSERT_ID();
+       INSERT INTO assets (tenant_id, checksum_sha256, file_type, file_ext, source_relpath)
+         VALUES (1, @t134_gcks, '\''video'\'', '\''mp4'\'',
+                 CONCAT('\''t134g_'\'', @t134_gcks, '\''.mp4'\''));
+       SET @t134_gaid = LAST_INSERT_ID();
+       INSERT INTO assets (tenant_id, checksum_sha256, file_type, file_ext, source_relpath,
+                           delete_token_hash)
+         VALUES (1, @t134_acks, '\''video'\'', '\''mp4'\'',
+                 CONCAT('\''t134a_'\'', @t134_acks, '\''.mp4'\''), @t134_atokh);
+       SET @t134_aaid = LAST_INSERT_ID();
+       INSERT INTO event_items (event_id, asset_id, item_type, label, position)
+         VALUES (@t134_eid, @t134_gaid, '\''song'\'', '\''T-134 guest'\'', 1);
+       INSERT INTO event_items (event_id, asset_id, item_type, label, position)
+         VALUES (@t134_eid, @t134_aaid, '\''song'\'', '\''T-134 auth'\'', 2);
+       INSERT INTO upload_jobs (tenant_id, job_id, job_type, status, total_files,
+                                started_at, label, file_relpath, moderation_status)
+         VALUES (1, UUID(), '\''qr_guest_upload'\'', '\''completed'\'', 1, NOW(),
+                 '\''T-134 guest'\'',
+                 CONCAT('\''video/'\'', @t134_gcks, '\''.mp4'\''),
+                 '\''pending'\'');
+       SET @t134_ujid = LAST_INSERT_ID();
+       SELECT @t134_eid, @t134_gaid, @t134_aaid, @t134_ujid;"'
+  register: _t134_fixture
+  changed_when: false
+  tags: [smoke, database]
+
+- name: "[T-135..T-139] Parse fixture IDs from MySQL output"
+  ansible.builtin.set_fact:
+    _t134_eid:  "{{ (_t134_fixture.stdout | trim).split('\t')[0] }}"
+    _t134_gaid: "{{ (_t134_fixture.stdout | trim).split('\t')[1] }}"
+    _t134_aaid: "{{ (_t134_fixture.stdout | trim).split('\t')[2] }}"
+    _t134_ujid: "{{ (_t134_fixture.stdout | trim).split('\t')[3] }}"
+  changed_when: false
+  tags: [smoke, database]
+
+- name: "[T-135..T-139] Assert fixture rows were created"
+  ansible.builtin.assert:
+    that:
+      - (_t134_eid  | string) is regex('^[0-9]+$') and (_t134_eid  | int) > 0
+      - (_t134_gaid | string) is regex('^[0-9]+$') and (_t134_gaid | int) > 0
+      - (_t134_aaid | string) is regex('^[0-9]+$') and (_t134_aaid | int) > 0
+      - (_t134_ujid | string) is regex('^[0-9]+$') and (_t134_ujid | int) > 0
+    fail_msg: >-
+      T-135..T-139 fixture creation failed. Check MySQL output.
+      eid={{ _t134_eid }} gaid={{ _t134_gaid }} aaid={{ _t134_aaid }} ujid={{ _t134_ujid }}
+  changed_when: false
+  tags: [smoke, database]
+
+- name: "[T-135..T-139] Run can_delete and upload_source assertions"
+  block:
+
+    - name: "[T-135] GET /db/database.php as admin"
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/db/database.php?format=json"
+        method: GET
+        url_username: "{{ admin_user }}"
+        url_password: "{{ gighive_admin_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+        status_code: [200]
+        return_content: true
+      register: _t135_resp
+      changed_when: false
+
+    - name: "[T-135] Assert all entries have can_delete: true for admin caller"
+      ansible.builtin.assert:
+        that:
+          - _t135_resp.json is mapping
+          - _t135_resp.json.entries is iterable
+          - (_t135_resp.json.entries | selectattr('can_delete', 'equalto', false) | list) | length == 0
+        fail_msg: >-
+          T-135: admin caller: one or more entries have can_delete: false.
+          IDs with false: {{ _t135_resp.json.entries
+                            | selectattr('can_delete', 'equalto', false)
+                            | map(attribute='id') | list }}
+      changed_when: false
+
+    - name: "[T-136/T-137] GET /db/database.php as uploader"
+      ansible.builtin.uri:
+        url: "{{ gighive_base_url }}/db/database.php?format=json"
+        method: GET
+        url_username: "{{ uploader_user }}"
+        url_password: "{{ gighive_uploader_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ gighive_validate_certs }}"
+        headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+        status_code: [200]
+        return_content: true
+      register: _t136_resp
+      changed_when: false
+
+    - name: "[T-136] Assert guest fixture asset (id={{ _t134_gaid }}) is in uploader response"
+      ansible.builtin.assert:
+        that:
+          - (_t136_resp.json.entries | selectattr('id', 'equalto', _t134_gaid | int) | list) | length == 1
+        fail_msg: >-
+          T-136: guest fixture asset id={{ _t134_gaid }} not found in /db/database.php response.
+          Check that the fixture event_items row was created and the entry is in the active view.
+      changed_when: false
+
+    - name: "[T-136] Assert guest fixture asset has can_delete: false for uploader"
+      ansible.builtin.assert:
+        that:
+          - (_t136_resp.json.entries
+             | selectattr('id', 'equalto', _t134_gaid | int)
+             | map(attribute='can_delete') | list)[0] == false
+        fail_msg: >-
+          T-136: uploader caller: expected can_delete=false for guest asset id={{ _t134_gaid }}
+          (has upload_jobs row → upload_source=guest). Got can_delete=true.
+      changed_when: false
+
+    - name: "[T-137] Assert authenticated fixture asset (id={{ _t134_aaid }}) is in uploader response"
+      ansible.builtin.assert:
+        that:
+          - (_t136_resp.json.entries | selectattr('id', 'equalto', _t134_aaid | int) | list) | length == 1
+        fail_msg: >-
+          T-137: authenticated fixture asset id={{ _t134_aaid }} not found in /db/database.php response.
+      changed_when: false
+
+    - name: "[T-137] Assert authenticated fixture asset has can_delete: true for uploader"
+      ansible.builtin.assert:
+        that:
+          - (_t136_resp.json.entries
+             | selectattr('id', 'equalto', _t134_aaid | int)
+             | map(attribute='can_delete') | list)[0] == true
+        fail_msg: >-
+          T-137: uploader caller: expected can_delete=true for authenticated asset id={{ _t134_aaid }}
+          (no upload_jobs row + delete_token_hash IS NOT NULL). Got can_delete=false.
+      changed_when: false
+
+    - name: "[T-138] Assert all entries have upload_source 'authenticated' or 'guest' — no null, no other value"
+      ansible.builtin.assert:
+        that:
+          - (_t136_resp.json.entries
+             | rejectattr('upload_source', 'in', ['authenticated', 'guest'])
+             | list) | length == 0
+        fail_msg: >-
+          T-138: one or more entries have upload_source outside ['authenticated','guest'].
+          Bad IDs: {{ _t136_resp.json.entries
+                      | rejectattr('upload_source', 'in', ['authenticated', 'guest'])
+                      | map(attribute='id') | list }}
+      changed_when: false
+
+    - name: "[T-139] Assert fixture assets have correct upload_source values"
+      ansible.builtin.assert:
+        that:
+          - (_t136_resp.json.entries
+             | selectattr('id', 'equalto', _t134_gaid | int)
+             | map(attribute='upload_source') | list)[0] == 'guest'
+          - (_t136_resp.json.entries
+             | selectattr('id', 'equalto', _t134_aaid | int)
+             | map(attribute='upload_source') | list)[0] == 'authenticated'
+        fail_msg: >-
+          T-139: fixture assets have wrong upload_source.
+          guest asset (id={{ _t134_gaid }}) source={{ _t136_resp.json.entries
+            | selectattr('id', 'equalto', _t134_gaid | int)
+            | map(attribute='upload_source') | list }};
+          auth asset (id={{ _t134_aaid }}) source={{ _t136_resp.json.entries
+            | selectattr('id', 'equalto', _t134_aaid | int)
+            | map(attribute='upload_source') | list }}
+      changed_when: false
+
+    # Cleanup of upload_jobs inside the block (keyed by upload job id).
+    # Events and asset rows are cleaned in always: below.
+    - name: "[T-135..T-139] Cleanup — delete upload_jobs fixture row"
+      community.docker.docker_container_exec:
+        container: "{{ mysql_container_name | default('mysqlServer') }}"
+        command: >-
+          sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+          "DELETE FROM upload_jobs WHERE id = {{ _t134_ujid | int }};"'
+      changed_when: false
+      failed_when: false
+
+  always:
+    # Belt-and-suspenders: remove fixture events row whether the block succeeded or failed.
+    # Deleting events cascades to event_items (fk_event_items_event ON DELETE CASCADE),
+    # clearing the event_items links before asset deletion.
+    # failed_when: false so a missing row (already cleaned) does not mask a test failure.
+    - name: "[T-135..T-139] Safety cleanup — remove fixture events and assets"
+      community.docker.docker_container_exec:
+        container: "{{ mysql_container_name | default('mysqlServer') }}"
+        command: >-
+          sh -lc 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -uroot media_db -sN -e
+          "DELETE FROM events WHERE event_id = {{ _t134_eid  | int }};
+           DELETE FROM assets WHERE asset_id = {{ _t134_gaid | int }};
+           DELETE FROM assets WHERE asset_id = {{ _t134_aaid | int }};"'
+      changed_when: false
+      failed_when: false
+
+  tags: [smoke, database]

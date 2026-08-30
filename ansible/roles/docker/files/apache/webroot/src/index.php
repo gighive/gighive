@@ -88,7 +88,7 @@ try {
     $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
     $wantsHtml = ($ui === 'html') || (stripos($accept, 'text/html') !== false);
 
-    if ($method === 'POST' && $wantsHtml) {
+    if ($method === 'POST' && $wantsHtml && $path !== '/uploads/finalize') {
         header_remove('Content-Type');
         header('Content-Type: text/html; charset=utf-8');
         $ok = ($resp['status'] ?? 500) >= 200 && ($resp['status'] ?? 500) < 300;
