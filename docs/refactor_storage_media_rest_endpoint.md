@@ -846,6 +846,129 @@ What is missing:
 
 ---
 
+### Media View — iOS streaming flow (sequence diagram)
+
+The following diagram shows the iOS-specific streaming path in detail: how AVPlayer drives byte-range requests through `MediaResourceLoader`, and how `api/media-stream.php` authenticates and routes each request to the correct storage backend.
+
+```mermaid
+sequenceDiagram
+    title Media View
+    actor User
+    participant DV as DatabaseDetailView
+    participant MPV as MediaPlayerView
+    participant MRL as MediaResourceLoader
+    participant AVP as AVPlayer (system)
+    participant Apache
+    participant MS as api/media-stream.php
+    participant SS as MediaStorageService
+
+    User->>DV: taps media item
+    DV->>MPV: init(token: session.token)
+    MPV->>MRL: init(token: token, allowInsecureTLS: ...)
+    MPV->>AVP: AVPlayerItem(resourceLoader: MRL)
+    AVP->>MRL: resourceLoader(_:shouldWaitForLoadingOfRequestedResource:)
+
+    loop Each byte-range request (AVPlayer-driven)
+        MRL->>Apache: GET /api/media-stream.php — Bearer JWT, Range: bytes=X-Y
+        Apache->>MS: RewriteRule /media/ → api/media-stream.php
+        MS->>MS: validate key + authenticateRequest() + parse Range
+        alt auth valid + key valid
+            MS->>SS: streamRange(type, key, start, end)
+            Note over SS: LocalMediaBackend: fseek/fread<br/>AzureBlobMediaBackend: GET blob REST Range<br/>Both return identical bytes — caller sees no difference
+            SS-->>MS: bytes
+            MS-->>Apache: 206 Partial Content — Content-Range, ETag
+            Apache-->>MRL: 206 + chunk
+            MRL-->>AVP: fulfills loading request
+        else invalid/missing token
+            MS-->>Apache: 401 Unauthorized
+            Apache-->>MRL: 401
+            MRL-->>MPV: loading error
+            MPV-->>User: playback error / re-login prompt
+        end
+    end
+```
+
+**Notes:**
+- `MediaStorageService` is the abstraction boundary — `media-stream.php` calls `streamRange()` identically regardless of backend. Which backend runs (`LocalMediaBackend` vs `AzureBlobMediaBackend`) is determined at boot by `GIGHIVE_MEDIA_STORAGE_BACKEND`; no code above `MediaStorageService` branches on it.
+- `MediaResourceLoader` is the `AVAssetResourceLoaderDelegate`. AVPlayer drives byte-range requests; `MediaResourceLoader` injects `Authorization: Bearer <token>` on every outbound request.
+- The auth check in `authenticateRequest()` runs once per HTTP request regardless of byte range — stateless, no DB call.
+- A 401 surfaces via `AVPlayerItem.status` observation — the app should trigger re-login if the token has expired.
+- Auth mechanism: Basic Auth (Phases 1–3, Apache-enforced); JWT Bearer (Phase 4+, PHP sole gatekeeper). See `feature_security_authentication_migration_jwt_implementation.md` for the cutover detail.
+
+---
+
+### Media Upload — iOS upload flow (sequence diagram)
+
+The following diagram shows the iOS upload path end to end: the tus protocol exchange between TUSKit and `api/tus-upload.php`, the per-chunk storage write via `TusBlockUploadService`, and the async probe job that fills in duration and thumbnail after commit.
+
+```mermaid
+sequenceDiagram
+    title Media Upload
+    actor User
+    participant UC as TUSUploadClient (iOS)
+    participant Apache
+    participant TU as tus-upload.php / TusBlockUploadService
+    participant DB as MySQL
+    participant SS as MediaStorageService
+    participant PJ as MediaProbeJobService (async cron)
+
+    User->>UC: selects file + taps Upload
+
+    UC->>Apache: POST /files/ — Upload-Length, Upload-Metadata, Bearer JWT
+    Apache->>TU: RewriteRule /files/ → api/tus-upload.php
+    TU->>TU: authenticateRequest() — contributor or owner role required
+    TU->>DB: INSERT tus_uploads (status=pending, upload_length)
+    TU-->>Apache: 201 Created — Location: /files/{upload_id}, Upload-Offset: 0
+    Apache-->>UC: 201 + Location
+
+    loop Each chunk (default 8 MB, TUSKit-driven)
+        UC->>Apache: PATCH /files/{upload_id} — Upload-Offset: N, Bearer JWT
+        Apache->>TU: forwards PATCH
+        TU->>DB: SELECT FOR UPDATE tus_uploads — verify offset, acquire row lock
+        TU->>TU: hash_update(sha256_ctx, chunk_body)
+        TU->>SS: writeBlock(upload_id, block_index, chunk_body)
+        Note over SS: LocalFileTusBackend: fwrite() to /tmp/tus-staging/{id}<br/>AzureBlobTusBackend: PUT Block to Azure Blob REST<br/>Caller sees no difference
+        SS-->>TU: block stored
+        TU->>DB: UPDATE tus_uploads SET block_count++, sha256_ctx — release lock
+        TU-->>Apache: 204 No Content — Upload-Offset: N+chunk_size
+        Apache-->>UC: 204 + new offset
+    end
+
+    Note over TU: Final PATCH — Upload-Offset reaches Upload-Length
+    TU->>SS: commit(upload_id, block_ids)
+    Note over SS: LocalFileTusBackend: rename() staging → audio|video/{sha256}.ext<br/>AzureBlobTusBackend: PUT Block List → blob committed atomically
+    SS-->>TU: committed, blob_key
+    TU->>TU: hash_final(sha256_ctx) → checksum_sha256
+    TU->>DB: INSERT assets (checksum, size, mime_type, duration=NULL, thumbnail=NULL)
+    TU->>DB: INSERT probe_jobs (asset_id, blob_key, status=queued)
+    TU-->>Apache: 204 No Content (final)
+    Apache-->>UC: 204
+
+    UC->>Apache: POST /api/uploads/finalize?upload_id={id}
+    Apache->>TU: finalize — reads DB finalization marker
+    TU-->>Apache: 201 JSON — asset_id, checksum, size, duration=null, thumbnail=null
+    Apache-->>UC: 201 JSON
+    UC-->>User: upload complete (duration/thumbnail fill in async)
+
+    Note over PJ: Async — cron fires within seconds of commit
+    PJ->>DB: SELECT probe_jobs WHERE status=queued FOR UPDATE — mark running
+    PJ->>SS: stream(blob_key) to /tmp/{asset_id}.ext
+    PJ->>PJ: ffprobe → duration_seconds, media_info
+    PJ->>PJ: ffmpeg → thumbnail (video only)
+    PJ->>SS: put(thumbnail_key, /tmp/thumb.png)
+    PJ->>DB: UPDATE assets SET duration, thumbnail_blob_key — mark probe done
+    PJ->>PJ: unlink /tmp/{asset_id}.ext and thumb
+```
+
+**Notes:**
+- `TusBlockUploadService` is the abstraction boundary for the per-chunk write — `TUSUploadClient` speaks standard tus 1.0 `creation` extension protocol and sees no difference between local and Azure backends.
+- SHA256 is accumulated in-memory across all PATCH bodies via a serialized `HashContext` stored in `tus_uploads.sha256_ctx` — no second full-file read at commit time.
+- The `SELECT FOR UPDATE` row lock at each PATCH prevents concurrent PATCH races on the same upload ID.
+- The finalize call is idempotent — if the client retries after a network drop post-204, it gets the same 201 JSON from the DB.
+- Auth: JWT Bearer with contributor or owner role required. The QR guest upload path (`X-Upload-Token` header) bypasses JWT auth entirely and is unchanged by this refactor — see `feature_security_authentication_migration_jwt_implementation.md`.
+
+---
+
 ## Proposed Implementation
 
 ### Files Under Change

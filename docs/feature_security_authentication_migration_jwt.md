@@ -111,11 +111,21 @@ All PHP role checks, JWT payloads, and API responses use the DB-side names (`own
 
 ### Journey 4 — Administrator (full control)
 
-**Persona:** Event organizer, system operator. Manages events, QR codes, moderation queue, user provisioning, database admin. Has access to `/admin/*`.
+**Persona:** In the current single-tenant deployment: the platform operator. In the SaaS model: the tenant owner — the person who wants to send a QR code to their fans, manage their media library, and control who has access. Has access to `/admin/*`.
 
 **Auth today:** Shared `admin` htpasswd credential. Highest-privilege account; one password shared by all operators.
 
 **Auth after this feature:** Individual identity with `owner` DB role from IdP group. MFA enforced at the IdP level. Each admin's actions are attributable to a specific identity — critical for audit and incident response.
+
+**Admin functions (all gated by `requireRole('owner')`):**
+
+- **User management** (`admin/users.php`) — list all OIDC-provisioned users for the tenant; change a user's role; disable or re-enable a user; delete a user row. No local user creation in the UI — all users are provisioned via OIDC. The break-glass `owner` account is seeded by Ansible only.
+- **QR code management** (`admin/event_qr.php`) — generate event-scoped QR tokens; set expiry; view active tokens. This flow is unchanged by the auth migration — the QR token system remains independent.
+- **Media moderation** (`admin/admin.php` and related pages) — approve/reject uploaded media, manage the catalog, promote items, trigger AI jobs.
+- **Database administration** (`admin/admin_system.php`, `admin/import_*.php`, etc.) — import/export, backup/restore, clear media.
+- **Security audit log** (`admin/users.php`, audit tab) — owner can read the `security_audit_log` table for the tenant: login events, role changes, failed auth attempts, account disable/enable, user deletes. The audit log is a second tab within `admin/users.php` — no separate page.
+
+**Admin → OIDC → QR chain:** The admin authenticates via OIDC (browser) or local JWT fallback (break-glass), receives an `owner`-role GigHive JWT, and uses it to access all `/admin/*` pages. From within the admin UI they generate QR codes for events. Those QR codes are scanned by event goers who authenticate via the entirely separate QR token path — the two systems share no session state.
 
 ---
 
@@ -239,7 +249,9 @@ if ($rawToken === '') {
 
 ### iOS App — Full Call-Site Chain
 
-The `credentials: (user: String, pass: String)?` tuple flows through multiple files. All must change:
+> **Phase 0 prerequisite:** Before starting Phase 3, complete the `AuthCredential` type refactor documented in `feature_security_authentication_migration_jwt_ios_auth_cred_type.md`. That refactor replaces the `(user: String, pass: String)?` tuple with `AuthCredential` across all call sites and eliminates the seven duplicate Basic header constructions. After Phase 0, Phase 3 reduces to changing `LoginView`, `JWTStore`, and `SplashView` only — the five network-client files pass `AuthCredential` through unchanged.
+
+The `credentials: (user: String, pass: String)?` tuple flows through multiple files. All must change (Phase 0 reduces this to ~3 files):
 
 | File | Current | After Phase 3 |
 |------|---------|--------------|
@@ -270,6 +282,8 @@ The `credentials: (user: String, pass: String)?` tuple flows through multiple fi
 | `api/oidc/callback.php` | Phase 5. Browser OIDC authorization code callback. Apache `mod_auth_openidc` exchanges the code and exposes claims as `OIDC_CLAIM_*` env vars; this PHP script reads those claims, upserts the `users` row with `idp_provider` + `idp_subject`, generates a GigHive JWT, and redirects the browser. |
 | `api/oidc/token-exchange.php` | Phase 5. iOS PKCE token exchange — accepts `{code, code_verifier, redirect_uri, provider}`; exchanges code with the IdP, validates the `id_token` against JWKS, upserts `users`, returns a GigHive JWT. Keeps OIDC client secrets server-side. `provider` is `"google"` or `"microsoft"`. |
 | `api/oidc/config.php` | Phase 5. Public endpoint returning OIDC client IDs and the redirect URI for iOS. Allows the app to fetch provider configuration at runtime rather than embedding it in the bundle. |
+| `admin/users.php` | Phase 6 (post-OIDC). Owner-only user management UI. Lists all OIDC-provisioned users for the tenant; allows role change, disable/enable, and user row delete. Audit log displayed as a second tab. No local-user creation — all users are provisioned via OIDC. Uses existing `db/database.php` PDO helper and `config.php` constants — no new DB connection logic. See `feature_security_admin_user_management.md` (planned). |
+| `api/account/delete.php` *(new)* | Phase 6. Self-service account deletion endpoint. Accepts `DELETE` with a valid JWT (any role except `superadmin`). Immediately hard-deletes the caller's `users` row. Writes a `self_account_deleted` event to `security_audit_log`. Special case: if the caller is the tenant's last `owner`, returns 409 with `last_owner_cannot_delete` — they must transfer ownership first or contact the platform superadmin. Owner self-delete (not last owner) is allowed after a confirmation step in the UI; a `superadmin_notified` detail is recorded in the audit log. No `Authorization` header → 401. |
 
 ### Database — Schema Change
 
@@ -572,6 +586,95 @@ viewer      (level 1) — read-only
 
 ---
 
+### New Table: `security_audit_log` (Phase 6)
+
+A dedicated security audit log separate from application-level logging. Captures every security-relevant event. Application events (media approve/reject, QR generation, catalog changes) are logged separately in a future feature.
+
+**Scope — events captured:**
+
+| `event_type` value | Trigger |
+|--------------------|---------|
+| `login_success` | Local or OIDC login succeeded; JWT issued |
+| `login_failure` | Bad password or unknown email at login — credential mismatch only |
+| `token_invalid` | JWT validation failure on any guarded endpoint (bad signature, malformed payload) |
+| `token_expired` | Expired JWT presented at any guarded endpoint, including the login flow |
+| `account_disabled_attempt` | Auth attempt by a `disabled=1` user — distinct from `login_failure`; credential may be correct |
+| `role_changed` | Owner changes another user's role |
+| `account_disabled` | Owner disables a user account |
+| `account_enabled` | Owner re-enables a user account |
+| `user_deleted` | Owner deletes another user's row via `admin/users.php` |
+| `self_account_deleted` | Authenticated user deletes their own account via `api/account/delete.php` |
+| `jwt_issued` | Any JWT issuance (local login, OIDC callback, OIDC token exchange) |
+
+**DDL:**
+
+```sql
+CREATE TABLE security_audit_log (
+  id            bigint unsigned  NOT NULL AUTO_INCREMENT,
+  occurred_at   datetime         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  event_type    varchar(64)      NOT NULL
+                                 COMMENT 'login_success | login_failure | token_invalid | token_expired | account_disabled_attempt | role_changed | account_disabled | account_enabled | user_deleted | self_account_deleted | jwt_issued',
+  actor_user_id int unsigned     DEFAULT NULL
+                                 COMMENT 'users.id of the authenticated user performing the action; NULL for unauthenticated attempts',
+  target_user_id int unsigned    DEFAULT NULL
+                                 COMMENT 'users.id of the user being acted upon (role_changed, account_disabled, user_deleted); NULL for self-auth events including self_account_deleted',
+  tenant_id     int unsigned     DEFAULT NULL
+                                 COMMENT 'tenants.tenant_id; NULL for pre-provisioning failures',
+  idp_provider  varchar(32)      DEFAULT NULL
+                                 COMMENT 'google | microsoft | local — the provider involved in the event',
+  ip_address    varchar(45)      DEFAULT NULL
+                                 COMMENT 'IPv4 or IPv6 of the originating request',
+  user_agent    varchar(512)     DEFAULT NULL,
+  detail        json             DEFAULT NULL
+                                 COMMENT 'Event-specific detail: old_role/new_role for role_changed; error reason for failures; provider sub for OIDC events',
+  PRIMARY KEY (id),
+  KEY idx_sal_occurred     (occurred_at),
+  KEY idx_sal_actor        (actor_user_id),
+  KEY idx_sal_target       (target_user_id),
+  KEY idx_sal_tenant       (tenant_id),
+  KEY idx_sal_tenant_time  (tenant_id, occurred_at),
+  KEY idx_sal_type         (event_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+**Design notes:**
+
+- `actor_user_id` is NULL for unauthenticated failures (no valid JWT at time of event).
+- `target_user_id` is only populated for admin actions on another user (role change, disable, delete).
+- `detail` JSON stores event-specific context: `{"old_role":"viewer","new_role":"contributor"}` for role changes; `{"reason":"token_expired"}` for validation failures; `{"idp_sub":"...","provider":"google"}` for OIDC issuance.
+- No foreign key constraints on `actor_user_id` / `target_user_id` — audit rows must survive user deletion.
+- Retention: indefinite (no purge policy in v1). A future purge policy can be added as a scheduled Ansible task.
+- Consumer: the tenant `owner` reads this via `admin/users.php` (or a dedicated audit view). The `superadmin` (platform operator) can query directly.
+- Future: the structured `event_type` and `occurred_at` columns are designed to support alerting rules (e.g. N `login_failure` events in a window from the same IP) without schema changes.
+
+**Live ALTER command (BABRRR Step 2 — apply on existing environments):**
+
+```sql
+docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db -e "
+CREATE TABLE IF NOT EXISTS security_audit_log (
+  id            bigint unsigned  NOT NULL AUTO_INCREMENT,
+  occurred_at   datetime         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  event_type    varchar(64)      NOT NULL,
+  actor_user_id int unsigned     DEFAULT NULL,
+  target_user_id int unsigned    DEFAULT NULL,
+  tenant_id     int unsigned     DEFAULT NULL,
+  idp_provider  varchar(32)      DEFAULT NULL,
+  ip_address    varchar(45)      DEFAULT NULL,
+  user_agent    varchar(512)     DEFAULT NULL,
+  detail        json             DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY idx_sal_occurred     (occurred_at),
+  KEY idx_sal_actor        (actor_user_id),
+  KEY idx_sal_target       (target_user_id),
+  KEY idx_sal_tenant       (tenant_id),
+  KEY idx_sal_tenant_time  (tenant_id, occurred_at),
+  KEY idx_sal_type         (event_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+"'
+```
+
+---
+
 ## 5. Deployment Considerations
 
 ### Phase Sequence
@@ -581,9 +684,11 @@ viewer      (level 1) — read-only
 | 0 | Already done (QR auth, media-stream.php) | — | N/A |
 | 1 | JWT Core (ALTER TABLE `users` + PHP auth helpers + `api/login.php` + `api/verify.php`) | 1–2 days | Yes — purely additive; `GIGHIVE_AUTH_MODE` stays `basic` |
 | 2 | PHP `requireRole()` guards on all pages; set `GIGHIVE_AUTH_MODE=local` | 1 day | Yes — dual-auth; Basic Auth still active at Apache |
-| 3 | iOS JWT login (replace Basic Auth credentials with Bearer tokens throughout call chain) | 2–3 days | Yes — server accepts both during this phase |
+| 0 | iOS `AuthCredential` type refactor — prerequisite for Phase 3 | 1–2 days | Yes — pure iOS refactor; no server change; see `feature_security_authentication_migration_jwt_ios_auth_cred_type.md` |
+| 3 | iOS JWT login (replace Basic Auth credentials with Bearer tokens throughout call chain) | 1–2 days (reduced from 2–3 by Phase 0) | Yes — server accepts both during this phase |
 | 4 | Remove Apache Basic Auth + add PHP-side JWT to `tus-upload.php` | 0.5 days | **Hard gate: Phase 3 verified first** |
 | 5 | OIDC: Google + Microsoft/AAD; iOS PKCE flow | 3–5 days | Yes — additive alongside local JWT |
+| 6 | User management UI (`admin/users.php`) + `security_audit_log` table + self-service account deletion (`api/account/delete.php` + iOS settings screen) | 2–3 days | Yes — additive; requires Phase 5 OIDC provisioning to be live |
 
 **Critical dependency:** Phase 4 must not deploy until Phase 3 is live and verified. The `auth_mode_phase4_confirmed: true` flag (a new Ansible group var, default `false`) must be set explicitly before the Phase 4 playbook tasks run. After Phase 4, `tus-upload.php` has its own PHP auth layer, so removing the Apache `/files/` location block is safe.
 
@@ -718,6 +823,30 @@ viewer      (level 1) — read-only
 | Existing local-user accounts still work | Login with email+password form |
 | Same email in both Google and Microsoft → two separate `users` rows (different `idp_provider`) | Account-linking edge case; verify no collision |
 
+### Phase 6 — User Management and Audit Log
+
+| Test | Method |
+|------|--------|
+| `GET /admin/users.php` with no auth → 401 | Unauthenticated request |
+| `GET /admin/users.php` with viewer JWT → 403 | `requireRole('owner')` rejects viewer |
+| `GET /admin/users.php` with contributor JWT → 403 | `requireRole('owner')` rejects contributor |
+| `GET /admin/users.php` with owner JWT → 200, user list rendered | Valid owner token |
+| Owner changes user role via UI → `security_audit_log` row with `event_type='role_changed'`, correct `actor_user_id`, `target_user_id`, `detail` JSON | DB inspection after action |
+| Owner disables user → `security_audit_log` row `event_type='account_disabled'` → subsequent auth by that user returns 403 `account_disabled` | DB inspection + auth attempt |
+| Owner re-enables user → `security_audit_log` row `event_type='account_enabled'` → auth succeeds | DB inspection + auth attempt |
+| Owner deletes user row → `security_audit_log` row `event_type='user_deleted'` **survives** the delete (no FK cascade) | DB inspection — log row must persist |
+| `DELETE /api/account/delete.php` with valid viewer JWT → 200, `users` row deleted, `self_account_deleted` audit log row present | DB inspection |
+| `DELETE /api/account/delete.php` with valid contributor JWT → 200, row deleted, audit row present | DB inspection |
+| `DELETE /api/account/delete.php` with no auth → 401 | Unauthenticated request |
+| `DELETE /api/account/delete.php` as the tenant's last owner → 409 `last_owner_cannot_delete` | Attempt from sole owner account; verify row survives |
+| `DELETE /api/account/delete.php` as a non-last owner → 200, row deleted, `self_account_deleted` audit row with `superadmin_notified` in `detail` | DB inspection after action |
+| iOS Settings screen "Delete my account" → confirmation alert → DELETE call → session cleared, login screen shown | Manual end-to-end on device |
+| iOS Settings screen "Delete my account" as last owner → confirmation alert → DELETE call → 409 → error alert displayed, session preserved | Manual on device |
+| Web settings page `account/delete.php` → confirmation form → DELETE call → redirect to login | Manual browser flow |
+| Failed login (bad password) → `security_audit_log` row `event_type='login_failure'`, `actor_user_id=NULL` | Check log after bad login |
+| Disabled user auth attempt → `security_audit_log` row `event_type='account_disabled_attempt'` | Check log after disabled-user login |
+| `security_audit_log` audit tab loads for tenant owner → shows only rows for that `tenant_id` | Multi-tenant isolation check |
+
 ### Regression Checklist (run after each phase on dev → staging → prod)
 
 - [ ] QR code scan → upload → moderation → gallery approval flow works end-to-end
@@ -745,6 +874,12 @@ viewer      (level 1) — read-only
 | OIDC: same email in Google + Microsoft creates two rows (no account linking) | Medium | Low (SaaS v1) | Document in operator guide. Future: add account-linking UI. Mitigation: `UNIQUE KEY uq_users_idp(idp_provider, idp_subject)` prevents duplicate IdP rows; only email collision is the risk. |
 | Token TTL too short → frequent re-login UX friction | Low | Medium | Configurable via `JWT_TTL_SECONDS`. Default: 30 days for all GigHive-issued JWTs (local and OIDC). |
 | Admin loses access after htpasswd removal (misconfiguration) | Low | High | Rollback is one Ansible run. Local-user JWT via `api/login.php` is also available immediately. |
+| Phase 6: `admin/users.php` bug leaves owner unable to manage users | Low | Medium | DB access via `docker exec -i mysqlServer mysql ...` always available as operator fallback. |
+| Phase 6: `security_audit_log` write failure silently drops audit events | Low | Medium | Wrap audit INSERTs in try/catch; log PHP error on failure but do not block the auth action — availability > audit completeness in v1. |
+| Phase 6: owner uses delete function to destroy a user row irreversibly | Low | Medium | `user_deleted` audit row survives (no FK cascade). Add a confirmation prompt in the UI before delete. Consider soft-delete (`disabled=1`) as the default; hard-delete requires a second confirmation. |
+| Phase 6: user self-deletes account, wiping their `users` row; contributed media is orphaned (no uploader FK) | Low | Low | Media remains in the tenant library; uploader attribution is lost. Owner is notified via audit log. No media is deleted. Acceptable for v1. |
+| Phase 6: tenant's last owner self-deletes, leaving tenant with no owner | Low | High | `api/account/delete.php` checks `SELECT COUNT(*) FROM users WHERE tenant_id = ? AND role = 'owner' AND id != ?`. If count is 0 the delete is rejected with 409 `last_owner_cannot_delete`. |
+| Phase 6: owner self-deletes (non-last) using a stolen JWT | Low | High | Deletion is immediate and irreversible once the JWT is valid. Mitigation: iOS confirmation alert; web confirmation form; `superadmin_notified` audit entry. Add explicit re-authentication step (password/OIDC re-auth) before delete in a future hardening pass. |
 
 ### Rollback by Phase
 
@@ -757,6 +892,8 @@ viewer      (level 1) — read-only
 **Phase 4 (Basic Auth removal + `tus-upload.php` PHP auth):** Rollback = revert `default-ssl.conf.j2` to restore `AuthType Basic` blocks, revert `tus-upload.php` PHP auth addition, run Ansible. All Basic Auth resumes. One playbook run.
 
 **Phase 5 (OIDC):** Rollback = set `GIGHIVE_AUTH_MODE=local`, run Ansible. OIDC login disabled; local-user JWT continues. OIDC-only users (no `password_hash`) cannot login until admin sets a local password — document this in the operator guide.
+
+**Phase 6 (User management + audit log + self-delete):** Rollback = remove `admin/users.php` and `api/account/delete.php` from the webroot; revert the iOS build to the prior version. The `security_audit_log` table is inert without the UI — leave it in place. Any `users` rows already deleted by self-delete are unrecoverable; the `self_account_deleted` audit row survives and confirms the deletion was self-initiated. No Ansible change required.
 
 ---
 
@@ -775,16 +912,20 @@ Week 1:  Phase 2 — PHP requireRole() guards
          - Deploy to dev + lab; verify dual-auth (Basic + Bearer both accepted)
          - Deploy to staging; run regression checklist
 
-Week 2:  Phase 3 — iOS app JWT (full call-site chain)
+Week 1b: Phase 0 — iOS AuthCredential refactor (prerequisite for Phase 3; independent of server work)
+         - AuthCredential.swift (new): enum with apply(to: URLRequest) and apply(to: [String:String]) overloads
+         - AuthSession.swift: credentials tuple → credential: AuthCredential?; UserRole .admin → .owner + .contributor
+         - All seven Basic-header construction sites replaced with credential?.apply(to:)
+         - UploadClient/TUSUploadClient: retain uploadToken: String? separately; precedence resolved internally
+         - MediaPlayerView: both proxy-loader path and direct AVURLAsset dict path updated
+         - KeychainStore: add loadCredential(host:) convenience
+         - Build + smoke test (no server change needed)
+         - Must merge before Phase 3 begins
+
+Week 2:  Phase 3 — iOS app JWT (LoginView + JWTStore + SplashView only; network clients unchanged by Phase 0)
          - JWTStore.swift (new Keychain API for tokens)
-         - AuthSession.swift: credentials → token + expiresAt
-         - LoginView.swift: calls api/login.php, stores via JWTStore
-         - SplashView.swift: credentials guards → token guards
-         - DatabaseView.swift, DatabaseDetailView.swift: pass token not credentials
-         - MediaPlayerView.swift: credentials → token; Basic → Bearer
-         - MediaResourceLoader.swift: credentials → token; Basic → Bearer
-         - DatabaseAPIClient.swift: basicAuth → bearerToken
-         - TUSUploadClient.swift: basicAuth branch → bearerToken branch
+         - LoginView.swift: calls api/login.php, sets session.credential = .bearer(token:), stores via JWTStore
+         - SplashView.swift: restore session from JWTStore on launch
          - Test on dev + lab; full iOS smoke test including media playback and TUS upload
          - Submit to TestFlight
 
@@ -823,3 +964,8 @@ Later:   Phase 5 — OIDC (Google + Microsoft/AAD)
 | Account linking (same email, two IdPs) | Not in scope for v1; two separate `users` rows, documented edge case |
 | Session tracking | Stateless JWT; add server-side revocation table if audit requirement emerges |
 | `superadmin` role | Reserved in DB schema for GigHive platform operators; not part of this migration |
+| Local user creation via admin UI | **No.** Wholesale cutover to federated (OIDC) logins only. No customers to migrate; clean break is the right call. The break-glass `owner` account is seeded by Ansible only and is not visible or creatable in `admin/users.php`. |
+| Local users after OIDC cutover | `password_hash` column remains in schema for the break-glass account. All other `users` rows are OIDC-provisioned (`idp_provider != 'local'`). The admin UI does not expose local user management. |
+| Security audit log | **Yes — `security_audit_log` table (Phase 6).** Captures all security-relevant events: login success/failure, JWT issuance, token validation failure, role changes, account disable/enable, user delete. Per-attempt logging (no threshold). Retention: indefinite. Consumer: tenant `owner` via admin UI; `superadmin` via direct DB access. Separate from application-level audit (media, QR) — that is a future feature. |
+| Admin user management | **`admin/users.php` (Phase 6).** Owner-only. List, role-change, disable/enable, delete OIDC-provisioned users. No local user creation. Reads `security_audit_log` for the tenant. |
+| Self-service account deletion | **Yes — `api/account/delete.php` (Phase 6).** Any authenticated non-superadmin user may delete their own account immediately. Required for Apple App Store compliance (guideline 5.1.1) and GDPR/CCPA right-to-erasure. Tenant's last owner is blocked (409 `last_owner_cannot_delete`). Owner self-delete (non-last) is permitted with a UI confirmation step; a `superadmin_notified` detail is written to the audit log. Contributed media is orphaned, not deleted. Surface: iOS settings screen + web settings page (`account/delete.php`). |

@@ -569,9 +569,29 @@ Verify this path is correct relative to each file's location before committing.
 
 ---
 
+## Phase 0 — iOS `AuthCredential` Refactor (prerequisite for Phase 3)
+
+> **Full specification:** `feature_security_authentication_migration_jwt_ios_auth_cred_type.md`
+>
+> Phase 0 is a pure iOS refactor with no server-side changes. It must be completed and merged before Phase 3 begins. It:
+> - Introduces `AuthCredential.swift` — an enum replacing the raw `(user: String, pass: String)` tuple
+> - Replaces all seven duplicate `Authorization: Basic` header constructions with `credential?.apply(to:)`
+> - Updates `AuthSession.credentials` → `AuthSession.credential: AuthCredential?`
+> - Updates `UserRole`: removes `.admin`, adds `.contributor` and `.owner`
+> - Retains `UploadClient`'s dual `sessionCredential:` + `uploadToken:` parameters (QR token and session credential are orthogonal)
+> - Adds `KeychainStore.loadCredential(host:)` convenience without changing the on-disk format
+>
+> After Phase 0, Phase 3 changes only `LoginView`, `JWTStore` (new), and `SplashView` — the five network-client files require no further auth changes.
+
+---
+
 ## Phase 3 — iOS Client JWT (Full Call-Site Chain)
 
+> **Requires Phase 0 complete.** The `UserRole` enum, `AuthCredential` type, and seven Basic-header call sites are already updated. Phase 3 covers only the JWT login flow, token storage, and session restore.
+
 ### 3a. `UserRole` enum extension
+
+> **Note:** `UserRole` is updated in Phase 0 (`AuthSession.swift` change). The full enum and `fromLegacyUsername` bridge documented here are the Phase 0 output — Phase 3 inherits them and does not repeat this step. Shown here for reference.
 
 Current `AuthSession.swift` has `enum UserRole { case unknown, viewer, admin }`. Must add `contributor` and `owner` to match DB role names, and map the JWT `role` string:
 
@@ -919,7 +939,7 @@ let loader = MediaResourceLoader(allowInsecureTLS: allowInsecureTLS, credentials
 let loader = MediaResourceLoader(allowInsecureTLS: allowInsecureTLS, token: token)
 ```
 
-**PHP refactor rule:** Run `grep -r "MediaResourceLoader(" GigHive/Sources/` and `grep -r "credentials:" GigHive/Sources/` to confirm all call sites are updated.
+**Phase 0 verification:** Run `grep -r "basicAuth" GigHive/Sources/` and `grep -r "credentials:" GigHive/Sources/` — both must return zero results after Phase 0 merges. `MediaResourceLoader(` call sites must use `credential:` not `credentials:`.
 
 ### 3h. `TUSUploadClient.swift` changes
 
@@ -1439,7 +1459,8 @@ No new hardcoded deployment-specific paths are introduced by this feature.
 | `firebase/php-jwt` added to `composer.json` + `composer.lock` | Any PHP auth code can deploy |
 | ALTER TABLE on all environments | Phase 1 deploy |
 | Phase 1 verified on dev + lab | Phase 2 deploy |
-| Phase 2 verified on dev + lab + staging | Phase 3 iOS build |
+| Phase 2 verified on dev + lab + staging | Phase 0 iOS build (can run in parallel with server phases) |
+| Phase 0 iOS build merged | Phase 3 iOS build |
 | Phase 3 iOS build verified on all environments | Phase 4 deploy |
 | `auth_mode_phase4_confirmed: true` set in group_vars | Phase 4 playbook runs |
 | Phase 4 deploys `default-ssl.conf.j2` AND `tus-upload.php` changes | In the same playbook run — they are atomic |
@@ -1531,16 +1552,17 @@ No new hardcoded deployment-specific paths are introduced by this feature.
 - [ ] Add `gighive_auth_mode`, `jwt_ttl_seconds`, `auth_mode_phase4_confirmed` to all group_vars
 - [ ] Add `jwt_secret` to all secrets.yml (ansible-vault)
 - [ ] Add `requireRole()` guards to all PHP pages (Phase 2)
+- [ ] **Phase 0 (iOS refactor — prerequisite; full checklist in `feature_security_authentication_migration_jwt_ios_auth_cred_type.md`):**
+  - [ ] Create `AuthCredential.swift` (enum + `apply(to: URLRequest)` + `apply(to: [String:String])` + `displayUser`)
+  - [ ] Update `AuthSession.swift` (`credential: AuthCredential?`; `UserRole` enum — `.admin` → `.owner`, add `.contributor`)
+  - [ ] Update all seven Basic-header sites: `DatabaseAPIClient` (×2), `TUSUploadClient`, `UploadClient`, `MediaResourceLoader`, `MediaPlayerView` (×2 — proxy + AVURLAsset paths), `NetworkProgressUploadClient`
+  - [ ] Update `SplashView`, `DatabaseView`, `DatabaseDetailView`, `UploadView` credential references
+  - [ ] Add `KeychainStore.loadCredential(host:)` convenience
+  - [ ] Build + smoke test (QR upload, login + DB view); zero compile errors
+- [ ] **Phase 3 (JWT login — after Phase 0 merged):**
 - [ ] Implement `JWTStore.swift`
-- [ ] Update `AuthSession.swift` and `UserRole` enum
-- [ ] Update `LoginView.swift` (iOS 14 async bridge, email field, JWT response parsing)
-- [ ] Update `SplashView.swift` (credential → token guards)
-- [ ] Update `DatabaseAPIClient.swift` (basicAuth → bearerToken)
-- [ ] Update `DatabaseView.swift` call site
-- [ ] Update `DatabaseDetailView.swift` call site
-- [ ] Update `MediaPlayerView.swift` (credentials → token, Basic → Bearer)
-- [ ] Update `MediaResourceLoader.swift` (credentials → token, Basic → Bearer)
-- [ ] Update `TUSUploadClient.swift` (basicAuth → bearerToken)
+- [ ] Update `LoginView.swift` (iOS 14 async bridge, email field, JWT response parsing, set `session.credential = .bearer(token:)`)
+- [ ] Update `SplashView.swift` (restore session from `JWTStore` on launch)
 - [ ] Deprecate `KeychainStore.swift`; add one-time migration read in `LoginView.onAppear`
 - [ ] Phase 4: update `default-ssl.conf.j2` (remove Basic Auth blocks)
 - [ ] Phase 4: update `api/tus-upload.php` (add PHP JWT guard)
@@ -1556,6 +1578,14 @@ No new hardcoded deployment-specific paths are introduced by this feature.
 ### Remaining — Follow-on Tasks
 - [ ] **Rate limiting on `api/login.php`** — APCu-based IP counter before any public deployment
 - [ ] **Phase 5 OIDC** — Google + Microsoft/AAD; `api/oidc/callback.php`, `api/oidc/token-exchange.php`, `OIDCLoginView.swift`; requires separate implementation doc
+- [ ] **Phase 6 — User management UI + audit log + self-service account deletion** (requires Phase 5 live):
+  - [ ] `CREATE TABLE security_audit_log` — run DDL on all environments; update `create_media_db.sql`
+  - [ ] `admin/users.php` — owner-only user list, role-change, disable/enable, delete (with `user_deleted` audit event); audit log second tab
+  - [ ] `api/account/delete.php` — self-service account deletion endpoint; JWT-authenticated DELETE; hard-deletes caller's `users` row; writes `self_account_deleted` audit event; blocks last-owner deletion with 409 `last_owner_cannot_delete`; records `superadmin_notified` in audit detail when a non-last owner self-deletes
+  - [ ] iOS Settings screen — "Delete my account" row; confirmation alert; calls `DELETE /api/account/delete.php`; clears `JWTStore` + `session.credential` on 200; shows 409 error alert without clearing session
+  - [ ] Web settings page `account/delete.php` — authenticated page; confirmation form POST; calls `api/account/delete.php`; redirects to login on success; shows error on 409
+  - [ ] Smoke tests: self-delete viewer, self-delete contributor, self-delete non-last owner, last-owner blocked (409), unauthenticated (401), audit row survival
+  - [ ] See strategic doc for full test matrix and risk table
 - [ ] **Server-side token revocation table** — if audit requirements emerge post-OIDC
 - [ ] **Remove `GIGHIVE_AUTH_MODE !== 'basic'` guards** from PHP files — cleanup pass after all environments are past Phase 4
 - [ ] **Remove `KeychainStore.swift`** — after migration period confirmed complete across all active installs

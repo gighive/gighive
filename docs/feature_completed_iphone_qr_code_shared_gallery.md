@@ -399,6 +399,18 @@ The same `AND j.guest_deleted = 0` filter is applied to `guest-stream.php` (stre
 
 **Pre-approval deletion is not supported.** The delete endpoint requires `moderation_status = 'approved'` — the same access gate as `guest-gallery.php`. A guest with a `pending` or `rejected` upload cannot delete via this endpoint in MVP.
 
+**Extended rationale for soft delete:**
+
+The soft delete design was chosen over a hard delete for three compounding reasons:
+
+1. **Gallery access would be lost with a hard delete.** If the file were removed from disk and `moderation_status` changed to something other than `'approved'`, the guest would fail Step 1 of the gallery access gate and lose the ability to view every other attendee's video — not just their own. A guest who decides to remove their clip should not be punished with loss of access to the shared gallery they attended. The soft delete sidesteps this entirely: `moderation_status` stays `'approved'`, Step 1 continues to pass, and only Step 2 (results) filters out the deleted clip.
+
+2. **Admin visibility and reversibility.** A hard delete is permanent and silent. A soft delete leaves a "🗑 Deleted by guest" badge visible in `admin/event_qr.php` so the admin can audit what happened. More importantly, recovery requires only a single `UPDATE upload_jobs SET guest_deleted = 0 WHERE id = ?` — the file is still on disk. With a hard delete, restoration would require the guest to re-upload.
+
+3. **Idempotency.** Setting `guest_deleted = 1` unconditionally on every valid request means the endpoint can be called multiple times without side effects. A hard delete on repeat calls would return "Not found" and require special-case handling on the client.
+
+The trade-off is disk space: deleted files accumulate on the server until an admin hard-deletes them via `db/delete_media_files.php` or a future scheduled cleanup. This is considered acceptable for MVP given the primary goal of preserving gallery access and auditability.
+
 ### iOS UI
 
 In `GuestGalleryView`, each video row's button order is:

@@ -585,12 +585,22 @@ final class MediaController
             $typeRaw        = (string)($row['file_type'] ?? '');
             $fileExt        = (string)($row['file_ext'] ?? '');
             $sourceRelpath  = (string)($row['source_relpath'] ?? '');
-            $checksumSha256 = isset($row['checksum_sha256']) ? (string)$row['checksum_sha256'] : '';
+            $checksumSha256 = isset($row['checksum_sha256']) ? trim((string)$row['checksum_sha256']) : '';
             $mediaSummary   = self::mediaInfoSummary(isset($row['media_info']) ? (string)$row['media_info'] : null);
 
             $servedFile = self::servedFileName($checksumSha256 !== '' ? $checksumSha256 : null, $sourceRelpath, $fileExt);
             $dir        = ($typeRaw === 'audio' || $typeRaw === 'video') ? ('/' . $typeRaw) : '';
             $url        = ($dir && $servedFile) ? $dir . '/' . rawurlencode($servedFile) : '';
+
+            // Thumbnail: video entries use a generated thumbnail (requires valid SHA-256 checksum).
+            // Served via media-stream.php (same auth as video/audio) at /video/thumbnails/<sha256>.png.
+            // Audio entries use the static placeholder at /images/audiofile.png (public, no auth required).
+            $thumbUrl = null;
+            if ($typeRaw === 'video' && preg_match('/^[a-f0-9]{64}$/', $checksumSha256) === 1) {
+                $thumbUrl = '/video/thumbnails/' . $checksumSha256 . '.png';
+            } elseif ($typeRaw === 'audio') {
+                $thumbUrl = '/images/audiofile.png';
+            }
 
             $entries[] = [
                 'id'               => $id,
@@ -603,6 +613,7 @@ final class MediaController
                 'file_type'        => $typeRaw,
                 'file_name'        => $servedFile,
                 'url'              => $url,
+                'thumbnail_url'    => $thumbUrl,
                 'media_summary'    => $mediaSummary,
                 'media_created_at' => (string)($row['media_created_at'] ?? ''),
             ];

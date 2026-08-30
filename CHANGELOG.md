@@ -2,6 +2,28 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
+releaseNotes20260830.txt
+Changes: delete eligibility change documentation + mediacontroller fix to add a thumbnail column for new ios media database page
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   docs/feature_completed_iphone_qr_code_shared_gallery.md
+	modified:   docs/feature_security_authentication_migration_jwt.md
+	modified:   docs/feature_security_authentication_migration_jwt_implementation.md
+	new file:   docs/feature_security_authentication_migration_jwt_ios_auth_cred_type.md
+	modified:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
+	new file:   docs/problem_ios_testing_media_player_unification.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
+	new file:   docs/refactor_video_player_page.md
+	new file:   docs/refactor_video_player_page_delete_eligibility.md
+	new file:   docs/testing_ios.md
+
+*** 
 releaseNotes20260823.txt
 Changes: docs/feature_security_authentication_migration_jwt_oidc_*.md
 

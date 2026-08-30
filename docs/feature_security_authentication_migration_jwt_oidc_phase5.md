@@ -889,7 +889,11 @@ Add to `ansible/roles/docker/tasks/main.yml` (or a new `oidc_setup.yml` task fil
 
 ## Phase 5c — iOS: `OIDCLoginView.swift` and `PKCEHelper.swift`
 
-**Phase 3 dependency:** `OIDCLoginView` references `StoredToken`, `UserRole`, and `JWTStore` — all defined in Phase 3. `AuthSession.swift` currently has `UserRole` as `case unknown, viewer, admin` (the legacy form). Phase 3 replaces `.admin` with `.owner` and `.contributor`. Phase 5 assumes `UserRole` is the Phase-3-corrected version: `case unknown, viewer, contributor, owner`. If Phase 5 iOS work begins before Phase 3 is merged, the `UserRole` enum will need to be updated as part of Phase 5. Do not use `.admin`.
+**Phase 0 + Phase 3 dependency:** `OIDCLoginView` references `StoredToken`, `UserRole`, and `JWTStore`. These are delivered across two phases:
+- `UserRole` (`case unknown, viewer, contributor, owner`) — corrected in **Phase 0** (`feature_security_authentication_migration_jwt_ios_auth_cred_type.md`). Phase 0 removes `.admin` and adds `.contributor` and `.owner`.
+- `JWTStore` and `StoredToken` — introduced in **Phase 3**.
+
+Phase 5 iOS work must not begin until both Phase 0 and Phase 3 are merged. If Phase 5 begins before Phase 0, the `UserRole` enum will still have the legacy `.admin` case — do not use `.admin` in any Phase 5 code.
 
 ### `PKCEHelper.swift`
 
@@ -1647,6 +1651,13 @@ Document this in the operator guide. For internal-only deployments (current stat
 - [ ] End-to-end test: `gighive_auth_mode=local` rollback; OIDC-only user cannot login; local user can
 - [ ] Operator guide: document `oidc_role_map` configuration; rollback procedure; OIDC-only user recovery
 
+**Phase 6 (separate feature — begins after Phase 5 OIDC is live):**
+- [ ] Create `security_audit_log` table (DDL in `feature_security_authentication_migration_jwt.md` §4)
+- [ ] Implement `admin/users.php` — user list tab + audit log tab; owner-only; uses `db/database.php` PDO helper
+- [ ] Wire audit log writes into `api/login.php`, `auth/jwt.php`, `auth/oidc.php`, `api/oidc/callback.php`, `api/oidc/token-exchange.php`
+- [ ] Add Phase 6 smoke tests to `post_build_checks/tasks/main.yml` (see §7 Phase 6 test table in strategic doc)
+- [ ] Add `security_audit_log` to Stack Versions Summary (row count, not version — as a deployment health indicator)
+
 ---
 
 ## PPRR Findings and Corrections
@@ -1666,7 +1677,7 @@ The following issues were identified and corrected in this document during post-
 | R1 | High | Resilience | `launchWebAuthSession` cleared `pendingOIDCCallback` on error but did not resume the `withCheckedContinuation` continuation, leaving it permanently suspended (Swift concurrency warning; memory leak in practice). | Fixed by passing `cont` to `launchWebAuthSession` and calling `cont.resume(returning: nil)` in all early-exit paths inside the `ASWebAuthenticationSession` completion handler. |
 | R2 | Low | Clarity | Two Ansible tasks had the same name `[T-105]` — the `uri` task and the `assert` task. Duplicate task names break Ansible playbook idempotency reporting and make log output ambiguous. | Renamed the assert task to `[T-105a] Assert config.php response contains client_id keys`. |
 | C1 | Medium | Cross-doc | The strategic document (`feature_security_authentication_migration_jwt.md`, line 34 and table row "JWT algorithm") states "RS256 for OIDC interop in Phase 5". The implementation doc (`feature_security_authentication_migration_jwt_implementation.md`, line 187/195) and `auth/jwt.php` use `HS256` hardcoded. These are contradictory. | Resolved in this document: GigHive-issued JWTs remain HS256. The OIDC `id_token` is an external RS256 JWT from the IdP; GigHive validates it using the IdP JWKS but does not adopt RS256 for its own tokens. The strategic document's algorithm table must be updated when Phase 5 is approved. Noted in the "Files Under Change" section above. |
-| C2 | Low | Cross-doc | `AuthSession.swift` currently defines `UserRole` as `case unknown, viewer, admin` (legacy). The Phase 5 doc's `OIDCLoginView` code uses `UserRole(rawValue: roleStr)` expecting the Phase-3-corrected enum (`owner`, `contributor`, `viewer`, `unknown`). | Added an explicit Phase 3 dependency note in the Phase 5c section. Phase 5 iOS work must not begin until the Phase 3 `UserRole` correction is merged, or the enum must be updated as part of Phase 5 itself. |
+| C2 | Low | Cross-doc | `AuthSession.swift` currently defines `UserRole` as `case unknown, viewer, admin` (legacy). The Phase 5 doc's `OIDCLoginView` code uses `UserRole(rawValue: roleStr)` expecting the corrected enum (`owner`, `contributor`, `viewer`, `unknown`). | `UserRole` correction now belongs to **Phase 0** (`feature_security_authentication_migration_jwt_ios_auth_cred_type.md`), not Phase 3. Updated Phase 5c dependency note: Phase 5 iOS work must not begin until both Phase 0 (`UserRole` enum) and Phase 3 (`JWTStore`) are merged. |
 | C3 | Medium | Logic | Cross-document review (all three docs) found 13 additional inconsistencies: (1) Strategic/impl docs still said RS256 Phase 5 — strategic doc updated. (2) Strategic doc's `token-exchange` body omitted `provider` field — updated. (3) Strategic doc named generic OIDC env vars (`OIDC_CLIENT_ID` etc.) instead of provider-specific names — updated. (4) Strategic doc `secrets.yml` used generic Ansible var names — updated. (5) Strategic doc used `OIDC_ROLE_MAP` instead of `OIDC_ROLE_MAP_JSON` — updated. (6) Keycloak realm files in strategic doc were framed as required deliverables — clarified as optional operator references. (7) Strategic doc promised "1h access + 7d refresh" OIDC token TTL — corrected: GigHive issues a 30-day JWT for both local and OIDC users; IdP tokens are consumed server-side only. (8) Impl doc spelled BABRRR as "BABRR" at line 110 — corrected. (9) Both strategic and impl docs seeded local users with `idp_subject='admin@gighive.local'` — corrected to `NULL` (local users have no IdP subject). (10) `auth/oidc.php` and `api/oidc/config.php` were absent from strategic doc's new-files table — added. (11) `PKCEHelper.swift` was absent from strategic doc's new iOS files table — added. (12) Impl doc item 19 attributed `firebase/php-jwt` addition to `Dockerfile.j2` — corrected to `composer.json` + `composer.lock`. (13) `token-exchange.php` upsert omitted `display_name`, making it asymmetric with `callback.php` — fixed in this document. | Applied all 13 corrections across the three documents. |
 | C4 | Medium | Correctness | Fourth cross-document PPRR (covering all four docs including the new benefits doc) found 5 issues: see C4a–C4e below. | All corrected in this PPRR pass. |
 | C4a | Medium | Correctness | Strategic doc `auth/jwt.php` function signature listed as `JwtAuth::generate(int $userId, string $role, int $ttlSeconds): string` — missing the `$email` parameter added during Phase 1 implementation, and missing the `validateWithReason()` method entirely. The impl doc has the correct signature. | Updated strategic doc table entry to `JwtAuth::generate(int $userId, string $role, string $email, int $ttl = 0): string` and added `validateWithReason()` to the description. |
