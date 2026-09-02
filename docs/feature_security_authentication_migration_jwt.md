@@ -1,5 +1,17 @@
 # Feature: Federated Authentication Migration (JWT + OIDC)
 
+## Executive Summary
+
+From a user perspective, this is a simple change: the three shared `.htpasswd` accounts (`admin`, `uploader`, `viewer`) are replaced by individual logins backed by Google or Microsoft as the identity provider. Each person who currently uses a shared password will instead sign in with their own Google or Microsoft account. Their role in GigHive (owner, contributor, or viewer) is determined by their IdP group membership — they never need a separate GigHive password.
+
+The rest of the application — media playback, uploads, gallery, admin UI, and the QR guest system — is completely unchanged. The only thing that changes for an authenticated user is the login step.
+
+One local `owner` account with a strong password remains in ansible-vault as an emergency backdoor if the IdP is unreachable. That is the only credential the operator manages going forward.
+
+Internally, getting to this end state requires a five-phase migration (JWT infrastructure → PHP guards → iOS client cutover → Apache Basic Auth removal → OIDC federation), but that complexity is invisible to users. The QR-code guest system runs in a fully isolated code path and is untouched in every phase.
+
+---
+
 ## Summary
 
 GigHive's move to SaaS requires replacing shared Apache Basic Auth passwords with individual, auditable identities. This feature implements a clean, phased migration to JWT-based authentication with full OIDC federation (Google + Microsoft/AAD), while preserving the existing QR-code guest auth system unchanged.

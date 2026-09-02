@@ -2,6 +2,24 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
+releaseNotes20260902.txt
+Changes: plan for cloud_init cpu architecture update pre-migration to mac for all dev work
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   docs/feature_saas_model_changes.md
+	new file:   docs/feature_saas_pricing_model.md
+	modified:   docs/feature_security_authentication_migration_jwt.md
+	new file:   docs/refactor_virtualbox_apple_silicon.md
+	new file:   docs/virtualbox_mac_apple_silicon_install.md
+
+*** 
 releaseNotes20260830.txt
 Changes: delete eligibility changes and fixes
 
@@ -52,10 +70,8 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-gighive2-20260726.log
 # GIG2 EVERYTHING make sure playwright_admin_tests = true in group_var
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive -e allow_destructive=true -K"
-# PROD ROLLOUT
-Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260819.log
 # LAB PUSH: 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260819.log
+Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20260830.log
 # LAB ALL TESTS: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
 # LAB, rebuild 
@@ -66,9 +82,11 @@ Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventor
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260820.log
+# PROD ROLLOUT
+Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260830.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT PUSH (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260820.log 
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260830.log 
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
