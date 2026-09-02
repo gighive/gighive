@@ -90,6 +90,21 @@
   failed_when: false
   timeout: 300
 
+- name: Force NTP sync before package operations
+  become: yes
+  ansible.builtin.command: timedatectl set-ntp true
+  changed_when: false
+
+- name: Restart systemd-timesyncd to step clock
+  become: yes
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    state: restarted
+
+- name: Wait for clock to synchronize
+  ansible.builtin.pause:
+    seconds: 10
+
 - name: Ensure ethtool is installed
   become: yes
   ansible.builtin.apt:

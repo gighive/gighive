@@ -32,8 +32,29 @@
       Run via ansible/playbooks/site.yml which sets 'connection: local' for this play.
       Current ansible_connection={{ ansible_connection }}
 
+# ========== ARCH DETECTION ==========
+- name: Detect control machine architecture
+  delegate_to: localhost
+  command: uname -m
+  register: ctrl_uname
+  changed_when: false
+
+- name: Set cloud_arch fact
+  set_fact:
+    cloud_arch: "{{ 'arm64' if ctrl_uname.stdout | trim == 'aarch64' else 'amd64' }}"
+
+- name: Assert cloud_arch is a known value  # T-CI-3
+  assert:
+    that: cloud_arch in ['amd64', 'arm64']
+    fail_msg: "Unexpected architecture detected: {{ ctrl_uname.stdout | trim }}. Expected x86_64 or aarch64."
+
+- name: Show detected architecture
+  debug:
+    msg: "Control machine architecture detected: {{ ctrl_uname.stdout | trim }} → cloud_arch={{ cloud_arch }}"
+
 - name: Check for loaded KVM modules (can block VirtualBox)
   run_once: true
+  when: ansible_facts['system'] == 'Linux'
   ansible.builtin.command: lsmod
   register: kvm_lsmod
   changed_when: false
@@ -55,17 +76,29 @@
         sudo modprobe -r kvm || true
 
       If modules are in use, stop libvirt/qemu services and/or reboot after disabling KVM.
-  when: kvm_lsmod.stdout is search('(^|\\n)(kvm|kvm_intel|kvm_amd)\\s')
+  when: ansible_facts['system'] == 'Linux' and (kvm_lsmod.stdout | default('')) is search('(^|\\n)(kvm|kvm_intel|kvm_amd)\\s')
 
 # ========== PREREQS ==========
-- name: Ensure ISO tools present on control
+- name: Ensure ISO tools present on control (Linux)
   become: yes
   delegate_to: localhost
   run_once: true
+  when: ansible_facts['system'] == 'Linux'
   package:
     name:
       - genisoimage
       - cloud-image-utils
+      - qemu-utils
+    state: present
+
+- name: Ensure ISO tools present on control (macOS)
+  delegate_to: localhost
+  run_once: true
+  when: ansible_facts['system'] == 'Darwin'
+  community.general.homebrew:
+    name:
+      - cdrtools
+      - qemu
     state: present
 
 - name: Init primary_mac fact
@@ -73,17 +106,17 @@
     primary_mac: ""
 
 # ========== MEDIA PREP ==========
-- name: Ensure cloud image VMDK is present
+- name: Ensure cloud image source is present
   stat:
-    path: "{{ cloud_image_vmdk }}"
-  register: vmdk_stat
+    path: "{{ cloud_image_src }}"
+  register: src_stat
 
 - name: Download Ubuntu cloud image if missing
   get_url:
     url: "{{ cloud_image_url }}"
-    dest: "{{ cloud_image_vmdk }}"
+    dest: "{{ cloud_image_src }}"
     mode: "0644"
-  when: not vmdk_stat.stat.exists
+  when: not src_stat.stat.exists
 
 # --- PRE-FLIGHT: clear stale/invalid VDI registration and files ---
 - name: Check if VDI is registered in VirtualBox (ignore if not)
@@ -114,14 +147,38 @@
     state: absent
 # ------------------------------------------------------------------
 
-- name: Convert VMDK to VDI
+- name: Convert VMDK to VDI (amd64 path)
   delegate_to: localhost
   become: false
   command: >
-    VBoxManage clonemedium disk "{{ cloud_image_vmdk }}"
+    VBoxManage clonemedium disk "{{ cloud_image_src }}"
     "{{ cloud_image_vdi }}" --format VDI
   args:
     creates: "{{ cloud_image_vdi }}"
+  when: cloud_arch == 'amd64'
+
+- name: Convert QCOW2 img to VDI (arm64 path)
+  delegate_to: localhost
+  become: false
+  command: >
+    qemu-img convert -f qcow2 -O vdi
+    "{{ cloud_image_src }}" "{{ cloud_image_vdi }}"
+  args:
+    creates: "{{ cloud_image_vdi }}"
+  when: cloud_arch == 'arm64'
+
+# T-CI-2: Verify conversion produced a valid VDI
+- name: Stat VDI after conversion  # T-CI-2
+  stat:
+    path: "{{ cloud_image_vdi }}"
+  register: vdi_post_convert
+
+- name: Assert VDI exists and is > 1 GB  # T-CI-2
+  assert:
+    that:
+      - vdi_post_convert.stat.exists
+      - vdi_post_convert.stat.size > 1073741824
+    fail_msg: "VDI at '{{ cloud_image_vdi }}' missing or < 1 GB (size: {{ vdi_post_convert.stat.size | default(0) }})"
 
 # ========== VM LIFECYCLE ==========
 - name: (Optional) Nuke the VM
@@ -153,7 +210,7 @@
 - name: Create & register VM if missing
   command: >
     VBoxManage createvm --name "{{ vm_name }}"
-    --ostype Ubuntu_64 --register
+    --ostype {{ 'Ubuntu_arm64' if cloud_arch == 'arm64' else 'Ubuntu_64' }} --register
   when: not vm_exists and not vbox_file.stat.exists
 
 - name: Gather VM info
@@ -174,20 +231,33 @@
     done
 
 # ========== FORCE NIC1 TO BRIDGED + VIRTIO ==========
-- name: Detect host default route interface
+- name: Detect host default route interface (Linux)
+  when: ansible_facts['system'] == 'Linux'
   delegate_to: localhost
   command:
     argv:
       - bash
       - -lc
       - ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if ($i=="dev"){print $(i+1); exit}}'
-  register: default_iface
+  register: default_iface_linux
+  changed_when: false
+  failed_when: false
+
+- name: Detect host default route interface (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  command:
+    argv: [bash, -lc, "route get default | awk '/interface:/{print $2}'"]
+  register: default_iface_mac
   changed_when: false
   failed_when: false
 
 - name: Normalize default iface
   set_fact:
-    bridge_iface_resolved: "{{ (default_iface.stdout | default('')) | trim }}"
+    bridge_iface_resolved: >-
+      {{ ((default_iface_linux.stdout | default(''))
+          if ansible_facts['system'] == 'Linux'
+          else (default_iface_mac.stdout | default(''))) | trim }}
 
 - name: Configure NIC1 as BRIDGED virtio
   delegate_to: localhost
@@ -384,10 +454,20 @@
       - "'users' in userdata_parsed"
 
 # ========== ISO + BOOT ==========
-- name: Generate NoCloud ISO
+- name: Generate NoCloud ISO (Linux)
   become: yes
+  when: ansible_facts['system'] == 'Linux'
   command: >
     genisoimage -output "{{ nocloud_iso }}"
+    -volid CIDATA -joliet-long -rock
+    "{{ cloud_image_dir }}/user-data"
+    "{{ cloud_image_dir }}/meta-data"
+    "{{ cloud_image_dir }}/network-config"
+
+- name: Generate NoCloud ISO (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  command: >
+    mkisofs -output "{{ nocloud_iso }}"
     -volid CIDATA -joliet-long -rock
     "{{ cloud_image_dir }}/user-data"
     "{{ cloud_image_dir }}/meta-data"
@@ -412,4 +492,20 @@
     port: 22
     delay: 15
     timeout: 300
+
+# T-CI-1: Verify guest architecture matches expected cloud_arch
+- name: Check guest uname -m via SSH  # T-CI-1
+  delegate_to: localhost
+  command: >
+    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10
+    {{ ansible_user }}@{{ static_ip }} uname -m
+  register: guest_uname
+  changed_when: false
+
+- name: Assert guest architecture matches cloud_arch  # T-CI-1
+  assert:
+    that:
+      - (cloud_arch == 'arm64' and guest_uname.stdout | trim == 'aarch64')
+        or (cloud_arch == 'amd64' and guest_uname.stdout | trim == 'x86_64')
+    fail_msg: "Guest uname '{{ guest_uname.stdout | trim }}' does not match cloud_arch='{{ cloud_arch }}'"
 

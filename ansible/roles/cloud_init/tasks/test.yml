@@ -2,39 +2,84 @@
 # roles/cloud_init/tasks/main.yml
 
 # ========== PREREQS ==========
-- name: Ensure ISO tools present on control
+- name: Ensure ISO tools present on control (Linux)
   become: yes
   delegate_to: localhost
   run_once: true
+  when: ansible_facts['system'] == 'Linux'
   package:
     name:
       - genisoimage
       - cloud-image-utils
+      - qemu-utils
     state: present
+
+- name: Ensure ISO tools present on control (macOS)
+  delegate_to: localhost
+  run_once: true
+  when: ansible_facts['system'] == 'Darwin'
+  community.general.homebrew:
+    name:
+      - cdrtools
+      - qemu
+    state: present
+
+# ========== ARCH DETECTION ==========
+- name: Detect control machine architecture
+  delegate_to: localhost
+  command: uname -m
+  register: ctrl_uname
+  changed_when: false
+
+- name: Set cloud_arch fact
+  set_fact:
+    cloud_arch: "{{ 'arm64' if ctrl_uname.stdout | trim == 'aarch64' else 'amd64' }}"
+
+- name: Assert cloud_arch is a known value
+  assert:
+    that: cloud_arch in ['amd64', 'arm64']
+    fail_msg: "Unexpected architecture detected: {{ ctrl_uname.stdout | trim }}. Expected x86_64 or aarch64."
+
+- name: Show detected architecture
+  debug:
+    msg: "Control machine architecture detected: {{ ctrl_uname.stdout | trim }} → cloud_arch={{ cloud_arch }}"
 
 - name: Init primary_mac fact
   set_fact:
     primary_mac: ""
 
 # ========== MEDIA PREP ==========
-- name: Ensure cloud image VMDK is present
+- name: Ensure cloud image source is present
   stat:
-    path: "{{ cloud_image_vmdk }}"
-  register: vmdk_stat
+    path: "{{ cloud_image_src }}"
+  register: src_stat
 
 - name: Download Ubuntu cloud image if missing
   get_url:
     url: "{{ cloud_image_url }}"
-    dest: "{{ cloud_image_vmdk }}"
+    dest: "{{ cloud_image_src }}"
     mode: '0644'
-  when: not vmdk_stat.stat.exists
+  when: not src_stat.stat.exists
 
-- name: Convert VMDK to VDI
+- name: Convert VMDK to VDI (amd64 path)
+  delegate_to: localhost
+  become: false
   command: >
-    VBoxManage clonemedium disk "{{ cloud_image_vmdk }}"
+    VBoxManage clonemedium disk "{{ cloud_image_src }}"
     "{{ cloud_image_vdi }}" --format VDI
   args:
     creates: "{{ cloud_image_vdi }}"
+  when: cloud_arch == 'amd64'
+
+- name: Convert QCOW2 img to VDI (arm64 path)
+  delegate_to: localhost
+  become: false
+  command: >
+    qemu-img convert -f qcow2 -O vdi
+    "{{ cloud_image_src }}" "{{ cloud_image_vdi }}"
+  args:
+    creates: "{{ cloud_image_vdi }}"
+  when: cloud_arch == 'arm64'
 
 # ========== VM LIFECYCLE ==========
 - name: (Optional) Nuke the VM
@@ -55,7 +100,7 @@
 - name: Create & register VM if missing
   command: >
     VBoxManage createvm --name "{{ vm_name }}"
-      --ostype Ubuntu_64 --register
+      --ostype {{ 'Ubuntu_arm64' if cloud_arch == 'arm64' else 'Ubuntu_64' }} --register
   when: not vm_exists
 
 - name: Gather VM info
@@ -77,20 +122,33 @@
     done
 
 # ========== FORCE NIC1 TO BRIDGED + VIRTIO ==========
-- name: Detect host default route interface
+- name: Detect host default route interface (Linux)
+  when: ansible_facts['system'] == 'Linux'
   delegate_to: localhost
   command:
     argv:
       - bash
       - -lc
       - ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if ($i=="dev"){print $(i+1); exit}}'
-  register: default_iface
+  register: default_iface_linux
+  changed_when: false
+  failed_when: false
+
+- name: Detect host default route interface (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  command:
+    argv: [bash, -lc, "route get default | awk '/interface:/{print $2}'"]
+  register: default_iface_mac
   changed_when: false
   failed_when: false
 
 - name: Normalize default iface
   set_fact:
-    bridge_iface_resolved: "{{ (default_iface.stdout | default('')) | trim }}"
+    bridge_iface_resolved: >-
+      {{ ((default_iface_linux.stdout | default(''))
+          if ansible_facts['system'] == 'Linux'
+          else (default_iface_mac.stdout | default(''))) | trim }}
 
 - name: Configure NIC1 as BRIDGED virtio
   delegate_to: localhost
@@ -256,14 +314,24 @@
       - "'users' in userdata_parsed"
 
 # ========== ISO + BOOT ==========
-- name: Generate NoCloud ISO
+- name: Generate NoCloud ISO (Linux)
+  become: yes
+  when: ansible_facts['system'] == 'Linux'
   command: >
     genisoimage -output "{{ nocloud_iso }}"
       -volid CIDATA -joliet-long -rock
       "{{ cloud_image_dir }}/user-data"
       "{{ cloud_image_dir }}/meta-data"
       "{{ cloud_image_dir }}/network-config"
-  become: yes
+
+- name: Generate NoCloud ISO (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  command: >
+    mkisofs -output "{{ nocloud_iso }}"
+      -volid CIDATA -joliet-long -rock
+      "{{ cloud_image_dir }}/user-data"
+      "{{ cloud_image_dir }}/meta-data"
+      "{{ cloud_image_dir }}/network-config"
 
 - name: Attach Cloud-Init ISO
   command: >

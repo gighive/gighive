@@ -159,34 +159,40 @@ Three `group_vars` files hard-code the amd64 architecture in the cloud image URL
 
 ### Step index
 
-- [ ] **1.** Add `cloud_arch: "amd64"` default to `cloud_init/defaults/main.yml`
-- [ ] **2.** Update group_vars (all 3 files) — add `cloud_image_ext`, rename `cloud_image_vmdk` → `cloud_image_src`, parameterize `cloud_image_url` and `cloud_image_vdi` with `cloud_arch`
-- [ ] **3.** Add architecture detection block (detect, set_fact, assert, debug) near the top of `main.yml`, `nat.yml`, and `test.yml`, before the MEDIA PREP section
-- [ ] **4.** Rename `cloud_image_vmdk` → `cloud_image_src` in the stat and download tasks in `main.yml`, `nat.yml`, and `test.yml`
-- [ ] **5.** Replace `Convert VMDK to VDI` with an arch-branched pair — `VBoxManage clonemedium` for amd64, `qemu-img convert` for arm64 — in `main.yml`, `nat.yml`, and `test.yml`
-- [ ] **6.** Guard KVM module check with `when: ansible_system == 'Linux'` in `main.yml`
-- [ ] **7.** Branch default NIC detection for Linux vs macOS in `main.yml` and `test.yml`
-- [ ] **8.** Split prereq package install into Linux (`package` module) and macOS (`community.general.homebrew`) branches in `main.yml`, `nat.yml`, and `test.yml`
-- [ ] **9.** Verify ARM64 VirtualBox ostype string; branch `createvm --ostype` for arm64 vs amd64 in `main.yml`
-- [ ] **10.** Add T-CI-1 and T-CI-2 to `cloud_init/tasks/main.yml` — see `## Tests` section below
-- [ ] **11.** Branch `Generate NoCloud ISO` command for Linux (`genisoimage`) vs macOS (`mkisofs`) in `main.yml`, `nat.yml`, and `test.yml`
-- [ ] **12.** Full macOS NIC resolution for `nat.yml` — branch four Linux-only detection commands and update four downstream normalizations
+- [x] **1.** Add `cloud_arch: "amd64"` to all 3 group_vars files (cloud image block, before `cloud_image_url`)
+- [x] **2.** Update group_vars (all 3 files) — add `cloud_image_ext`, rename `cloud_image_vmdk` → `cloud_image_src`, parameterize `cloud_image_url` and `cloud_image_vdi` with `cloud_arch`
+- [x] **3.** Add architecture detection block (detect, set_fact, assert, debug) near the top of `main.yml`, `nat.yml`, and `test.yml`, before the MEDIA PREP section
+- [x] **4.** Rename `cloud_image_vmdk` → `cloud_image_src` in the stat and download tasks in `main.yml`, `nat.yml`, and `test.yml`
+- [x] **5.** Replace `Convert VMDK to VDI` with an arch-branched pair — `VBoxManage clonemedium` for amd64, `qemu-img convert` for arm64 — in `main.yml`, `nat.yml`, and `test.yml`
+- [x] **6.** Guard KVM module check with `when: ansible_system == 'Linux'` in `main.yml`
+- [x] **7.** Branch default NIC detection for Linux vs macOS in `main.yml` and `test.yml`
+- [x] **8.** Split prereq package install into Linux (`package` module) and macOS (`community.general.homebrew`) branches in `main.yml`, `nat.yml`, and `test.yml`
+- [x] **9.** Verify ARM64 VirtualBox ostype string; branch `createvm --ostype` for arm64 vs amd64 in `main.yml`
+- [x] **10.** Add T-CI-1 and T-CI-2 to `cloud_init/tasks/main.yml` — see `## Tests` section below
+- [x] **11.** Branch `Generate NoCloud ISO` command for Linux (`genisoimage`) vs macOS (`mkisofs`) in `main.yml`, `nat.yml`, and `test.yml`
+- [x] **12.** Full macOS NIC resolution for `nat.yml` — branch four Linux-only detection commands and update four downstream normalizations
 
 ---
 
-### Step 1 — Add `cloud_arch` default to `cloud_init/defaults/main.yml`
+### Step 1 — Add `cloud_arch` to group_vars (all 3 files)
 
-Add a single variable to `roles/cloud_init/defaults/main.yml`:
+Add `cloud_arch: "amd64"` as the first variable in the cloud image block of each group_vars file, immediately before `cloud_image_url`:
 
 {% raw %}
 ```yaml
+# vmdk/vdi specs for local vm
+# Cloud image URL format (verified 2024-11 for Noble 24.04)
+# Format may change; check https://cloud-images.ubuntu.com/ if download fails
 cloud_arch: "amd64"
+cloud_image_url: ...
 ```
 {% endraw %}
 
-Without this default, any evaluation of `cloud_image_url`, `cloud_image_src`, or `cloud_image_vdi` outside the `cloud_init` role context will throw an undefined variable error. The `set_fact` task in Step 3 overrides this at runtime.
+Group_vars is the authoritative home for deployment-specific variables per project convention. The `set_fact` task in Step 3 overrides this at runtime on the Mac (setting `arm64`). `cloud_init/defaults/main.yml` is not used for this variable — group_vars takes precedence over defaults and all three environments are covered explicitly.
 
 ### Step 2 — group_vars changes (all three files)
+
+`cloud_arch: "amd64"` was placed in Step 1 and is already present. This step does not re-add it.
 
 Replace the hardcoded `amd64` arch string with `cloud_arch` in the URL and filenames. Also split the URL extension: `amd64` gets `.vmdk`, `arm64` gets `.img`, since Ubuntu publishes different formats per architecture.
 
@@ -646,12 +652,12 @@ _(Nothing implemented yet.)_
 - [ ] Run `VBoxManage list ostypes | grep -i ubuntu` on the Mac to confirm the correct ARM64 ostype string before coding the branch.
 - [ ] Verify nocloud ISO generation (`cloud-localds` equivalent) on macOS — confirm `mkisofs` drop-in compatibility or identify alternative before closing the prereq task.
 - [ ] Verify ARM64 Docker image availability for all stack containers: `apacheWebServer` (ubuntu-apache-img), `mysqlServer` (mysql:8.x), `tusd` (tusproject/tusd), `ai-worker` (custom). Check each image's manifest for `linux/arm64` support before declaring success on the full provisioning workflow.
-- [ ] Update `cloud_init/defaults/main.yml` — add `cloud_arch: "amd64"` default.
-- [ ] Update `group_vars/gighive2/gighive2.yml`, `group_vars/gighive/gighive.yml`, `group_vars/prod/prod.yml` — replace hardcoded arch strings; rename `cloud_image_vmdk` → `cloud_image_src`; add `cloud_image_ext`.
-- [ ] Update `cloud_init/tasks/main.yml` — arch detection (no run_once), assert, debug, rename, branch conversion, OS guards, branch ISO generation.
-- [ ] Update `cloud_init/tasks/nat.yml` — arch detection, assert, debug, rename, branch conversion, prereq OS split, branch ISO generation, full macOS NIC resolution (Step 12).
-- [ ] Update `cloud_init/tasks/test.yml` — arch detection, assert, debug, rename, branch conversion, prereq OS split, branch ISO generation, branch NIC detection (Step 7).
-- [ ] Add T-CI-2 (VDI size check) after the conversion block and T-CI-1 (guest uname check) after `Wait for SSH availability` in `cloud_init/tasks/main.yml`.
+- [x] Add `cloud_arch: "amd64"` to `group_vars/gighive2/gighive2.yml`, `group_vars/gighive/gighive.yml`, `group_vars/prod/prod.yml` — cloud image block.
+- [x] Update `group_vars/gighive2/gighive2.yml`, `group_vars/gighive/gighive.yml`, `group_vars/prod/prod.yml` — replace hardcoded arch strings; rename `cloud_image_vmdk` → `cloud_image_src`; add `cloud_image_ext`.
+- [x] Update `cloud_init/tasks/main.yml` — arch detection (no run_once), assert, debug, rename, branch conversion, OS guards, branch ISO generation.
+- [x] Update `cloud_init/tasks/nat.yml` — arch detection, assert, debug, rename, branch conversion, prereq OS split, branch ISO generation, full macOS NIC resolution (Step 12).
+- [x] Update `cloud_init/tasks/test.yml` — arch detection, assert, debug, rename, branch conversion, prereq OS split, branch ISO generation, branch NIC detection (Step 7).
+- [x] Add T-CI-2 (VDI size check) after the conversion block and T-CI-1 (guest uname check) after `Wait for SSH availability` in `cloud_init/tasks/main.yml`.
 - [ ] Run playbook from Mac with `--tags cloud_init` against a fresh VM slot; confirm SSH reachable, `uname -m` inside VM returns `aarch64`, VDI > 1 GB.
 
 ### Remaining — Follow-on Tasks

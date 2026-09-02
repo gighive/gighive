@@ -2,15 +2,47 @@
 # roles/cloud_init/tasks/main.yml
 
 # ========== PREREQS ==========
-- name: Ensure ISO tools present on control
+- name: Ensure ISO tools present on control (Linux)
   become: yes
   delegate_to: localhost
   run_once: true
+  when: ansible_facts['system'] == 'Linux'
   package:
     name:
       - genisoimage
       - cloud-image-utils
+      - qemu-utils
     state: present
+
+- name: Ensure ISO tools present on control (macOS)
+  delegate_to: localhost
+  run_once: true
+  when: ansible_facts['system'] == 'Darwin'
+  community.general.homebrew:
+    name:
+      - cdrtools
+      - qemu
+    state: present
+
+# ========== ARCH DETECTION ==========
+- name: Detect control machine architecture
+  delegate_to: localhost
+  command: uname -m
+  register: ctrl_uname
+  changed_when: false
+
+- name: Set cloud_arch fact
+  set_fact:
+    cloud_arch: "{{ 'arm64' if ctrl_uname.stdout | trim == 'aarch64' else 'amd64' }}"
+
+- name: Assert cloud_arch is a known value
+  assert:
+    that: cloud_arch in ['amd64', 'arm64']
+    fail_msg: "Unexpected architecture detected: {{ ctrl_uname.stdout | trim }}. Expected x86_64 or aarch64."
+
+- name: Show detected architecture
+  debug:
+    msg: "Control machine architecture detected: {{ ctrl_uname.stdout | trim }} → cloud_arch={{ cloud_arch }}"
 
 # Keep sane defaults
 - name: Init flags
@@ -19,24 +51,37 @@
     need_nat: false
 
 # ========== MEDIA PREP (image files only) ==========
-- name: Ensure cloud image VMDK is present
+- name: Ensure cloud image source is present
   stat:
-    path: "{{ cloud_image_vmdk }}"
-  register: vmdk_stat
+    path: "{{ cloud_image_src }}"
+  register: src_stat
 
 - name: Download Ubuntu cloud image if missing
   get_url:
     url: "{{ cloud_image_url }}"
-    dest: "{{ cloud_image_vmdk }}"
+    dest: "{{ cloud_image_src }}"
     mode: '0644'
-  when: not vmdk_stat.stat.exists
+  when: not src_stat.stat.exists
 
-- name: Convert VMDK to VDI
+- name: Convert VMDK to VDI (amd64 path)
+  delegate_to: localhost
+  become: false
   command: >
-    VBoxManage clonemedium disk "{{ cloud_image_vmdk }}"
+    VBoxManage clonemedium disk "{{ cloud_image_src }}"
     "{{ cloud_image_vdi }}" --format VDI
   args:
     creates: "{{ cloud_image_vdi }}"
+  when: cloud_arch == 'amd64'
+
+- name: Convert QCOW2 img to VDI (arm64 path)
+  delegate_to: localhost
+  become: false
+  command: >
+    qemu-img convert -f qcow2 -O vdi
+    "{{ cloud_image_src }}" "{{ cloud_image_vdi }}"
+  args:
+    creates: "{{ cloud_image_vdi }}"
+  when: cloud_arch == 'arm64'
 
 # ========== VM LIFECYCLE ==========
 - name: (Optional) Nuke the VM
@@ -57,7 +102,7 @@
 - name: Create & register VM if missing
   command: >
     VBoxManage createvm --name "{{ vm_name }}"
-      --ostype Ubuntu_64 --register
+      --ostype {{ 'Ubuntu_arm64' if cloud_arch == 'arm64' else 'Ubuntu_64' }} --register
   when: not vm_exists
 
 - name: Gather VM info
@@ -150,7 +195,8 @@
       --port 0 --device 0 --type hdd --medium "{{ cloud_image_vdi }}"
 
 # ========== NETWORK ADAPTER RESOLUTION (host → bridged/NAT decision) ==========
-- name: Detect host default route interface
+- name: Detect host default route interface (Linux)
+  when: ansible_facts['system'] == 'Linux'
   delegate_to: localhost
   command:
     argv:
@@ -158,7 +204,16 @@
       - -lc
       - |
           ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if ($i=="dev"){print $(i+1); exit}}'
-  register: default_iface
+  register: default_iface_linux
+  changed_when: false
+  failed_when: false
+
+- name: Detect host default route interface (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  command:
+    argv: [bash, -lc, "route get default | awk '/interface:/{print $2}'"]
+  register: default_iface_mac
   changed_when: false
   failed_when: false
 
@@ -177,9 +232,13 @@
 - name: Normalize bridged IF list
   set_fact:
     bridged_ifs_trimmed: "{{ (bridged_ifs.stdout_lines | default([])) | map('trim') | list }}"
-    default_iface_trim: "{{ (default_iface.stdout | default('')) | trim }}"
+    default_iface_trim: >-
+      {{ ((default_iface_linux.stdout | default(''))
+          if ansible_facts['system'] == 'Linux'
+          else (default_iface_mac.stdout | default(''))) | trim }}
 
-- name: List host interface names (from ip link)
+- name: List host interface names (Linux)
+  when: ansible_facts['system'] == 'Linux'
   delegate_to: localhost
   command:
     argv:
@@ -187,19 +246,32 @@
       - -lc
       - |
           ip -o link | awk -F': ' '{print $2}'
-  register: host_ifnames
+  register: host_ifnames_linux
+  changed_when: false
+  failed_when: false
+
+- name: List host interface names (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  command:
+    argv: [bash, -lc, "ifconfig -l | tr ' ' '\\n' | grep -v '^$'"]
+  register: host_ifnames_mac
   changed_when: false
   failed_when: false
 
 - name: Normalize host interface names
   set_fact:
-    host_ifnames_trimmed: "{{ (host_ifnames.stdout_lines | default([])) | map('trim') | list }}"
+    host_ifnames_trimmed: >-
+      {{ ((host_ifnames_linux.stdout_lines | default([]))
+          if ansible_facts['system'] == 'Linux'
+          else (host_ifnames_mac.stdout_lines | default([]))) | map('trim') | list }}
 
 - name: Build set of bridged IFs that exist on host
   set_fact:
     bridged_ifs_existing: "{{ bridged_ifs_trimmed | select('in', host_ifnames_trimmed) | list }}"
 
-- name: Build set of bridged IFs that are UP on host
+- name: Build set of bridged IFs that are UP on host (Linux)
+  when: ansible_facts['system'] == 'Linux'
   delegate_to: localhost
   shell: |
     set -euo pipefail
@@ -211,15 +283,35 @@
     done
   args:
     executable: /bin/bash
-  register: bridged_ifs_up
+  register: bridged_ifs_up_linux
+  changed_when: false
+  failed_when: false
+
+- name: Build set of bridged IFs that are UP on host (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    for n in {{ (bridged_ifs_existing | map('quote') | join(' ')) | default('', true) }}; do
+      if ifconfig "$n" 2>/dev/null | grep -q 'status: active'; then
+        echo "$n"
+      fi
+    done
+  args:
+    executable: /bin/bash
+  register: bridged_ifs_up_mac
   changed_when: false
   failed_when: false
 
 - name: Final valid bridged IFs (VB exposed ∩ host exists ∩ state=up)
   set_fact:
-    bridged_ifs_valid: "{{ (bridged_ifs_up.stdout_lines | default([])) | map('trim') | list }}"
+    bridged_ifs_valid: >-
+      {{ ((bridged_ifs_up_linux.stdout_lines | default([]))
+          if ansible_facts['system'] == 'Linux'
+          else (bridged_ifs_up_mac.stdout_lines | default([]))) | map('trim') | list }}
 
-- name: Compute host IPv4 for each valid bridged IF
+- name: Compute host IPv4 for each valid bridged IF (Linux)
+  when: ansible_facts['system'] == 'Linux'
   delegate_to: localhost
   shell: |
     set -euo pipefail
@@ -228,7 +320,22 @@
     done
   args:
     executable: /bin/bash
-  register: host_if_ipv4s
+  register: host_if_ipv4s_linux
+  changed_when: false
+  failed_when: false
+
+- name: Compute host IPv4 for each valid bridged IF (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  shell: |
+    set -euo pipefail
+    for n in {{ (bridged_ifs_valid | map('quote') | join(' ')) | default('', true) }}; do
+      ip=$(ipconfig getifaddr "$n" 2>/dev/null || true)
+      [ -n "$ip" ] && echo "$n ${ip}/24"
+    done
+  args:
+    executable: /bin/bash
+  register: host_if_ipv4s_mac
   changed_when: false
   failed_when: false
 
@@ -239,7 +346,10 @@
 - name: Accumulate host IF -> CIDR map
   set_fact:
     host_if_cidrs: "{{ host_if_cidrs | combine( { (item.split(' ')[0]): (item.split(' ')[1]) } ) }}"
-  loop: "{{ host_if_ipv4s.stdout_lines | default([]) }}"
+  loop: >-
+    {{ ((host_if_ipv4s_linux.stdout_lines | default([]))
+        if ansible_facts['system'] == 'Linux'
+        else (host_if_ipv4s_mac.stdout_lines | default([]))) | default([]) }}
   when: (item | length) > 0
 
 - name: Compute guest CIDR
@@ -509,14 +619,24 @@
           Most common cause: YAML indentation under 'ethernets:'.
 
 # ========== BUILD & ATTACH ISO ==========
-- name: Generate NoCloud ISO
+- name: Generate NoCloud ISO (Linux)
+  become: yes
+  when: ansible_facts['system'] == 'Linux'
   command: >
     genisoimage -output "{{ nocloud_iso }}"
       -volid CIDATA -joliet-long -rock
       "{{ cloud_image_dir }}/user-data"
       "{{ cloud_image_dir }}/meta-data"
       "{{ cloud_image_dir }}/network-config"
-  become: yes
+
+- name: Generate NoCloud ISO (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  command: >
+    mkisofs -output "{{ nocloud_iso }}"
+      -volid CIDATA -joliet-long -rock
+      "{{ cloud_image_dir }}/user-data"
+      "{{ cloud_image_dir }}/meta-data"
+      "{{ cloud_image_dir }}/network-config"
 
 - name: Attach Cloud-Init ISO
   command: >

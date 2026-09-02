@@ -3,7 +3,7 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260902.txt
-Changes: plan for cloud_init cpu architecture update pre-migration to mac for all dev work
+Changes: cloud_init role cpu architecture addition as precursor to migrating dev env to macbook 
 
 sodo@pop-os:~/gighive$ git status
 On branch master
@@ -12,54 +12,15 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
-	modified:   docs/feature_saas_model_changes.md
-	new file:   docs/feature_saas_pricing_model.md
-	modified:   docs/feature_security_authentication_migration_jwt.md
-	new file:   docs/refactor_virtualbox_apple_silicon.md
-	new file:   docs/virtualbox_mac_apple_silicon_install.md
-
-*** 
-releaseNotes20260830.txt
-Changes: delete eligibility changes and fixes
-
-sodo@pop-os:~/gighive$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/docs/openapi.yaml
-	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/OpenApi.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/AssetRepository.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/index.php
-	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql
-	modified:   ansible/roles/post_build_checks/tasks/main.yml
-	new file:   docs/problem_tus_finalize_missing_delete_token.md
-	new file:   docs/refactor_not_needed_schema_assets_created_at.md
-	new file:   docs/refactor_schema_upload_jobs_token_attribution.md
-	modified:   docs/refactor_video_player_page_delete_eligibility.md
-	modified:   docs/testing_ios.md
-
-Add server-authoritative can_delete and upload_source to database.php (Phase 2)
- 
-- MediaController::listJson() LEFT JOINs upload_jobs on file_relpath to
-  derive upload_source (authenticated/guest); computes can_delete in PHP
-  from PHP_AUTH_USER after the query (not as a SQL CASE bind parameter).
-  Admin → always true; uploader → true only for authenticated uploads;
-  other/unauthenticated → false.
-- AssetRepository::fetchUploadMeta() performs the upload-jobs lookup in
-  one query per list call.
-- OpenApi.php: added can_delete (boolean) and upload_source (string) to
-  MediaEntry schema annotation; openapi.yaml regenerated.
-- create_media_db.sql: added idx_upload_jobs_file_relpath index on
-  upload_jobs.file_relpath (live ALTER applied to dev via BABRRR).
-- post_build_checks: added smoke tests T-134–T-139 (unauthenticated 401;
-  admin all-true; uploader guest-false / auth-true; upload_source values).
-- docs: refactor plan status updated; testing_ios.md Phase 4/5 tables updated
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/cloud_init/files/network-config
+	modified:   ansible/roles/cloud_init/tasks/main.yml
+	modified:   ansible/roles/cloud_init/tasks/nat.yml
+	modified:   ansible/roles/cloud_init/tasks/test.yml
+	modified:   ansible/roles/cloud_init_disable/tasks/main.yml
+	modified:   docs/refactor_virtualbox_apple_silicon.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
@@ -164,8 +125,65 @@ Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg i
 Infra: rebuild prod baremetal with same ansible scripts as staging
 
 *** 
+releaseNotes20260902.txt
+Changes: plan for cloud_init cpu architecture update pre-migration to mac for all dev work
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/one_shot_bundle/VERSION
+	modified:   docs/feature_saas_model_changes.md
+	new file:   docs/feature_saas_pricing_model.md
+	modified:   docs/feature_security_authentication_migration_jwt.md
+	new file:   docs/refactor_virtualbox_apple_silicon.md
+	new file:   docs/virtualbox_mac_apple_silicon_install.md
+
+*** 
 releaseNotes20260830.txt
-Changes: delete eligibility change documentation + mediacontroller fix to add a thumbnail column for new ios media database page
+Changes: delete eligibility changes and fixes
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/docs/openapi.yaml
+	modified:   ansible/roles/docker/files/apache/webroot/src/Controllers/MediaController.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/OpenApi.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Repositories/AssetRepository.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Services/UploadService.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/index.php
+	modified:   ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	new file:   docs/problem_tus_finalize_missing_delete_token.md
+	new file:   docs/refactor_not_needed_schema_assets_created_at.md
+	new file:   docs/refactor_schema_upload_jobs_token_attribution.md
+	modified:   docs/refactor_video_player_page_delete_eligibility.md
+	modified:   docs/testing_ios.md
+
+Add server-authoritative can_delete and upload_source to database.php (Phase 2)
+ 
+- MediaController::listJson() LEFT JOINs upload_jobs on file_relpath to
+  derive upload_source (authenticated/guest); computes can_delete in PHP
+  from PHP_AUTH_USER after the query (not as a SQL CASE bind parameter).
+  Admin → always true; uploader → true only for authenticated uploads;
+  other/unauthenticated → false.
+- AssetRepository::fetchUploadMeta() performs the upload-jobs lookup in
+  one query per list call.
+- OpenApi.php: added can_delete (boolean) and upload_source (string) to
+  MediaEntry schema annotation; openapi.yaml regenerated.
+- create_media_db.sql: added idx_upload_jobs_file_relpath index on
+  upload_jobs.file_relpath (live ALTER applied to dev via BABRRR).
+- post_build_checks: added smoke tests T-134–T-139 (unauthenticated 401;
+  admin all-true; uploader guest-false / auth-true; upload_source values).
+- docs: refactor plan status updated; testing_ios.md Phase 4/5 tables updated
+
 
 sodo@pop-os:~/gighive$ git status
 On branch master

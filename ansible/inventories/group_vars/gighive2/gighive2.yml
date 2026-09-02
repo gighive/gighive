@@ -35,10 +35,12 @@ media_search_dirs: "{{ media_search_dir_audio }}:{{ media_search_dir_video }}"
 # vmdk/vdi specs for local vm
 # Cloud image URL format (verified 2024-11 for Noble 24.04)
 # Format may change; check https://cloud-images.ubuntu.com/ if download fails
-cloud_image_url: "https://cloud-images.ubuntu.com/{{ ubuntu_codename }}/current/{{ ubuntu_codename }}-server-cloudimg-amd64.vmdk"
+cloud_arch: "amd64"
+cloud_image_ext: "{{ '.vmdk' if cloud_arch == 'amd64' else '.img' }}"
+cloud_image_url: "https://cloud-images.ubuntu.com/{{ ubuntu_codename }}/current/{{ ubuntu_codename }}-server-cloudimg-{{ cloud_arch }}{{ cloud_image_ext }}"
 cloud_image_dir: "{{ cloud_init_files_dir }}"
-cloud_image_vmdk: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-amd64-{{ vm_name }}.vmdk"
-cloud_image_vdi: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-amd64-{{ vm_name }}.vdi"
+cloud_image_src: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-{{ cloud_arch }}-{{ vm_name }}{{ cloud_image_ext }}"
+cloud_image_vdi: "{{ cloud_init_files_dir }}/{{ ubuntu_codename }}-server-cloudimg-{{ cloud_arch }}-{{ vm_name }}.vdi"
 nocloud_iso: "{{ cloud_init_files_dir }}/seed-{{ vm_name }}.iso"
 
 ansible_remote_tmp: "/tmp/.ansible/tmp"
