@@ -270,7 +270,7 @@
 - name: Sync scripts to the VM (excluding cloud-init)
   delegate_to: localhost
   become: no
-  ansible.builtin.synchronize:
+  ansible.posix.synchronize:
     src: "{{ scripts_home }}/"
     dest: "{{ gighive_home }}"
     archive: false
@@ -364,7 +364,7 @@
 - name: Sync full video directory
   delegate_to: localhost
   become: false
-  synchronize:
+  ansible.posix.synchronize:
     mode: push
     src:      "{{ video_full }}/"
     dest:     "{{ video_dir }}"
@@ -390,7 +390,7 @@
 - name: Sync reduced video directory (development subset)
   delegate_to: localhost
   become: false
-  synchronize:
+  ansible.posix.synchronize:
     mode: push
     src:      "{{ video_reduced }}/"
     dest:     "{{ video_dir }}"
@@ -439,7 +439,7 @@
 - name: Sync full audio directory
   delegate_to: localhost
   become: false
-  synchronize:
+  ansible.posix.synchronize:
     mode: push
     src:      "{{ audio_full }}/"
     dest:     "{{ audio_dir }}"
@@ -461,7 +461,7 @@
 - name: Sync reduced audio directory
   delegate_to: localhost
   become: false
-  synchronize:
+  ansible.posix.synchronize:
     mode: push
     src:      "{{ audio_reduced }}/"
     dest:     "{{ audio_dir }}"

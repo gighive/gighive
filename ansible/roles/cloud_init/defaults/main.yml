@@ -4,3 +4,8 @@
 # Role defaults: ensure variables exist even if top-level play doesn't define them.
 root_dir: "{{ ansible_env.HOME | default(lookup('env','HOME')) }}"
 nic_name: eth0
+
+# VirtualBox guest OS type strings — one authoritative place; referenced by
+# createvm and the pre-flight ostype assertion.
+cloud_vbox_ostype_arm64: "Ubuntu_arm64"
+cloud_vbox_ostype_amd64: "Ubuntu_64"

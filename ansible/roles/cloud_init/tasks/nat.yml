@@ -24,6 +24,116 @@
       - qemu
     state: present
 
+# ========== macOS DEPENDENCY VERIFICATION ==========
+- name: Check qemu-img is on PATH (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  run_once: true
+  command: which qemu-img
+  register: qemu_img_check
+  changed_when: false
+  failed_when: false
+
+- name: Install qemu if qemu-img not found (macOS)
+  when: ansible_facts['system'] == 'Darwin' and qemu_img_check.rc != 0
+  delegate_to: localhost
+  run_once: true
+  community.general.homebrew:
+    name: qemu
+    state: present
+
+- name: Verify qemu-img is on PATH (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  run_once: true
+  command: which qemu-img
+  changed_when: false
+  register: qemu_img_verify
+  failed_when: false
+
+- name: Fail if qemu-img not on PATH after install (macOS)
+  when: ansible_facts['system'] == 'Darwin' and qemu_img_verify.rc != 0
+  delegate_to: localhost
+  run_once: true
+  fail:
+    msg: >
+      qemu-img not found on PATH after 'brew install qemu'.
+      Ensure Homebrew's bin directory is in PATH:
+      /opt/homebrew/bin (Apple Silicon) or /usr/local/bin (Intel Mac).
+
+- name: Check mkisofs is on PATH (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  run_once: true
+  command: which mkisofs
+  register: mkisofs_check
+  changed_when: false
+  failed_when: false
+
+- name: Install cdrtools if mkisofs not found (macOS)
+  when: ansible_facts['system'] == 'Darwin' and mkisofs_check.rc != 0
+  delegate_to: localhost
+  run_once: true
+  community.general.homebrew:
+    name: cdrtools
+    state: present
+
+- name: Verify mkisofs is on PATH (macOS)
+  when: ansible_facts['system'] == 'Darwin'
+  delegate_to: localhost
+  run_once: true
+  command: which mkisofs
+  changed_when: false
+  register: mkisofs_verify
+  failed_when: false
+
+- name: Fail if mkisofs not on PATH after install (macOS)
+  when: ansible_facts['system'] == 'Darwin' and mkisofs_verify.rc != 0
+  delegate_to: localhost
+  run_once: true
+  fail:
+    msg: >
+      mkisofs not found on PATH after 'brew install cdrtools'.
+      Ensure Homebrew's bin directory is in PATH:
+      /opt/homebrew/bin (Apple Silicon) or /usr/local/bin (Intel Mac).
+
+- name: Verify VBoxManage is on PATH
+  delegate_to: localhost
+  run_once: true
+  command: which VBoxManage
+  changed_when: false
+  register: vboxmanage_check
+  failed_when: false
+
+- name: Fail if VBoxManage not on PATH
+  when: vboxmanage_check.rc != 0
+  delegate_to: localhost
+  run_once: true
+  fail:
+    msg: >
+      VBoxManage not found on PATH. Install VirtualBox and ensure
+      VBoxManage is accessible (typically /usr/local/bin/VBoxManage on macOS,
+      /usr/bin/VBoxManage on Linux).
+
+- name: Query VirtualBox ostype list for ARM64 support (macOS arm64)
+  when: ansible_facts['system'] == 'Darwin' and cloud_arch == 'arm64'
+  delegate_to: localhost
+  run_once: true
+  command: VBoxManage list ostypes
+  register: vbox_ostypes
+  changed_when: false
+
+- name: Assert Ubuntu_arm64 ostype is listed in VirtualBox (macOS arm64)
+  when: ansible_facts['system'] == 'Darwin' and cloud_arch == 'arm64'
+  delegate_to: localhost
+  run_once: true
+  assert:
+    that: vbox_ostypes.stdout is search(cloud_vbox_ostype_arm64)
+    fail_msg: >
+      VirtualBox does not list '{{ cloud_vbox_ostype_arm64 }}' as a supported guest OS type.
+      Run 'VBoxManage list ostypes | grep -i ubuntu' to find the correct string,
+      then update cloud_vbox_ostype_arm64 in cloud_init/defaults/main.yml.
+
 # ========== ARCH DETECTION ==========
 - name: Detect control machine architecture
   delegate_to: localhost
@@ -33,12 +143,12 @@
 
 - name: Set cloud_arch fact
   set_fact:
-    cloud_arch: "{{ 'arm64' if ctrl_uname.stdout | trim == 'aarch64' else 'amd64' }}"
+    cloud_arch: "{{ 'arm64' if ctrl_uname.stdout | trim in ['aarch64', 'arm64'] else 'amd64' }}"
 
 - name: Assert cloud_arch is a known value
   assert:
     that: cloud_arch in ['amd64', 'arm64']
-    fail_msg: "Unexpected architecture detected: {{ ctrl_uname.stdout | trim }}. Expected x86_64 or aarch64."
+    fail_msg: "Unexpected architecture detected: {{ ctrl_uname.stdout | trim }}. Expected x86_64 (amd64), aarch64 (Linux ARM64), or arm64 (macOS ARM64)."
 
 - name: Show detected architecture
   debug:
@@ -102,7 +212,7 @@
 - name: Create & register VM if missing
   command: >
     VBoxManage createvm --name "{{ vm_name }}"
-      --ostype {{ 'Ubuntu_arm64' if cloud_arch == 'arm64' else 'Ubuntu_64' }} --register
+      --ostype {{ cloud_vbox_ostype_arm64 if cloud_arch == 'arm64' else cloud_vbox_ostype_amd64 }} --register
   when: not vm_exists
 
 - name: Gather VM info

@@ -146,7 +146,7 @@
   become: true
 
 - name: Create htpasswd with admin (bcrypt)
-  ansible.builtin.htpasswd:
+  community.general.htpasswd:
     path: "{{ gighive_htpasswd_path }}"
     name: "{{ admin_user }}"
     password: "{{ gighive_admin_password }}"
@@ -159,7 +159,7 @@
   no_log: true
 
 - name: Ensure viewer in htpasswd (bcrypt)
-  ansible.builtin.htpasswd:
+  community.general.htpasswd:
     path: "{{ gighive_htpasswd_path }}"
     name: "{{ viewer_user }}"
     password: "{{ gighive_viewer_password }}"
@@ -168,7 +168,7 @@
   no_log: true
 
 - name: Ensure uploader in htpasswd (bcrypt)
-  ansible.builtin.htpasswd:
+  community.general.htpasswd:
     path: "{{ gighive_htpasswd_path }}"
     name: "{{ uploader_user }}"
     password: "{{ gighive_uploader_password }}"

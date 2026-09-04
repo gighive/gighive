@@ -2,25 +2,28 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
-releaseNotes20260902.txt
-Changes: cloud_init role cpu architecture addition as precursor to migrating dev env to macbook 
+releaseNotes20260904.txt
+Changes: cloud_init role mods to allow mac as main dev box using virtualbox on arm64 cpu arch
 
-sodo@pop-os:~/gighive$ git status
+macbook2025:gighiveinfra sodo$ git status
 On branch master
 Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
 	modified:   CHANGELOG.md
-	modified:   ansible/inventories/group_vars/gighive/gighive.yml
-	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
-	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/base/tasks/main.yml
+	modified:   ansible/roles/cloud_init/defaults/main.yml
 	modified:   ansible/roles/cloud_init/files/network-config
+	modified:   ansible/roles/cloud_init/files/user-data
 	modified:   ansible/roles/cloud_init/tasks/main.yml
 	modified:   ansible/roles/cloud_init/tasks/nat.yml
 	modified:   ansible/roles/cloud_init/tasks/test.yml
-	modified:   ansible/roles/cloud_init_disable/tasks/main.yml
-	modified:   docs/refactor_virtualbox_apple_silicon.md
+	modified:   ansible/roles/security_basic_auth/tasks/main.yml
+	deleted:    docs/gighive-hat-mockup.png
+	new file:   docs/problem_ansible_mac_migration.md
+	new file:   docs/refactor_export_media_streaming_download.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
@@ -123,6 +126,27 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260902.txt
+Changes: cloud_init role cpu architecture addition as precursor to migrating dev env to macbook 
+
+sodo@pop-os:~/gighive$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/cloud_init/files/network-config
+	modified:   ansible/roles/cloud_init/tasks/main.yml
+	modified:   ansible/roles/cloud_init/tasks/nat.yml
+	modified:   ansible/roles/cloud_init/tasks/test.yml
+	modified:   ansible/roles/cloud_init_disable/tasks/main.yml
+	modified:   docs/refactor_virtualbox_apple_silicon.md
 
 *** 
 releaseNotes20260902.txt
