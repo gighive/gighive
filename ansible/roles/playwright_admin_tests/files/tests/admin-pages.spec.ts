@@ -39,7 +39,64 @@ test('Create backup — Section C smoke test', async ({ page }) => {
   await expect(page.locator('#restoreDbBtn')).toBeEnabled();
 });
 
+test('Section E — browser compatibility notice visible', async ({ page }) => {
+  await page.goto('/admin/admin_system.php');
+  const sectionE = page.locator('.section-divider').filter({ hasText: 'Export Media Archive' });
+  await expect(sectionE).toContainText('Chrome');
+  await expect(sectionE).toContainText('Edge 86');
+});
+
+test('Section E — unsupported browser shows hard block error', async ({ page }) => {
+  // Simulate Firefox/Safari: remove showSaveFilePicker before the page loads.
+  await page.addInitScript(() => { delete (window as any).showSaveFilePicker; });
+  await page.goto('/admin/admin_system.php');
+  await page.click('#exportMediaBtn');
+  // Error must appear immediately — no server round-trip, no 30s wait.
+  await expect(page.locator('#exportMediaStatus')).toContainText('Chrome or Edge 86+', { timeout: 2000 });
+  // Button must re-enable without any dialog or delay.
+  await expect(page.locator('#exportMediaBtn')).toBeEnabled({ timeout: 2000 });
+});
+
+test('Section E — server temp space error shown in UI', async ({ page }) => {
+  // Simulate export_media.php prepare returning HTTP 507 (Insufficient Storage).
+  // Intercept only the prepare call; pass through everything else.
+  await page.route('**/export_media.php', async (route, request) => {
+    const body = request.postData() ?? '';
+    if (body.includes('mode=prepare')) {
+      await route.fulfill({
+        status: 507,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          error: 'Insufficient server temp space: 50 MB available, 200 MB required. '
+               + 'Use rsync or direct volume backup for this library size.'
+        })
+      });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto('/admin/admin_system.php');
+  await page.click('#exportMediaBtn');
+  // Error must appear in the Query database step — no dialog, no worker.
+  await expect(page.locator('#exportMediaStatus')).toContainText('Insufficient server temp space', { timeout: 5000 });
+  await expect(page.locator('#exportMediaBtn')).toBeEnabled({ timeout: 2000 });
+});
+
 test('Admin pages full regression — all 13 steps', async ({ page }) => {
+  // Mock showSaveFilePicker: return a fake handle whose writable stream discards data.
+  // This lets the full streaming code path run in Playwright (Chromium) without
+  // triggering the real OS file picker dialog, which page.on('dialog') cannot intercept.
+  await page.addInitScript(() => {
+    (window as any).showSaveFilePicker = async () => ({
+      createWritable: async () => new WritableStream({
+        write(_chunk) {},   // discard all bytes
+        close() {},
+        abort() {}
+      })
+    });
+  });
+
   // Auto-accept every window.confirm() dialog throughout the test
   page.on('dialog', dialog => dialog.accept());
 
@@ -73,7 +130,8 @@ test('Admin pages full regression — all 13 steps', async ({ page }) => {
   await page.fill('#export_org_name', '');           // blank = export all
   await page.selectOption('#export_file_type', 'all');
   await page.click('#exportMediaBtn');
-  await expect(page.locator('#exportMediaStatus')).not.toBeEmpty({ timeout: 30_000 });
+  // Wait for the alert-ok success banner — proves all three steps (query, build, download) completed.
+  await expect(page.locator('#exportMediaStatus .alert-ok')).toContainText('Export complete', { timeout: 300_000 });
 
   // ── Step 3: admin_system.php — Section F: Write Disk Resize Request ─────────
   // Only rendered when GIGHIVE_INSTALL_CHANNEL=full; skipped otherwise

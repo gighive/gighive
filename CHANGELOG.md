@@ -3,6 +3,23 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260904.txt
+Changes: fix export media on admin_system.php to stream the tar.gz files direct
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/export_media.php
+	modified:   ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts
+	new file:   docs/milestone_20260904_mac_all_in_one_development_environment.md
+	modified:   docs/refactor_export_media_streaming_download.md
+
+*** 
+releaseNotes20260904.txt
 Changes: cloud_init role mods to allow mac as main dev box using virtualbox on arm64 cpu arch
 
 macbook2025:gighiveinfra sodo$ git status
@@ -27,7 +44,7 @@ Changes to be committed:
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260830.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260904.log
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260720.log
 # GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var

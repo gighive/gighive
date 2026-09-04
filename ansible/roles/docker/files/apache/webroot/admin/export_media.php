@@ -126,6 +126,23 @@ if ($mode === 'prepare') {
         echo json_encode(['success' => false, 'error' => 'No media files found on disk for the matching records (skipped: ' . $skipped . ')']);
         exit;
     }
+    // /tmp free-space guard — local destination only.
+    // disk_free_space() returns false on failure; fail safe open (do not block if unavailable).
+    if ($destination === 'local') {
+        $tmpFree = disk_free_space(sys_get_temp_dir());
+        if ($tmpFree !== false && (int)$tmpFree < $totalBytes) {
+            http_response_code(507);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error'   => 'Insufficient server temp space: '
+                           . round((int)$tmpFree / 1048576) . ' MB available, '
+                           . round($totalBytes / 1048576) . ' MB required. '
+                           . 'Use rsync or direct volume backup for this library size.',
+            ]);
+            exit;
+        }
+    }
     header('Content-Type: application/json');
     echo json_encode(['success' => true, 'count' => $found, 'skipped' => $skipped, 'total_bytes' => $totalBytes]);
     exit;

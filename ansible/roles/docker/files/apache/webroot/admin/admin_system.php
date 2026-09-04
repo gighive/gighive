@@ -504,9 +504,10 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
           Download a tar.gz archive of media files currently on disk, filtered by band/event name and/or file type.
           Use this to preserve custom files (e.g. tutorial videos) before a database reset, then
           re-import via <a href="/admin/admin_database_load_import_media_from_folder.php" style="color:#60a5fa">Import Media (folder)</a> after rebuilding.
-          This tool is designed for full-corpus backup and restore of small-to-medium libraries (guideline: under 20 GB).
+          Requires Chrome or Edge 86+ &mdash; on other browsers this download is not available; use rsync or direct volume backup instead.
           Always create a database backup (Section C) at the same time &mdash; the archive and DB backup form a matched restore pair.
-          For libraries larger than 20 GB, rsync or direct volume backup is recommended.
+          This is a streaming copy &mdash; if interrupted, you will have to start the stream again from scratch.
+          For consistently large libraries, rsync or direct volume backup remains the most reliable option even on Chrome.
         </p>
         <div class="row">
           <label for="export_org_name">Band / Event filter <span class="muted">(leave blank to export all media)</span></label>
@@ -526,7 +527,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
           <div>
             <label style="margin-right:1.5em">
               <input type="radio" name="export_destination" id="export_dest_local" value="local" checked onchange="onExportDestChange()" />
-              Download to browser (tar.gz)
+              Download to browser (tar.gz) &mdash; streams to disk on Chrome/Edge 86+; blocked on other browsers
             </label>
             <label>
               <input type="radio" name="export_destination" id="export_dest_azure" value="azure" onchange="onExportDestChange()" />
@@ -1238,6 +1239,16 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     const statusEl = document.getElementById('exportMediaStatus');
 
     const dest           = (document.querySelector('input[name="export_destination"]:checked') || {}).value || 'local';
+
+    // Block unsupported browsers immediately — before any server resources are consumed.
+    // statusEl is already declared above this insertion point.
+    if (dest === 'local' && !('showSaveFilePicker' in window)) {
+      statusEl.innerHTML = '<div class="alert-error" style="margin-top:.75rem">'
+        + 'This download requires Chrome or Edge 86+. '
+        + 'On other browsers, use rsync or direct volume backup instead.</div>';
+      return;
+    }
+
     const workerStepName = dest === 'azure' ? 'Upload to Azure' : 'Build archive';
     const _startTime     = Date.now();
 
@@ -1307,7 +1318,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       const skippedWarn  = prepSkipped > 0 ? '\n\nNote: ' + prepSkipped + ' DB record(s) have no matching file on disk and will be skipped.' : '';
       const confirmMsg = dest === 'azure'
         ? 'You are about to upload ' + fmtBytes(totalBytes) + ' to Azure Blob Storage.' + skippedWarn + '\n\nDo you wish to continue?'
-        : 'You are about to zip ' + fmtBytes(totalBytes) + ' of files.' + skippedWarn + '\n\nMake sure you have enough free space to accommodate this download.\n\nDo you wish to continue?';
+        : 'You are about to export ' + fmtBytes(totalBytes) + ' of files as a tar.gz archive.' + skippedWarn + '\n\nDo you wish to continue?';
       if (!window.confirm(confirmMsg)) {
         steps[1] = { name: workerStepName, status: 'pending', message: 'Canceled', progress: null };
         if (dest === 'local') steps[2] = { name: 'Download', status: 'pending', message: '', progress: null };
@@ -1317,6 +1328,40 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       steps[1] = { name: workerStepName, status: 'running', message: 'Starting\u2026',
                    progress: { processed: 0, total: count || 1 } };
       render();
+
+      // ── Streaming path: obtain file handle now (inside window.confirm() gesture) ──
+      // showSaveFilePicker must be called before the first await fetch() that follows.
+      // window.confirm() returning true creates a fresh user activation in Chrome.
+      let _streamFileHandle = null;
+      let _suggestedName    = 'gighive_export.tar.gz'; // fallback; refined below
+      if (dest === 'local') {
+        const _now = new Date();
+        const _p   = n => String(n).padStart(2, '0');
+        const _ds  = _now.getFullYear()
+                     + _p(_now.getMonth() + 1) + _p(_now.getDate())
+                     + '_' + _p(_now.getHours()) + _p(_now.getMinutes()) + _p(_now.getSeconds());
+        const _lbl = orgName !== '' ? orgName.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'all';
+        const _tp  = fileType !== 'all' ? '_' + fileType : '';
+        _suggestedName = 'gighive_export_' + _lbl + _tp + '_' + _ds + '.tar.gz';
+        try {
+          _streamFileHandle = await window.showSaveFilePicker({
+            suggestedName: _suggestedName,
+            types: [{ description: 'GigHive archive', accept: { 'application/gzip': ['.tar.gz', '.tgz'] } }]
+          });
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            // dest is always 'local' here (outer guard in Change A0 ensures it)
+            steps[1] = { name: workerStepName, status: 'pending', message: 'Canceled.', progress: null };
+            steps[2] = { name: 'Download', status: 'pending', message: '', progress: null };
+            render();
+            return; // worker not spawned — no server resources consumed
+          }
+          // Non-AbortError (e.g. security error): surface to user rather than silently degrading.
+          steps[1] = { name: workerStepName, status: 'error', message: 'File picker error: ' + err.message };
+          render();
+          return;
+        }
+      }
 
       // ── Step 2: Start async worker ─────────────────────────────────────────
       let startResp, startData;
@@ -1386,10 +1431,10 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       const archiveBytes = (buildResult.data && Number(buildResult.data.archive_bytes) > 0)
         ? Number(buildResult.data.archive_bytes) : 0;
 
-      steps[2] = { name: 'Download', status: 'running', message: 'Requesting archive\u2026', progress: null };
+      // ── Step 4: Download (streaming — Chrome / Edge 86+ only) ─────────────────
+      steps[2] = { name: 'Download', status: 'running', message: 'Connecting\u2026', progress: null };
       render();
 
-      // ── Step 4: Download pre-built ZIP ─────────────────────────────────────
       let dlResp;
       try {
         dlResp = await fetch('export_media_download.php?job_id=' + encodeURIComponent(jobId));
@@ -1400,73 +1445,87 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       }
       if (!dlResp.ok || !(dlResp.headers.get('Content-Type') || '').startsWith('application/gzip')) {
         const errData = await dlResp.json().catch(() => null);
-        const msg = (errData && (errData.error || errData.message)) ? String(errData.error || errData.message) : 'HTTP ' + dlResp.status;
+        const msg = (errData && (errData.error || errData.message))
+          ? String(errData.error || errData.message) : 'HTTP ' + dlResp.status;
         steps[2] = { name: 'Download', status: 'error', message: msg };
         render();
         return;
       }
-      const contentLength = parseInt(dlResp.headers.get('Content-Length') || '0', 10) || 0;
+
+      const contentLength   = parseInt(dlResp.headers.get('Content-Length') || '0', 10) || 0;
       // Fall back to archive_bytes from the worker status when the proxy strips Content-Length
       const effectiveLength = contentLength || archiveBytes;
       const cd    = dlResp.headers.get('Content-Disposition') || '';
       const match = cd.match(/filename="([^"]+)"/);
-      const fname = match ? match[1] : 'gighive_export.tar.gz';
+      const fname = match ? match[1] : _suggestedName;
 
       steps[2] = { name: 'Download', status: 'running',
                    message: effectiveLength > 0 ? '0 B / ' + fmtBytes(effectiveLength) : 'Receiving\u2026',
                    progress: effectiveLength > 0 ? { processed: 0, total: effectiveLength } : null };
       render();
 
-      // Yield one frame so the browser paints the initial state before the loop starts
-      await new Promise(resolve => setTimeout(resolve, 16));
-
-      const reader = dlResp.body.getReader();
-      const chunks = [];
       let received       = 0;
       let lastYieldPct   = -1;
       let lastYieldBytes = 0;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        received += value.length;
-        if (effectiveLength > 0) {
-          const pct = received / effectiveLength;
-          // Yield to the browser every 1% so the progress bar repaints
-          if (pct - lastYieldPct >= 0.01) {
-            lastYieldPct = pct;
-            steps[2] = { name: 'Download', status: 'running',
-                         message: fmtBytes(received) + ' / ' + fmtBytes(effectiveLength),
-                         progress: { processed: received, total: effectiveLength } };
-            render();
-            await new Promise(resolve => setTimeout(resolve, 0));
-          }
-        } else {
-          // Total size unknown — update message every 5 MB so the user sees bytes arriving
-          if (received - lastYieldBytes >= 5 * 1048576) {
-            lastYieldBytes = received;
-            steps[2] = { name: 'Download', status: 'running',
-                         message: fmtBytes(received) + ' received\u2026',
-                         progress: null };
-            render();
-            await new Promise(resolve => setTimeout(resolve, 0));
+      const progressTransform = new TransformStream({
+        transform(chunk, controller) {
+          controller.enqueue(chunk);
+          received += chunk.byteLength;
+          if (effectiveLength > 0) {
+            const pct = received / effectiveLength;
+            if (pct - lastYieldPct >= 0.01) {
+              lastYieldPct = pct;
+              steps[2] = { name: 'Download', status: 'running',
+                           message: fmtBytes(received) + ' / ' + fmtBytes(effectiveLength),
+                           progress: { processed: received, total: effectiveLength } };
+              render();
+            }
+          } else {
+            if (received - lastYieldBytes >= 5 * 1048576) {
+              lastYieldBytes = received;
+              steps[2] = { name: 'Download', status: 'running',
+                           message: fmtBytes(received) + ' received\u2026', progress: null };
+              render();
+            }
           }
         }
+      });
+
+      // createWritable() here — not at picker time — so no empty file exists during the build.
+      // Wrap separately: a disk-full or permission error here needs its own error path.
+      let fileWritable;
+      try {
+        fileWritable = await _streamFileHandle.createWritable();
+      } catch (err) {
+        steps[2] = { name: 'Download', status: 'error', message: 'Could not open save location: ' + err.message };
+        render();
+        return;
       }
 
-      const blob = new Blob(chunks);
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = fname;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Set _activeJob so the beforeunload handler warns if the user tries to navigate
+      // away mid-stream (a partial file would otherwise be left silently on disk).
+      _activeJob = true;
+      try {
+        await dlResp.body.pipeThrough(progressTransform).pipeTo(fileWritable);
+        // pipeTo() closes fileWritable on success automatically
+      } catch (err) {
+        await fileWritable.abort().catch(() => {});
+        steps[2] = { name: 'Download', status: 'error', message: 'Stream error: ' + err.message };
+        render();
+        return;
+      } finally {
+        _activeJob = false;
+      }
 
       steps[2] = { name: 'Download', status: 'ok',
                    message: fname + ' (' + fmtBytes(received) + ')',
                    progress: { processed: received || effectiveLength, total: effectiveLength || received } };
       render();
+      statusEl.innerHTML += '<div class="alert-ok" style="margin-top:.75rem">Export complete \u2014 '
+        + fname + ' (' + fmtBytes(received) + ')'
+        + ' (' + fmtElapsed(Date.now() - _startTime) + ')'
+        + '</div>';
     }
 
     exportRun().finally(() => {
