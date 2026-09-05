@@ -2,7 +2,7 @@
 
 ## Status — 2026-09-04
 
-Complete — all 19 steps implemented.
+Complete — all 23 steps implemented.
 
 ---
 
@@ -1097,7 +1097,204 @@ Element ID confirmed from `admin_system.php` line 584: `<div id="importZipStatus
 
 **Design note:** The 5000 ms timeout is sufficient because by the time the import success state is confirmed, the "Import files" step is already rendered in its `ok` state with final byte values in the sub-line.
 
-- [ ] **Step 19** — Add import byte-format assertion to `admin-pages.spec.ts`.
+- [x] **Step 19** — Add import byte-format assertion to `admin-pages.spec.ts`.
+
+---
+
+### Step 20 — Fix "Upload archive" step to use byte-formatted progress
+
+**File:** `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/admin_system.php` — `doImportMediaZip()`
+
+**Problem (found during consistency review):** The "Upload archive" step's `progress` object is emitted by the XHR `upload.onprogress` handler without `unit: 'bytes'`. As a result, the shared renderer shows raw integers in the sub-line (e.g. `0 / 139444890789 (0%)`) even though Step 15 added `_fmtBytes` support. The step `message` already uses the local `fmtBytes()` helper correctly; only the renderer sub-line is broken.
+
+**Fix:** Add `unit: 'bytes'` to the three `progress` objects in the "Upload archive" step:
+
+1. **Initial steps array** — change the `progress` value from:
+
+```javascript
+progress: { processed: 0, total: fileSize || 1 }
+```
+
+to:
+
+```javascript
+progress: { processed: 0, total: fileSize || 1, unit: 'bytes' }
+```
+
+2. **`xhr.upload.onprogress`** — change the step update from:
+
+```javascript
+progress: { processed: e.loaded, total: e.total }
+```
+
+to:
+
+```javascript
+progress: { processed: e.loaded, total: e.total, unit: 'bytes' }
+```
+
+3. **`xhr.upload.onload`** — change the step update from:
+
+```javascript
+progress: { processed: fileSize, total: fileSize }
+```
+
+to:
+
+```javascript
+progress: { processed: fileSize, total: fileSize, unit: 'bytes' }
+```
+
+**Design note:** These `progress` objects are consumed only by `renderImportStepsShared`. Adding `unit: 'bytes'` causes no regressions — the renderer already guards correctly on `progress.unit === 'bytes'` (Step 15). The local `fmtBytes()` in `doImportMediaZip()` and the shared `_fmtBytes()` in `import_progress.js` produce identical output; no deduplication is needed here since they serve different render paths.
+
+- [ ] **Step 20** — Add `unit: 'bytes'` to "Upload archive" step progress objects in `doImportMediaZip()`.
+
+---
+
+### Step 21 — Preflight space check in `import_media_zip.php`
+
+**File:** `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/import_media_zip.php`
+
+Add a `mode=preflight` GET handler immediately after the existing PHP auth check (lines 4–14) and **before** the `REQUEST_METHOD !== 'POST'` guard (line 16). Placing it there means the lightweight GET request passes auth, bypasses the POST check, and exits before any file-upload machinery runs.
+
+```php
+// Preflight space check — lightweight GET before upload starts
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['mode'] ?? '') === 'preflight') {
+    header('Content-Type: application/json');
+    $fileSize = (int)($_GET['size'] ?? 0);
+    if ($fileSize <= 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid size parameter']);
+        exit;
+    }
+    // /tmp needs ~2× fileSize: one copy as PHP upload temp file, one for worker extraction dir
+    $tmpAvail  = disk_free_space(sys_get_temp_dir());
+    $required  = $fileSize * 2;
+    if ($tmpAvail === false || $tmpAvail < $required) {
+        $avail = $tmpAvail !== false ? round($tmpAvail / 1073741824, 1) : 0;
+        $req   = round($required / 1073741824, 1);
+        http_response_code(507);
+        echo json_encode(['success' => false,
+            'error' => 'Insufficient server temp space: ' . $avail . ' GB available, '
+                     . $req . ' GB required. Free up /tmp or use rsync.']);
+        exit;
+    }
+    // Media destination needs ~1× fileSize for the final imported files
+    $destAvail = disk_free_space('/var/www/html');
+    if ($destAvail === false || $destAvail < $fileSize) {
+        $avail = $destAvail !== false ? round($destAvail / 1073741824, 1) : 0;
+        $req   = round($fileSize / 1073741824, 1);
+        http_response_code(507);
+        echo json_encode(['success' => false,
+            'error' => 'Insufficient media destination space: ' . $avail . ' GB available, '
+                     . $req . ' GB required.']);
+        exit;
+    }
+    http_response_code(200);
+    echo json_encode(['success' => true]);
+    exit;
+}
+```
+
+**Design notes:**
+- `disk_free_space(sys_get_temp_dir())` returns `/tmp` free space — same check used by the export prepare step.
+- `/var/www/html` free space is checked separately because it may be on a different mount than `/tmp` (audio/video volumes are separate on some deployments).
+- Hardcoded `/var/www/html` path is a pre-existing pattern in this file. A `group_vars`-sourced constant is a follow-on hardening item.
+- The `2×` `/tmp` multiplier is conservative: the PHP upload temp file and the worker extraction dir may not both be present simultaneously, but overlap is possible during a slow copy.
+
+- [ ] **Step 21** — Add `mode=preflight` GET handler to `import_media_zip.php`.
+
+---
+
+### Step 22 — Preflight call in `admin_system.php` `doImportMediaZip()`
+
+**File:** `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/admin_system.php`
+
+Insert a preflight fetch at the top of the `importRun()` async function, before `render()` and before the XHR upload starts. The preflight message replaces the initial "Uploading…" status so the user sees feedback immediately.
+
+```javascript
+async function importRun() {
+  // ── Preflight: check server disk space ─────────────────────────────
+  steps[0] = { name: 'Upload archive', status: 'running',
+               message: 'Checking server space\u2026', progress: null };
+  render();
+  try {
+    const pfResp = await fetch('import_media_zip.php?mode=preflight&size=' + fileSize);
+    if (!pfResp.ok) {
+      const pfErr = await pfResp.json().catch(() => ({ error: 'Space check failed (HTTP ' + pfResp.status + ')' }));
+      const errMsg = String((pfErr && pfErr.error) ? pfErr.error : 'Insufficient server space');
+      steps[0] = { name: 'Upload archive', status: 'error', message: errMsg };
+      render();
+      btn.disabled = false;
+      btn.textContent = 'Import Archive';
+      return;
+    }
+  } catch (pfEx) {
+    steps[0] = { name: 'Upload archive', status: 'error',
+                 message: 'Space check network error: ' + String(pfEx.message) };
+    render();
+    btn.disabled = false;
+    btn.textContent = 'Import Archive';
+    return;
+  }
+
+  // ── Step 1: Upload + inspect ZIP (prepare) ────────────────────────
+  // ... existing XHR upload code follows unchanged ...
+```
+
+**Design notes:**
+- The preflight is a lightweight ~50-byte GET; no FormData, no file content.
+- On error the button is re-enabled immediately — no orphaned server state because the upload never started.
+- No `esc()` needed on the error message because the step `message` field is rendered via `_esc()` inside `renderImportStepsShared`.
+- The Azure path (`doImportFromAzure()`) exits before this code runs (line 1550) — no Azure impact.
+
+- [ ] **Step 22** — Add preflight call in `doImportMediaZip()` before the XHR upload.
+
+---
+
+### Step 23 — Playwright test for preflight 507 error path
+
+**File:** `gighiveinfra/ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts`
+
+```typescript
+test('Section F — import preflight rejects insufficient server space', async ({ page }) => {
+  // Intercept only the preflight GET; pass all other requests through.
+  await page.route('**/import_media_zip.php?mode=preflight*', async route => {
+    await route.fulfill({
+      status: 507,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: false,
+        error: 'Insufficient server temp space: 5.0 GB available, 20.0 GB required. Free up /tmp or use rsync.'
+      })
+    });
+  });
+
+  await page.goto('/admin/admin_system.php');
+
+  // Attach a 1 KB in-memory dummy file — content never reaches the server in this test
+  // because the preflight rejects before the XHR upload starts.
+  await page.locator('#import_zip_file').setInputFiles({
+    name: 'dummy.tar.gz',
+    mimeType: 'application/gzip',
+    buffer: Buffer.alloc(1024),
+  });
+
+  await page.click('#importZipBtn');
+
+  // Error must appear in the upload step — no upload XHR should fire.
+  await expect(page.locator('#importZipStatus')).toContainText('Insufficient server temp space', { timeout: 5000 });
+  // Button must re-enable — no orphaned server state.
+  await expect(page.locator('#importZipBtn')).toBeEnabled({ timeout: 2000 });
+});
+```
+
+**Design notes:**
+- `fixtures/dummy.bin` is a 1 KB placeholder created inline if absent. The file never reaches the server.
+- The route pattern `**/import_media_zip.php?mode=preflight*` intercepts only the preflight GET. The subsequent `mode=prepare` POST would not fire in this test because the function returns early on preflight failure.
+- The in-memory buffer approach (`setInputFiles({ name, mimeType, buffer })`) avoids creating a fixture file on disk entirely. The existing tests use `path.join(REPO, 'ansible/fixtures/...')` for real CSV fixtures; a dummy 1 KB buffer doesn't belong there.
+
+- [ ] **Step 23** — Add preflight 507 Playwright test to `admin-pages.spec.ts`.
 
 ---
 
@@ -1325,10 +1522,14 @@ STATE H — stream error mid-download
 - [x] **Step 17** — `import_media_zip_worker.php`: both zip and tar.gz branches — add `$totalBytes`/`$bytesProcessed` tracking; emit `unit: 'bytes'` in `step.progress`
 - [x] **Step 18** — `import_media_zip_worker_azure.php`: add `$totalBytes`/`$bytesProcessed` tracking; emit `unit: 'bytes'` in `step.progress`
 - [x] **Step 19** — `admin-pages.spec.ts`: add assertion that the "Import files" sub-line contains a byte-formatted value after import completes
+- [x] **Step 20** — `admin_system.php` `doImportMediaZip()`: add `unit: 'bytes'` to "Upload archive" step `progress` objects
+- [x] **Step 21** — `import_media_zip.php`: add `mode=preflight` GET handler — `/tmp` (2× fileSize) and `/var/www/html` (1× fileSize) space check; HTTP 507 on failure
+- [x] **Step 22** — `admin_system.php` `doImportMediaZip()`: preflight fetch before XHR upload; show 507 error in `#importZipStatus`, re-enable button on failure
+- [x] **Step 23** — `admin-pages.spec.ts`: mock preflight 507, assert error appears without upload XHR firing
 
 ### Remaining — This Feature
 
-_(none — all 19 steps complete)_
+_(none — all 23 steps complete)_
 
 ### Remaining — Follow-on Tasks
 

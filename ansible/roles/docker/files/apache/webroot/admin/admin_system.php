@@ -1574,7 +1574,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
 
     const steps = [
       { name: 'Upload archive',   status: 'running', message: 'Uploading\u2026',
-        progress: { processed: 0, total: fileSize || 1 } },
+        progress: { processed: 0, total: fileSize || 1, unit: 'bytes' } },
       { name: 'Inspect archive',  status: 'pending', message: '', progress: null },
       { name: 'Import files', status: 'pending', message: '', progress: null },
     ];
@@ -1586,7 +1586,29 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     }
 
     async function importRun() {
+      // ── Preflight: check server disk space ─────────────────────────────────
+      steps[0] = { name: 'Upload archive', status: 'running',
+                   message: 'Checking server space\u2026', progress: null };
       render();
+      try {
+        const pfResp = await fetch('import_media_zip.php?mode=preflight&size=' + fileSize);
+        if (!pfResp.ok) {
+          const pfErr = await pfResp.json().catch(() => ({ error: 'Space check failed (HTTP ' + pfResp.status + ')' }));
+          const errMsg = String((pfErr && pfErr.error) ? pfErr.error : 'Insufficient server space');
+          steps[0] = { name: 'Upload archive', status: 'error', message: errMsg };
+          render();
+          btn.disabled = false;
+          btn.textContent = 'Import Archive';
+          return;
+        }
+      } catch (pfEx) {
+        steps[0] = { name: 'Upload archive', status: 'error',
+                     message: 'Space check network error: ' + String(pfEx.message) };
+        render();
+        btn.disabled = false;
+        btn.textContent = 'Import Archive';
+        return;
+      }
 
       // ── Step 1: Upload + inspect ZIP (prepare) ─────────────────────────────
       let prepData, prepStatus;
@@ -1598,14 +1620,14 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
             if (e.lengthComputable) {
               steps[0] = { name: 'Upload ZIP', status: 'running',
                            message: fmtBytes(e.loaded) + ' / ' + fmtBytes(e.total) + ' uploaded',
-                           progress: { processed: e.loaded, total: e.total } };
+                           progress: { processed: e.loaded, total: e.total, unit: 'bytes' } };
               render();
             }
           };
           xhr.upload.onload = function () {
             steps[0] = { name: 'Upload ZIP', status: 'ok',
                          message: fmtBytes(fileSize) + ' uploaded',
-                         progress: { processed: fileSize, total: fileSize } };
+                         progress: { processed: fileSize, total: fileSize, unit: 'bytes' } };
             steps[1] = { name: 'Inspect ZIP', status: 'running', message: 'Scanning entries\u2026', progress: null };
             btn.textContent = 'Inspecting ZIP\u2026';
             render();

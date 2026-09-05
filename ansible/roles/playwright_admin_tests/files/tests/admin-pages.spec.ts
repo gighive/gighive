@@ -111,6 +111,37 @@ test('Section F — Import files step renders byte-formatted progress', async ({
   expect(html).toMatch(/\d+\.\d+ MB \/ \d+\.\d+ MB/);
 });
 
+test('Section F — import preflight rejects insufficient server space', async ({ page }) => {
+  // Intercept only the preflight GET; pass all other requests through.
+  await page.route('**/import_media_zip.php?mode=preflight*', async route => {
+    await route.fulfill({
+      status: 507,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: false,
+        error: 'Insufficient server temp space: 5.0 GB available, 20.0 GB required. Free up /tmp or use rsync.'
+      })
+    });
+  });
+
+  await page.goto('/admin/admin_system.php');
+
+  // In-memory dummy file — content never reaches the server in this test
+  // because the preflight rejects before the XHR upload starts.
+  await page.locator('#import_zip_file').setInputFiles({
+    name: 'dummy.tar.gz',
+    mimeType: 'application/gzip',
+    buffer: Buffer.alloc(1024),
+  });
+
+  await page.click('#importZipBtn');
+
+  // Error must appear in the upload step — no upload XHR should fire.
+  await expect(page.locator('#importZipStatus')).toContainText('Insufficient server temp space', { timeout: 5000 });
+  // Button must re-enable — no orphaned server state.
+  await expect(page.locator('#importZipBtn')).toBeEnabled({ timeout: 2000 });
+});
+
 test('Admin pages full regression — all 13 steps', async ({ page }) => {
   // Mock showSaveFilePicker: return a fake handle whose writable stream discards data.
   // This lets the full streaming code path run in Playwright (Chromium) without

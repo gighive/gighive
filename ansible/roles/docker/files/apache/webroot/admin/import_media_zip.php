@@ -13,6 +13,43 @@ if ($user !== 'admin') {
     exit;
 }
 
+// Preflight space check — lightweight GET before upload starts
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['mode'] ?? '') === 'preflight') {
+    header('Content-Type: application/json');
+    $fileSize = (int)($_GET['size'] ?? 0);
+    if ($fileSize <= 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid size parameter']);
+        exit;
+    }
+    // /tmp needs ~2× fileSize: one as the PHP upload temp file, one for the worker extraction dir
+    $tmpAvail = disk_free_space(sys_get_temp_dir());
+    $required = $fileSize * 2;
+    if ($tmpAvail === false || $tmpAvail < $required) {
+        $avail = $tmpAvail !== false ? round($tmpAvail / 1073741824, 1) : 0;
+        $req   = round($required / 1073741824, 1);
+        http_response_code(507);
+        echo json_encode(['success' => false,
+            'error' => 'Insufficient server temp space: ' . $avail . ' GB available, '
+                     . $req . ' GB required. Free up /tmp or use rsync.']);
+        exit;
+    }
+    // Media destination needs ~1× fileSize for the final imported files
+    $destAvail = disk_free_space('/var/www/html');
+    if ($destAvail === false || $destAvail < $fileSize) {
+        $avail = $destAvail !== false ? round($destAvail / 1073741824, 1) : 0;
+        $req   = round($fileSize / 1073741824, 1);
+        http_response_code(507);
+        echo json_encode(['success' => false,
+            'error' => 'Insufficient media destination space: ' . $avail . ' GB available, '
+                     . $req . ' GB required.']);
+        exit;
+    }
+    http_response_code(200);
+    echo json_encode(['success' => true]);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     header('Content-Type: application/json');

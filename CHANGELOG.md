@@ -3,6 +3,24 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260905.txt
+Changes: export / import media on admin_system.php additional fix for max upload size
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_media_zip.php
+	modified:   ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts
+	modified:   docs/refactor_export_media_streaming_download.md
+
+*** 
+releaseNotes20260905.txt
 Changes: export / import media on admin_system.php fix for bytes vs file counts
 
 macbook2025:gighiveinfra sodo$ git status
