@@ -274,49 +274,62 @@ if ($mode === 'prepare') {
         }
         $zip->close();
     } else {
-        // tar.gz: list entries via runTar -tzvf
-        if (!function_exists('proc_open')) {
+        // tar.gz: async scan via /usr/bin/pv — spawn background scan worker, return scan_job_id immediately
+        if (!function_exists('exec')) {
             http_response_code(500);
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'proc_open() is disabled; tar.gz inspection cannot run']);
+            echo json_encode(['success' => false, 'error' => 'exec() is disabled; scan worker cannot be spawned']);
             exit;
         }
-        $result = runTar(['tar', '-tzvf', (string)$_FILES['zip_file']['tmp_name']]);
-        if ($result['exit_code'] !== 0) {
-            http_response_code(400);
+
+        $prepareToken = bin2hex(random_bytes(8));
+        $prepPath     = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.tar.gz';
+        if (!move_uploaded_file((string)$_FILES['zip_file']['tmp_name'], $prepPath)) {
+            http_response_code(500);
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Invalid or corrupt tar.gz archive']);
+            echo json_encode(['success' => false, 'error' => 'Failed to save uploaded archive']);
             exit;
         }
-        $lineCount = 0;
-        foreach (explode("\n", trim($result['stdout'])) as $line) {
-            $line = trim($line);
-            if ($line === '') continue;
-            $lineCount++;
-            if ($lineCount > 50000) {
-                http_response_code(400);
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'Archive contains too many entries (limit: 50,000)']);
-                exit;
-            }
-            // verbose line: <perms> <user>/<group> <size> <date> <time> <name>
-            $parts = preg_split('/\s+/', $line, 6);
-            $name  = isset($parts[5]) ? trim($parts[5]) : '';
-            $size  = isset($parts[2]) ? (int)$parts[2] : 0;
-            $ext   = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
-                $audioCount += (int)isset($audioExtsSet[$ext]);
-                $videoCount += (int)isset($videoExtsSet[$ext]);
-                $totalBytes += $size;
-            } else {
-                $unsupportedCount++;
-            }
+
+        $scanJobId  = bin2hex(random_bytes(8));
+        $scanJobDir = sys_get_temp_dir() . '/gighive_scan_' . $scanJobId . '/';
+        if (!mkdir($scanJobDir, 0700, true)) {
+            @unlink($prepPath);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to create scan job directory']);
+            exit;
         }
+
+        file_put_contents($scanJobDir . 'status.json', json_encode([
+            'success'           => true,
+            'scan_job_id'       => $scanJobId,
+            'state'             => 'running',
+            'updated_at'        => date('c'),
+            'scan_pct'          => 0,
+            'audio_count'       => 0,
+            'video_count'       => 0,
+            'unsupported_count' => 0,
+            'total_bytes'       => 0,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n", LOCK_EX);
+
+        exec('php ' . escapeshellarg(__DIR__ . '/import_media_zip_scan_worker.php')
+            . ' --scan_job_id=' . escapeshellarg($scanJobId)
+            . ' --prepare_token=' . escapeshellarg($prepareToken)
+            . ' >> ' . escapeshellarg($scanJobDir . 'worker.log') . ' 2>&1 &');
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success'       => true,
+            'prepare_token' => $prepareToken,
+            'scan_job_id'   => $scanJobId,
+        ]);
+        exit;
     }
 
+    // ── ZIP path: save file and return counts ─────────────────────────────────
     $prepareToken = bin2hex(random_bytes(8));
-    $ext          = $isTarGz ? '.tar.gz' : '.zip';
-    $prepPath     = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . $ext;
+    $prepPath     = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.zip';
     if (!move_uploaded_file((string)$_FILES['zip_file']['tmp_name'], $prepPath)) {
         http_response_code(500);
         header('Content-Type: application/json');

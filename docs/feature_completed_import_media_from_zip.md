@@ -239,7 +239,7 @@ Implement in this order (each file is independently testable before the next):
 - [ ] Rename existing Disk Resize heading from Section F to Section G
 - [ ] Add `doImportMediaZip()` JS:
   - [ ] Step 0: no-file guard → show error in `#importZipStatus`, re-enable button, return
-  - [ ] Step 1: XHR POST `import_media_zip.php` mode=prepare via `FormData`; disable button; render `Upload ZIP` step with `upload.onprogress` live counter; on `upload.onload` transition to `Inspect ZIP` step; on `xhr.onload` resolve inspect step with found counts
+  - [ ] Step 1: XHR POST `import_media_zip.php` mode=prepare via `FormData`; disable button; render `Upload Archive` step with `upload.onprogress` live counter; on `upload.onload` transition to `Inspect Archive` step; on `xhr.onload` resolve inspect step with found counts (.zip path); see Phase 2b for tar.gz async scan
   - [ ] Step 2: `window.confirm()` with full message (audio/video counts, bytes, unsupported note); re-enable + return on cancel
   - [ ] Step 3: POST mode=start with `prepare_token`; HTTP 410 → show error, re-enable; call `resetProgressLatch()` before `pollJobStatus()`
   - [ ] Step 4: `onDone` renders `data.steps[0].message`; re-enable button
@@ -542,7 +542,7 @@ When `state=error`:
     <input type="file" id="import_zip_file" name="import_zip_file" accept=".zip" />
   </div>
   <div id="importZipStatus"></div>
-  <button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import ZIP</button>
+  <button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import Archive</button>
 </div>
 ```
 
@@ -555,17 +555,17 @@ Three steps are rendered in `#importZipStatus` via `renderImportStepsShared()`. 
 | # | Guard / Step | Status messages shown |
 |---|---|---|
 | — | **No-file guard** | Before any fetch: if `fileInput.files[0]` is absent, set `importZipStatus.innerHTML` to `"Please select a ZIP file first."` and return early (button never disabled). |
-| 1 | **Upload ZIP** | `"Uploading…"` → `"123.4 MB / 455.1 MB uploaded"` (live, via XHR `upload.onprogress`) → `"455.1 MB uploaded"` ✓ |
-| 2 | **Inspect ZIP** | `"Scanning entries…"` (while PHP scans the ZIP central directory after upload completes) → `"10 audio + 5 video found (455.1 MB)"` ✓ |
+| 1 | **Upload Archive** | `"Uploading…"` → `"123.4 MB / 455.1 MB uploaded"` (live, via XHR `upload.onprogress`) → `"455.1 MB uploaded"` ✓ |
+| 2 | **Inspect Archive** | `"Scanning entries…"` (.zip: synchronous central-directory scan; tar.gz: async pv-based scan — see Phase 2b) → `"10 audio + 5 video found (455.1 MB)"` ✓ |
 | — | **Confirm** | `window.confirm()` dialog (outside the progress panel): `"{N} audio + {M} video files ready to import ({fmtBytes}).\n\n{if unsupported: "{K} entries will be skipped (unsupported format).\n\n"}Files already on disk are skipped safely.\n\nDo you wish to import?"` — if canceled: step 3 shows `"Canceled."` and button re-enabled. |
 | 3 | **Import files** | `"Starting…"` → `"847 / 2341 files imported"` (live, via `pollJobStatus()` every 1500 ms) → `"2195 added, 137 already on disk, 9 skipped (unsupported) (1.5 GB added)"` ✓ |
 
 **Implementation notes:**
-- Steps 1 and 2 share a single HTTP round-trip (XHR POST `import_media_zip.php` mode=`prepare`). `upload.onprogress` drives step 1's live counter; `upload.onload` transitions the panel to step 2 `"Scanning entries…"`; `xhr.onload` resolves step 2 once the PHP response arrives.
+- Steps 1 and 2 share a single HTTP round-trip for **.zip** (XHR POST `import_media_zip.php` mode=`prepare`). `upload.onprogress` drives step 1's live counter; `upload.onload` transitions the panel to step 2 `"Scanning entries…"`; `xhr.onload` resolves step 2 once the PHP response arrives. For **.tar.gz**, the scan runs asynchronously — see Phase 2b.
 - The `prepare_token` received from the inspect response is passed as a plain POST field to `mode=start` — ZIP bytes are not re-transmitted.
 - If the start response is HTTP 410 (expired token), step 3 shows `"Prepare token expired — please re-select the ZIP and try again."`
 
-**Button label progression:** `"Import ZIP"` → `"Uploading ZIP…"` → `"Inspecting ZIP…"` → `"Importing…"` → `"Import ZIP"` (re-enabled via `finally`).
+**Button label progression:** `"Import Archive"` → `"Uploading Archive…"` → `"Inspecting Archive…"` → `"Importing…"` → `"Import Archive"` (re-enabled via `finally`).
 
 **Button re-enable:** `importZipBtn.disabled = false` must happen on **every** exit path — happy path (`state: done`), error path (`state: error`), cancel after confirm, and any `catch` block. Implemented via `importRun().finally(...)`.
 
@@ -605,6 +605,534 @@ The database records reference files by `{sha256}.{ext}`. A media ZIP exported a
 If the DB was not restored from backup (e.g., operator cleared the DB and started fresh), the imported files land on disk with no database records. The operator must then run Import Media (folder) or Catalog + Promote to create records. This is a valid recovery path but is not the primary use case.
 
 ---
+
+# Phase 2b: Archive Scan Progress + Label Rename
+
+**Status:** Implemented
+**Date:** 2026-07-XX
+**Parent:** Phase 2 — Import Media from Archive
+
+---
+
+## Elevator Pitch
+
+When an operator imports a 130 GB tar.gz archive, the "Inspect Archive" step appeared frozen for several minutes with no visible progress — the only feedback was a static "Scanning entries…" message. This phase adds a real byte-based progress bar (0–100%) by routing the tar scan through `pv` (pipe viewer), a standard Unix utility that measures bytes passing through a pipe. Because the scan now runs as a background job while the browser polls for updates, the architecture shifts from a synchronous server-side block to the same async worker + polling pattern already used for the import and export workers. At the same time, all UI labels and button text that said "ZIP" are renamed to "Archive" — a correctness fix since the feature accepts both `.zip` and `.tar.gz` formats.
+
+---
+
+## Overview
+
+Two changes are bundled in this phase because both touch the inspect step:
+
+**1 — pv-based scan progress for tar.gz**
+The tar.gz prepare path previously called `runTar(['tar', '-tzvf', ...])`, which buffered all output from `tar -t` before returning — potentially several minutes for a 130 GB archive. The new path pipes the archive through `pv -n -f -s <fileSize>` before tar, which reports compressed-bytes progress (0–100) to a temp file. A background scan worker reads tar's stdout line-by-line (counting audio/video entries) and periodically reads the pv temp file to write progress to a status JSON. The browser polls a new scan status endpoint and renders a progress bar driven by the pv percentage. On completion the browser receives entry counts and shows the confirm dialog as before.
+
+**Progress is an approximation.** pv measures compressed bytes read from the archive, not the number of entries scanned. The percentage represents how much of the compressed-byte stream tar has consumed, not how many audio or video entries have been found. For GigHive media archives — where the files are already-compressed MP3 and MP4 data — compressed-byte progress tracks entry processing closely enough to be useful as a live indicator. It is not a precise entry-completion percentage.
+
+**The `.zip` path is unchanged.** ZipArchive central-directory parsing completes in under one second even for large archives; no async scan is needed.
+
+**2 — "ZIP" → "Archive" label rename**
+The UI step names, button text, and HTML already updated in Phase 2 still contained "ZIP" even though tar.gz has been supported since Phase 2 shipped. The rename to "Archive" aligns the labels with the supported formats.
+
+---
+
+## Files
+
+### New (2):
+
+1. `admin/import_media_zip_scan_worker.php` — CLI PHP worker: runs `pv | tar -tzvf -`, counts entries line-by-line, writes scan progress JSON
+2. `admin/import_media_zip_scan_status.php` — HTTP poll endpoint: reads scan progress JSON, returns current `scan_pct` and entry counts
+
+### Modified (4):
+
+3. `ansible/roles/docker/templates/Dockerfile.j2` — add `pv` to the apt-get install block
+4. `admin/admin_media_lib.php` — add `runTarWithPv()` helper adjacent to the existing `runTar()`
+5. `admin/import_media_zip.php` — modify `mode=prepare` for tar.gz: save file, spawn async scan worker, return `scan_job_id` immediately; `.zip` path untouched
+6. `admin/admin_system.php` — rename step labels and button text; add `pollScanStatusAsync()` helper; update `importRun()` to branch on `scan_job_id` presence
+
+---
+
+## Implementation Checklist
+
+- [x] **Step 1** — Add `pv \` to the apt-get install block in `Dockerfile.j2`
+- [x] **Step 2** — Add `runTarWithPv()` to `admin_media_lib.php`
+- [x] **Step 3** — Modify `mode=prepare` in `import_media_zip.php`: for tar.gz, save file, spawn scan worker, return `{ prepare_token, scan_job_id }` immediately
+- [x] **Step 4** — Create `admin/import_media_zip_scan_worker.php`
+- [x] **Step 5** — Create `admin/import_media_zip_scan_status.php`
+- [x] **Step 6** — Update `admin_system.php`: rename step labels; add `pollScanStatusAsync()`; update `importRun()` to use async scan when `scan_job_id` present
+- [x] **Step 7** — Update Phase 2 inline label references in this doc (steps table, button progression, HTML snippet, checklist) — done in this edit window
+- [x] **Step 8** — Add smoke tests T-145 through T-149 to `post_build_checks/tasks/main.yml`
+
+---
+
+## Revised Import Flow (tar.gz only)
+
+```
+Browser                             Server
+───────                             ──────
+XHR POST (file, mode=prepare)
+                          ───────► Save to gighive_zip_prepare_{token}.tar.gz
+                                   Spawn scan worker → scan_job_id
+                          ◄─────── { prepare_token, scan_job_id }  ← immediate
+
+GET scan_status?job_id=...
+                          ───────► Read gighive_scan_{scan_job_id}/status.json
+                          ◄─────── { state: running, scan_pct: 12, audio_count: 4812 }
+[repeat every 1.5s]
+                          ───────► Read status.json
+                          ◄─────── { state: done, scan_pct: 100, audio_count: 11293, … }
+
+window.confirm(…)          (operator sees counts, confirms or cancels)
+
+POST (prepare_token, mode=start)
+                          ───────► Copy archive → import job dir, spawn import worker
+                          ◄─────── { job_id }
+
+[poll import_media_zip_status every 1.5s — existing flow unchanged]
+```
+
+The JS enforces scan-before-start ordering: `importRun()` awaits `pollScanStatusAsync()` before calling `mode=start`. `mode=start` does not require or validate `scan_job_id` server-side — it still accepts only `prepare_token`.
+
+---
+
+## Scan Status JSON
+
+**Running (written by scan worker every 100 tar output lines):**
+
+```json
+{
+  "success": true,
+  "scan_job_id": "b7e3f1a9c2d04856",
+  "state": "running",
+  "updated_at": "2026-07-01T14:22:10+00:00",
+  "scan_pct": 47,
+  "audio_count": 4812,
+  "video_count": 1044,
+  "unsupported_count": 23,
+  "total_bytes": 62345678901
+}
+```
+
+`total_bytes` is the running sum of uncompressed entry sizes from the tar verbose listing (`$parts[2]`) — identical to what the existing synchronous scan accumulated.
+
+**Done (written by scan worker after runTarWithPv returns):**
+
+```json
+{
+  "success": true,
+  "scan_job_id": "b7e3f1a9c2d04856",
+  "state": "done",
+  "updated_at": "2026-07-01T14:24:31+00:00",
+  "scan_pct": 100,
+  "audio_count": 11293,
+  "video_count": 2418,
+  "unsupported_count": 45,
+  "total_bytes": 124453671936
+}
+```
+
+**Error:**
+
+```json
+{
+  "success": true,
+  "scan_job_id": "b7e3f1a9c2d04856",
+  "state": "error",
+  "updated_at": "2026-07-01T14:22:11+00:00",
+  "error_message": "Archive not found or not readable"
+}
+```
+
+---
+
+## Detailed Implementation
+
+### Step 1 — Dockerfile.j2: add pv
+
+In `ansible/roles/docker/templates/Dockerfile.j2`, add `pv \` to the existing `apt-get install -y` block, after `net-tools nfs-common \`:
+
+```
+    net-tools nfs-common \
+    pv \
+    php-apcu ...
+```
+
+`pv` is in the default Ubuntu apt repositories — no PPA or pinned version required.
+
+---
+
+### Step 2 — admin_media_lib.php: add runTarWithPv()
+
+Add the following function immediately after the existing `runTar()` function (line ~109 of `admin_media_lib.php`):
+
+```php
+/**
+ * Run a pv-piped tar -tzvf scan to get compressed-bytes progress.
+ *
+ * pv reads $archivePath, measures bytes read, and writes the current
+ * percentage (0-100, one integer per line) to $pvProgressFile via stderr.
+ * tar reads from stdin and writes its verbose listing to stdout.
+ * The caller-supplied $onStdoutLine is called for each tar listing line.
+ *
+ * Returns ['exit_code' => int]. Use @file($pvProgressFile, FILE_IGNORE_NEW_LINES
+ * | FILE_SKIP_EMPTY_LINES) and take end() for the latest percentage.
+ *
+ * REQUIRES: pv in PATH (installed in the Docker image — Dockerfile.j2 Step 1).
+ */
+function runTarWithPv(
+    string   $archivePath,
+    int      $fileSize,
+    string   $pvProgressFile,
+    callable $onStdoutLine
+): array {
+    $shellCmd = sprintf(
+        'pv -n -f -s %d %s 2>%s | tar -tzvf - 2>/dev/null',
+        $fileSize,
+        escapeshellarg($archivePath),
+        escapeshellarg($pvProgressFile)
+    );
+
+    $descriptors = [
+        0 => ['file', '/dev/null', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['file', '/dev/null', 'w'],
+    ];
+    $pipes    = [];
+    $exitCode = -1;
+
+    $handle = proc_open(['/bin/sh', '-c', $shellCmd], $descriptors, $pipes, null, ['LC_ALL' => 'C']);
+    if ($handle === false) {
+        return ['exit_code' => -1];
+    }
+
+    try {
+        while (($line = fgets($pipes[1])) !== false) {
+            $onStdoutLine(rtrim($line, "\n"));
+        }
+    } finally {
+        if (is_resource($pipes[1])) fclose($pipes[1]);
+        $exitCode = proc_close($handle);
+    }
+
+    return ['exit_code' => $exitCode];
+}
+```
+
+**Deadlock note:** PHP reads tar stdout continuously in the `fgets` loop so the stdout pipe never fills. pv stderr goes to `$pvProgressFile` (a file, not a pipe) — no pipe-buffer deadlock risk from either direction.
+
+---
+
+### Step 3 — import_media_zip.php: async scan dispatch for tar.gz
+
+The existing `mode=prepare` code has a local-upload branch with two sub-branches: `.zip` (lines ~227–275) and `.tar.gz` (lines ~276–315). **Only the tar.gz sub-branch changes.** The `.zip` synchronous scan path is untouched.
+
+**Replace the tar.gz sub-branch** with the following sequence:
+
+1. `function_exists('exec')` guard — HTTP 500 if unavailable (same guard already in `mode=start`)
+2. `$prepareToken = bin2hex(random_bytes(8))`; `$prepPath = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.tar.gz'`
+3. `move_uploaded_file($_FILES['zip_file']['tmp_name'], $prepPath)` — HTTP 500 if fails
+4. `$scanJobId = bin2hex(random_bytes(8))`; `$scanJobDir = sys_get_temp_dir() . '/gighive_scan_' . $scanJobId . '/'`
+5. `mkdir($scanJobDir, 0700, true)` — HTTP 500 if fails; `@unlink($prepPath)` on failure
+6. Write initial `$scanJobDir . 'status.json'` with `LOCK_EX`: `state: running, scan_pct: 0`, all counts 0
+7. `exec('php ' . escapeshellarg(__DIR__ . '/import_media_zip_scan_worker.php') . ' --scan_job_id=' . escapeshellarg($scanJobId) . ' --prepare_token=' . escapeshellarg($prepareToken) . ' >> ' . escapeshellarg($scanJobDir . 'worker.log') . ' 2>&1 &')`
+8. Return `{ "success": true, "prepare_token": "...", "scan_job_id": "..." }` — no audio/video counts; the JS knows it is a tar.gz async path when `scan_job_id` is present
+
+---
+
+### Step 4 — import_media_zip_scan_worker.php
+
+**Boilerplate** (identical structure to `import_media_zip_worker.php`):
+
+```php
+declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(403); exit(1); }
+```
+
+Parse `--scan_job_id=` and `--prepare_token=` named args from `$argv`. Validate both against `/^[a-f0-9]{16}$/`.
+
+**Paths:**
+
+```
+$scanJobDir  = sys_get_temp_dir() . '/gighive_scan_'        . $scanJobId    . '/'
+$jsonPath    = $scanJobDir . 'status.json'
+$pvFile      = $scanJobDir . 'pv_progress.txt'
+$archivePath = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.tar.gz'
+$fileSize    = (int)filesize($archivePath)
+```
+
+**$writeStatus closure:** same LOCK_EX pattern as all other workers.
+
+**Execution flow** (inside `try/catch (Throwable $e)`):
+
+1. `set_time_limit(0)`
+2. `is_file($archivePath) && is_readable($archivePath)` → write `state: error` and exit if not
+3. `$fileSize > 0` guard → write `state: error` if zero (filesize() returned false, cast to 0)
+4. `loadMediaExtensions()` → `$audioExtsSet`, `$videoExtsSet` (same call as `import_media_zip.php`)
+5. Initialize counters: `$audioCount = $videoCount = $unsupportedCount = $totalBytes = $lineCount = 0`
+6. Define `$onStdoutLine` callable: parses each tar listing line using the same `preg_split('/\s+/', $line, 6)` + `$parts[5]` / `$parts[2]` pattern from the existing synchronous scan (lines ~303–313 of `import_media_zip.php`). Classifies by `isValidMediaEntry()`. Every 100 lines: reads `$pvFile` via `@file(..., FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)`, takes `end()` for `$scanPct`, calls `$writeStatus([..., 'scan_pct' => $scanPct, ...])`.
+7. `runTarWithPv($archivePath, $fileSize, $pvFile, $onStdoutLine)` — blocks until tar finishes
+8. `@unlink($pvFile)` — pv progress file no longer needed
+9. `$writeStatus([..., 'state' => 'done', 'scan_pct' => 100, 'audio_count' => $audioCount, ...])` — `scan_pct` is hardcoded to 100 in the final write regardless of last pv output, so the bar always completes
+
+**The scan worker does NOT delete `$archivePath`.** The archive must remain at the prepare-token path until `mode=start` moves it into the import job directory.
+
+**Catch block:** `$writeStatus(['success' => true, 'state' => 'error', 'error_message' => $e->getMessage()]); exit(1);`
+
+---
+
+### Step 5 — import_media_zip_scan_status.php
+
+**Auth:** `$user === 'admin'` guard (HTTP 403).
+**Method:** GET. **Input:** `?job_id={scan_job_id}`.
+
+**Logic:**
+
+1. Validate `$_GET['job_id']` against `/^[a-f0-9]{16}$/` — HTTP 400 if invalid
+2. `$scanJobDir = sys_get_temp_dir() . '/gighive_scan_' . $jobId . '/'`; `$jsonPath = $scanJobDir . 'status.json'`
+3. `!is_file($jsonPath)` → HTTP 404 `{ "success": false, "error": "Scan job not found" }`
+4. `@file_get_contents($jsonPath)` — if `false`: return running fallback (race condition)
+5. `json_decode($raw, true)` — if `null`: return running fallback (partial write during LOCK_EX)
+6. **Stale detection:** `$data['state'] === 'running'` and age > 3600s → remove `$scanJobDir`, return `{ "state": "error", "error_message": "Scan worker timed out" }`
+7. **Done cleanup:** `$data['state'] === 'done'` and age > 1800s → remove `$scanJobDir` (status already delivered)
+8. Return `$data` directly — the scan worker writes it in the correct response shape already
+
+---
+
+### Step 6 — admin_system.php: label renames + async scan polling
+
+**Label renames** — string-only changes, no logic change:
+
+| Location | Before | After |
+|---|---|---|
+| `xhr.upload.onprogress` step name | `'Upload ZIP'` | `'Upload Archive'` |
+| `xhr.upload.onload` step 0 name | `'Upload ZIP'` | `'Upload Archive'` |
+| `xhr.upload.onload` step 1 name | `'Inspect ZIP'` | `'Inspect Archive'` |
+| `xhr.upload.onload` button text | `'Inspecting ZIP\u2026'` | `'Inspecting Archive\u2026'` |
+| `xhr.onload` step 1 error path name | `'Inspect ZIP'` | `'Inspect Archive'` |
+| `xhr.onload` step 1 ok path name | `'Inspect ZIP'` | `'Inspect Archive'` |
+| Section F `<h2>` | `Section F: Import Media from ZIP` | `Section F: Import Media Archive` |
+| Section F `<button>` | `Import ZIP` | `Import Archive` |
+
+Note: the initial `steps[]` array already uses `'Upload archive'` and `'Inspect archive'` (lowercase) — these are immediately overwritten by the XHR callbacks, so only the callback assignments need changing.
+
+**Async scan polling:**
+
+After the XHR promise resolves, branch on `prepData.scan_job_id`:
+
+```js
+let scanData;
+if (prepData.scan_job_id) {
+  // tar.gz: scan running in background — poll for pv progress
+  try {
+    scanData = await pollScanStatusAsync(prepData.scan_job_id);
+  } catch (err) {
+    steps[1] = { name: 'Inspect Archive', status: 'error', message: String(err.message) };
+    render();
+    return;
+  }
+} else {
+  // .zip: counts already in the prepare response
+  scanData = prepData;
+  steps[1] = { name: 'Inspect Archive', status: 'ok',
+               message: Number(prepData.audio_count) + ' audio + ' + Number(prepData.video_count)
+                        + ' video found (' + fmtBytes(Number(prepData.total_bytes)) + ')',
+               progress: null };
+  render();
+}
+```
+
+`pollScanStatusAsync(scanJobId)` — new local async function inside `importRun()`:
+
+```js
+function pollScanStatusAsync(scanJobId) {
+  return new Promise(function (resolve, reject) {
+    var timer = setInterval(async function () {
+      try {
+        var resp = await fetch('import_media_zip_scan_status.php?job_id=' + encodeURIComponent(scanJobId));
+        var data = await resp.json().catch(function () { return null; });
+        if (!resp.ok || !(data && data.success)) {
+          clearInterval(timer);
+          reject(new Error((data && data.error) || 'HTTP ' + resp.status));
+          return;
+        }
+        var pct = Math.min(100, Math.max(0, Number(data.scan_pct) || 0));
+        steps[1] = { name: 'Inspect Archive', status: 'running',
+                     message: 'Scanning\u2026 ' + pct + '%',
+                     progress: { processed: pct, total: 100 } };
+        render();
+        if (data.state === 'done') {
+          clearInterval(timer);
+          steps[1] = { name: 'Inspect Archive', status: 'ok',
+                       message: Number(data.audio_count) + ' audio + ' + Number(data.video_count)
+                                + ' video found (' + fmtBytes(Number(data.total_bytes)) + ')',
+                       progress: null };
+          render();
+          resolve(data);
+        } else if (data.state === 'error') {
+          clearInterval(timer);
+          reject(new Error(data.error_message || 'Scan failed'));
+        }
+      } catch (err) {
+        clearInterval(timer);
+        reject(err);
+      }
+    }, 1500);
+  });
+}
+```
+
+After the scan branch, `scanData` holds `{ audio_count, video_count, unsupported_count, total_bytes }`. The confirm dialog and `mode=start` POST use `scanData` for counts and `prepData.prepare_token` for the token — same token regardless of `.zip` or `.tar.gz` path.
+
+### Step 7 — Phase 2 inline doc updates
+
+Update the following in this document's **Phase 2** section (completed in this edit window):
+
+1. Step table (line ~558): "Upload ZIP" → "Upload Archive", "Inspect ZIP" → "Inspect Archive"
+2. Step table description: add note that tar.gz uses async scan (see Phase 2b)
+3. Implementation notes (line ~564): add Phase 2b forward reference for tar.gz
+4. Button label progression (line ~568): rename all ZIP → Archive instances
+5. Implementation Checklist step 1 (line ~242): rename "Upload ZIP" and "Inspect ZIP"
+6. Section F HTML snippet (line ~545): `>Import ZIP</button>` → `>Import Archive</button>`
+
+---
+
+### Step 8 — Smoke tests T-145 through T-149
+
+Add the seven Ansible tasks from the **Tests** section below to `ansible/roles/post_build_checks/tasks/main.yml`. T-148 and T-149 each have an `a` sub-task that asserts the old label is absent — seven tasks total.
+
+---
+
+---
+
+## Design Decisions
+
+**Async scan for tar.gz only**
+The `.zip` scan via `ZipArchive::statIndex()` reads only the ZIP central directory — not the compressed payload — so it completes in under one second regardless of archive size. The tar.gz case is fundamentally different: `tar -t` must decompress and stream the entire payload sequentially. These are structurally different operations and warrant different handling.
+
+**pv not available → hard failure, no silent fallback**
+If `pv` is absent (container not yet rebuilt after the Dockerfile change), `runTarWithPv`'s shell command fails immediately and the scan worker writes `state: error`. The browser shows the Inspect Archive step as failed with a clear error message. A silent fallback to the old synchronous scan would re-introduce the freezing behavior without warning. T-145 catches the missing binary before promotion.
+
+**scan_job_id not validated by mode=start**
+`mode=start` does not require `scan_job_id` and does not verify that a completed scan exists. Enforcing scan-before-start purely in the JS is sufficient — a user who manually crafts a `mode=start` POST without a prior scan simply skips the pre-inspection step, which is exactly what the original synchronous flow did. Adding server-side validation would require an extra status-file lookup in `mode=start` with no meaningful security benefit.
+
+**scan_pct hardcoded to 100 in the final done write**
+pv may not emit a final 100% line before the pipeline closes, especially for very small archives. Writing 100 explicitly in `state: done` guarantees the progress bar completes visually regardless of the last pv output.
+
+**Scan job directory retained 30 min post-done, 1 hr post-stale**
+Scan jobs complete in minutes. A 30-minute TTL after `state: done` gives any delayed poll a clean `done` response. Stale scan jobs (crashed worker) are cleaned at 1 hour, matching the import job TTL. Cleanup is handled by the scan status endpoint on each poll response.
+
+---
+
+## SonarQube / Best-Practice Notes
+
+**Hardcoded `/bin/sh`:** `runTarWithPv` uses `/bin/sh -c` via `proc_open`. This is standard on all Ubuntu-based Linux containers and is not deployment-specific. No group_var is needed, but it is noted here per SKILL.md rule 7a.
+
+**`pv` binary path:** Use the full path `/usr/bin/pv` (not bare `pv`) in `runTarWithPv`'s shell command. The scan worker is spawned by PHP-FPM via `exec(...&)` and inherits the www-data user's environment, whose `PATH` may not include `/usr/bin`. `apt-get install pv` on Ubuntu always places the binary at `/usr/bin/pv` — this is a system binary path analogous to `/bin/sh`, not a deployment-specific value. T-145 should verify `/usr/bin/pv` directly via `docker exec apacheWebServer /usr/bin/pv --version`. Update the shell command string in `runTarWithPv` accordingly, and replace the docblock note "REQUIRES: pv in PATH" with "REQUIRES: `/usr/bin/pv` present in the container".
+
+**`$fileSize = (int)filesize(...)` zero guard:** `filesize()` returns `false` on failure; casting to `int` yields 0. The scan worker checks `$fileSize > 0` and writes `state: error` if zero. `pv -s 0` would omit percentage output (no expected size), making the progress bar useless — the guard prevents this.
+
+**XSS in JS template string:** `Number(data.audio_count)` is used directly in the step message string rendered via `renderImportStepsShared()` / `innerHTML`. Since `audio_count`, `video_count`, and `total_bytes` are integers from a JSON response authenticated by the admin htpasswd guard, there is no XSS risk. This matches the existing pattern throughout `doImportMediaZip()`.
+
+**RSPEC-3776 (cognitive complexity):** `pollScanStatusAsync` has one nesting level (setInterval → async → try/catch → if/else). The `done` and `error` branches sit at the top of the if/else chain to avoid deep nesting.
+
+---
+
+## Known Limitations
+
+**No browser-side scan recovery after tab reload**
+If the operator uploads a tar.gz, the tab is closed mid-scan, and the operator reopens the page, the `scan_job_id` is lost (it lives only in the JS variable `prepData`). The operator must re-upload the archive. This matches the existing `.zip` behavior and is acceptable for Phase 2b.
+
+**pv may not reach 100% before tar completes**
+For archives where tar drains all bytes faster than pv's 0.5-second emission interval, the last progress update visible to the browser may be less than 100%. The explicit `scan_pct: 100` in the final `state: done` write ensures the bar always completes.
+
+**Concurrent scan jobs for the same archive**
+If `mode=prepare` is called twice (e.g. user clicks Import twice before the first call responds), two scan workers start on the same `$archivePath`. Each writes to its own scan job directory. The browser only polls the `scan_job_id` from the most recent prepare response. On SSD the contention is negligible; on rotating disk two simultaneous sequential reads compete. No resource guard is required for Phase 2b.
+
+---
+
+## Tests
+
+T-numbers T-145 through T-149. Highest confirmed T-number in use across all `docs/*.md` is T-144 (`refactor_video_player_page_delete_eligibility.md`). Verify before assigning.
+
+| T | What it validates | Role |
+|---|---|---|
+| T-145 | `pv` binary is present at `/usr/bin/pv` in the container (`/usr/bin/pv --version` exits 0) | `post_build_checks` |
+| T-146 | Unauthenticated GET `/admin/import_media_zip_scan_status.php` returns 401 | `post_build_checks` |
+| T-147 | Unauthenticated GET `/admin/import_media_zip_scan_worker.php` returns 401 or 403 (CLI-only guard) | `post_build_checks` |
+| T-148 | `admin_system.php` page source contains `"Upload Archive"` and does NOT contain `"Upload ZIP"` | `post_build_checks` |
+| T-149 | `admin_system.php` page source contains `"Inspect Archive"` and does NOT contain `"Inspect ZIP"` | `post_build_checks` |
+
+**Ansible task templates** (add to `post_build_checks/tasks/main.yml`):
+
+{% raw %}
+```yaml
+- name: "[T-145] pv binary is present at /usr/bin/pv in the container"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      /usr/bin/pv --version
+  register: t145_pv
+  failed_when: t145_pv.rc != 0
+  tags: [smoke]
+
+- name: "[T-146] Unauthenticated GET /admin/import_media_zip_scan_status.php returns 401"
+  ansible.builtin.uri:
+    url: "https://{{ gighive_fqdn }}/admin/import_media_zip_scan_status.php"
+    method: GET
+    validate_certs: false
+    status_code: 401
+  tags: [smoke]
+
+- name: "[T-147] GET /admin/import_media_zip_scan_worker.php returns 401 or 403"
+  ansible.builtin.uri:
+    url: "https://{{ gighive_fqdn }}/admin/import_media_zip_scan_worker.php"
+    method: GET
+    validate_certs: false
+    status_code:
+      - 401
+      - 403
+  tags: [smoke]
+
+- name: "[T-148] admin_system.php contains Upload Archive"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "Upload Archive" /var/www/html/admin/admin_system.php
+  register: t148_resp
+  failed_when: t148_resp.rc != 0
+  tags: [smoke]
+
+- name: "[T-148a] admin_system.php does not contain Upload ZIP"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "Upload ZIP" /var/www/html/admin/admin_system.php
+  register: t148a_resp
+  failed_when: t148a_resp.rc == 0
+  tags: [smoke]
+
+- name: "[T-149] admin_system.php contains Inspect Archive"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "Inspect Archive" /var/www/html/admin/admin_system.php
+  register: t149_resp
+  failed_when: t149_resp.rc != 0
+  tags: [smoke]
+
+- name: "[T-149a] admin_system.php does not contain Inspect ZIP"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "Inspect ZIP" /var/www/html/admin/admin_system.php
+  register: t149a_resp
+  failed_when: t149a_resp.rc == 0
+  tags: [smoke]
+```
+{% endraw %}
+
+---
+
 
 # Phase 1: Export Media to ZIP — Progress Refactor
 

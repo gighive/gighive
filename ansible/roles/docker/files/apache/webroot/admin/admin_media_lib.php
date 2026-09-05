@@ -109,6 +109,59 @@ function runTar(array $args, ?string $cwd = null, array $env = [], ?callable $on
 }
 
 /**
+ * Run a pv-piped tar -tzvf scan to get compressed-bytes progress.
+ *
+ * pv reads $archivePath and pipes its bytes to tar's stdin while writing
+ * compressed-bytes percentage (0-100, one integer per line) to $pvProgressFile
+ * via its stderr. tar reads from stdin and writes its verbose listing to stdout.
+ * The caller-supplied $onStdoutLine is invoked for each tar listing line.
+ *
+ * Returns ['exit_code' => int].
+ * Read progress with: @file($pvProgressFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)
+ * and take end() to get the latest percentage.
+ *
+ * REQUIRES: /usr/bin/pv present in the container (installed via apt-get in Dockerfile.j2).
+ */
+function runTarWithPv(
+    string   $archivePath,
+    int      $fileSize,
+    string   $pvProgressFile,
+    callable $onStdoutLine
+): array {
+    // Use explicit path to avoid PATH resolution issues in the www-data spawn context
+    $shellCmd = sprintf(
+        '/usr/bin/pv -n -f -s %d %s 2>%s | tar -tzvf - 2>/dev/null',
+        $fileSize,
+        escapeshellarg($archivePath),
+        escapeshellarg($pvProgressFile)
+    );
+
+    $descriptors = [
+        0 => ['file', '/dev/null', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['file', '/dev/null', 'w'],
+    ];
+    $pipes    = [];
+    $exitCode = -1;
+
+    $handle = proc_open(['/bin/sh', '-c', $shellCmd], $descriptors, $pipes, null, ['LC_ALL' => 'C']);
+    if ($handle === false) {
+        return ['exit_code' => -1];
+    }
+
+    try {
+        while (($line = fgets($pipes[1])) !== false) {
+            $onStdoutLine(rtrim($line, "\n"));
+        }
+    } finally {
+        if (is_resource($pipes[1])) fclose($pipes[1]);
+        $exitCode = proc_close($handle);
+    }
+
+    return ['exit_code' => $exitCode];
+}
+
+/**
  * Write a JSON status payload to $jsonPath with LOCK_EX.
  * Always sets/overwrites 'updated_at' with the current ISO 8601 timestamp.
  */

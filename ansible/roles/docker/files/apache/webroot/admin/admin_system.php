@@ -1618,18 +1618,18 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
           xhr.open('POST', 'import_media_zip.php');
           xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
-              steps[0] = { name: 'Upload ZIP', status: 'running',
+              steps[0] = { name: 'Upload Archive', status: 'running',
                            message: fmtBytes(e.loaded) + ' / ' + fmtBytes(e.total) + ' uploaded',
                            progress: { processed: e.loaded, total: e.total, unit: 'bytes' } };
               render();
             }
           };
           xhr.upload.onload = function () {
-            steps[0] = { name: 'Upload ZIP', status: 'ok',
+            steps[0] = { name: 'Upload Archive', status: 'ok',
                          message: fmtBytes(fileSize) + ' uploaded',
                          progress: { processed: fileSize, total: fileSize, unit: 'bytes' } };
-            steps[1] = { name: 'Inspect ZIP', status: 'running', message: 'Scanning entries\u2026', progress: null };
-            btn.textContent = 'Inspecting ZIP\u2026';
+            steps[1] = { name: 'Inspect Archive', status: 'running', message: 'Scanning entries\u2026', progress: null };
+            btn.textContent = 'Inspecting Archive\u2026';
             render();
           };
           xhr.onload = function () {
@@ -1647,27 +1647,80 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
           xhr.send(formData);
         }));
       } catch (err) {
-        steps[0] = { name: 'Upload ZIP', status: 'error', message: String(err.message) };
+        steps[0] = { name: 'Upload Archive', status: 'error', message: String(err.message) };
         render();
         return;
       }
       if (prepStatus < 200 || prepStatus >= 300 || !(prepData && prepData.success)) {
         const msg = (prepData && (prepData.error || prepData.message)) ? String(prepData.error || prepData.message) : 'HTTP ' + prepStatus;
-        steps[1] = { name: 'Inspect ZIP', status: 'error', message: msg };
+        steps[1] = { name: 'Inspect Archive', status: 'error', message: msg };
         render();
         return;
       }
 
-      const audioCount       = Number(prepData.audio_count)       || 0;
-      const videoCount       = Number(prepData.video_count)       || 0;
-      const unsupportedCount = Number(prepData.unsupported_count) || 0;
-      const totalBytes       = Number(prepData.total_bytes)       || 0;
-      const prepareToken     = String(prepData.prepare_token || '');
+      const prepareToken = String(prepData.prepare_token || '');
 
-      steps[1] = { name: 'Inspect ZIP', status: 'ok',
-                   message: audioCount + ' audio + ' + videoCount + ' video found (' + fmtBytes(totalBytes) + ')',
-                   progress: null };
-      render();
+      // ── Async scan (tar.gz) or sync counts (.zip) ─────────────────────────
+      function pollScanStatusAsync(scanJobId) {
+        return new Promise(function (resolve, reject) {
+          var pollTimer = setInterval(async function () {
+            try {
+              var resp = await fetch('import_media_zip_scan_status.php?job_id=' + encodeURIComponent(scanJobId));
+              var data = await resp.json().catch(function () { return null; });
+              if (!resp.ok || !(data && data.success)) {
+                clearInterval(pollTimer);
+                reject(new Error((data && data.error) || 'HTTP ' + resp.status));
+                return;
+              }
+              var pct = Math.min(100, Math.max(0, Number(data.scan_pct) || 0));
+              steps[1] = { name: 'Inspect Archive', status: 'running',
+                           message: 'Scanning\u2026 ' + pct + '%',
+                           progress: { processed: pct, total: 100 } };
+              render();
+              if (data.state === 'done') {
+                clearInterval(pollTimer);
+                steps[1] = { name: 'Inspect Archive', status: 'ok',
+                             message: Number(data.audio_count) + ' audio + ' + Number(data.video_count)
+                                      + ' video found (' + fmtBytes(Number(data.total_bytes)) + ')',
+                             progress: null };
+                render();
+                resolve(data);
+              } else if (data.state === 'error') {
+                clearInterval(pollTimer);
+                reject(new Error(data.error_message || 'Scan failed'));
+              }
+            } catch (err) {
+              clearInterval(pollTimer);
+              reject(err);
+            }
+          }, 1500);
+        });
+      }
+
+      let scanData;
+      if (prepData.scan_job_id) {
+        // tar.gz path: scan worker is running — poll for pv-based progress
+        try {
+          scanData = await pollScanStatusAsync(prepData.scan_job_id);
+        } catch (err) {
+          steps[1] = { name: 'Inspect Archive', status: 'error', message: String(err.message) };
+          render();
+          return;
+        }
+      } else {
+        // .zip path: counts already in the prepare response
+        scanData = prepData;
+        steps[1] = { name: 'Inspect Archive', status: 'ok',
+                     message: Number(prepData.audio_count) + ' audio + ' + Number(prepData.video_count)
+                              + ' video found (' + fmtBytes(Number(prepData.total_bytes)) + ')',
+                     progress: null };
+        render();
+      }
+
+      const audioCount       = Number(scanData.audio_count)       || 0;
+      const videoCount       = Number(scanData.video_count)       || 0;
+      const unsupportedCount = Number(scanData.unsupported_count) || 0;
+      const totalBytes       = Number(scanData.total_bytes)       || 0;
 
       // ── Step 2: Confirm ───────────────────────────────────────────────────
       const unsupportedNote = unsupportedCount > 0

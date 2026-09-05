@@ -2063,3 +2063,77 @@
       failed_when: false
 
   tags: [smoke, database]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-145 through T-149: Archive Scan Progress (Phase 2b)
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: "[T-145] pv binary is present at /usr/bin/pv in the container"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      /usr/bin/pv --version
+  register: t145_pv
+  failed_when: t145_pv.rc != 0
+  changed_when: false
+  tags: [smoke]
+
+- name: "[T-146] Unauthenticated GET /admin/import_media_zip_scan_status.php returns 401"
+  ansible.builtin.uri:
+    url: "https://{{ gighive_fqdn }}/admin/import_media_zip_scan_status.php"
+    method: GET
+    validate_certs: false
+    status_code: 401
+  changed_when: false
+  tags: [smoke]
+
+- name: "[T-147] GET /admin/import_media_zip_scan_worker.php returns 401 or 403 (CLI-only guard)"
+  ansible.builtin.uri:
+    url: "https://{{ gighive_fqdn }}/admin/import_media_zip_scan_worker.php"
+    method: GET
+    validate_certs: false
+    status_code:
+      - 401
+      - 403
+  changed_when: false
+  tags: [smoke]
+
+- name: "[T-148] admin_system.php contains Upload Archive"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "Upload Archive" /var/www/html/admin/admin_system.php
+  register: t148_resp
+  failed_when: t148_resp.rc != 0
+  changed_when: false
+  tags: [smoke]
+
+- name: "[T-148a] admin_system.php does not contain Upload ZIP"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "Upload ZIP" /var/www/html/admin/admin_system.php
+  register: t148a_resp
+  failed_when: t148a_resp.rc == 0
+  changed_when: false
+  tags: [smoke]
+
+- name: "[T-149] admin_system.php contains Inspect Archive"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "Inspect Archive" /var/www/html/admin/admin_system.php
+  register: t149_resp
+  failed_when: t149_resp.rc != 0
+  changed_when: false
+  tags: [smoke]
+
+- name: "[T-149a] admin_system.php does not contain Inspect ZIP"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "Inspect ZIP" /var/www/html/admin/admin_system.php
+  register: t149a_resp
+  failed_when: t149a_resp.rc == 0
+  changed_when: false
+  tags: [smoke]

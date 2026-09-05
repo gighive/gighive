@@ -3,6 +3,25 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260905.txt
+Changes: export / import media on admin_system.php correct monitoring/observability for Inspect ZIP
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_media_lib.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_media_zip.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/import_media_zip_scan_status.php
+	new file:   ansible/roles/docker/files/apache/webroot/admin/import_media_zip_scan_worker.php
+	modified:   ansible/roles/docker/templates/Dockerfile.j2
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   docs/feature_completed_import_media_from_zip.md
+
+*** 
+releaseNotes20260905.txt
 Changes: export / import media on admin_system.php additional fix for max upload size #2, #3
 
 macbook2025:gighiveinfra sodo$ git status
