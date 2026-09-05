@@ -51,6 +51,7 @@ try {
     $audioFiles    = [];
     $videoFiles    = [];
     $thumbnailFiles = [];
+    $fileSizeMap   = [];
 
     foreach ($rows as $row) {
         $type = (string)($row['file_type']       ?? '');
@@ -80,18 +81,23 @@ try {
             continue;
         }
 
+        $fileSize = (int)filesize($filePath);
         if ($type === 'audio') {
-            $audioFiles[] = $filename;
+            $audioFiles[]          = $filename;
+            $fileSizeMap[$filename] = $fileSize;
         } else {
-            $videoFiles[] = $filename;
+            $videoFiles[]          = $filename;
+            $fileSizeMap[$filename] = $fileSize;
             $thumbRel  = 'thumbnails/' . $sha . '.png';
             $thumbPath = $videoDir . '/' . $thumbRel;
             if (is_file($thumbPath)) {
-                $thumbnailFiles[] = $thumbRel;
-                $bytesAdded += (int)filesize($thumbPath);
+                $thumbSize              = (int)filesize($thumbPath);
+                $thumbnailFiles[]       = $thumbRel;
+                $fileSizeMap[$thumbRel] = $thumbSize;
+                $bytesAdded            += $thumbSize;
             }
         }
-        $bytesAdded += (int)filesize($filePath);
+        $bytesAdded += $fileSize;
     }
 
     $mediaAdded = count($audioFiles) + count($videoFiles);
@@ -133,10 +139,12 @@ try {
     }
 
     // Option A progress: verbose stdout line = one file added; update status.json on every file
-    $verboseCount = 0;
-    $result = runTar($tarArgs, null, [], static function (string $line) use (&$verboseCount, $added, $skipped, $jsonPath, $jobId): void {
+    $verboseCount   = 0;
+    $bytesProcessed = 0;
+    $result = runTar($tarArgs, null, [], static function (string $line) use (&$verboseCount, &$bytesProcessed, $added, $skipped, $bytesAdded, $fileSizeMap, $jsonPath, $jobId): void {
         if ($line === '') return;
         $verboseCount++;
+        $bytesProcessed += $fileSizeMap[$line] ?? 0;
         writeJobStatus($jsonPath, [
             'success'     => true,
             'job_id'      => $jobId,
@@ -149,8 +157,8 @@ try {
             'bytes_added' => 0,
             'steps'       => [
                 ['name' => 'Build archive', 'status' => 'running',
-                 'message'  => $verboseCount . ' / ' . $added . ' written',
-                 'progress' => ['processed' => $verboseCount, 'total' => $added]],
+                 'message'  => $verboseCount . ' / ' . $added . ' files',
+                 'progress' => ['processed' => $bytesProcessed, 'total' => $bytesAdded, 'unit' => 'bytes']],
             ],
         ]);
     });

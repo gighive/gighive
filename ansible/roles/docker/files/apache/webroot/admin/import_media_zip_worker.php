@@ -58,9 +58,11 @@ try {
     $added            = 0;
     $alreadyExists    = 0;
     $bytesAdded       = 0;
+    $bytesProcessed   = 0;
     $unsupportedCount = 0;
     $errors           = [];
     $total            = 0;
+    $totalBytes       = 0;
 
     // Destination directory check (shared by both branches)
     if (!is_dir('/var/www/html/audio') || !is_dir('/var/www/html/video')) {
@@ -95,6 +97,7 @@ try {
             $name = (string)($stat['name'] ?? '');
             if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
                 $total++;
+                $totalBytes += (int)($stat['size'] ?? 0);
             }
         }
 
@@ -110,7 +113,7 @@ try {
             'steps'          => [
                 ['name' => 'Import files', 'status' => 'running',
                  'message'  => '0 / ' . $total . ' files imported',
-                 'progress' => ['processed' => 0, 'total' => $total]],
+                 'progress' => ['processed' => 0, 'total' => $totalBytes, 'unit' => 'bytes']],
             ],
         ]);
 
@@ -143,6 +146,7 @@ try {
             }
 
             $processed++;
+            $bytesProcessed += (int)($stat['size'] ?? 0);
             $type = isset($audioExtsSet[$ext]) ? 'audio' : 'video';
             $dest = '/var/www/html/' . $type . '/' . $hash . '.' . $ext;
 
@@ -196,7 +200,7 @@ try {
                 'steps'          => [
                     ['name' => 'Import files', 'status' => 'running',
                      'message'  => $processed . ' / ' . $total . ' files imported',
-                     'progress' => ['processed' => $processed, 'total' => $total]],
+                     'progress' => ['processed' => $bytesProcessed, 'total' => $totalBytes, 'unit' => 'bytes']],
                 ],
             ]);
         }
@@ -233,8 +237,10 @@ try {
                 }
                 if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
                     $total++;
+                    $totalBytes += $size;
                 } elseif (isValidThumbnailEntry($name)) {
                     $total++;
+                    $totalBytes += $size;
                 } else {
                     $unsupportedCount++;
                 }
@@ -252,7 +258,7 @@ try {
                 'steps'          => [
                     ['name' => 'Import files', 'status' => 'running',
                      'message'  => '0 / ' . $total . ' files imported',
-                     'progress' => ['processed' => 0, 'total' => $total]],
+                     'progress' => ['processed' => 0, 'total' => $totalBytes, 'unit' => 'bytes']],
                 ],
             ]);
 
@@ -289,6 +295,8 @@ try {
                 }
 
                 $processed++;
+                $fileBytes = (int)filesize($filePath);
+                $bytesProcessed += $fileBytes;
                 $type = isset($audioExtsSet[$ext]) ? 'audio' : 'video';
                 $dest = '/var/www/html/' . $type . '/' . $hash . '.' . $ext;
 
@@ -297,7 +305,6 @@ try {
                     @unlink($filePath);
                 } else {
                     // Cross-device copy: extracted subdir may be on tmpfs, dest on media volume
-                    $fileBytes = (int)filesize($filePath);
                     if (!copy($filePath, $dest)) {
                         $errors[] = 'copy failed: ' . $name;
                         @unlink($filePath);
@@ -321,7 +328,7 @@ try {
                     'steps'          => [
                         ['name' => 'Import files', 'status' => 'running',
                          'message'  => $processed . ' / ' . $total . ' files imported',
-                         'progress' => ['processed' => $processed, 'total' => $total]],
+                         'progress' => ['processed' => $bytesProcessed, 'total' => $totalBytes, 'unit' => 'bytes']],
                     ],
                 ]);
             }
@@ -345,12 +352,13 @@ try {
                     continue;
                 }
                 $processed++;
+                $fileBytes = (int)filesize($thumbFilePath);
+                $bytesProcessed += $fileBytes;
                 $dest = $thumbDestDir . '/' . $thumbName;
                 if (is_file($dest)) {
                     $alreadyExists++;
                     @unlink($thumbFilePath);
                 } else {
-                    $fileBytes = (int)filesize($thumbFilePath);
                     if (!copy($thumbFilePath, $dest)) {
                         $errors[] = 'thumbnail copy failed: ' . $thumbName;
                         @unlink($thumbFilePath);
@@ -373,7 +381,7 @@ try {
                     'steps'          => [
                         ['name' => 'Import files', 'status' => 'running',
                          'message'  => $processed . ' / ' . $total . ' files imported',
-                         'progress' => ['processed' => $processed, 'total' => $total]],
+                         'progress' => ['processed' => $bytesProcessed, 'total' => $totalBytes, 'unit' => 'bytes']],
                     ],
                 ]);
             }

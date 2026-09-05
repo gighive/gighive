@@ -83,6 +83,34 @@ test('Section E — server temp space error shown in UI', async ({ page }) => {
   await expect(page.locator('#exportMediaBtn')).toBeEnabled({ timeout: 2000 });
 });
 
+test('Section E — Build archive step renders byte-formatted progress', async ({ page }) => {
+  // Unit-test the renderer: inject a byte-unit step and confirm _fmtBytes branch fires.
+  await page.goto('/admin/admin_system.php');
+  const html = await page.evaluate(() => {
+    return (window as any).renderImportStepsShared(
+      [{ name: 'Build archive', status: 'running',
+         message: '5 / 10 files',
+         progress: { processed: 68157440, total: 139810201600, unit: 'bytes' } }],
+      { showProgressBar: true, label: 'Export:', statusIndentPx: 80 }
+    );
+  });
+  expect(html).toMatch(/\d+\.\d+ (MB|GB) \/ \d+\.\d+ (MB|GB)/);
+});
+
+test('Section F — Import files step renders byte-formatted progress', async ({ page }) => {
+  // Unit-test the renderer: inject a byte-unit step and confirm _fmtBytes branch fires.
+  await page.goto('/admin/admin_system.php');
+  const html = await page.evaluate(() => {
+    return (window as any).renderImportStepsShared(
+      [{ name: 'Import files', status: 'running',
+         message: '5 / 10 files imported',
+         progress: { processed: 52428800, total: 104857600, unit: 'bytes' } }],
+      { showProgressBar: true, label: 'Import:', statusIndentPx: 80 }
+    );
+  });
+  expect(html).toMatch(/\d+\.\d+ MB \/ \d+\.\d+ MB/);
+});
+
 test('Admin pages full regression — all 13 steps', async ({ page }) => {
   // Mock showSaveFilePicker: return a fake handle whose writable stream discards data.
   // This lets the full streaming code path run in Playwright (Chromium) without

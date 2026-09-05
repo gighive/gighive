@@ -2,7 +2,7 @@
 
 ## Status — 2026-09-04
 
-Complete — all 13 steps implemented.
+Complete — all 19 steps implemented.
 
 ---
 
@@ -780,6 +780,327 @@ entry should appear on the server.
 
 ---
 
+### Step 14 — Byte-based progress in `export_media_worker.php`
+
+**File:** `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/export_media_worker.php`
+
+**Root cause confirmed:** The verbose callback increments a file counter (`$verboseCount`). On a library with large video files followed by small thumbnails, 54% of files by count = 90%+ of bytes. The sub-line shows misleading counts while the progress bar percentage is equally wrong.
+
+**What the tar verbose output emits** (confirmed from `runTar()` in `admin_media_lib.php`):
+- Audio files: bare filename relative to `-C /var/www/html/audio`, e.g. `abc123...def.mp3`
+- Video files: bare filename relative to `-C /var/www/html/video`, e.g. `abc123...def.mp4`
+- Thumbnails: `thumbnails/abc123...def.png` (relative to the same video `-C` root)
+
+These match exactly the keys already being assembled into `$audioFiles`, `$videoFiles`, and `$thumbnailFiles` arrays.
+
+**Change — build `$fileSizeMap` during the file scan loop** (the `foreach ($rows as $row)` block that already calls `filesize()`):
+
+```php
+$fileSizeMap = [];  // added alongside existing $audioFiles / $videoFiles arrays
+
+// inside the foreach, after existing $audioFiles[] / $videoFiles[] pushes:
+if ($type === 'audio') {
+    $audioFiles[]           = $filename;
+    $fileSizeMap[$filename] = (int)filesize($filePath);      // same filesize() already called
+} else {
+    $videoFiles[]           = $filename;
+    $fileSizeMap[$filename] = (int)filesize($filePath);
+    $thumbRel               = 'thumbnails/' . $sha . '.png';
+    $thumbPath              = $videoDir . '/' . $thumbRel;
+    if (is_file($thumbPath)) {
+        $thumbnailFiles[]         = $thumbRel;
+        $fileSizeMap[$thumbRel]   = (int)filesize($thumbPath);
+        $bytesAdded              += (int)filesize($thumbPath);
+    }
+}
+$bytesAdded += (int)filesize($filePath);
+```
+
+**Change — track bytes in the verbose callback:**
+
+```php
+$verboseCount   = 0;
+$bytesProcessed = 0;      // NEW
+
+$result = runTar($tarArgs, null, [], static function (string $line)
+    use (&$verboseCount, &$bytesProcessed, $added, $skipped, $bytesAdded, $jsonPath, $jobId, $fileSizeMap): void {
+    if ($line === '') return;
+    $verboseCount++;
+    $bytesProcessed += $fileSizeMap[$line] ?? 0;             // NEW
+
+    writeJobStatus($jsonPath, [
+        'success'         => true,
+        'job_id'          => $jobId,
+        'state'           => 'running',
+        'updated_at'      => date('c'),
+        'processed'       => $verboseCount,
+        'total'           => $added,
+        'added'           => $verboseCount,
+        'skipped'         => $skipped,
+        'bytes_added'     => 0,
+        'steps'           => [
+            ['name' => 'Build archive', 'status' => 'running',
+             'message'  => $verboseCount . ' / ' . $added . ' files',    // "files" not "written"
+             'progress' => [
+                 'processed' => $bytesProcessed,                          // CHANGED: bytes
+                 'total'     => $bytesAdded,                              // CHANGED: bytes
+                 'unit'      => 'bytes',                                  // NEW: signal for renderer
+             ]],
+        ],
+    ]);
+});
+```
+
+**Design notes:**
+- `$fileSizeMap` is built during the existing scan — no extra `filesize()` syscalls.
+- `$fileSizeMap[$line] ?? 0` is safe: if tar somehow emits an unexpected line, bytes just
+  don't advance; the percentage stays conservative rather than crashing.
+- Top-level `processed` / `total` remain file counts — used by `pollJobStatus` callers that
+  may read them independently. No regression there.
+- `message` changes from `"195 / 1199 written"` to `"195 / 1199 files"` — clearer wording,
+  count still visible in the text while the progress bar shows byte-accurate %.
+- The `unit: 'bytes'` field is ignored by all existing renderers (Step 15 adds the check).
+  No regression on other sections that use `pollJobStatus` / `renderImportStepsShared`.
+
+- [ ] **Step 14** — Update `export_media_worker.php`.
+
+---
+
+### Step 15 — Byte-aware sub-line in `import_progress.js`
+
+**File:** `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/assets/import_progress.js`
+
+**Root cause in renderer** — line 144:
+```javascript
++ processed + ' / ' + total + ' (' + pct + '%)' + indicator
+```
+Raw integers are concatenated. With bytes, this produces `70378668032 / 140056775321 (50%)`.
+
+**Add `_fmtBytes()` helper** (follows the identical pattern already used in `admin_system.php`'s
+`__fmtBytes` and per-section `fmtBytes`):
+
+```javascript
+function _fmtBytes(n) {
+  if (n >= 1073741824) return (n / 1073741824).toFixed(1) + ' GB';
+  if (n >= 1048576)    return (n / 1048576).toFixed(1) + ' MB';
+  if (n >= 1024)       return (n / 1024).toFixed(1) + ' KB';
+  return n + ' B';
+}
+```
+
+**Update the sub-line render** (line 144) to check `progress.unit`:
+
+```javascript
+// Existing:
++ processed + ' / ' + total + ' (' + pct + '%)' + indicator
+
+// Replacement:
++ (progress.unit === 'bytes'
+    ? _fmtBytes(processed) + ' / ' + _fmtBytes(total)
+    : processed + ' / ' + total)
++ ' (' + pct + '%)' + indicator
+```
+
+**Design notes:**
+- Change is 4 lines in `import_progress.js`. All other callers (Import Media, Azure import,
+  background jobs) pass no `unit` field — they hit the existing code path unchanged.
+- `getImportProgressEtaText()` operates on raw `processed`/`total` numbers regardless of
+  unit — byte-based ETA is automatically more accurate than count-based ETA.
+- The `_fmtBytes` function name is prefixed with `_` to match the module's internal
+  convention (`_esc`, `_formatEtaFromMs`, `_poll`).
+
+- [ ] **Step 15** — Update `import_progress.js`.
+
+---
+
+### Step 16 — Playwright assertion for byte-formatted progress
+
+**File:** `gighiveinfra/ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts`
+
+The regression test already waits for `Export complete` on the `alert-ok` banner (Step 13).
+Add an assertion immediately after that checks the "Build archive" sub-line shows a
+byte-formatted value, not a raw integer:
+
+```typescript
+// After the existing Export complete assertion:
+await expect(page.locator('#exportMediaStatus'))
+  .toContainText(/\d+\.\d+ (MB|GB) \/ \d+\.\d+ (MB|GB)/, { timeout: 5000 });
+```
+
+This regex matches any `X.Y MB / A.B MB` or `X.Y GB / A.B GB` pattern, confirming the
+renderer selected the bytes branch. It does not assert a specific value (devvm dataset size
+may vary).
+
+**Design notes:**
+- The assertion is on `#exportMediaStatus` as a whole — the byte-formatted sub-line text
+  is present in the rendered HTML inside that container.
+- Timeout of 5000 ms is sufficient: by the time `Export complete` appears (Step 13
+  assertion), the archive step is already rendered in its `ok` state.
+
+- [ ] **Step 16** — Add byte-format assertion to `admin-pages.spec.ts`.
+
+---
+
+### Step 17 — Byte-based progress in `import_media_zip_worker.php`
+
+**File:** `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/import_media_zip_worker.php`
+
+Both the ZIP and tar.gz branches emit file-count-based `step.progress`. The same skew as the export worker occurs when large video files finish early and small thumbnails remain.
+
+The `unit: 'bytes'` field added in Step 15 to `import_progress.js` already handles rendering — only the PHP payload needs to change.
+
+---
+
+#### ZIP branch (lines ~88–202)
+
+**Pre-scan** — accumulate `$totalBytes` alongside the existing `$total++`:
+
+```php
+$totalBytes = 0;           // ADD alongside existing variable declarations
+
+// Inside the pre-scan for loop, after isValidMediaEntry check:
+if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
+    $total++;
+    $totalBytes += (int)($stat['size'] ?? 0);   // ADD
+}
+```
+
+**Main loop** — move `$bytesProcessed` accumulation before the file-exists branch so it always fires (matches how `$processed` increments unconditionally):
+
+```php
+$processed++;
+$bytesProcessed += (int)($stat['size'] ?? 0);   // ADD — before the is_file check
+```
+
+**`writeJobStatus` calls** — change `step.progress` in both the running-state update and the initial-state write:
+
+```php
+'progress' => ['processed' => $bytesProcessed, 'total' => $totalBytes, 'unit' => 'bytes'],
+```
+
+Keep `step.message` as file counts: `"$processed / $total files imported"` — count stays readable in the text line while the bar is byte-accurate.
+
+The final DONE-state write stays as `['processed' => $total, 'total' => $total]` (no `unit`) because the bar is already at 100% and the status is `'ok'` — the renderer latches the badge regardless.
+
+---
+
+#### tar.gz branch (lines ~207–390)
+
+**Pre-scan** — the listing loop already parses `$size`; accumulate `$totalBytes`:
+
+```php
+$totalBytes = 0;   // ADD alongside existing variable declarations
+
+// Inside the listing foreach, after isValidMediaEntry / isValidThumbnailEntry check:
+if (isValidMediaEntry($name, $audioExtsSet, $videoExtsSet)) {
+    $total++;
+    $totalBytes += $size;       // ADD
+} elseif (isValidThumbnailEntry($name)) {
+    $total++;
+    $totalBytes += $size;       // ADD
+}
+```
+
+**Initial status write** — update `step.progress` to include bytes and unit (same pattern as ZIP branch above).
+
+**Media file loop** (`foreach (glob($extractDir . '*') ...)`):
+
+Move `$fileBytes` calculation before the `is_file` check so it is available for the already-exists path too, and add `$bytesProcessed`:
+
+```php
+$processed++;
+$fileBytes = (int)filesize($filePath);          // MOVE up from inside the else branch
+$bytesProcessed += $fileBytes;                  // ADD
+
+$type = ...;
+$dest = ...;
+
+if (is_file($dest)) {
+    $alreadyExists++;
+    @unlink($filePath);
+} else {
+    if (!copy($filePath, $dest)) { ... }        // $fileBytes already available
+    @unlink($filePath);
+    $added++;
+    $bytesAdded += $fileBytes;
+}
+```
+
+**Thumbnail second-pass loop** (`foreach (glob($extractDir . 'thumbnails/*.png') ...)`):
+
+Same refactor — move `$fileBytes = (int)filesize($thumbFilePath)` before the `is_file` check and add `$bytesProcessed += $fileBytes`.
+
+**`writeJobStatus` in both loops** — emit `unit: 'bytes'` in `step.progress` (same pattern).
+
+**Design notes:**
+- `$totalBytes` from the pre-scan uses the size column from `tar -tzvf` output (uncompressed size). `$fileBytes` from `filesize()` post-extraction is also uncompressed. These will match for audio/video files regardless of gzip compression on the outer archive. ✓
+- The tar.gz extraction itself (`tar -xzvf` without verbose callback) still has zero per-file progress updates during extraction — that is a pre-existing limitation, not introduced here. The byte-based counter kicks in during the copy-to-destination phase.
+- `$bytesProcessed` is declared at line ~57 alongside the other accumulators.
+
+- [ ] **Step 17** — Update `import_media_zip_worker.php` (both branches).
+
+---
+
+### Step 18 — Byte-based progress in `import_media_zip_worker_azure.php`
+
+**File:** `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/import_media_zip_worker_azure.php`
+
+The azure worker already has `$size = (int)($blob['size'] ?? 0)` per blob from the bloblist (line 99). No new I/O is needed.
+
+**Pre-pass for `$totalBytes`** — add immediately after `$total = count($rows)`:
+
+```php
+$totalBytes = 0;
+foreach ($rows as $blob) {
+    $totalBytes += (int)($blob['size'] ?? 0);
+}
+```
+
+This intentionally mirrors `$total = count($rows)` — both include all blobs, valid or not. Blobs that fail the validation conditions in the main loop receive `continue` before `$processed++`, so they don't advance `$bytesProcessed` either. The small over-count in `$totalBytes` is the same existing pattern as the over-count in `$total`.
+
+**Main loop** — add `$bytesProcessed` after `$processed++` (line 116):
+
+```php
+$processed++;
+$bytesProcessed += $size;    // ADD — $size already declared on line 99
+```
+
+**`writeJobStatus`** — emit `unit: 'bytes'`:
+
+```php
+'progress' => ['processed' => $bytesProcessed, 'total' => $totalBytes, 'unit' => 'bytes'],
+```
+
+Keep `step.message` as `"$processed / $total files imported"`.
+
+Final DONE-state write stays as `['processed' => $total, 'total' => $total]` (no `unit`) — same reasoning as Step 17.
+
+**Design note:** `$size` comes from Azure Blob Storage metadata and represents the blob's stored size (compressed if the blob was uploaded as-is). For GigHive exports, audio/video files are already compressed, so blob size ≈ uncompressed size. Thumbnails are PNGs which may be slightly larger in the blob than their extracted size, but the discrepancy is negligible for a progress bar. ✓
+
+- [ ] **Step 18** — Update `import_media_zip_worker_azure.php`.
+
+---
+
+### Step 19 — Playwright assertion for import byte-formatted progress
+
+**File:** `gighiveinfra/ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts`
+
+The existing import regression test verifies the import completes. Add one assertion that the "Import files" step sub-line shows a byte-formatted value, confirming the renderer took the `unit === 'bytes'` branch:
+
+```typescript
+// After the existing import success assertion:
+await expect(page.locator('#importZipStatus'))
+  .toContainText(/\d+\.\d+ (MB|GB) \/ \d+\.\d+ (MB|GB)/, { timeout: 5000 });
+```
+
+Element ID confirmed from `admin_system.php` line 584: `<div id="importZipStatus"></div>`.
+
+**Design note:** The 5000 ms timeout is sufficient because by the time the import success state is confirmed, the "Import files" step is already rendered in its `ok` state with final byte values in the sub-line.
+
+- [ ] **Step 19** — Add import byte-format assertion to `admin-pages.spec.ts`.
+
+---
+
 ### Final Verification — Ansible Playbook Runs
 
 After all eleven steps are complete, verification is a two-stage Ansible playbook sequence
@@ -958,10 +1279,21 @@ STATE H — stream error mid-download
    streaming download path. Step 10: add transfer-flow one-liner and client-side space
    caveat after the Step 7 streaming description.
 
+5. `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/assets/import_progress.js`
+   (gighiveinfra repo) — Step 15: add `_fmtBytes()` helper; update sub-line render to
+   format bytes when `progress.unit === 'bytes'`.
+6. `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/import_media_zip_worker.php`
+   (gighiveinfra repo) — Step 17: add `$totalBytes`/`$bytesProcessed` tracking in both
+   zip and tar.gz branches; emit `unit: 'bytes'` in `step.progress`.
+7. `gighiveinfra/ansible/roles/docker/files/apache/webroot/admin/import_media_zip_worker_azure.php`
+   (gighiveinfra repo) — Step 18: add `$totalBytes` pre-pass; track `$bytesProcessed`
+   per blob; emit `unit: 'bytes'` in `step.progress`.
+
 ### Unchanged
 
-- `admin/export_media_worker.php` — archive build logic unaffected (space check is in prepare, before the worker is spawned)
 - `admin/export_media.php` start mode — only prepare mode gains the space guard
+- `admin/export_media_status.php` — passes through `status.json` unchanged
+- `admin/export_media_download.php` — streaming logic unchanged
 - `admin/export_media_worker.php` — archive build logic unaffected
 - `admin/export_media_download.php` — server-side 256 KB chunk streaming already correct
 - `admin/export_media_status.php` — polling endpoint unaffected
@@ -987,10 +1319,16 @@ STATE H — stream error mid-download
 - [x] **Step 11** — Add Playwright route-mock test: simulate 507 prepare response, verify error in `#exportMediaStatus` and button re-enables
 - [x] **Step 12** — Add `alert-ok` success banner to local download path in `admin_system.php` (matches Azure pattern)
 - [x] **Step 13** — Strengthen regression test Step 2 assertion to `toContainText('Export complete')` on `.alert-ok` with 300 s timeout
+- [x] **Step 14** — `export_media_worker.php`: build `$fileSizeMap`, track `$bytesProcessed` in verbose callback, emit `unit: 'bytes'` in `step.progress`
+- [x] **Step 15** — `import_progress.js`: add `_fmtBytes()` helper and check `progress.unit === 'bytes'` when rendering the sub-line
+- [x] **Step 16** — `admin-pages.spec.ts`: add assertion that the "Build archive" sub-line contains a byte-formatted value (MB/GB) after export completes
+- [x] **Step 17** — `import_media_zip_worker.php`: both zip and tar.gz branches — add `$totalBytes`/`$bytesProcessed` tracking; emit `unit: 'bytes'` in `step.progress`
+- [x] **Step 18** — `import_media_zip_worker_azure.php`: add `$totalBytes`/`$bytesProcessed` tracking; emit `unit: 'bytes'` in `step.progress`
+- [x] **Step 19** — `admin-pages.spec.ts`: add assertion that the "Import files" sub-line contains a byte-formatted value after import completes
 
 ### Remaining — This Feature
 
-_(none — all steps complete)_
+_(none — all 19 steps complete)_
 
 ### Remaining — Follow-on Tasks
 

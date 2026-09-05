@@ -88,11 +88,15 @@ try {
         throw new RuntimeException('Destination directory /var/www/html/audio or /var/www/html/video does not exist — volume may not be mounted');
     }
 
-    $processed     = 0;
-    $added         = 0;
-    $alreadyExists = 0;
-    $bytesAdded    = 0;
-    $errors        = [];
+    $processed      = 0;
+    $added          = 0;
+    $alreadyExists  = 0;
+    $bytesAdded     = 0;
+    $bytesProcessed = 0;
+    $errors         = [];
+
+    $totalBytes = 0;
+    foreach ($rows as $blob) { $totalBytes += (int)($blob['size'] ?? 0); }
 
     foreach ($rows as $blob) {
         $blobName = (string)($blob['blob_name'] ?? '');
@@ -114,6 +118,7 @@ try {
         }
 
         $processed++;
+        $bytesProcessed += $size;
 
         if (is_file($dest)) {
             $alreadyExists++;
@@ -141,7 +146,7 @@ try {
                 ['name' => 'List blobs', 'status' => 'ok', 'message' => $total . ' blobs found', 'progress' => null],
                 ['name' => 'Import files', 'status' => 'running',
                  'message'  => $processed . ' / ' . $total . ' files imported',
-                 'progress' => ['processed' => $processed, 'total' => $total]],
+                 'progress' => ['processed' => $bytesProcessed, 'total' => $totalBytes, 'unit' => 'bytes']],
             ],
         ]);
     }

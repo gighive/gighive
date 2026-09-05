@@ -2,6 +2,24 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
+releaseNotes20260905.txt
+Changes: export / import media on admin_system.php fix for bytes vs file counts
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/assets/import_progress.js
+	modified:   ansible/roles/docker/files/apache/webroot/admin/export_media_worker.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_media_zip_worker.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/import_media_zip_worker_azure.php
+	modified:   ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts
+	modified:   docs/refactor_export_media_streaming_download.md
+
+*** 
 releaseNotes20260904.txt
 Changes: fix export media on admin_system.php to stream the tar.gz files direct
 

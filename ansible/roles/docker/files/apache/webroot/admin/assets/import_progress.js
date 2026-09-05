@@ -9,6 +9,13 @@
     _latch = {};
   }
 
+  function _fmtBytes(n) {
+    if (n >= 1073741824) return (n / 1073741824).toFixed(1) + ' GB';
+    if (n >= 1048576)    return (n / 1048576).toFixed(1) + ' MB';
+    if (n >= 1024)       return (n / 1024).toFixed(1) + ' KB';
+    return n + ' B';
+  }
+
   function _esc(s) {
     return String(s || '').replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] || c;
@@ -141,7 +148,10 @@
       if (showBar && valid) {
         barBlock = '<div style="margin-left:' + ipx + ';margin-top:.35rem">'
           + '<div class="muted" style="margin-bottom:.2rem">'
-          + processed + ' / ' + total + ' (' + pct + '%)' + indicator
+          + (progress.unit === 'bytes'
+              ? _fmtBytes(processed) + ' / ' + _fmtBytes(total)
+              : processed + ' / ' + total)
+          + ' (' + pct + '%)' + indicator
           + '</div>'
           + '<div style="height:10px;border:1px solid #1d2a55;border-radius:999px;overflow:hidden;background:#0e1530">'
           + '<div style="height:10px;width:' + pct + '%;background:#22c55e"></div>'
