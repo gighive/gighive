@@ -1176,7 +1176,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['mode'] ?? '') === 'preflight
         http_response_code(507);
         echo json_encode(['success' => false,
             'error' => 'Insufficient server temp space: ' . $avail . ' GB available, '
-                     . $req . ' GB required. Free up /tmp or use rsync.']);
+                     . $req . ' GB required (copy + untar, 2× ' . $archiveGb . ' GB archive). '
+                     . 'Free up /tmp or use rsync.']);
         exit;
     }
     // Media destination needs ~1× fileSize for the final imported files

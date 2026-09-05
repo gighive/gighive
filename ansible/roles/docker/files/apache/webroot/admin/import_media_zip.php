@@ -26,12 +26,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['mode'] ?? '') === 'preflight
     $tmpAvail = disk_free_space(sys_get_temp_dir());
     $required = $fileSize * 2;
     if ($tmpAvail === false || $tmpAvail < $required) {
-        $avail = $tmpAvail !== false ? round($tmpAvail / 1073741824, 1) : 0;
-        $req   = round($required / 1073741824, 1);
+        $avail      = $tmpAvail !== false ? round($tmpAvail / 1073741824, 1) : 0;
+        $req        = round($required / 1073741824, 1);
+        $archiveGb  = round($fileSize / 1073741824, 1);
         http_response_code(507);
         echo json_encode(['success' => false,
             'error' => 'Insufficient server temp space: ' . $avail . ' GB available, '
-                     . $req . ' GB required. Free up /tmp or use rsync.']);
+                     . $req . ' GB required (copy + untar, 2× ' . $archiveGb . ' GB archive). '
+                     . 'Free up /tmp or use rsync.']);
         exit;
     }
     // Media destination needs ~1× fileSize for the final imported files

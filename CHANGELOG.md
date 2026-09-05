@@ -3,7 +3,7 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260905.txt
-Changes: export / import media on admin_system.php additional fix for max upload size
+Changes: export / import media on admin_system.php additional fix for max upload size #2, #3
 
 macbook2025:gighiveinfra sodo$ git status
 On branch master
