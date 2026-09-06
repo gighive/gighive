@@ -240,7 +240,7 @@ Implement in this order (each file is independently testable before the next):
 - [ ] Add `doImportMediaZip()` JS:
   - [ ] Step 0: no-file guard → show error in `#importZipStatus`, re-enable button, return
   - [ ] Step 1: XHR POST `import_media_zip.php` mode=prepare via `FormData`; disable button; render `Upload Archive` step with `upload.onprogress` live counter; on `upload.onload` transition to `Inspect Archive` step; on `xhr.onload` resolve inspect step with found counts (.zip path); see Phase 2b for tar.gz async scan
-  - [ ] Step 2: `window.confirm()` with full message (audio/video counts, bytes, unsupported note); re-enable + return on cancel
+  - [ ] Step 2: proceed directly to `mode=start` after scan completes — no confirm dialog
   - [ ] Step 3: POST mode=start with `prepare_token`; HTTP 410 → show error, re-enable; call `resetProgressLatch()` before `pollJobStatus()`
   - [ ] Step 4: `onDone` renders `data.steps[0].message`; re-enable button
   - [ ] `finally`-equivalent: `importZipBtn.disabled = false` on all exit paths (cancel, 410, error state, catch)
@@ -557,7 +557,6 @@ Three steps are rendered in `#importZipStatus` via `renderImportStepsShared()`. 
 | — | **No-file guard** | Before any fetch: if `fileInput.files[0]` is absent, set `importZipStatus.innerHTML` to `"Please select a ZIP file first."` and return early (button never disabled). |
 | 1 | **Upload Archive** | `"Uploading…"` → `"123.4 MB / 455.1 MB uploaded"` (live, via XHR `upload.onprogress`) → `"455.1 MB uploaded"` ✓ |
 | 2 | **Inspect Archive** | `"Scanning entries…"` (.zip: synchronous central-directory scan; tar.gz: async pv-based scan — see Phase 2b) → `"10 audio + 5 video + 5 thumbnails found (455.1 MB)"` ✓ (thumbnail segment omitted when `thumbnail_count` is 0) |
-| — | **Confirm** | `window.confirm()` dialog (outside the progress panel): `"{N} audio + {M} video[ + {T} thumbnails] ready to import ({fmtBytes}).\n\n[{K} entries will be skipped (unsupported format).\n\n]Files already on disk are skipped safely.\n\nDo you wish to import?"` — thumbnails line only shown when `thumbnail_count > 0`; unsupported note only shown when `unsupported_count > 0`. If canceled: step 3 shows `"Canceled."` and button re-enabled. |
 | 3 | **Import files** | `"Starting…"` → `"847 / 2341 files imported"` (live, via `pollJobStatus()` every 1500 ms) → `"2195 added, 137 already on disk, 9 skipped (unsupported) (1.5 GB added)"` ✓ |
 
 **Implementation notes:**
@@ -569,7 +568,7 @@ Three steps are rendered in `#importZipStatus` via `renderImportStepsShared()`. 
 
 **Abort button (`#importAbortBtn`):** Hidden by default. Shown during upload phase with label `"Abort Upload"` — calls `xhr.abort()`. Shown during tar.gz scan phase with label `"Cancel Scan"` — calls the cancel function returned by `pollScanStatusAsync()`. Always hidden before upload starts, after upload completes (before scan), and during the import phase (canceling a running import is not safe). Re-hidden on every exit path.
 
-**Button re-enable:** `importZipBtn.disabled = false` must happen on **every** exit path — happy path (`state: done`), error path (`state: error`), cancel after confirm, upload abort, scan cancel, and any `catch` block. Implemented via `importRun().finally(...)`. The abort button must also be hidden in the `finally` block.
+**Button re-enable:** `importZipBtn.disabled = false` must happen on **every** exit path — happy path (`state: done`), error path (`state: error`), upload abort, scan cancel, and any `catch` block. Implemented via `importRun().finally(...)`. The abort button must also be hidden in the `finally` block.
 
 ---
 
@@ -685,7 +684,6 @@ GET scan_status?job_id=...
                           ───────► Read status.json
                           ◄─────── { state: done, scan_pct: 100, audio_count: 11293, … }
 
-window.confirm(…)          (operator sees counts, confirms or cancels)
 
 POST (prepare_token, mode=start)
                           ───────► Copy archive → import job dir, spawn import worker

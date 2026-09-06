@@ -3,6 +3,21 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260906.txt
+Changes: Removed prepare token TTL, updated 410 error message, cleaned TTL language from doc, added thumbnail_count to scan worker, updated confirm dialog thumbnails #2 
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   docs/feature_completed_import_media_from_zip.md
+	new file:   docs/problem_storage_wait_io.md
+
+*** 
+releaseNotes20260906.txt
 Changes: Removed prepare token TTL, updated 410 error message, cleaned TTL language from doc, added thumbnail_count to scan worker, updated confirm dialog thumbnails. 
 macbook2025:gighiveinfra sodo$ git status
 On branch master

@@ -1721,26 +1721,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
 
       const audioCount       = Number(scanData.audio_count)       || 0;
       const videoCount       = Number(scanData.video_count)       || 0;
-      const thumbnailCount   = Number(scanData.thumbnail_count)   || 0;
-      const unsupportedCount = Number(scanData.unsupported_count) || 0;
       const totalBytes       = Number(scanData.total_bytes)       || 0;
-
-      // ── Step 2: Confirm ───────────────────────────────────────────────────
-      const countLine = audioCount + ' audio + ' + videoCount + ' video'
-        + (thumbnailCount > 0 ? ' + ' + thumbnailCount + ' thumbnails' : '')
-        + ' ready to import (' + fmtBytes(totalBytes) + ').';
-      const unsupportedNote = unsupportedCount > 0
-        ? unsupportedCount + ' entries will be skipped (unsupported format).\n\n'
-        : '';
-      const confirmMsg = countLine + '\n\n'
-        + unsupportedNote
-        + 'Files already on disk are skipped safely.\n\nDo you wish to import?';
-
-      if (!window.confirm(confirmMsg)) {
-        steps[2] = { name: 'Import files', status: 'pending', message: 'Canceled.' };
-        render();
-        return;
-      }
 
       steps[2] = { name: 'Import files', status: 'running', message: 'Starting\u2026',
                    progress: { processed: 0, total: audioCount + videoCount || 1 } };
