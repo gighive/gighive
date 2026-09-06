@@ -181,7 +181,7 @@ Implement in this order (each file is independently testable before the next):
   - [ ] Return JSON: `success`, `prepare_token`, `audio_count`, `video_count`, `unsupported_count`, `file_count`, `total_bytes`
 - [ ] `mode=start`:
   - [ ] Validate `prepare_token` `/^[a-f0-9]{16}$/` → HTTP 400
-  - [ ] Resolve prep file; check `!is_file()` or expired (`filemtime < time() - 1800`) → HTTP 410
+  - [ ] Resolve prep file; check `!is_file()` → HTTP 410 (no TTL — file persists until OS /tmp cleanup)
   - [ ] `function_exists('exec')` → HTTP 500 if false (before any file ops)
   - [ ] `bin2hex(random_bytes(8))` → `$jobId`
   - [ ] `mkdir($jobDir, 0700, true)` → check → HTTP 500
@@ -288,7 +288,7 @@ Opens `$_FILES['zip_file']['tmp_name']` read-only via `ZipArchive::open()` witho
 - Entry count capped at 50,000 — reject with HTTP 400 `"ZIP contains too many entries"` if exceeded
 - Total uncompressed size capped at `2 × upload_max_filesize` — reject with HTTP 400 `"Uncompressed ZIP content exceeds safety limit"` if exceeded (zip bomb protection)
 
-After passing all guards: **call `$zip->close()`** to release the read handle on `tmp_name`. Then generate `$prepareToken = bin2hex(random_bytes(8))` and save the uploaded file via `move_uploaded_file($_FILES['zip_file']['tmp_name'], ...)` to `sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.zip'`. If `move_uploaded_file()` returns `false`: return HTTP 500 `"Failed to save uploaded ZIP"` — do not issue a token. The prep file expires after 30 minutes — `start` mode rejects tokens where the prep file's `filemtime()` is older than 1800 seconds.
+After passing all guards: **call `$zip->close()`** to release the read handle on `tmp_name`. Then generate `$prepareToken = bin2hex(random_bytes(8))` and save the uploaded file via `move_uploaded_file($_FILES['zip_file']['tmp_name'], ...)` to `sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.zip'`. If `move_uploaded_file()` returns `false`: return HTTP 500 `"Failed to save uploaded ZIP"` — do not issue a token. The prep file persists in `/tmp` until OS cleanup. The TTL check was removed — `start` mode only checks `is_file()`, not `filemtime()`.
 
 **Field definitions:**
 - `audio_count` — entries with valid SHA-256 name + supported audio extension
@@ -318,7 +318,7 @@ After passing all guards: **call `$zip->close()`** to release the read handle on
 
 1. Validate `prepare_token` matches `/^[a-f0-9]{16}$/` — return HTTP 400 if missing or invalid format
 2. Resolve prep file: `$prepPath = sys_get_temp_dir() . '/gighive_zip_prepare_' . $prepareToken . '.zip'`
-3. If `!is_file($prepPath)` or `filemtime($prepPath) < time() - 1800`: return HTTP 410 `"Prepare token expired or not found"` — operator must re-upload the ZIP
+3. If `!is_file($prepPath)`: return HTTP 410 `"Prepare archive not found — please re-upload"` — operator must re-upload
 4. **Check `function_exists('exec')`** — return HTTP 500 `"exec() is disabled"` if unavailable. Must happen before any file operations so the prep file is not consumed on a non-recoverable error.
 5. Generate `$jobId = bin2hex(random_bytes(8))` (16 hex chars)
 6. Create job directory: `$jobDir = sys_get_temp_dir() . '/gighive_import_' . $jobId . '/';` — `if (!mkdir($jobDir, 0700, true))` return HTTP 500 `"Failed to create job directory"`
@@ -556,18 +556,20 @@ Three steps are rendered in `#importZipStatus` via `renderImportStepsShared()`. 
 |---|---|---|
 | — | **No-file guard** | Before any fetch: if `fileInput.files[0]` is absent, set `importZipStatus.innerHTML` to `"Please select a ZIP file first."` and return early (button never disabled). |
 | 1 | **Upload Archive** | `"Uploading…"` → `"123.4 MB / 455.1 MB uploaded"` (live, via XHR `upload.onprogress`) → `"455.1 MB uploaded"` ✓ |
-| 2 | **Inspect Archive** | `"Scanning entries…"` (.zip: synchronous central-directory scan; tar.gz: async pv-based scan — see Phase 2b) → `"10 audio + 5 video found (455.1 MB)"` ✓ |
-| — | **Confirm** | `window.confirm()` dialog (outside the progress panel): `"{N} audio + {M} video files ready to import ({fmtBytes}).\n\n{if unsupported: "{K} entries will be skipped (unsupported format).\n\n"}Files already on disk are skipped safely.\n\nDo you wish to import?"` — if canceled: step 3 shows `"Canceled."` and button re-enabled. |
+| 2 | **Inspect Archive** | `"Scanning entries…"` (.zip: synchronous central-directory scan; tar.gz: async pv-based scan — see Phase 2b) → `"10 audio + 5 video + 5 thumbnails found (455.1 MB)"` ✓ (thumbnail segment omitted when `thumbnail_count` is 0) |
+| — | **Confirm** | `window.confirm()` dialog (outside the progress panel): `"{N} audio + {M} video[ + {T} thumbnails] ready to import ({fmtBytes}).\n\n[{K} entries will be skipped (unsupported format).\n\n]Files already on disk are skipped safely.\n\nDo you wish to import?"` — thumbnails line only shown when `thumbnail_count > 0`; unsupported note only shown when `unsupported_count > 0`. If canceled: step 3 shows `"Canceled."` and button re-enabled. |
 | 3 | **Import files** | `"Starting…"` → `"847 / 2341 files imported"` (live, via `pollJobStatus()` every 1500 ms) → `"2195 added, 137 already on disk, 9 skipped (unsupported) (1.5 GB added)"` ✓ |
 
 **Implementation notes:**
 - Steps 1 and 2 share a single HTTP round-trip for **.zip** (XHR POST `import_media_zip.php` mode=`prepare`). `upload.onprogress` drives step 1's live counter; `upload.onload` transitions the panel to step 2 `"Scanning entries…"`; `xhr.onload` resolves step 2 once the PHP response arrives. For **.tar.gz**, the scan runs asynchronously — see Phase 2b.
 - The `prepare_token` received from the inspect response is passed as a plain POST field to `mode=start` — ZIP bytes are not re-transmitted.
-- If the start response is HTTP 410 (expired token), step 3 shows `"Prepare token expired — please re-select the ZIP and try again."`
+- If the start response is HTTP 410 (archive not found), step 3 shows `"Prepare archive not found — please re-upload the archive and try again."`
 
 **Button label progression:** `"Import Archive"` → `"Uploading Archive…"` → `"Inspecting Archive…"` → `"Importing…"` → `"Import Archive"` (re-enabled via `finally`).
 
-**Button re-enable:** `importZipBtn.disabled = false` must happen on **every** exit path — happy path (`state: done`), error path (`state: error`), cancel after confirm, and any `catch` block. Implemented via `importRun().finally(...)`.
+**Abort button (`#importAbortBtn`):** Hidden by default. Shown during upload phase with label `"Abort Upload"` — calls `xhr.abort()`. Shown during tar.gz scan phase with label `"Cancel Scan"` — calls the cancel function returned by `pollScanStatusAsync()`. Always hidden before upload starts, after upload completes (before scan), and during the import phase (canceling a running import is not safe). Re-hidden on every exit path.
+
+**Button re-enable:** `importZipBtn.disabled = false` must happen on **every** exit path — happy path (`state: done`), error path (`state: error`), cancel after confirm, upload abort, scan cancel, and any `catch` block. Implemented via `importRun().finally(...)`. The abort button must also be hidden in the `finally` block.
 
 ---
 
@@ -662,6 +664,7 @@ The UI step names, button text, and HTML already updated in Phase 2 still contai
 - [x] **Step 6** — Update `admin_system.php`: rename step labels; add `pollScanStatusAsync()`; update `importRun()` to use async scan when `scan_job_id` present
 - [x] **Step 7** — Update Phase 2 inline label references in this doc (steps table, button progression, HTML snippet, checklist) — done in this edit window
 - [x] **Step 8** — Add smoke tests T-145 through T-149 to `post_build_checks/tasks/main.yml`
+- [ ] **Step 9** — Add `importAbortBtn` to `admin_system.php`: HTML element, upload-phase wiring to `xhr.abort()`, scan-phase wiring to `pollScanStatusAsync().cancel()`; add T-150
 
 ---
 
@@ -708,7 +711,8 @@ The JS enforces scan-before-start ordering: `importRun()` awaits `pollScanStatus
   "scan_pct": 47,
   "audio_count": 4812,
   "video_count": 1044,
-  "unsupported_count": 23,
+  "thumbnail_count": 1044,
+  "unsupported_count": 0,
   "total_bytes": 62345678901
 }
 ```
@@ -726,7 +730,8 @@ The JS enforces scan-before-start ordering: `importRun()` awaits `pollScanStatus
   "scan_pct": 100,
   "audio_count": 11293,
   "video_count": 2418,
-  "unsupported_count": 45,
+  "thumbnail_count": 2418,
+  "unsupported_count": 0,
   "total_bytes": 124453671936
 }
 ```
@@ -1002,6 +1007,118 @@ Add the seven Ansible tasks from the **Tests** section below to `ansible/roles/p
 
 ---
 
+### Step 9 — admin_system.php: Abort button
+
+**Goal:** Give the operator a way to abandon a large upload or cancel an in-progress scan without losing the browser tab.
+
+**Files changed:** `ansible/roles/docker/files/apache/webroot/admin/admin_system.php`
+
+**No server-side changes.** Upload abort drops the XHR connection; PHP discards the partial upload automatically. Scan cancel stops the browser poll; the background worker continues until done and is cleaned up by the TTL mechanism.
+
+#### HTML change
+
+Add a hidden Abort button immediately after `importZipBtn`:
+
+```html
+<button type="button" id="importZipBtn" onclick="doImportMediaZip()">Import Archive</button>
+<button type="button" id="importAbortBtn" style="display:none">Abort Upload</button>
+```
+
+#### JS changes — `doImportMediaZip()`
+
+**1. References at the top of the function:**
+
+```js
+const abortBtn = document.getElementById('importAbortBtn');
+```
+
+**2. Upload phase — show Abort button, wire to `xhr.abort()`:**
+
+After `xhr.open(...)` and before `xhr.send(...)`:
+
+```js
+abortBtn.textContent = 'Abort Upload';
+abortBtn.style.display = 'inline-block';
+abortBtn.onclick = function () { xhr.abort(); };
+
+xhr.onabort = function () {
+  abortBtn.style.display = 'none';
+  steps[0] = { name: 'Upload Archive', status: 'error', message: 'Upload aborted.' };
+  render();
+};
+```
+
+After the XHR promise resolves (upload complete, before scan), hide the button:
+
+```js
+abortBtn.style.display = 'none';
+```
+
+**3. Refactor `pollScanStatusAsync()` to return `{ promise, cancel }`:**
+
+```js
+function pollScanStatusAsync(scanJobId) {
+  let pollTimer;
+  let _reject;
+  const promise = new Promise(function (resolve, reject) {
+    _reject = reject;
+    pollTimer = setInterval(async function () {
+      // ... existing poll body unchanged ...
+    }, 1500);
+  });
+  return {
+    promise: promise,
+    cancel: function () {
+      clearInterval(pollTimer);
+      _reject(new Error('Scan canceled.'));
+    }
+  };
+}
+```
+
+**4. Scan phase — show Cancel Scan button, wire to `cancel()`:**
+
+```js
+if (prepData.scan_job_id) {
+  const scanControl = pollScanStatusAsync(prepData.scan_job_id);
+  abortBtn.textContent = 'Cancel Scan';
+  abortBtn.style.display = 'inline-block';
+  abortBtn.onclick = function () {
+    scanControl.cancel();
+    abortBtn.style.display = 'none';
+  };
+  try {
+    scanData = await scanControl.promise;
+  } catch (err) {
+    abortBtn.style.display = 'none';
+    steps[1] = { name: 'Inspect Archive', status: 'error', message: String(err.message) };
+    render();
+    return;
+  }
+  abortBtn.style.display = 'none';
+} else {
+  // .zip path — unchanged
+}
+```
+
+**5. `finally` block — ensure abort button is always hidden on every exit:**
+
+```js
+importRun().finally(() => {
+  _activeJob = false;
+  sessionStorage.removeItem('gh_import_job');
+  btn.disabled = false;
+  btn.textContent = 'Import Archive';
+  abortBtn.style.display = 'none';   // ← add this line
+});
+```
+
+#### Verification
+
+After deploying, open the Import Archive section and start a large upload. The "Abort Upload" button should appear next to the Import Archive button. Clicking it during upload should reset the panel to an error state and re-enable the Import Archive button. Clicking it during scan (tar.gz only) should show "Scan canceled." and re-enable.
+
+---
+
 ---
 
 ## Design Decisions
@@ -1048,6 +1165,12 @@ For archives where tar drains all bytes faster than pv's 0.5-second emission int
 **Concurrent scan jobs for the same archive**
 If `mode=prepare` is called twice (e.g. user clicks Import twice before the first call responds), two scan workers start on the same `$archivePath`. Each writes to its own scan job directory. The browser only polls the `scan_job_id` from the most recent prepare response. On SSD the contention is negligible; on rotating disk two simultaneous sequential reads compete. No resource guard is required for Phase 2b.
 
+**Background scan worker continues running after Cancel Scan**
+Clicking "Cancel Scan" stops the browser from polling and re-enables the Import button. It does not send any signal to the background scan worker, which continues reading the archive until it finishes or the process is killed. The scan job directory is cleaned up by the TTL mechanism (1 hour stale or 30 minutes post-done). The saved archive (`gighive_zip_prepare_*.tar.gz`) is not deleted — TTL cleanup on the next `mode=prepare` call or OS `/tmp` cleanup handles it. This is acceptable for Phase 2b; a cancel signal would require a signal file or process management infrastructure that adds significant complexity.
+
+**No abort during import phase**
+The Abort button is intentionally hidden once the `mode=start` response is received and the import worker is running. Aborting a running import would leave a partially-imported state on disk (some files written, some not). The existing idempotent re-run design ("files already on disk are skipped safely") is the recovery path — re-run the import from the beginning.
+
 ---
 
 ## Tests
@@ -1061,6 +1184,7 @@ T-numbers T-145 through T-149. Highest confirmed T-number in use across all `doc
 | T-147 | Unauthenticated GET `/admin/import_media_zip_scan_worker.php` returns 401 or 403 (CLI-only guard) | `post_build_checks` |
 | T-148 | `admin_system.php` page source contains `"Upload Archive"` and does NOT contain `"Upload ZIP"` | `post_build_checks` |
 | T-149 | `admin_system.php` page source contains `"Inspect Archive"` and does NOT contain `"Inspect ZIP"` | `post_build_checks` |
+| T-150 | `admin_system.php` source contains element `id="importAbortBtn"` (abort button deployed) | `post_build_checks` |
 
 **Ansible task templates** (add to `post_build_checks/tasks/main.yml`):
 
@@ -1127,6 +1251,16 @@ T-numbers T-145 through T-149. Highest confirmed T-number in use across all `doc
       grep -c "Inspect ZIP" /var/www/html/admin/admin_system.php
   register: t149a_resp
   failed_when: t149a_resp.rc == 0
+  tags: [smoke]
+
+- name: "[T-150] admin_system.php contains importAbortBtn element"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "importAbortBtn" /var/www/html/admin/admin_system.php
+  register: t150_resp
+  failed_when: t150_resp.rc != 0
+  changed_when: false
   tags: [smoke]
 ```
 {% endraw %}
@@ -1443,7 +1577,7 @@ A file with the same SHA-256 already on disk is by definition identical in conte
 Single source of truth for supported file types across the entire pipeline (catalog scan, TUS upload, ZIP import). Consistent classification regardless of where files enter the system.
 
 **Two-phase prepare + start (single upload, token handoff)**  
-The operator sees what's in the ZIP before any files are written to disk — a ZIP with 8,000 unsupported `.VOB` files would waste significant extraction time without the prepare step. The ZIP is uploaded once during `prepare`; `start` takes a `prepare_token` and `rename()`s the already-saved file, avoiding a second HTTP upload. The token expires after 30 minutes, at which point the operator must re-upload.
+The operator sees what's in the ZIP before any files are written to disk — a ZIP with 8,000 unsupported `.VOB` files would waste significant extraction time without the prepare step. The ZIP is uploaded once during `prepare`; `start` takes a `prepare_token` and `rename()`s the already-saved file, avoiding a second HTTP upload. No TTL is enforced — the archive persists in `/tmp` until OS cleanup or a new upload overwrites the slot.
 
 **Progress JSON written every 10 files**  
 Every-file writes would cause excessive I/O on large archives. Every-10-files provides sub-second latency (polling at 1500 ms, typical archives process well under 10 files per 1500 ms for large video files) while keeping I/O overhead negligible. The export worker's per-file `close()` already adds overhead; writing status JSON on every file would compound this unnecessarily.
@@ -1523,7 +1657,7 @@ Multiple simultaneous jobs are safe because each job uses a unique `$jobId`-keye
 
 ### Prepare token expiry
 
-The prep file saved during `prepare` mode expires after 30 minutes. If the operator inspects the ZIP, gets distracted, and clicks Confirm more than 30 minutes later, `start` will return HTTP 410 and the JS must prompt them to re-upload. This is intentional — indefinitely retaining uploaded ZIPs in `sys_get_temp_dir()` would accumulate disk usage silently.
+The prepared archive in `sys_get_temp_dir()` is not actively cleaned up by the application — removal relies on OS `/tmp` rotation. For large archives (100+ GB) this means disk space is held until the OS reclaims it, which may be hours or days depending on the host configuration. This is acceptable for the admin import workflow but operators should be aware that abandoned uploads consume disk until `/tmp` is cleared.
 
 ---
 

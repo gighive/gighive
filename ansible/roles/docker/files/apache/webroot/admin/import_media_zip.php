@@ -367,10 +367,10 @@ if ($mode === 'start') {
         $prefix = ltrim(rtrim($prefix, '/'), '/') . '/';
 
         $bloblistTmpPath = sys_get_temp_dir() . '/gighive_azure_import_prepare_' . basename($prepareToken) . '.json';
-        if (!is_file($bloblistTmpPath) || filemtime($bloblistTmpPath) < time() - 1800) {
+        if (!is_file($bloblistTmpPath)) {
             http_response_code(410);
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Prepare token expired or not found — re-run listing and confirm again']);
+            echo json_encode(['success' => false, 'error' => 'Prepare data not found — re-run listing and confirm again']);
             exit;
         }
 
@@ -466,18 +466,18 @@ if ($mode === 'start') {
     // Try .tar.gz first, then .zip (token carries no format hint)
     $prepPathTarGz = sys_get_temp_dir() . '/gighive_zip_prepare_' . basename($prepareToken) . '.tar.gz';
     $prepPathZip   = sys_get_temp_dir() . '/gighive_zip_prepare_' . basename($prepareToken) . '.zip';
-    if (is_file($prepPathTarGz) && filemtime($prepPathTarGz) >= time() - 1800) {
+    if (is_file($prepPathTarGz)) {
         $prepPath   = $prepPathTarGz;
         $uploadName = 'upload.tar.gz';
         $format     = 'tar.gz';
-    } elseif (is_file($prepPathZip) && filemtime($prepPathZip) >= time() - 1800) {
+    } elseif (is_file($prepPathZip)) {
         $prepPath   = $prepPathZip;
         $uploadName = 'upload.zip';
         $format     = 'zip';
     } else {
         http_response_code(410);
         header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'error' => 'Prepare token expired or not found — please re-upload the archive']);
+        echo json_encode(['success' => false, 'error' => 'Prepare archive not found — please re-upload']);
         exit;
     }
 

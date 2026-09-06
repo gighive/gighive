@@ -1681,7 +1681,9 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
                 clearInterval(pollTimer);
                 steps[1] = { name: 'Inspect Archive', status: 'ok',
                              message: Number(data.audio_count) + ' audio + ' + Number(data.video_count)
-                                      + ' video found (' + fmtBytes(Number(data.total_bytes)) + ')',
+                                      + ' video'
+                                      + (Number(data.thumbnail_count) > 0 ? ' + ' + Number(data.thumbnail_count) + ' thumbnails' : '')
+                                      + ' found (' + fmtBytes(Number(data.total_bytes)) + ')',
                              progress: null };
                 render();
                 resolve(data);
@@ -1719,14 +1721,18 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
 
       const audioCount       = Number(scanData.audio_count)       || 0;
       const videoCount       = Number(scanData.video_count)       || 0;
+      const thumbnailCount   = Number(scanData.thumbnail_count)   || 0;
       const unsupportedCount = Number(scanData.unsupported_count) || 0;
       const totalBytes       = Number(scanData.total_bytes)       || 0;
 
       // ── Step 2: Confirm ───────────────────────────────────────────────────
+      const countLine = audioCount + ' audio + ' + videoCount + ' video'
+        + (thumbnailCount > 0 ? ' + ' + thumbnailCount + ' thumbnails' : '')
+        + ' ready to import (' + fmtBytes(totalBytes) + ').';
       const unsupportedNote = unsupportedCount > 0
         ? unsupportedCount + ' entries will be skipped (unsupported format).\n\n'
         : '';
-      const confirmMsg = audioCount + ' audio + ' + videoCount + ' video files ready to import (' + fmtBytes(totalBytes) + ').\n\n'
+      const confirmMsg = countLine + '\n\n'
         + unsupportedNote
         + 'Files already on disk are skipped safely.\n\nDo you wish to import?';
 
@@ -1756,7 +1762,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       }
 
       if (startResp.status === 410) {
-        steps[2] = { name: 'Import files', status: 'error', message: 'Prepare token expired \u2014 please re-select the ZIP and try again.' };
+        steps[2] = { name: 'Import files', status: 'error', message: 'Prepare archive not found \u2014 please re-upload the archive and try again.' };
         render();
         return;
       }

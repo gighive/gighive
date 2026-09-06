@@ -62,12 +62,13 @@ try {
 
     $audioCount       = 0;
     $videoCount       = 0;
+    $thumbnailCount   = 0;
     $unsupportedCount = 0;
     $totalBytes       = 0;
     $lineCount        = 0;
 
     $onStdoutLine = function (string $line) use (
-        &$audioCount, &$videoCount, &$unsupportedCount, &$totalBytes, &$lineCount,
+        &$audioCount, &$videoCount, &$thumbnailCount, &$unsupportedCount, &$totalBytes, &$lineCount,
         $audioExtsSet, $videoExtsSet, $pvFile, $writeStatus, $scanJobId
     ): void {
         if ($line === '') return;
@@ -83,6 +84,8 @@ try {
             $audioCount += (int)isset($audioExtsSet[$ext]);
             $videoCount += (int)isset($videoExtsSet[$ext]);
             $totalBytes += $size;
+        } elseif (isValidThumbnailEntry($name)) {
+            $thumbnailCount++;
         } else {
             $unsupportedCount++;
         }
@@ -96,6 +99,7 @@ try {
                 'scan_pct'          => $scanPct,
                 'audio_count'       => $audioCount,
                 'video_count'       => $videoCount,
+                'thumbnail_count'   => $thumbnailCount,
                 'unsupported_count' => $unsupportedCount,
                 'total_bytes'       => $totalBytes,
             ]);
@@ -113,6 +117,7 @@ try {
         'scan_pct'          => 100,
         'audio_count'       => $audioCount,
         'video_count'       => $videoCount,
+        'thumbnail_count'   => $thumbnailCount,
         'unsupported_count' => $unsupportedCount,
         'total_bytes'       => $totalBytes,
     ]);
