@@ -12,7 +12,7 @@ After wiring the new unified video player into the authenticated database screen
 
 ## Summary
 
-During Phase 1 of the `refactor_video_player_page.md` plan, `UnifiedVideoPlayerView` was wired into `DatabaseDetailView` as the replacement for `MediaPlayerView`. After wiring, authenticated playback was completely broken: tapping the Play row in `DatabaseDetailView` produced no navigation to the player. Extensive XCUITest automation was also added and run to verify behavior, but two of those tests failed in a way that was initially ambiguous — it was unclear whether the app was broken or the test tooling was at fault.
+During Phase 1 of the `refactored_video_player_page.md` plan, `UnifiedVideoPlayerView` was wired into `DatabaseDetailView` as the replacement for `MediaPlayerView`. After wiring, authenticated playback was completely broken: tapping the Play row in `DatabaseDetailView` produced no navigation to the player. Extensive XCUITest automation was also added and run to verify behavior, but two of those tests failed in a way that was initially ambiguous — it was unclear whether the app was broken or the test tooling was at fault.
 
 Root cause analysis established two independent defects:
 

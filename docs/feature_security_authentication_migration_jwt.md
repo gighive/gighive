@@ -63,7 +63,7 @@ No existing customers means no compatibility constraints on the auth migration. 
 ### Prior Plans This Supersedes (Partially)
 
 - **`security_auth_jwt_token_migration.md`** — The role mapping table and phase structure remain accurate. Updated by: (a) QR guest endpoints now exist and are excluded from the migration; (b) `media-stream.php` already handles all media streaming, changing how Phase 3 (media proxy) applies; (c) TUS is now PHP-based (`api/tus-upload.php`), not a tusd container.
-- **`refactor_security.md`** — The `GIGHIVE_AUTH_MODE` env var design and Keycloak realm export concept are carried forward unchanged.
+- **`refactor_security.md`** *(deleted — superseded by this doc)* — The `GIGHIVE_AUTH_MODE` env var design and Keycloak realm export concept are carried forward unchanged.
 - **`refactor_security_recommendations_20260530.md`** — Bundle D (JWT) and Bundle E (OIDC) from that document map directly to Phases 1–4 and Phase 5 of this feature respectively.
 
 ---

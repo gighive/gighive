@@ -26,6 +26,8 @@ This document covers only **Phase 1 through Phase 4** — JWT core, PHP guards, 
 2. `auth/helpers.php` — `requireRole(string $minRole): void` and `hasRole(string $minRole): bool`. Role hierarchy: `owner=3`, `contributor=2`, `viewer=1`.
 3. `api/login.php` — `POST /api/login.php`: email + password exchange for JWT. Validates against `users` table, `idp_provider='local'`.
 4. `api/verify.php` — `GET /api/verify.php`: validates stored JWT; returns distinct `token_expired` vs `invalid_token` error codes.
+5. `auth/gh-auth.js` — Web admin JWT client module: `GHAuth.authedFetch()`, `GHAuth.login()`, `GHAuth.logout()`, `GHAuth.requireAuth()`. Stores JWT in `localStorage`; attaches `Authorization: Bearer <token>` to all authenticated AJAX calls from admin and DB pages. See **Phase 2 Companion — Web Admin Session Management**.
+6. `auth/login.php` — Web admin login page: renders an email/password form, calls `POST /api/login.php` via `GHAuth.login()`, stores the JWT, and redirects to the originally requested admin page. Replaces the Apache Basic Auth browser dialog for the web UI.
 
 ### New — Database (`ansible/roles/docker/files/mysql/externalConfigs/`)
 
@@ -566,6 +568,197 @@ require_once __DIR__ . '/../../auth/helpers.php';  // admin/ is one level deeper
 ```
 
 Verify this path is correct relative to each file's location before committing.
+
+---
+
+## Phase 2 Companion — Web Admin Session Management
+
+> **Prerequisite for Phase 4:** The audit, 20-step implementation plan, `auth/gh-auth.js` module design, 15-file inventory, and smoke tests (T-151–T-156) are fully documented in `docs/refactor_security_authentication_shared_auth_function.md`. This section is the architectural decision record. That doc is the execution blueprint and must be completed before Phase 4 begins.
+
+**Why this section exists — the tactical problem:**
+The existing admin pages make background AJAX polling calls (export progress, manifest import status, AI worker queue depth, catalog scan stats, etc.). Today those calls work because the browser automatically sends Basic Auth credentials with every request to the same origin — including silent background `fetch()` calls. Phase 4 removes Basic Auth entirely. After Phase 4 deploys, those `fetch()` calls go out with no credentials, hit the `requireRole()` guard added in Phase 2, receive a `401`, and silently fail — progress bars stop updating, status polls return nothing, jobs appear to hang with no error visible to the user. The Phase 2 PHP guard work alone does not solve this; the browser-side client must also be updated to send a token.
+
+**Decision (2026-09-07):** Browser-side JWTs are stored in `localStorage` and attached to all AJAX requests as `Authorization: Bearer <token>` headers (Option B — localStorage + Bearer). The alternative evaluated was httpOnly cookie (Option A). See `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md` for the full comparison.
+
+**Strategic rationale for Option B over Option A:** An httpOnly cookie would fix the immediate breakage with no JavaScript changes, but it ties the auth mechanism to the browser session model. The `Authorization: Bearer` contract is client-agnostic — when the PHP backend is eventually rewritten in Java or another runtime, every client (web, iOS, future) already speaks the correct protocol with no second round of client changes. This is the same pattern already used by the iOS app. Option A optimises for less work now at the cost of a harder migration later; Option B pays the JS audit cost once and is done.
+
+---
+
+### 2a. `auth/gh-auth.js`
+
+Serve from `/auth/gh-auth.js`. Include in the shared PHP admin template `<head>` block so every admin and DB page receives it automatically.
+
+```javascript
+/* GigHive web admin JWT client — gh-auth.js
+ * Stores JWT in localStorage; attaches Bearer token to all authenticated AJAX calls.
+ * NEVER log or display GHAuth.getToken() output.
+ */
+const GHAuth = (function () {
+    'use strict';
+
+    const TOKEN_KEY = 'gighive_jwt';
+    const ROLE_KEY  = 'gighive_role';
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function getRole()  { return localStorage.getItem(ROLE_KEY);  }
+
+    function _store(token, role) {
+        localStorage.setItem(TOKEN_KEY, token);
+        localStorage.setItem(ROLE_KEY,  role);
+    }
+
+    function _clear() {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(ROLE_KEY);
+    }
+
+    /**
+     * Drop-in replacement for fetch() that attaches Authorization: Bearer.
+     * Replace every fetch() call to an authenticated endpoint with this.
+     */
+    function authedFetch(url, opts) {
+        opts = opts || {};
+        opts.headers = Object.assign({}, opts.headers);
+        var token = getToken();
+        if (token) {
+            opts.headers['Authorization'] = 'Bearer ' + token;
+        }
+        return fetch(url, opts);
+    }
+
+    /**
+     * Redirect to the login page if no token is present.
+     * Call at the top of every admin page DOMContentLoaded handler.
+     */
+    function requireAuth() {
+        if (!getToken()) {
+            window.location.replace('/auth/login.php?next=' +
+                encodeURIComponent(window.location.pathname + window.location.search));
+        }
+    }
+
+    /**
+     * POST /api/login.php with email + password; stores result on success.
+     * Returns a Promise resolving to { token, role, email, expires_at }.
+     * Rejects with Error whose message is the server error code.
+     */
+    function login(baseUrl, email, password) {
+        return fetch(baseUrl + '/api/login.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ email: email, password: password })
+        }).then(function (res) {
+            return res.json().then(function (data) {
+                if (res.ok) { _store(data.token, data.role); return data; }
+                throw new Error(data.error || 'login_failed');
+            });
+        });
+    }
+
+    /** Clear stored token and redirect to the login page. */
+    function logout() {
+        _clear();
+        window.location.replace('/auth/login.php');
+    }
+
+    return {
+        getToken:    getToken,
+        getRole:     getRole,
+        authedFetch: authedFetch,
+        requireAuth: requireAuth,
+        login:       login,
+        logout:      logout
+    };
+}());
+```
+
+**Security notes:**
+- `localStorage` is readable by any JavaScript on the same origin. Never call `GHAuth.getToken()` in a context where the value could be logged, reflected into the DOM, or sent to a third-party origin.
+- The primary XSS risk is inline JS injection via user-supplied content rendered into admin pages. Existing output-escaping practices apply; no new risk is introduced by this module beyond what already exists.
+- Token is never written to a `console.log`, page title, or DOM attribute.
+
+---
+
+### 2b. `auth/login.php` (new web login page)
+
+Apache Basic Auth currently shows the browser's native credential dialog. Once Phase 4 removes Basic Auth, the web UI has no login entry point. `auth/login.php` provides an HTML form that calls `GHAuth.login()` and redirects to the original destination.
+
+Behaviour:
+- Renders an email + password form. No PHP session involvement — entirely stateless on the server side.
+- On submit, calls `GHAuth.login(window.location.origin, email, password)`.
+- On success, reads `?next=` query parameter and redirects; defaults to `/admin/admin_system.php`.
+- On failure, displays the mapped user-facing message (`invalid_credentials` → "Incorrect email or password", `account_disabled` → "Account is disabled", etc.).
+- If a valid token already exists in `localStorage` when the page loads, redirects immediately without showing the form.
+
+Must be reachable without auth — no `requireRole()` call and no Apache `Require` directive on this path.
+
+---
+
+### 2c. AJAX Audit — Required Before Phase 4
+
+**Audit orientation:** The role matrix (`ui_role_matrix.html`) is the *what-role-does-this-endpoint-need* reference. The grep below is the *where-are-the-call-sites* discovery tool. You need both — the matrix cannot tell you which PHP files contain JavaScript AJAX calls, and the grep cannot tell you whether the target endpoint requires authentication.
+
+Before Phase 4 deploys, every JavaScript `fetch()` call in admin and DB page `<script>` blocks that targets an authenticated endpoint must be replaced with `GHAuth.authedFetch()`. Calls targeting public or QR-nonce endpoints are unchanged.
+
+**Important:** PHP files also contain `$stmt->fetch(PDO::FETCH_ASSOC)` — PDO row fetching, not AJAX. The refined grep below excludes those:
+
+```bash
+# Run from the ansible/roles/docker/files/apache/webroot/ directory.
+# Finds JavaScript fetch() call sites; excludes PHP PDO ->fetch() calls.
+# Must include src/Views/ — view templates contain fetch() calls that are not
+# visible in the controller files that include them.
+grep -rn "fetch(" admin/ db/ src/Views/ --include="*.php" --include="*.js" \
+  | grep -v "\-\>fetch("
+```
+
+**Known call-site inventory (from initial audit run):**
+
+| File | JS fetch() calls | Authenticated targets |
+|---|---|---|
+| `admin/admin_system.php` | 19 | `run_backup`, `run_backup_status`, `clear_media`, `clear_media_files`, `export_media`, `export_media_download`, `import_media_zip`, `import_media_zip_scan_status`, `upload_restore_backup`, `restore_database`, `restore_database_status`, `admin_system_stats` |
+| `admin/admin_database_load_import_media_from_folder.php` | 8 | manifest endpoints (`prepare`, `finalize`, `upload_start`, `upload_status`, `upload_finalize`, `status`, `replay`, `jobs`) |
+| `admin/admin_database_catalog_promote.php` | 7 | `import_manifest_status`, `catalog_promote_writeback`, `import_manifest_upload_finalize`, `import_manifest_prepare`, `import_manifest_finalize`, `import_manifest_upload_start`, `catalog_promote_start` |
+| `db/media_tags.php` | 5 | `/api/ai_jobs.php`, `/api/taggings.php`, `/api/tags.php` |
+| `db/database_catalog.php` | 5 | `/db/catalog_entry_save.php` |
+| `admin/ai_worker.php` | 4 | `/api/ai_jobs.php` (cancel, status, enqueue_all, retag_all) |
+| `admin/admin_database_load_import_media_from_iphone.php` | 6 | TBD — verify during audit |
+| `admin/admin_database_load_import_csv.php` | 2 | TBD — verify during audit |
+| `admin/admin_database_catalog_media_from_folder.php` | 2 | TBD — verify during audit |
+| `db/upload_form_admin.php` | 2 | Likely TUS — verify; TUS auth handled in Phase 4b |
+| `db/upload_form.php` | 2 | Likely TUS — verify; TUS auth handled in Phase 4b |
+| `db/upload_form_single.php` | 2 | QR-nonce path — likely unchanged; verify |
+| `db/tag_browser.php` | 1 | TBD — verify during audit |
+| `src/Views/media/list.php` | 4 | `/api/tags.php`, `/db/database_edit_save.php`, `/db/database_edit_musicians_preview.php`, `/db/delete_media_files.php` — **view template included by `db/database.php`; fetch() calls live here, not in database.php** |
+| `src/Views/media/random_player.php` | 1 | `/db/singlesRandomPlayer.php` — viewer-level endpoint; verify whether auth required |
+
+For each call site: confirm the target endpoint has `requireRole()` in the matrix → replace with `GHAuth.authedFetch()`. Targets that are public or QR-nonce → leave as plain `fetch()`. Track completion in the Open Questions item in `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md`.
+
+---
+
+### 2d. Admin Page Inclusion Pattern
+
+Add once to the shared PHP admin template `<head>`:
+
+```html
+<script src="/auth/gh-auth.js"></script>
+```
+
+Add to the `DOMContentLoaded` handler at the top of each admin page's inline script:
+
+```javascript
+document.addEventListener('DOMContentLoaded', function () {
+    GHAuth.requireAuth();   // redirect to login if no token
+    // ... existing page init ...
+});
+```
+
+All existing `fetch('/admin/some-status.php')` calls in those pages become:
+
+```javascript
+GHAuth.authedFetch('/admin/some-status.php')
+```
+
+The function signature is identical to `fetch()` — `url` as first argument, optional `opts` object second — so replacing is mechanical.
 
 ---
 

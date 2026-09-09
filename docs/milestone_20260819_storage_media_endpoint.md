@@ -237,4 +237,4 @@ comes, the hard part is already done.
 - `refactor_storage_media_rest_endpoint.md` — architecture and decisions  
 - `refactor_storage_media_rest_endpoint_implementation.md` — build guide and build issues  
 - `refactor_storage_media_rest_endpoint_followons.md` — deferred cleanup items  
-- `refactor_status_20260819.md` — bang-for-buck ranking; Tranche 1 marked complete
+- `next_major_changes_20260906.md` — combined refactor + feature bang-for-buck ranking; Tranche 1 marked complete

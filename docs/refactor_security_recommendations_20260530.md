@@ -106,7 +106,7 @@ Self-contained, no auth system change required:
 Follows the full plan in `security_auth_jwt_token_migration.md`:
 
 **Phase 1 — Core auth infrastructure:**
-- DB migration: `users` table (`id`, `sub`, `email`, `password_hash`, `created_at`, `disabled`) + `user_roles` table as defined in `refactor_security.md`
+- DB migration: `users` table (`id`, `sub`, `email`, `password_hash`, `created_at`, `disabled`) + `user_roles` table as defined in `refactor_security.md` *(file deleted — superseded by `feature_security_authentication_migration_jwt.md`)*
 - `auth/jwt.php` — generation + validation (HS256 minimum; RS256 preferred for future OIDC interop)
 - `api/login.php` + `auth/login.html` — credential exchange → JWT
 - `requireRole()` / `hasRole()` helpers
@@ -136,7 +136,7 @@ Follows the full plan in `security_auth_jwt_token_migration.md`:
 
 ### Bundle E — OIDC / Federated Auth (longer-term)
 
-From `refactor_security.md`:
+From `refactor_security.md` *(file deleted — superseded by `feature_security_authentication_migration_jwt.md`)*:
 - `mod_auth_openidc` in the Dockerfile
 - `GIGHIVE_AUTH_MODE` env var: `local | oidc` (note: `basic` mode is deprecated and removed as part of Bundle D Phase 4; new installs default to `local`)
 - Keycloak realm export (`infra/keycloak/realm-gighive.json`) for self-hosted operators
@@ -188,7 +188,7 @@ Per the open questions at the end of `security_auth_jwt_token_migration.md`:
 | ZAP Bundle B | `docs/security_remediations_20260218.md` §5 remaining items |
 | DHI + runtime hardening | `docs/refactor_security_docker_hardened_images.md` recommended order 1–4 |
 | JWT Phase 1–5 | `docs/security_auth_jwt_token_migration.md` implementation checklist |
-| Local users + OIDC modes | `docs/refactor_security.md` §2, §3, §5 |
+| Local users + OIDC modes | `docs/refactor_security.md` §2, §3, §5 *(file deleted — see `feature_security_authentication_migration_jwt.md`)* |
 | Auth realms (current) | `docs/security_apache_realms.md` |
 | Password unification | `docs/refactor_security_password_unification.md` (Option C done; A deferred) |
 | Three-persona/three-realm setup | `docs/codingChanges/20250926securityauthchanges.md` |

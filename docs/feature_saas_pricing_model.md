@@ -120,7 +120,7 @@ account setup required.
 | Account lapse grace | 7 days before galleries enter soft-delete | Long enough to recover from a failed payment card without losing content; short enough to limit unpaid storage carry |
 | Hard delete timing | Day 17 from `created_at` (gallery) / Day 10 from lapse (account) | Deterministic, operator-runnable as a nightly cron against UTC timestamps |
 | TAR download | Free | Basic data portability right; large libraries make browser download impractical anyway, creating a natural upsell to Azure Blob export |
-| Azure Blob export | Included in Account Studio and Gallery Max; +$5/month optional add-on for Gallery Starter, Gallery Pro, and Account Pro | Already implemented (`feature_azure_blob_export.md`); professional workflow feature; Gallery Max and Account Studio both at the $99.95 price point — including it at both is the consistent choice; add-on is a Stripe subscription item, cancellable after a single export session |
+| Azure Blob export | Included in Account Studio and Gallery Max; +$5/month optional add-on for Gallery Starter, Gallery Pro, and Account Pro | Already implemented (`feature_completed_azure_blob_export.md`); professional workflow feature; Gallery Max and Account Studio both at the $99.95 price point — including it at both is the consistent choice; add-on is a Stripe subscription item, cancellable after a single export session |
 
 ---
 
@@ -198,7 +198,7 @@ with the account subscription.
 The Azure Blob export feature streams media files from GigHive's storage directly into the
 customer's own Azure Blob Storage account using a SAS token the customer provides. GigHive
 is the transfer agent — the files land in the customer's account, not in a GigHive-managed
-destination. See `feature_azure_blob_export.md` for the full implementation.
+destination. See `feature_completed_azure_blob_export.md` for the full implementation.
 
 ### Add-on pricing summary
 
@@ -273,7 +273,7 @@ real export egress costs via Azure Monitor once the feature is live under SaaS b
 
 ### SaaS implementation delta vs. current self-hosted implementation
 
-The current Azure export (`feature_azure_blob_export.md`) reads credentials from `.env` —
+The current Azure export (`feature_completed_azure_blob_export.md`) reads credentials from `.env` —
 a single server-level credential set. In SaaS mode, credentials are per-tenant. Required
 changes at Step 14 of `feature_saas_model_changes.md`:
 

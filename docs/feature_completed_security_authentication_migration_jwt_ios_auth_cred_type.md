@@ -1,7 +1,7 @@
 # Refactor: iOS `AuthCredential` Type — Unify Auth Header Construction
 
 **Date:** 2026-08-12
-**Status:** Planned — prerequisite for Phase 3 (iOS JWT migration)
+**Status:** ✅ Complete — `AuthCredential` enum implemented; all call sites updated
 **Related docs:**
 - `feature_security_authentication_migration_jwt.md` — strategic plan (Phase 3)
 - `feature_security_authentication_migration_jwt_implementation.md` — Phases 1–4 implementation

@@ -1,8 +1,8 @@
 # Refactor: Export Media — Streaming Browser Download
 
-## Status — 2026-09-04
+## Status — 2026-09-06
 
-Complete — all 23 steps implemented.
+Complete — all 23 steps implemented. Doc updated to reflect as-built divergences for Steps 16, 22, and 23.
 
 ---
 
@@ -862,7 +862,7 @@ $result = runTar($tarArgs, null, [], static function (string $line)
 - The `unit: 'bytes'` field is ignored by all existing renderers (Step 15 adds the check).
   No regression on other sections that use `pollJobStatus` / `renderImportStepsShared`.
 
-- [ ] **Step 14** — Update `export_media_worker.php`.
+- [x] **Step 14** — Update `export_media_worker.php`.
 
 ---
 
@@ -909,7 +909,7 @@ function _fmtBytes(n) {
 - The `_fmtBytes` function name is prefixed with `_` to match the module's internal
   convention (`_esc`, `_formatEtaFromMs`, `_poll`).
 
-- [ ] **Step 15** — Update `import_progress.js`.
+- [x] **Step 15** — Update `import_progress.js`.
 
 ---
 
@@ -917,27 +917,26 @@ function _fmtBytes(n) {
 
 **File:** `gighiveinfra/ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts`
 
-The regression test already waits for `Export complete` on the `alert-ok` banner (Step 13).
-Add an assertion immediately after that checks the "Build archive" sub-line shows a
-byte-formatted value, not a raw integer:
+**As built:** A standalone renderer unit test using `page.evaluate()` to inject a synthetic byte-unit step into `renderImportStepsShared` and assert `expect(html).toMatch(regex)`. This verifies the `_fmtBytes` branch in the renderer directly without depending on a live export run reaching a mid-progress state.
 
 ```typescript
-// After the existing Export complete assertion:
-await expect(page.locator('#exportMediaStatus'))
-  .toContainText(/\d+\.\d+ (MB|GB) \/ \d+\.\d+ (MB|GB)/, { timeout: 5000 });
+test('Section E — Build archive step renders byte-formatted progress', async ({ page }) => {
+  await page.goto('/admin/admin_system.php');
+  const html = await page.evaluate(() => {
+    return (window as any).renderImportStepsShared(
+      [{ name: 'Build archive', status: 'running',
+         message: '5 / 10 files',
+         progress: { processed: 68157440, total: 139810201600, unit: 'bytes' } }],
+      { showProgressBar: true, label: 'Export:', statusIndentPx: 80 }
+    );
+  });
+  expect(html).toMatch(/\d+\.\d+ (MB|GB) \/ \d+\.\d+ (MB|GB)/);
+});
 ```
 
-This regex matches any `X.Y MB / A.B MB` or `X.Y GB / A.B GB` pattern, confirming the
-renderer selected the bytes branch. It does not assert a specific value (devvm dataset size
-may vary).
+**Design note (divergence from original plan):** The original plan called for a `toContainText` assertion on `#exportMediaStatus` after the live Export complete assertion. The renderer unit test approach was chosen instead because it is deterministic (no dependency on export run timing or dataset size) and exercises the same renderer code path.
 
-**Design notes:**
-- The assertion is on `#exportMediaStatus` as a whole — the byte-formatted sub-line text
-  is present in the rendered HTML inside that container.
-- Timeout of 5000 ms is sufficient: by the time `Export complete` appears (Step 13
-  assertion), the archive step is already rendered in its `ok` state.
-
-- [ ] **Step 16** — Add byte-format assertion to `admin-pages.spec.ts`.
+- [x] **Step 16** — Add byte-format assertion to `admin-pages.spec.ts`.
 
 ---
 
@@ -1037,7 +1036,7 @@ Same refactor — move `$fileBytes = (int)filesize($thumbFilePath)` before the `
 - The tar.gz extraction itself (`tar -xzvf` without verbose callback) still has zero per-file progress updates during extraction — that is a pre-existing limitation, not introduced here. The byte-based counter kicks in during the copy-to-destination phase.
 - `$bytesProcessed` is declared at line ~57 alongside the other accumulators.
 
-- [ ] **Step 17** — Update `import_media_zip_worker.php` (both branches).
+- [x] **Step 17** — Update `import_media_zip_worker.php` (both branches).
 
 ---
 
@@ -1077,7 +1076,7 @@ Final DONE-state write stays as `['processed' => $total, 'total' => $total]` (no
 
 **Design note:** `$size` comes from Azure Blob Storage metadata and represents the blob's stored size (compressed if the blob was uploaded as-is). For GigHive exports, audio/video files are already compressed, so blob size ≈ uncompressed size. Thumbnails are PNGs which may be slightly larger in the blob than their extracted size, but the discrepancy is negligible for a progress bar. ✓
 
-- [ ] **Step 18** — Update `import_media_zip_worker_azure.php`.
+- [x] **Step 18** — Update `import_media_zip_worker_azure.php`.
 
 ---
 
@@ -1147,7 +1146,7 @@ progress: { processed: fileSize, total: fileSize, unit: 'bytes' }
 
 **Design note:** These `progress` objects are consumed only by `renderImportStepsShared`. Adding `unit: 'bytes'` causes no regressions — the renderer already guards correctly on `progress.unit === 'bytes'` (Step 15). The local `fmtBytes()` in `doImportMediaZip()` and the shared `_fmtBytes()` in `import_progress.js` produce identical output; no deduplication is needed here since they serve different render paths.
 
-- [ ] **Step 20** — Add `unit: 'bytes'` to "Upload archive" step progress objects in `doImportMediaZip()`.
+- [x] **Step 20** — Add `unit: 'bytes'` to "Upload archive" step progress objects in `doImportMediaZip()`.
 
 ---
 
@@ -1203,7 +1202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['mode'] ?? '') === 'preflight
 - Hardcoded `/var/www/html` path is a pre-existing pattern in this file. A `group_vars`-sourced constant is a follow-on hardening item.
 - The `2×` `/tmp` multiplier is conservative: the PHP upload temp file and the worker extraction dir may not both be present simultaneously, but overlap is possible during a slow copy.
 
-- [ ] **Step 21** — Add `mode=preflight` GET handler to `import_media_zip.php`.
+- [x] **Step 21** — Add `mode=preflight` GET handler to `import_media_zip.php`.
 
 ---
 
@@ -1248,8 +1247,9 @@ async function importRun() {
 - On error the button is re-enabled immediately — no orphaned server state because the upload never started.
 - No `esc()` needed on the error message because the step `message` field is rendered via `_esc()` inside `renderImportStepsShared`.
 - The Azure path (`doImportFromAzure()`) exits before this code runs (line 1550) — no Azure impact.
+- **As built:** the preflight step `name` is `"Upload Archive"` (capital A) to match the Upload Archive label used throughout `doImportMediaZip()`.
 
-- [ ] **Step 22** — Add preflight call in `doImportMediaZip()` before the XHR upload.
+- [x] **Step 22** — Add preflight call in `doImportMediaZip()` before the XHR upload.
 
 ---
 
@@ -1294,8 +1294,9 @@ test('Section F — import preflight rejects insufficient server space', async (
 - `fixtures/dummy.bin` is a 1 KB placeholder created inline if absent. The file never reaches the server.
 - The route pattern `**/import_media_zip.php?mode=preflight*` intercepts only the preflight GET. The subsequent `mode=prepare` POST would not fire in this test because the function returns early on preflight failure.
 - The in-memory buffer approach (`setInputFiles({ name, mimeType, buffer })`) avoids creating a fixture file on disk entirely. The existing tests use `path.join(REPO, 'ansible/fixtures/...')` for real CSV fixtures; a dummy 1 KB buffer doesn't belong there.
+- **As built:** test also asserts `#importZipBtn` re-enables after the preflight error (`toBeEnabled({ timeout: 2000 })`), confirming no orphaned disabled-button state.
 
-- [ ] **Step 23** — Add preflight 507 Playwright test to `admin-pages.spec.ts`.
+- [x] **Step 23** — Add preflight 507 Playwright test to `admin-pages.spec.ts`.
 
 ---
 

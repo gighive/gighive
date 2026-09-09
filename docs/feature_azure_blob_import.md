@@ -2,7 +2,7 @@
 
 **Status**: Draft  
 **Date**: 2026-07-26  
-**Related docs**: `docs/feature_azure_blob_export.md`, `docs/refactored_admin_export_media.md`
+**Related docs**: `docs/feature_completed_azure_blob_export.md`, `docs/refactored_admin_export_media.md`
 
 ---
 
@@ -42,7 +42,7 @@ as the local import worker — `/var/www/html/audio/`, `/var/www/html/video/`, a
 `{prefix}/video/thumbnails/{sha256}.png`) maps directly to these paths once the prefix is
 stripped. No new directory structure is introduced.
 
-**Scope**: Companion restore path for `feature_azure_blob_export.md`. Covers all file types
+**Scope**: Companion restore path for `feature_completed_azure_blob_export.md`. Covers all file types
 exported by that feature: audio files, video files, and video thumbnails.
 
 **Out of scope for this doc**:

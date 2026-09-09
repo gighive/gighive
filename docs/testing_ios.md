@@ -15,21 +15,21 @@
 9. I will sign in, open the database, and tap the entry for "Flesh Machine" by StormPigs to verify that the video detail screen opens and playback can be initiated for a known file (`3ed8bbc4….mp4`).
 10. I will sign in, navigate to the Upload page, and attempt to upload `3ed8bbc4….mp4` (located at `gighiveinfra/assets/video/`) to verify the server response for a duplicate file. *(Automated via `testUploadDuplicateFileShowsError` — the file is injected via `--uitest-upload-file` launch arg rather than through the system picker. **Observed result:** server returns HTTP 200 `success` but omits the delete token, indicating silent sha256-based deduplication. The app correctly displays a "no delete token" warning with instructions to contact support.)*
 
-**Phase 1 — Unified Player (`refactor_video_player_page.md`)**
+**Phase 1 — Unified Player (`refactored_video_player_page.md`)**
 
 11. I will tap a guest gallery video card to verify that `UnifiedVideoPlayerView` opens and the Close button is visible.
 12. I will tap Close on the guest player to verify it dismisses cleanly and returns to the list with no stuck screens.
 13. I will sign in, navigate to the unified list, and tap an entry to verify that the loading overlay appears for the authenticated player path.
 14. I will tap Close on the authenticated player to verify it returns to the unified list.
 
-**Phase 2 — Unified List, Guest Path (`refactor_video_player_page.md`)**
+**Phase 2 — Unified List, Guest Path (`refactored_video_player_page.md`)**
 
 15. I will open a known approved guest gallery to verify that `UnifiedVideoListView` renders at least one video card.
 16. I will open a fresh guest gallery to verify that the "New" badge is visible on unviewed cards.
 17. I will tap a card and close the player to verify the "New" badge is gone for that row.
 18. I will open a guest gallery to verify that the flag button is present on cells and no search bar is rendered.
 
-**Phase 3 — Unified List, Authenticated Path (`refactor_video_player_page.md`)**
+**Phase 3 — Unified List, Authenticated Path (`refactored_video_player_page.md`)**
 
 19. I will sign in and navigate to the unified list to verify the card layout renders and entries load.
 20. I will sign in and verify a search bar is visible for the authenticated context.
@@ -37,7 +37,7 @@
 22. I will view a video, restart the app, and verify the "New" badge is absent for the viewed video and present for unviewed ones.
 23. I will verify `--uitest-navigate-database` still triggers navigation to `UnifiedVideoListView` after Step 12 (regression guard).
 
-**Phase 4 — Authenticated Delete (`refactor_video_player_page.md`)**
+**Phase 4 — Authenticated Delete (`refactored_video_player_page.md`)**
 
 24. I will sign in and navigate to the unified list with no stored delete tokens to verify no delete (✕) button appears on any card.
 25. I will inject a synthetic delete token for a known file ID (`GH_TEST_DELETE_FILE_ID`), sign in, and navigate to the unified list to verify the delete button appears on the matching card and is absent on all others.
@@ -252,7 +252,7 @@ Add as `// MARK: - Phase 1 — Unified Player` in `GigHiveUITests.swift`.
 | `testAuthPlayerOpensAndShowsOverlay` | Yes | After login + `--uitest-navigate-unified-list`, tapping a cell shows `unified_player_overlay` |
 | `testAuthPlayerCloseButtonDismisses` | Yes | `unified_player_close_button` dismisses authenticated player back to the unified list |
 
-> Full playback cannot be asserted in XCUITest because `AVPlayerViewController` rendering is opaque to the accessibility tree. These tests assert navigation and overlay state only. KVO log-tag verification is done manually per the Step 6 checklist in `refactor_video_player_page.md`.
+> Full playback cannot be asserted in XCUITest because `AVPlayerViewController` rendering is opaque to the accessibility tree. These tests assert navigation and overlay state only. KVO log-tag verification is done manually per the Step 6 checklist in `refactored_video_player_page.md`.
 
 ## Test Inventory — Phase 2 (Unified List — Guest Path)
 
@@ -525,7 +525,7 @@ Follow this pattern for new Phase tests:
 
 Future test coverage planned:
 
-- Phase 1–3: Unified player and list tests (see test inventories above — `refactor_video_player_page.md`)
+- Phase 1–3: Unified player and list tests (see test inventories above — `refactored_video_player_page.md`)
 - Bearer token login flow
 - JWT expiry → re-login prompt
 - Upload flow with session credential vs QR upload token

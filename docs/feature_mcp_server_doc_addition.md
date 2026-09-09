@@ -67,7 +67,7 @@ convention where the prefix determines the category:
 | `feature_` | `feature` | `feature_ai_intelligence_platform.md` |
 | `problem_` | `problem` | `problem_cloudflare_caching_media.md` |
 | `refactored_` | `refactored` | `refactored_upload_jobs_from_json_to_db.md` |
-| `refactor_` | `refactor` | `refactor_security.md` |
+| `refactor_` | `refactor` | `refactor_security_docker_hardened_images.md` |
 | `process_` | `process` | `process_mysql_init.md` |
 | `guide_` | `guide` | `guide_ai_worker_tagging.md` |
 | `security_` | `security` | `security_auth_jwt_token_migration.md` |

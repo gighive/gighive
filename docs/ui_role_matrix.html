@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GigHive — UI Role Matrix</title>
+  <style>
+    :root {
+      --bg:            #0d1117;
+      --surface:       #121a33;
+      --surface2:      #0f1526;
+      --border:        #1d2a55;
+      --border-light:  #263b6e;
+      --text:          #c9d1d9;
+      --muted:         #8b949e;
+      --accent:        #3b82f6;
+
+      --v-color:  #22c55e;
+      --u-color:  #3b82f6;
+      --la-color: #f59e0b;
+      --ta-color: #a855f7;
+
+      --badge-ui:      #0ea5e9;
+      --badge-api:     #6366f1;
+      --badge-worker:  #ec4899;
+      --badge-ios:     #14b8a6;
+      --badge-planned: #64748b;
+
+      --s-current:    #4b5563;
+      --s-la-only:    #d97706;
+      --s-ta-only:    #9333ea;
+      --s-split:      #dc2626;
+      --s-new:        #2563eb;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      padding: 1.5rem 1.5rem .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-header h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #f0f6fc;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .page-header .subtitle {
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: .25rem;
+    }
+    .page-header .subtitle a { color: #79c0ff; text-decoration: none; }
+    .page-header .subtitle a:hover { text-decoration: underline; }
+    .role-legend {
+      display: flex;
+      gap: 1.2rem;
+      margin-top: .55rem;
+      flex-wrap: wrap;
+    }
+    .role-legend-item {
+      font-size: .72rem;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      color: var(--muted);
+    }
+    .role-legend-item .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 1rem;
+      padding: .5rem 1.5rem;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .stat { display: flex; align-items: center; gap: .35rem; font-size: .74rem; color: var(--muted); }
+    .stat strong { color: var(--text); font-weight: 600; }
+    .stat .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      position: sticky; top: 0; z-index: 20;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: .6rem 1.5rem;
+      display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+    }
+    .filter-group { display: flex; align-items: center; gap: .4rem; }
+    .filter-group label { font-size: .68rem; color: var(--muted); white-space: nowrap; text-transform: uppercase; letter-spacing: .05em; }
+
+    /* role pills */
+    .role-pills { display: flex; gap: .3rem; }
+    .role-pill {
+      border: 1px solid; border-radius: 20px;
+      padding: .18rem .6rem;
+      font-size: .71rem; font-weight: 600; cursor: pointer; background: transparent;
+      transition: background .12s, color .12s; white-space: nowrap;
+    }
+    .role-pill.v-pill  { border-color: var(--v-color);  color: var(--v-color); }
+    .role-pill.u-pill  { border-color: var(--u-color);  color: var(--u-color); }
+    .role-pill.la-pill { border-color: var(--la-color); color: var(--la-color); }
+    .role-pill.ta-pill { border-color: var(--ta-color); color: var(--ta-color); }
+    .role-pill.v-pill.active  { background: var(--v-color);  color: #000; }
+    .role-pill.u-pill.active  { background: var(--u-color);  color: #fff; }
+    .role-pill.la-pill.active { background: var(--la-color); color: #000; }
+    .role-pill.ta-pill.active { background: var(--ta-color); color: #fff; }
+
+    /* status pills */
+    .status-pills { display: flex; gap: .25rem; flex-wrap: wrap; }
+    .status-pill {
+      border-radius: 4px; padding: .15rem .45rem;
+      font-size: .67rem; font-weight: 700; cursor: pointer;
+      border: 1px solid; opacity: .55;
+      transition: opacity .12s;
+    }
+    .status-pill:hover { opacity: .85; }
+    .status-pill.active { opacity: 1; }
+    .status-pill[data-s=""]         { border-color: var(--border-light); background: transparent; color: var(--muted); }
+    .status-pill[data-s="current"]  { border-color: var(--s-current); color: var(--s-current); background: rgba(75,85,99,.12); }
+    .status-pill[data-s="la-only"]  { border-color: var(--s-la-only); color: var(--s-la-only); background: rgba(217,119,6,.1); }
+    .status-pill[data-s="ta-only"]  { border-color: var(--s-ta-only); color: var(--s-ta-only); background: rgba(147,51,234,.1); }
+    .status-pill[data-s="needs-split"] { border-color: var(--s-split); color: var(--s-split); background: rgba(220,38,38,.1); }
+    .status-pill[data-s="new"]      { border-color: var(--s-new); color: var(--s-new); background: rgba(37,99,235,.1); }
+    .status-pill[data-s=""].active  { background: rgba(255,255,255,.08); color: var(--text); border-color: var(--text); opacity: 1; }
+
+    /* type pills */
+    .type-pills { display: flex; gap: .25rem; }
+    .type-pill {
+      border-radius: 4px; padding: .15rem .45rem;
+      font-size: .67rem; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--border-light); background: transparent; color: var(--muted);
+      transition: background .1s, color .1s, border-color .1s;
+    }
+    .type-pill:hover { border-color: var(--text); color: var(--text); }
+    .type-pill.active { background: var(--border-light); color: var(--text); border-color: var(--text); }
+
+    select, input[type="text"] {
+      background: var(--surface2); border: 1px solid var(--border-light); color: var(--text);
+      border-radius: 6px; padding: .28rem .5rem; font-size: .74rem; outline: none;
+    }
+    select:focus, input[type="text"]:focus { border-color: var(--accent); }
+    #search { width: 175px; }
+
+    .btn-clear {
+      background: transparent; border: 1px solid var(--border-light); color: var(--muted);
+      border-radius: 6px; padding: .28rem .65rem; font-size: .71rem; cursor: pointer;
+    }
+    .btn-clear:hover { border-color: var(--text); color: var(--text); }
+
+    .row-count { margin-left: auto; font-size: .71rem; color: var(--muted); white-space: nowrap; }
+    .row-count strong { color: var(--text); }
+
+    /* ── Note banner ── */
+    .note-banner {
+      margin: .45rem 1.5rem .05rem;
+      background: rgba(168,85,247,.07); border: 1px solid rgba(168,85,247,.22);
+      border-radius: 8px; padding: .5rem .85rem;
+      font-size: .72rem; color: #c4b5fd;
+      display: flex; align-items: flex-start; gap: .45rem;
+    }
+    .note-banner a { color: #a5b4fc; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; padding: 0 1.5rem 2.5rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: .6rem; }
+
+    thead tr th {
+      background: var(--surface); border-bottom: 2px solid var(--border);
+      padding: .5rem .6rem; text-align: left;
+      font-size: .7rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+      position: sticky; top: 53px; z-index: 10;
+    }
+    thead tr th[data-sort] { cursor: pointer; user-select: none; }
+    thead tr th[data-sort]:hover { color: var(--text); }
+    .sort-arrow { font-size: .58rem; margin-left: .2rem; opacity: .35; }
+    thead tr th.sorted .sort-arrow { opacity: 1; }
+
+    th.role-col { text-align: center; width: 52px; }
+    th.v-col  { color: var(--v-color)  !important; }
+    th.u-col  { color: var(--u-color)  !important; }
+    th.la-col { color: var(--la-color) !important; }
+    th.ta-col { color: var(--ta-color) !important; }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .08s; }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+
+    tbody tr.cat-group-header td {
+      background: var(--surface2); color: var(--muted);
+      font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+      padding: .38rem .6rem; border-top: 1px solid var(--border);
+    }
+
+    td { padding: .42rem .6rem; vertical-align: top; font-size: .76rem; }
+
+    td.page-cell {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: .71rem; color: #79c0ff; white-space: nowrap; max-width: 280px;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    td.page-cell.ios-name    { font-family: inherit; color: var(--badge-ios);     font-style: italic; font-size: .74rem; }
+    td.page-cell.planned-name{ font-family: inherit; color: var(--badge-planned); font-size: .74rem; }
+    td.cat-cell  { color: var(--muted); font-size: .7rem; white-space: nowrap; }
+    td.desc-cell { color: var(--text); max-width: 330px; }
+
+    .badge {
+      display: inline-block; border-radius: 4px; padding: .1rem .38rem;
+      font-size: .63rem; font-weight: 700; letter-spacing: .03em; white-space: nowrap;
+    }
+    .badge-UI      { background: rgba(14,165,233,.16);  color: var(--badge-ui); }
+    .badge-API     { background: rgba(99,102,241,.16);  color: var(--badge-api); }
+    .badge-Worker  { background: rgba(236,72,153,.16);  color: var(--badge-worker); }
+    .badge-iOS     { background: rgba(20,184,166,.16);  color: var(--badge-ios); }
+    .badge-Planned { background: rgba(100,116,139,.16); color: var(--badge-planned); }
+
+    /* status badge */
+    .sbadge {
+      display: inline-block; border-radius: 4px; padding: .1rem .38rem;
+      font-size: .62rem; font-weight: 700; letter-spacing: .03em; white-space: nowrap;
+    }
+    .sbadge-current    { background: rgba(75,85,99,.2);    color: #9ca3af; }
+    .sbadge-la-only    { background: rgba(217,119,6,.2);   color: #fbbf24; }
+    .sbadge-ta-only    { background: rgba(147,51,234,.2);  color: #c084fc; }
+    .sbadge-needs-split{ background: rgba(220,38,38,.2);   color: #f87171; }
+    .sbadge-new        { background: rgba(37,99,235,.2);   color: #60a5fa; }
+
+    td.role-cell { text-align: center; }
+    .check { display: inline-block; font-size: .88rem; font-weight: 700; line-height: 1; }
+    .check-v  { color: var(--v-color); }
+    .check-u  { color: var(--u-color); }
+    .check-la { color: var(--la-color); }
+    .check-ta { color: var(--ta-color); }
+
+    /* highlight rows by status */
+    tbody tr.row-la-only    { background: rgba(217,119,6,.04); }
+    tbody tr.row-ta-only    { background: rgba(147,51,234,.04); }
+    tbody tr.row-split      { background: rgba(220,38,38,.05); }
+    tbody tr.row-la-only:hover  { background: rgba(217,119,6,.09); }
+    tbody tr.row-ta-only:hover  { background: rgba(147,51,234,.09); }
+    tbody tr.row-split:hover    { background: rgba(220,38,38,.09); }
+
+    .empty-row td { text-align: center; color: var(--muted); padding: 2rem; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>&#x1F41D; GigHive &mdash; UI Role Matrix</h1>
+  <p class="subtitle">
+    All pages and screens mapped across all four roles &mdash; 2026-09-07 &nbsp;|&nbsp;
+    Guard decisions: <a href="feature_security_authentication_migration_jwt_endpoint_guard_checklist.md">feature_security_authentication_migration_jwt_endpoint_guard_checklist.md</a>
+  </p>
+  <div class="role-legend">
+    <span class="role-legend-item"><span class="dot" style="background:var(--v-color)"></span><strong style="color:var(--v-color)">V</strong>&nbsp;Viewer</span>
+    <span class="role-legend-item"><span class="dot" style="background:var(--u-color)"></span><strong style="color:var(--u-color)">U</strong>&nbsp;Uploader</span>
+    <span class="role-legend-item"><span class="dot" style="background:var(--la-color)"></span><strong style="color:var(--la-color)">LA</strong>&nbsp;Local Admin &mdash; event organizer / tenant customer</span>
+    <span class="role-legend-item"><span class="dot" style="background:var(--ta-color)"></span><strong style="color:var(--ta-color)">TA</strong>&nbsp;Tenant Admin &mdash; platform owner</span>
+    <span class="role-legend-item" style="margin-left:.5rem; padding-left:.8rem; border-left:1px solid var(--border)">
+      <span class="sbadge sbadge-current">current</span>&nbsp;
+      <span class="sbadge sbadge-la-only">la-only</span>&nbsp;
+      <span class="sbadge sbadge-ta-only">ta-only</span>&nbsp;
+      <span class="sbadge sbadge-needs-split">needs-split</span>&nbsp;
+      <span class="sbadge sbadge-new">new</span>
+    </span>
+  </div>
+</div>
+
+<div class="stats-bar" id="stats-bar"></div>
+
+<div class="note-banner">
+  <span style="flex-shrink:0">&#x26A0;&#xFE0F;</span>
+  <span>
+    <strong>needs-split</strong> rows require separate routes or scoped responses per role &mdash;
+    <strong>la-only</strong> rows remove TA access at SaaS Step 8 &mdash;
+    <strong>ta-only</strong> rows graduate to <code>requireRole('platform_admin')</code>.
+    Full rationale in <a href="feature_security_authentication_migration_jwt_endpoint_guard_checklist.md">the guard checklist doc</a>.
+  </span>
+</div>
+
+<div class="filter-bar">
+  <div class="filter-group">
+    <label>Role</label>
+    <div class="role-pills">
+      <button class="role-pill v-pill"  data-role="V">Viewer</button>
+      <button class="role-pill u-pill"  data-role="U">Uploader</button>
+      <button class="role-pill la-pill" data-role="LA">Local Admin</button>
+      <button class="role-pill ta-pill" data-role="TA">Tenant Admin</button>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <label>Status</label>
+    <div class="status-pills">
+      <button class="status-pill active" data-s="">All</button>
+      <button class="status-pill" data-s="current">current</button>
+      <button class="status-pill" data-s="la-only">la-only</button>
+      <button class="status-pill" data-s="ta-only">ta-only</button>
+      <button class="status-pill" data-s="needs-split">needs-split</button>
+      <button class="status-pill" data-s="new">new</button>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <label>Category</label>
+    <select id="cat-filter"><option value="">All categories</option></select>
+  </div>
+
+  <div class="filter-group">
+    <label>Type</label>
+    <div class="type-pills">
+      <button class="type-pill active" data-type="">All</button>
+      <button class="type-pill" data-type="UI">UI</button>
+      <button class="type-pill" data-type="API">API</button>
+      <button class="type-pill" data-type="Worker">Worker</button>
+      <button class="type-pill" data-type="iOS">iOS</button>
+      <button class="type-pill" data-type="Planned">Planned</button>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <label>Search</label>
+    <input type="text" id="search" placeholder="Page name or description&hellip;" autocomplete="off">
+  </div>
+
+  <button class="btn-clear" id="btn-clear">Clear</button>
+  <span class="row-count" id="row-count"></span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th data-sort="page" style="min-width:210px">Page / Screen <span class="sort-arrow">&#x25B4;</span></th>
+        <th data-sort="cat"  style="min-width:150px">Category <span class="sort-arrow">&#x25B4;</span></th>
+        <th data-sort="type" style="min-width:70px">Type <span class="sort-arrow">&#x25B4;</span></th>
+        <th data-sort="status" style="min-width:105px">Status <span class="sort-arrow">&#x25B4;</span></th>
+        <th style="min-width:240px">Description</th>
+        <th data-sort="V"  class="role-col v-col"  title="Viewer">V <span class="sort-arrow">&#x25B4;</span></th>
+        <th data-sort="U"  class="role-col u-col"  title="Uploader">U <span class="sort-arrow">&#x25B4;</span></th>
+        <th data-sort="LA" class="role-col la-col" title="Local Admin">LA <span class="sort-arrow">&#x25B4;</span></th>
+        <th data-sort="TA" class="role-col ta-col" title="Tenant Admin">TA <span class="sort-arrow">&#x25B4;</span></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* Status values:
+     current      — existing page, single-role, no change needed at SaaS Step 8
+     la-only      — shared today; decision = reassign to LA (requireRole owner, tenant-scoped)
+     ta-only      — shared today; decision = reassign to TA (requireRole platform_admin)
+     needs-split  — shared today; requires two surfaces or branched scope per role
+     new          — planned, does not exist yet
+  */
+
+  var CATS = [
+    { id:  1, name: "Public / Unauthenticated" },
+    { id:  2, name: "Viewer / Uploader (Auth)" },
+    { id:  3, name: "Admin: Media Library" },
+    { id:  4, name: "Admin: QR Code" },
+    { id:  5, name: "Admin: Import Folder/CSV" },
+    { id:  6, name: "Admin: Import iPhone" },
+    { id:  7, name: "Admin: Import ZIP/Azure" },
+    { id:  8, name: "Admin: Import Manifest" },
+    { id:  9, name: "Admin: Catalog" },
+    { id: 10, name: "Admin: AI Tagging" },
+    { id: 11, name: "Admin: Export" },
+    { id: 12, name: "Admin: System & Recovery" },
+    { id: 13, name: "Debug / Diagnostic" },
+    { id: 14, name: "REST API Endpoints" },
+    { id: 15, name: "iOS Screens" },
+    { id: 16, name: "Planned SaaS" }
+  ];
+
+  /* s = status: current | la-only | ta-only | needs-split | new */
+  var ROWS = [
+    /* 1 — Public */
+    { p:"/index.php",                    c:1,  t:"UI",  s:"current", d:"Band home page with photo grid and timeline",                                     V:1,U:1,LA:0,TA:0 },
+    { p:"/loops.php",                    c:1,  t:"UI",  s:"current", d:"Loops / jam sessions audio player",                                               V:1,U:1,LA:0,TA:0 },
+    { p:"/guest_event_view.php",         c:1,  t:"UI",  s:"current", d:"Guest event gallery via nonce URL from QR code scan (no login required)",          V:1,U:0,LA:0,TA:0 },
+    { p:"/mail/register.php",            c:1,  t:"UI",  s:"new",     d:"User registration form (future SaaS self-serve signup)",                           V:0,U:0,LA:0,TA:1 },
+    { p:"/mail/handle_register.php",     c:1,  t:"API", s:"new",     d:"Processes registration form POST",                                                V:0,U:0,LA:0,TA:1 },
+    { p:"/timeline/timeline-api.php",    c:1,  t:"API", s:"current", d:"Public event timeline JSON feed — powers the homepage timeline widget; intentionally unauthenticated, CORS wildcard (Access-Control-Allow-Origin: *)", V:1,U:1,LA:0,TA:0 },
+
+    /* 2 — Viewer/Uploader */
+    { p:"/db/database.php",              c:2,  t:"UI",  s:"current", d:"Main media library browser — lists events and assets, plays inline; edit available to admin",  V:1,U:1,LA:1,TA:0 },
+    { p:"/db/singlesRandomPlayer.php",   c:2,  t:"UI",  s:"current", d:"Auto-plays a random media item from the library",                                               V:1,U:1,LA:0,TA:0 },
+    { p:"/db/tag_browser.php",           c:2,  t:"UI",  s:"current", d:"Browse all tags across assets with usage counts; filter by namespace",                          V:1,U:1,LA:1,TA:0 },
+    { p:"/db/upload_form.php",           c:2,  t:"UI",  s:"current", d:"Minimal upload form for testing the Upload API (uploader role)",                                V:0,U:1,LA:0,TA:0 },
+    { p:"/db/upload_form_single.php",    c:2,  t:"UI",  s:"current", d:"Single-file upload form for uploader role",                                                     V:0,U:1,LA:0,TA:0 },
+
+    /* 3 — Admin: Media Library */
+    { p:"/db/upload_form_admin.php",                      c:3, t:"UI",  s:"current", d:"Upload form with advanced admin fields visible",                       V:0,U:0,LA:1,TA:0 },
+    { p:"/db/media_tags.php",                             c:3, t:"UI",  s:"current", d:"Per-asset tag review — confirm, reject, edit, re-trigger AI tagging",  V:0,U:0,LA:1,TA:0 },
+    { p:"/db/database_catalog.php",                       c:3, t:"UI",  s:"current", d:"Catalog entries browser with status/type/pagination filters",           V:0,U:0,LA:1,TA:0 },
+    { p:"/db/database_edit_save.php",                     c:3, t:"API", s:"current", d:"Save edited media record fields (POST called by database.php JS)",      V:0,U:0,LA:1,TA:0 },
+    { p:"/db/database_edit_musicians_preview.php",        c:3, t:"API", s:"current", d:"Preview musician field parse before saving (POST)",                     V:0,U:0,LA:1,TA:0 },
+    { p:"/db/catalog_entry_save.php",                     c:3, t:"API", s:"current", d:"Save a single catalog entry edit (POST)",                              V:0,U:0,LA:1,TA:0 },
+    { p:"/db/delete_media_files.php",                     c:3, t:"API", s:"current", d:"Delete media files by ID",                                             V:0,U:0,LA:1,TA:0 },
+    { p:"/db/ai_tags.php",                                c:3, t:"API", s:"la-only", d:"Retrieve AI-generated tags for an asset — tenant-scoped content op",   V:0,U:0,LA:1,TA:1 },
+    { p:"/db/health.php",                                 c:3, t:"API", s:"current", d:"Database connection health check",                                     V:0,U:0,LA:0,TA:1 },
+
+    /* 4 — QR Code */
+    { p:"/admin/event_qr.php",           c:4,  t:"UI",  s:"current", d:"Generate and manage per-event guest QR upload codes; set event name, date, org",      V:0,U:0,LA:1,TA:0 },
+
+    /* 5 — Import Folder/CSV */
+    { p:"/admin/admin_database_catalog_media_from_folder.php",      c:5, t:"UI", s:"current", d:"Scan a server folder and build a catalog of discovered media files",          V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/admin_database_catalog_promote.php",                c:5, t:"UI", s:"current", d:"Review cataloged entries and promote selected ones to the media library",     V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/admin_database_load_import_media_from_folder.php",  c:5, t:"UI", s:"current", d:"Import media from a server folder directly into the database",                V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/admin_database_load_import_csv.php",                c:5, t:"UI", s:"current", d:"Import media metadata from a CSV file",                                       V:0,U:0,LA:1,TA:0 },
+
+    /* 6 — Import iPhone */
+    { p:"/admin/admin_database_load_import_media_from_iphone.php",  c:6, t:"UI",     s:"current", d:"Main iPhone import workflow page",                                V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/iphone_import_server_scan.php",                     c:6, t:"API",    s:"current", d:"Scan server staging area for iPhone-uploaded files",              V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/iphone_import_status.php",                          c:6, t:"API",    s:"current", d:"Poll import job status (called by JS)",                           V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/iphone_import_clear_staging.php",                   c:6, t:"API",    s:"current", d:"Clear iPhone staging directory",                                  V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/iphone_import_worker.php",                          c:6, t:"Worker", s:"current", d:"Background worker that moves and registers iPhone-imported files", V:0,U:0,LA:1,TA:0 },
+
+    /* 7 — Import ZIP/Azure */
+    { p:"/admin/import_media_zip.php",               c:7, t:"UI",     s:"la-only", d:"Upload a ZIP archive and trigger import scan — content import, LA's responsibility",           V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/import_media_zip_scan_status.php",   c:7, t:"API",    s:"la-only", d:"Poll ZIP scan status — part of LA import flow",                                                V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/import_media_zip_scan_worker.php",   c:7, t:"Worker", s:"la-only", d:"Background worker to scan contents of uploaded ZIP — part of LA import flow",                  V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/import_media_zip_status.php",        c:7, t:"API",    s:"la-only", d:"Poll ZIP import job status — part of LA import flow",                                          V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/import_media_zip_worker.php",        c:7, t:"Worker", s:"la-only", d:"Extract and import ZIP contents (local storage) — part of LA import flow",                     V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/import_media_zip_worker_azure.php",  c:7, t:"Worker", s:"current", d:"Import ZIP contents from Azure Blob storage — infrastructure op, TA only",                     V:0,U:0,LA:0,TA:1 },
+    { p:"/admin/import_normalized.php",              c:7, t:"UI",     s:"la-only", d:"Import media normalized/parsed into a staging format — content management, LA job",            V:0,U:0,LA:1,TA:1 },
+
+    /* 8 — Import Manifest */
+    { p:"/admin/import_manifest_prepare.php",           c:8, t:"API",    s:"current", d:"Prepare a new import manifest from a catalog scan",                                   V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_jobs.php",              c:8, t:"API",    s:"current", d:"List all import manifest jobs",                                                       V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_add.php",               c:8, t:"API",    s:"current", d:"Add entries to an in-progress manifest",                                              V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_add_async.php",         c:8, t:"API",    s:"current", d:"Async version of manifest add",                                                       V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_duplicates.php",        c:8, t:"API",    s:"current", d:"Identify and handle duplicate entries in a manifest",                                 V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_cancel.php",            c:8, t:"API",    s:"current", d:"Cancel an active import manifest job",                                                V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_finalize.php",          c:8, t:"UI",     s:"current", d:"Finalize the manifest and commit imported entries to the library",                    V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_reload.php",            c:8, t:"API",    s:"current", d:"Reload / refresh a manifest's state",                                                V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_reload_async.php",      c:8, t:"API",    s:"current", d:"Async manifest reload",                                                               V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_replay.php",            c:8, t:"API",    s:"current", d:"Replay a failed manifest import",                                                    V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_status.php",            c:8, t:"API",    s:"current", d:"Poll manifest import progress",                                                      V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_upload_start.php",      c:8, t:"API",    s:"current", d:"Start TUS upload session for manifest files",                                        V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_upload_status.php",     c:8, t:"API",    s:"current", d:"Poll TUS upload progress",                                                          V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_upload_finalize.php",   c:8, t:"API",    s:"current", d:"Finalize TUS upload and register file",                                              V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/import_manifest_worker.php",            c:8, t:"Worker", s:"current", d:"Background worker that processes finalized manifest import jobs",                    V:0,U:0,LA:1,TA:0 },
+
+    /* 9 — Catalog */
+    { p:"/admin/catalog_scan_start.php",        c:9, t:"API", s:"current", d:"Trigger a new catalog scan of the media folder",                            V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/catalog_stats.php",             c:9, t:"API", s:"current", d:"Return catalog statistics (file counts, sizes, statuses)",                  V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/catalog_entries_list.php",      c:9, t:"API", s:"current", d:"Return paginated catalog entries for a given scan",                         V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/catalog_promote_start.php",     c:9, t:"API", s:"current", d:"Start promoting selected catalog entries to the media library",             V:0,U:0,LA:1,TA:0 },
+    { p:"/admin/catalog_promote_writeback.php", c:9, t:"API", s:"current", d:"Write back promotion results to the database",                              V:0,U:0,LA:1,TA:0 },
+
+    /* 10 — AI Tagging */
+    { p:"/admin/ai_worker.php",  c:10, t:"UI",  s:"needs-split", d:"LA: tag my content / queue status. TA: manage shared AI service, LLM model config, global queue",  V:0,U:0,LA:1,TA:1 },
+    { p:"/api/ai_jobs.php",      c:10, t:"API", s:"needs-split", d:"LA: CRUD scoped to tenant AI jobs. TA: platform-wide queue management, priority, pause",            V:0,U:0,LA:1,TA:1 },
+
+    /* 11 — Export */
+    { p:"/admin/export_media.php",              c:11, t:"UI",     s:"la-only", d:"Start a media archive export — organizer exports their own content (TAR download)",      V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/export_media_status.php",       c:11, t:"API",    s:"la-only", d:"Poll export job status — part of LA export flow",                                        V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/export_media_download.php",     c:11, t:"UI",     s:"la-only", d:"Download a completed export archive — part of LA export flow",                           V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/export_media_worker.php",       c:11, t:"Worker", s:"la-only", d:"Build the export archive to local disk — part of LA export flow",                        V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/export_media_worker_azure.php", c:11, t:"Worker", s:"current", d:"Push export archive to Azure Blob — infrastructure op, TA only",                         V:0,U:0,LA:0,TA:1 },
+
+    /* 12 — System & Recovery */
+    { p:"/admin/admin_system.php",            c:12, t:"UI",  s:"needs-split", d:"LA: tenant dashboard (their stats, clear data, export/import). TA: platform control panel (all stats, resize)",  V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/admin_system_stats.php",      c:12, t:"API", s:"needs-split", d:"LA: stats scoped to tenant_id. TA: platform-wide aggregate stats",                                                V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/admin.php",                   c:12, t:"UI",  s:"needs-split", d:"LA: manage viewer/uploader accounts for their events. TA: platform credentials, future tenant management",        V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/run_backup.php",              c:12, t:"API", s:"ta-only",     d:"Platform DB backup — LA has no concept of dumping the shared database; LA uses export instead",                   V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/run_backup_status.php",       c:12, t:"API", s:"ta-only",     d:"Platform backup status — part of TA backup flow",                                                                 V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/download_backup.php",         c:12, t:"UI",  s:"ta-only",     d:"Download a platform DB backup file — operator artifact, not tenant artifact",                                     V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/restore_database.php",        c:12, t:"UI",  s:"ta-only",     d:"Full DB restore — platform-level destructive op; cannot be tenant-scoped in multi-tenant DB",                    V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/restore_database_status.php", c:12, t:"API", s:"ta-only",     d:"Platform restore status — part of TA restore flow",                                                               V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/upload_restore_backup.php",   c:12, t:"UI",  s:"ta-only",     d:"Upload a backup file for platform-level restoration",                                                             V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/import_database.php",         c:12, t:"API", s:"ta-only",     d:"Trigger in-place platform DB import — operator-level operation",                                                  V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/clear_media.php",             c:12, t:"API", s:"needs-split", d:"LA: clear this tenant's media records. TA: clear any tenant's records (termination / GDPR cascade)",             V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/clear_media_files.php",       c:12, t:"API", s:"needs-split", d:"LA: delete this tenant's files from storage. TA: delete any tenant's files",                                     V:0,U:0,LA:1,TA:1 },
+    { p:"/admin/write_resize_request.php",    c:12, t:"API", s:"current",     d:"Write a disk resize request file to the server — server infrastructure, TA only",                                 V:0,U:0,LA:0,TA:1 },
+
+    /* 13 — Debug */
+    { p:"/debug/phpinfo.php",   c:13, t:"UI", s:"current", d:"PHP environment info page — exposes full server config",               V:0,U:0,LA:0,TA:1 },
+    { p:"/debug/iptest.php",    c:13, t:"UI", s:"current", d:"Returns server IP and client IP — load balancer / proxy diagnostics",  V:0,U:0,LA:0,TA:1 },
+    { p:"/src/debug/test.php",  c:13, t:"UI", s:"current", d:"Internal view rendering test harness",                                 V:0,U:0,LA:0,TA:1 },
+    { p:"/test_render.php",               c:13, t:"UI",     s:"current", d:"Standalone ViewRenderer smoke test",                                                                                     V:0,U:0,LA:0,TA:1 },
+    { p:"src/Jobs/cleanup_expired_uploads.php", c:13, t:"Worker", s:"current", d:"Cron job (daily): purges expired TUS upload records and staging files — invoked by cron as www-data, not HTTP-accessible",         V:0,U:0,LA:0,TA:1 },
+    { p:"src/Jobs/run_probe_job.php",   c:13, t:"Worker", s:"current", d:"Cron job (every ~10s): processes probe_jobs queue — runs ffprobe, generates thumbnails — invoked by cron as www-data, not HTTP-accessible", V:0,U:0,LA:0,TA:1 },
+
+    /* 14 — REST API */
+    { p:"/api/uploads.php",       c:14, t:"API", s:"current", d:"Upload session management (create, list, finalize)",                    V:0,U:1,LA:1,TA:0 },
+    { p:"/api/tus-upload.php",    c:14, t:"API", s:"current", d:"TUS chunked upload protocol handler",                                   V:0,U:1,LA:1,TA:0 },
+    { p:"/api/upload-token.php",  c:14, t:"API", s:"current", d:"Validate or generate a QR upload token",                                V:0,U:0,LA:1,TA:0 },
+    { p:"/api/guest-gallery.php", c:14, t:"API", s:"current", d:"Return approved media for a guest event gallery",                       V:1,U:0,LA:0,TA:0 },
+    { p:"/api/guest-status.php",  c:14, t:"API", s:"current", d:"Return moderation status for a guest's uploaded video",                 V:1,U:0,LA:0,TA:0 },
+    { p:"/api/guest-delete.php",  c:14, t:"API", s:"current", d:"Delete a guest's own upload (before moderation)",                       V:1,U:0,LA:0,TA:0 },
+    { p:"/api/guest-report.php",  c:14, t:"API", s:"current", d:"Report a video in the guest gallery",                                   V:1,U:0,LA:0,TA:0 },
+    { p:"/api/guest-stream.php",  c:14, t:"API", s:"current", d:"Stream a media asset for guest gallery playback",                       V:1,U:0,LA:0,TA:0 },
+    { p:"/api/media-stream.php",  c:14, t:"API", s:"current", d:"Stream a media asset for authenticated viewers",                        V:1,U:1,LA:1,TA:0 },
+    { p:"/api/tags.php",          c:14, t:"API", s:"current", d:"CRUD for tags",                                                          V:0,U:0,LA:1,TA:0 },
+    { p:"/api/taggings.php",      c:14, t:"API", s:"current", d:"CRUD for tag-to-asset associations",                                    V:0,U:0,LA:1,TA:0 },
+    { p:"/api/uploads/* (src/index.php router)", c:14, t:"API", s:"current", d:"MVC front-controller for /api/uploads/{id}, POST /api/uploads, POST /uploads/finalize, POST /api/media-files — QR upload token auth via UploadController; same model as api/uploads.php", V:0,U:1,LA:1,TA:0 },
+
+    /* 15 — iOS */
+    { p:"Login View",                           c:15, t:"iOS", s:"current", d:"Enter server URL, username/password; remember credentials; disable cert checking option",                V:1,U:1,LA:1,TA:0 },
+    { p:"Splash / Home View",                   c:15, t:"iOS", s:"current", d:"Post-login hub: login status, navigate to Database or Upload; guest gallery list + moderation status",  V:1,U:1,LA:1,TA:0 },
+    { p:"Video List View (Database mode)",      c:15, t:"iOS", s:"current", d:"Browse and filter the authenticated media library",                                                      V:1,U:1,LA:1,TA:0 },
+    { p:"Video List View (Event Gallery mode)", c:15, t:"iOS", s:"current", d:"Browse a guest event gallery (QR-approved, no login)",                                                   V:1,U:0,LA:0,TA:0 },
+    { p:"Video Player View",                    c:15, t:"iOS", s:"current", d:"Full-screen playback of any media asset",                                                                V:1,U:1,LA:1,TA:0 },
+    { p:"Upload View",                          c:15, t:"iOS", s:"current", d:"Authenticated upload form — pick video from Photos, enter metadata, submit via TUS",                    V:0,U:1,LA:1,TA:0 },
+    { p:"Guest Upload View",                    c:15, t:"iOS", s:"current", d:"Guest QR upload form — reached by scanning an event QR code; no login required",                        V:1,U:0,LA:0,TA:0 },
+    { p:"Share Extension",                      c:15, t:"iOS", s:"current", d:"Share a video from iOS Photos or Files app directly into GigHive",                                      V:0,U:1,LA:0,TA:0 },
+
+    /* 16 — Planned SaaS */
+    { p:"Self-serve signup / onboarding",       c:16, t:"Planned", s:"new", d:"Create a new tenant account, accept ToS (SaaS Step 12)",                                                                            V:0,U:0,LA:1,TA:0 },
+    { p:"Tenant settings page",                 c:16, t:"Planned", s:"new", d:"Configure org name, event defaults, storage preferences (SaaS Step 12)",                                                            V:0,U:0,LA:1,TA:0 },
+    { p:"Storage quota dashboard",              c:16, t:"Planned", s:"new", d:"LA: their storage used vs. plan cap. TA: all-tenant aggregate + enforcement toggle (SaaS Step 13) — design split in from the start",V:0,U:0,LA:1,TA:1 },
+    { p:"Billing / subscription management",    c:16, t:"Planned", s:"new", d:"Stripe checkout, plan upgrade/downgrade, payment method, invoice history (SaaS Step 14)",                                           V:0,U:0,LA:1,TA:0 },
+    { p:"Gallery lifecycle management",         c:16, t:"Planned", s:"new", d:"Per-gallery billing status, trial countdown, resurrect after soft-delete (SaaS pricing model)",                                     V:0,U:0,LA:1,TA:0 },
+    { p:"Superadmin / operator console",        c:16, t:"Planned", s:"new", d:"View and manage all tenants, suspend/unsuspend, inspect usage (SaaS Step 16)",                                                      V:0,U:0,LA:0,TA:1 },
+    { p:"Per-tenant data export / GDPR delete", c:16, t:"Planned", s:"new", d:"LA: export own data / delete own account. TA: execute for any tenant (SaaS Step 17) — design split in from the start",             V:0,U:0,LA:1,TA:1 },
+    { p:"Rate limit config page",               c:16, t:"Planned", s:"new", d:"Read-only view of rate limiting rules per tenant (SaaS Step 18)",                                                                   V:0,U:0,LA:0,TA:1 },
+    { p:"OIDC / IdP federation config",         c:16, t:"Planned", s:"new", d:"Manage Google/Microsoft IdP registrations per environment (SaaS Step 7)",                                                           V:0,U:0,LA:0,TA:1 },
+    { p:"Invite link management",               c:16, t:"Planned", s:"new", d:"Create and revoke signed contributor invite links (SaaS Step 9)",                                                                   V:0,U:0,LA:1,TA:0 },
+    { p:"Tenant suspension screen",             c:16, t:"Planned", s:"new", d:"Soft-suspend a tenant account at auth middleware with explanation page (SaaS Step 15)",                                             V:0,U:0,LA:0,TA:1 },
+    { p:"iOS: Admin moderation view",           c:16, t:"Planned", s:"new", d:"Review pending guest uploads, approve/reject from iOS",                                                                             V:0,U:0,LA:1,TA:0 },
+    { p:"iOS: Tenant admin console",            c:16, t:"Planned", s:"new", d:"Platform-level stats and tenant management on mobile",                                                                              V:0,U:0,LA:0,TA:1 }
+  ];
+
+  /* ── Helpers ── */
+  var catMap = {};
+  CATS.forEach(function(c){ catMap[c.id] = c.name; });
+  function catName(id){ return catMap[id] || ""; }
+
+  /* ── State ── */
+  var activeRoles  = {};
+  var activeStatus = "";
+  var activeType   = "";
+  var activeCat    = 0;
+  var searchTerm   = "";
+  var sortKey      = "cat";
+  var sortAsc      = true;
+
+  var STATUS_ORDER = { "current": 0, "la-only": 1, "ta-only": 2, "needs-split": 3, "new": 4 };
+
+  function sortValue(row, key){
+    if (key === "page")   return row.p.toLowerCase();
+    if (key === "cat")    return row.c;
+    if (key === "type")   return row.t;
+    if (key === "status") return STATUS_ORDER[row.s] || 0;
+    if (key === "V")  return row.V;
+    if (key === "U")  return row.U;
+    if (key === "LA") return row.LA;
+    if (key === "TA") return row.TA;
+    return 0;
+  }
+
+  function isVisible(row){
+    var roles = Object.keys(activeRoles);
+    if (roles.length > 0) {
+      var match = false;
+      for (var i = 0; i < roles.length; i++){
+        var r = roles[i];
+        if (r === "V"  && row.V)  { match = true; break; }
+        if (r === "U"  && row.U)  { match = true; break; }
+        if (r === "LA" && row.LA) { match = true; break; }
+        if (r === "TA" && row.TA) { match = true; break; }
+      }
+      if (!match) return false;
+    }
+    if (activeStatus && row.s !== activeStatus) return false;
+    if (activeType   && row.t !== activeType)   return false;
+    if (activeCat    && row.c !== activeCat)    return false;
+    if (searchTerm) {
+      var q = searchTerm.toLowerCase();
+      if (row.p.toLowerCase().indexOf(q) === -1 && row.d.toLowerCase().indexOf(q) === -1) return false;
+    }
+    return true;
+  }
+
+  function sortedRows(){
+    var visible = ROWS.filter(isVisible);
+    visible.sort(function(a, b){
+      var av = sortValue(a, sortKey);
+      var bv = sortValue(b, sortKey);
+      var r = (typeof av === "string") ? (av < bv ? -1 : av > bv ? 1 : 0) : (av - bv);
+      if (r === 0 && sortKey !== "cat") r = a.c - b.c;
+      return sortAsc ? r : -r;
+    });
+    return visible;
+  }
+
+  function check(val, cls){
+    return val ? '<span class="check ' + cls + '">&#x2713;</span>' : '';
+  }
+
+  function statusBadge(s){
+    return '<span class="sbadge sbadge-' + s + '">' + s + '</span>';
+  }
+
+  function rowClass(s){
+    if (s === "la-only")     return "row-la-only";
+    if (s === "ta-only")     return "row-ta-only";
+    if (s === "needs-split") return "row-split";
+    return "";
+  }
+
+  function render(){
+    var rows = sortedRows();
+    var html  = "";
+    var lastCat = -1;
+
+    rows.forEach(function(row){
+      if (!activeCat && sortKey === "cat" && row.c !== lastCat) {
+        html += '<tr class="cat-group-header"><td colspan="9">Group ' + row.c +
+                ' &mdash; ' + catName(row.c) + '</td></tr>';
+        lastCat = row.c;
+      }
+
+      var isIos  = row.t === "iOS";
+      var isPlan = row.t === "Planned";
+      var pgCls  = "page-cell" + (isIos ? " ios-name" : isPlan ? " planned-name" : "");
+
+      html += '<tr class="' + rowClass(row.s) + '">' +
+        '<td class="' + pgCls + '" title="' + row.p + '">' + row.p + '</td>' +
+        '<td class="cat-cell">' + catName(row.c) + '</td>' +
+        '<td><span class="badge badge-' + row.t + '">' + row.t + '</span></td>' +
+        '<td>' + statusBadge(row.s) + '</td>' +
+        '<td class="desc-cell">' + row.d + '</td>' +
+        '<td class="role-cell">' + check(row.V,  "check-v")  + '</td>' +
+        '<td class="role-cell">' + check(row.U,  "check-u")  + '</td>' +
+        '<td class="role-cell">' + check(row.LA, "check-la") + '</td>' +
+        '<td class="role-cell">' + check(row.TA, "check-ta") + '</td>' +
+        '</tr>';
+    });
+
+    if (!html) html = '<tr class="empty-row"><td colspan="9">No pages match the current filters.</td></tr>';
+    document.getElementById("tbody").innerHTML = html;
+
+    document.getElementById("row-count").innerHTML =
+      'Showing <strong>' + rows.length + '</strong> of <strong>' + ROWS.length + '</strong>';
+
+    document.querySelectorAll("thead th[data-sort]").forEach(function(th){
+      var k = th.getAttribute("data-sort");
+      var arrow = th.querySelector(".sort-arrow");
+      if (!arrow) return;
+      if (k === sortKey) {
+        th.classList.add("sorted");
+        arrow.innerHTML = sortAsc ? "&#x25B4;" : "&#x25BE;";
+      } else {
+        th.classList.remove("sorted");
+        arrow.innerHTML = "&#x25B4;";
+      }
+    });
+  }
+
+  function renderStats(){
+    var nV   = ROWS.filter(function(r){ return r.V; }).length;
+    var nU   = ROWS.filter(function(r){ return r.U; }).length;
+    var nLA  = ROWS.filter(function(r){ return r.LA; }).length;
+    var nTA  = ROWS.filter(function(r){ return r.TA; }).length;
+    var nSplit   = ROWS.filter(function(r){ return r.s === "needs-split"; }).length;
+    var nLAonly  = ROWS.filter(function(r){ return r.s === "la-only"; }).length;
+    var nTAonly  = ROWS.filter(function(r){ return r.s === "ta-only"; }).length;
+    var nNew     = ROWS.filter(function(r){ return r.s === "new"; }).length;
+
+    document.getElementById("stats-bar").innerHTML =
+      '<span class="stat">Total: <strong>' + ROWS.length + '</strong></span>' +
+      '<span class="stat"><span class="dot" style="background:var(--v-color)"></span>Viewer: <strong>' + nV + '</strong></span>' +
+      '<span class="stat"><span class="dot" style="background:var(--u-color)"></span>Uploader: <strong>' + nU + '</strong></span>' +
+      '<span class="stat"><span class="dot" style="background:var(--la-color)"></span>Local Admin: <strong>' + nLA + '</strong></span>' +
+      '<span class="stat"><span class="dot" style="background:var(--ta-color)"></span>Tenant Admin: <strong>' + nTA + '</strong></span>' +
+      '<span class="stat" style="border-left:1px solid var(--border);padding-left:.75rem">' +
+        '<span class="sbadge sbadge-needs-split">needs-split</span>&nbsp;<strong style="color:#f87171">' + nSplit + '</strong>' +
+      '</span>' +
+      '<span class="stat"><span class="sbadge sbadge-la-only">la-only</span>&nbsp;<strong style="color:#fbbf24">' + nLAonly + '</strong></span>' +
+      '<span class="stat"><span class="sbadge sbadge-ta-only">ta-only</span>&nbsp;<strong style="color:#c084fc">' + nTAonly + '</strong></span>' +
+      '<span class="stat"><span class="sbadge sbadge-new">new</span>&nbsp;<strong style="color:#60a5fa">' + nNew + '</strong></span>';
+  }
+
+  /* ── Init category dropdown ── */
+  var sel = document.getElementById("cat-filter");
+  CATS.forEach(function(c){
+    var opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = "Group " + c.id + " \u2014 " + c.name;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener("change", function(){ activeCat = parseInt(this.value, 10) || 0; render(); });
+
+  /* ── Role pills ── */
+  document.querySelectorAll(".role-pill").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var role = this.getAttribute("data-role");
+      if (activeRoles[role]) { delete activeRoles[role]; this.classList.remove("active"); }
+      else                   { activeRoles[role] = true;  this.classList.add("active"); }
+      render();
+    });
+  });
+
+  /* ── Status pills ── */
+  document.querySelectorAll(".status-pill").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".status-pill").forEach(function(b){ b.classList.remove("active"); });
+      this.classList.add("active");
+      activeStatus = this.getAttribute("data-s");
+      render();
+    });
+  });
+
+  /* ── Type pills ── */
+  document.querySelectorAll(".type-pill").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".type-pill").forEach(function(b){ b.classList.remove("active"); });
+      this.classList.add("active");
+      activeType = this.getAttribute("data-type");
+      render();
+    });
+  });
+
+  /* ── Search ── */
+  document.getElementById("search").addEventListener("input", function(){ searchTerm = this.value.trim(); render(); });
+
+  /* ── Sort ── */
+  document.querySelectorAll("thead th[data-sort]").forEach(function(th){
+    th.addEventListener("click", function(){
+      var k = this.getAttribute("data-sort");
+      if (sortKey === k) { sortAsc = !sortAsc; }
+      else { sortKey = k; sortAsc = (k === "cat" || k === "page" || k === "type" || k === "status"); }
+      render();
+    });
+  });
+
+  /* ── Clear ── */
+  document.getElementById("btn-clear").addEventListener("click", function(){
+    activeRoles = {}; activeStatus = ""; activeType = ""; activeCat = 0; searchTerm = ""; sortKey = "cat"; sortAsc = true;
+    document.querySelectorAll(".role-pill").forEach(function(b){ b.classList.remove("active"); });
+    document.querySelectorAll(".status-pill").forEach(function(b){ b.classList.remove("active"); });
+    document.querySelector(".status-pill[data-s='']").classList.add("active");
+    document.querySelectorAll(".type-pill").forEach(function(b){ b.classList.remove("active"); });
+    document.querySelector(".type-pill[data-type='']").classList.add("active");
+    document.getElementById("cat-filter").value = "";
+    document.getElementById("search").value = "";
+    render();
+  });
+
+  renderStats();
+  render();
+})();
+</script>
+</body>
+</html>
