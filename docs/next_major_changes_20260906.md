@@ -10,7 +10,7 @@
 **Critical Path**
 
 1. *(operator task)* Google + Microsoft IdP app registrations — vault OAuth credentials before item 3 deploys
-2. `feature_security_authentication_migration_jwt_implementation.md` — JWT core, PHP role guards, iOS Bearer cutover, Apache Basic Auth removal
+2. `feature_security_authentication_migration_jwt_implementation.md` — JWT core, canonical route-class policy, PHP role guards, Secure HttpOnly cookie for browser / Bearer for iOS/API, atomic Basic-to-JWT cutover per environment, sequential promotion (dev → lab → staging → prod)
 3. `feature_security_authentication_migration_jwt_oidc_phase5.md` — OIDC federation (Google + Microsoft) with iOS PKCE flow
 
 **Force Multipliers and Near-Zero-Effort Wins**
@@ -74,8 +74,8 @@
 ### 2. `feature_security_authentication_migration_jwt_implementation.md` — JWT Phases 1–4
 
 **Status:** Pre-implementation — no code written; pending approval.  
-**Effort:** Large but fully planned — 31 specific file changes, server + iOS, detailed smoke tests.  
-**Impact:** JWT core → PHP guards → iOS cutover → Apache Basic Auth removal. Required before OIDC (item 3), required before RBAC enforcement (SaaS Step 8), and the point at which the `tenant_id DEFAULT 1` transitional default is dropped. The multi-tenant schema (`feature_completed_saas_model_changes.md`) is already in place — individual `users` rows and JWT sessions are the remaining identity plumbing everything else sits on.  
+**Effort:** Large but fully planned — multi-phase, server + iOS + Apache, detailed smoke tests. See `feature_security_authentication_migration_jwt_implementation.md` for the full phase-by-phase step list.  
+**Impact:** Implements the canonical credential and route-class policy (`policy_authentication_credential_route.md`): Secure HttpOnly JWT cookie for browser requests, `Authorization: Bearer` JWT for iOS/API, centralized route-class guards, atomic Basic-to-JWT cutover per environment, sequential promotion (dev → lab → staging → prod). Required before OIDC (item 3), required before RBAC enforcement (SaaS Step 8), and the point at which the `tenant_id DEFAULT 1` transitional default is dropped. The multi-tenant schema (`feature_completed_saas_model_changes.md`) is already in place — individual `users` rows and JWT sessions are the remaining identity plumbing everything else sits on.  
 **Score: 10/10**
 
 ---

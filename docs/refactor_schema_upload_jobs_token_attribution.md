@@ -101,13 +101,9 @@ must have a non-NULL value. If `UploadService` or the TUS handler is not updated
 new QR-based uploads silently receive `token_id = NULL` with no schema-level error.
 A `CHECK` constraint or application-level assertion is needed to catch this.
 
-### 5. JWT migration may obsolete this work
+### 5. JWT route policy preserves this work
 
-If the JWT migration replaces `event_upload_tokens` database rows with JWT claims
-(tokens validated in-memory rather than looked up in a table), this FK relationship
-becomes a dead-end before it delivers value. Confirm the post-JWT token model before
-investing in this change. See
-`feature_security_authentication_migration_jwt_implementation.md`.
+The canonical authentication policy retains `event_upload_tokens` as separate event-scoped QR capabilities; account JWTs do not replace them. This FK therefore remains relevant for upload attribution, audit, billing, and guest-scope verification. Implementation must populate `token_id` only when the `GUEST_UPLOAD` route resolves a valid upload token; authenticated browser-cookie/Bearer uploads leave it NULL and use their normalized account context. See `policy_authentication_credential_route.md` and `feature_security_authentication_migration_jwt_endpoint_guard_checklist.md`.
 
 ### 6. Token expiry semantics on joins
 
@@ -130,6 +126,6 @@ authorizing token has since expired or been deactivated (`is_active = 0`).
 
 ## Status
 
-- [ ] Deferred — implement after JWT migration stabilises the upload auth model.
-  Confirm the post-JWT token storage design before beginning (Risk 5).
-  Ensure this is scoped alongside `feature_security_authentication_migration_jwt_implementation.md`.
+- [ ] Deferred — implement after the canonical `GUEST_UPLOAD` route and upload-job identity fields are finalized.
+  JWT policy confirms QR token rows remain authoritative; no obsolescence risk remains.
+  Scope alongside `feature_security_authentication_migration_jwt_endpoint_guard_checklist.md` and apply through BABRR.

@@ -7,7 +7,7 @@
 
 Phase 1 (guest-token mitigation) — complete.
 Phase 4 (delete grants) — not started.
-Phase 3 Step 7 (uploader performDelete via JWT role-claim) — deferred to JWT migration.
+Phase 3 Step 7 (contributor performDelete via normalized JWT `AuthContext` + ownership/grant) — deferred to JWT migration and open policy decision.
 Unit tests 31–32 — blocked on creating a `GigHiveTests` Xcode unit-test target.
 
 ---
@@ -106,7 +106,7 @@ The long-term option deferred for now: allow an admin to grant delete rights to 
 
 ### Scenario 2 — Fan uploads via QR code, later promoted to uploader
 
-**Riley** attends an event, scans the QR code, uploads three videos as a guest (`viewer` role in the JWT model). The organizer later promotes Riley to `contributor` (the JWT equivalent of `uploader`) via the owner-only user management page `admin/users.php`. That page — including the role-change action — is planned in Phase 6 of `feature_security_authentication_migration_jwt_implementation.md`, which requires Phase 5 (OIDC) to be live first. Riley logs in with their individual account and opens the Media Database.
+**Riley** attends an event, scans the QR code, and uploads three videos through an event-scoped QR capability (no account role). The organizer later promotes Riley to `contributor` (the JWT equivalent of `uploader`) via the owner-only user management page `admin/users.php`. That page — including the role-change action — is planned in Phase 6 of `feature_security_authentication_migration_jwt_implementation.md`, which requires Phase 5 (OIDC) to be live first. Riley logs in with their individual account and opens the Media Database.
 
 | | Current (post P15 mitigation) | After this refactor |
 |---|---|---|
@@ -282,13 +282,13 @@ Phase 3 can ship as soon as Phase 2 (server adds `can_delete` to the `database.p
 Two future points where the JWT migration does intersect with this refactor:
 
 - **Phase 4 (optional `delete_grants`)** — if a UI is needed for an owner to grant Riley delete rights over guest uploads, `admin/users.php` (Phase 6 of JWT) is the natural home for that action. Not a blocker.
-- **JWT cutover (Phases 4–5 of JWT migration)** — when Basic Auth is retired and `$_SERVER['PHP_AUTH_USER']` is replaced by a JWT role claim, the `can_delete` logic in `MediaController` will need to switch from checking the username string to checking the JWT role. That is a small targeted update at JWT migration time, scoped to the `MediaController` change already made in Phase 2 of this refactor.
+- **JWT Migration Phase 4 cutover** — replace `$_SERVER['PHP_AUTH_USER']` checks with the canonical normalized `AuthContext`. `can_delete` must use validated subject, role, tenant, upload source, and resource ownership/grant—not role alone. Browser requests use the HttpOnly JWT cookie; iOS/API use Bearer; the route resolver supplies the same context.
 
 #### Rationale — uploader self-delete deferred to JWT migration
 
-The JWT authentication migration follows immediately after this refactor. Under JWT, uploader self-delete is implemented correctly via role-claim ownership verification — no per-asset delete token is involved. Implementing Option A or Option B now would mean building a token-delivery mechanism that is torn out within the next sprint. The SaaS-target architecture also argues against embedding credentials in a high-frequency list response (Option A) or retaining a per-asset Keychain store (Option B).
+The JWT authentication migration follows this refactor. Under JWT, contributor self-delete requires server-verified subject + tenant + resource ownership/grant from `AuthContext`; a contributor role claim alone is insufficient. No per-asset plaintext credential belongs in the high-frequency list response. The existing device-local “My Uploads” guest/delete-token behavior remains a separate capability flow until its endpoint is explicitly migrated.
 
-**Decision:** Phase 3 ships Steps 1–6 (the display fix and store cleanup). Step 7 (uploader `performDelete` token source) is explicitly deferred to the JWT migration, where it will be implemented as a role-claim-authenticated delete with no separate token. This must be scoped as a named deliverable in `feature_security_authentication_migration_jwt_implementation.md` — if it is absent, add it before beginning JWT migration work.
+**Decision:** Phase 3 ships Steps 1–6 (the display fix and store cleanup). Step 7 (contributor `performDelete` authorization) is deferred to the JWT migration and must use canonical `AuthContext` subject/role/tenant/resource ownership or an explicit grant. The endpoint checklist currently proposes owner-only `db/delete_media_files.php`; contributor self-delete remains an open policy decision and must not be inferred from role alone.
 
 #### Option A vs Option B — documented for context; superseded by JWT migration
 
@@ -311,7 +311,7 @@ If the same file was uploaded via both the authenticated iPhone path AND the gue
 - [x] **Step 4** — Updated `showDeleteButton(for: .uploaderAndAdmin)`: admin returns `video.canDelete`; uploader returns `false`.
 - [x] **Step 5** — Removed `authDeleteTokens` / `tokenMap` / `UploaderDeleteTokenStore` loading from `loadAuthenticatedVideos`; updated `performDelete` 403 handler and success handler to remove all `authDeleteTokens` references.
 - [x] **Step 6** — `UploaderDeleteTokenStore` assessed: still actively used by `UploadView` "My Uploads" tab; cannot be removed. Scope is now limited to `UploadView` only — `UnifiedVideoListView` no longer touches it.
-- [ ] **Step 7** — *(Deferred to JWT migration)* Implement `performDelete` uploader path using JWT role-claim ownership verification; no per-asset delete token required. Confirm this is a named deliverable in `feature_security_authentication_migration_jwt_implementation.md` before closing this phase.
+- [ ] **Step 7** — *(Deferred to JWT migration)* Implement contributor `performDelete` only after its open policy decision; use normalized `AuthContext` plus tenant/resource ownership or explicit grant, never contributor role alone.
 
 #### Backward compatibility
 
@@ -382,28 +382,28 @@ before implementing, as it has cascade and JWT-migration dependencies.
 - Once Phase 3 ships and `authDeleteTokens` / `tokenMap` are removed from `loadAuthenticatedVideos`, assess whether `UploaderDeleteTokenStore` is still needed at all for any path other than `UploadView`'s "My Uploads" list. If not, the store can be removed or narrowed.
 - `UploadView` "My Uploads" section currently uses `UploaderDeleteTokenStore.load` to show the user their own recent authenticated uploads with individual delete buttons. That path is separate from the Media Database and is unaffected by this refactor — but should be reviewed for token-staleness risk under the same deduplication edge case.
 - The deduplication edge case in `UploadService` (second upload of same content returns no token) should be documented in the server OpenAPI spec as a known limitation, with a user-facing message consistent with the one already in `UploadView.swift` line 1081.
-- **JWT cutover** (Phases 4–5 of `feature_security_authentication_migration_jwt_implementation.md`) — when Basic Auth is retired and `$_SERVER['PHP_AUTH_USER']` is replaced by a JWT role claim, update the `can_delete` PHP logic in `MediaController::listJson()` to read the JWT role instead of the username string. Small targeted change, scoped to the same function modified in Phase 2 of this refactor.
+- **JWT Migration Phase 4 cutover** — replace Basic username checks in `MediaController::listJson()` with normalized `AuthContext` subject/role/tenant/resource authorization. This targeted update is tracked by the JWT endpoint checklist; role alone is not ownership proof.
 
 ---
 
 ## Tests
 
-Tests are numbered using the project T-number convention. Server-side tests live in `ansible/roles/post_build_checks/tasks/main.yml` tagged `[smoke]`. Client-side invariants that cannot be exercised via Ansible are noted as iOS XCTest cases. All tests must be permanent and idempotent. The next available T-number is **T-134** — T-98 through T-115 are reserved by `feature_security_authentication_migration_jwt_implementation.md` and T-105 through T-111 and T-125 through T-133 are reserved by `feature_security_authentication_migration_jwt_oidc_phase5.md`. Verify availability in both docs before assigning any new T-number.
+Tests use the shared project T-number namespace. This document already owns T-134 onward for its implemented scope. Current JWT reservations are T-151–T-156 and T-165–T-168 (web refactor), T-169–T-184 (JWT implementation), and OIDC's existing T-105–T-133 set. Re-run the repository-wide namespace search before assigning any additional number.
 
 ### Phase 2 tests — server `can_delete` response (add at Phase 2 ship)
 
 | T-number | What it validates | Where |
 |---|---|---|
-| T-134 | Unauthenticated GET `/db/database.php` returns 401 — confirms the endpoint is still protected after the query change | `post_build_checks` |
-| T-135 | Authenticated GET `/db/database.php` as `admin` returns 200 and every entry in the response has `can_delete: true` | `post_build_checks` |
-| T-136 | Authenticated GET `/db/database.php` as `uploader` returns 200; a known guest-uploaded asset (seeded fixture with an `upload_jobs` row) has `can_delete: false` | `post_build_checks` |
-| T-137 | Authenticated GET `/db/database.php` as `uploader` returns 200; a known authenticated upload (seeded fixture with no `upload_jobs` row and `delete_token_hash` set) has `can_delete: true` | `post_build_checks` |
+| T-134 | Unauthenticated `/db/database.php` remains protected: pre-cutover Basic returns 401; post-cutover `HTML_PAGE` redirects safely to login | `post_build_checks` |
+| T-135 | Authenticated owner context returns 200 and authorized entries have server-derived `can_delete` | `post_build_checks` |
+| T-136 | Authenticated contributor context returns 200; a known guest-origin asset without an explicit grant has `can_delete: false` | `post_build_checks` |
+| T-137 | Authenticated contributor context returns 200; any `can_delete: true` result is backed by same-tenant ownership or explicit grant, not role alone | `post_build_checks` |
 | T-138 | `upload_source` field is present in every response entry and contains only `"authenticated"` or `"guest"` — no null, no other value | `post_build_checks` |
 | T-139 | A guest-uploaded asset has `upload_source: "guest"`; an authenticated upload has `upload_source: "authenticated"` — validates the JOIN logic is classifying correctly | `post_build_checks` |
 
-**"must never" invariant covered by T-134:** `database.php` must never be accessible without authentication after the Phase 2 query change.
+**Invariant covered by T-134:** `database.php` remains inaccessible without the credential required by its active Basic or canonical JWT route mode.
 
-**"must never" invariant — Option A only (if chosen):** The `database.php` response must never be served from a cache when it contains a plaintext `delete_token`. Validate by asserting the response includes `Cache-Control: no-store` (or equivalent) when `can_delete: true` entries are present. Add as T-140 at Phase 2 ship if Option A is selected.
+The former plaintext-token Option A is superseded by normalized identity/ownership authorization. Do not add a plaintext `delete_token` to the list response; T-140 is not allocated for that rejected option.
 
 ### Phase 3 tests — iOS client behaviour (add at Phase 3 ship)
 
@@ -477,4 +477,4 @@ Verify that fixture cleanup uses `failed_when: false` on the delete tasks so a c
 - [ ] `UploadView` "My Uploads" token-staleness review under deduplication edge case
 - [ ] Add `upload_jobs.token_id → event_upload_tokens.token_id` FK — `upload_jobs` currently has no reference back to the QR authorization that permitted each upload; see `refactor_schema_upload_jobs_token_attribution.md`
 - [ ] Document deduplication edge case in server OpenAPI spec
-- [ ] JWT cutover — update `MediaController::listJson()` `can_delete` logic when Basic Auth is retired
+- [ ] JWT Migration Phase 4 — update `MediaController::listJson()` to normalized `AuthContext` + tenant/resource ownership/grant when Basic Auth is retired

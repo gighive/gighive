@@ -254,7 +254,7 @@ Both environments route through `api/media-stream.php`. The split is inside the 
 | `stream()` | `fopen()` + `fread()` in 64 KB chunks | GET request to Azure Blob REST, body piped to PHP output |
 | `streamRange()` | `fopen()` + `fseek($start)` + `fread($length)` | GET request with `Range: bytes=X-Y` header forwarded to Azure |
 | PHP response headers | `Content-Type`, `Content-Length`, `Accept-Ranges`, `ETag`, `206` if range | identical — same PHP code sets the headers in both cases |
-| Auth before bytes | PHP checks session/token before calling the backend | same |
+| Auth before bytes | PHP route resolver (JWT cookie / Bearer / guest nonce) before calling the backend | same |
 
 ### ffprobe / thumbnail
 
@@ -288,7 +288,7 @@ There are no `if ($backend === 'azure')` conditionals scattered through the appl
 | Where media lives | VM disk `/var/www/html/audio\|video/` | Azure Blob Storage (private container) |
 | Upload staging | `/tmp/tus-staging/` (cleared on commit) | None — blocks go directly to Blob |
 | Read mechanism | `fopen` / `fseek` / `fread` | REST GET with optional Range header |
-| Auth for reads | PHP session auth only | PHP session auth + Managed Identity token for Blob |
+| Auth for reads | Canonical route resolver (browser cookie / API Bearer / guest nonce) | Same route resolver + Managed Identity token for Blob |
 | ffprobe | direct local file path | temp download to `/tmp`, probe, delete |
 | Disk pressure | media accumulates on VM disk as before | upload path: zero; read path: zero; probe: short-lived /tmp only |
 | Application code changes needed | none — same interface | none — same interface |
@@ -405,7 +405,7 @@ The job claim query, retry logic, stuck-job reset, ffprobe invocation, thumbnail
 
 | Setting | Local / VirtualBox / Baremetal | Azure |
 |---|---|---|
-| **Audio/video bind mounts** | Present: `- "/home/{{ ansible_user }}/audio:/var/www/html/audio"` | Absent: controlled by `when: gighive_media_storage_backend != 'azure_blob'` in `docker-compose.yml.j2` |
+| **Audio/video bind mounts** | Present: `- "/home/{% raw %}{{ ansible_user }}{% endraw %}/audio:/var/www/html/audio"` | Absent: controlled by `when: gighive_media_storage_backend != 'azure_blob'` in `docker-compose.yml.j2` |
 | **`extra_hosts`** | `host.docker.internal:host-gateway` — present in both (harmless on local; required for IMDS on Azure) | Same — present unconditionally |
 | **`tusd` container** | Absent in both — retired everywhere | Absent in both |
 
@@ -554,21 +554,25 @@ This plan implements a **custom narrow PHP tus handler** covering only the `crea
 
 `site.yml` sets these facts for every provisioned host:
 
+{% raw %}
 ```yaml
 root_dir:  "/home/{{ ansible_user }}"   # or /root if ansible_user == root
 video_dir: "{{ root_dir }}/video"       # e.g. /home/ubuntu/video
 audio_dir: "{{ root_dir }}/audio"       # e.g. /home/ubuntu/audio
 ```
+{% endraw %}
 
 ### Docker Compose bind mounts
 
 `ansible/roles/docker/templates/docker-compose.yml.j2` currently binds those VM-host directories directly into the Apache container:
 
+{% raw %}
 ```yaml
 volumes:
   - "/home/{{ ansible_user }}/audio:{{ media_search_dir_audio }}"
   - "/home/{{ ansible_user }}/video:{{ media_search_dir_video }}"
 ```
+{% endraw %}
 
 `media_search_dir_audio` resolves to `/var/www/html/audio`; `media_search_dir_video` to `/var/www/html/video`. PHP reads files from those paths. Apache serves them as static files.
 
@@ -893,7 +897,7 @@ sequenceDiagram
 - `MediaResourceLoader` is the `AVAssetResourceLoaderDelegate`. AVPlayer drives byte-range requests; `MediaResourceLoader` injects `Authorization: Bearer <token>` on every outbound request.
 - The auth check in `authenticateRequest()` runs once per HTTP request regardless of byte range — stateless, no DB call.
 - A 401 surfaces via `AVPlayerItem.status` observation — the app should trigger re-login if the token has expired.
-- Auth mechanism: Basic Auth (Phases 1–3, Apache-enforced); JWT Bearer (Phase 4+, PHP sole gatekeeper). See `feature_security_authentication_migration_jwt_implementation.md` for the cutover detail.
+- Auth mechanism: governed by the canonical route-class policy (`MIXED_MEDIA` / `AUTHENTICATED_DOWNLOAD`). Browser requests use the Secure HttpOnly JWT cookie; iOS and API clients use `Authorization: Bearer <JWT>`; explicit guest nonces/upload tokens are authoritative on guest-scoped routes. Basic Auth is not used after JWT cutover per `policy_authentication_credential_route.md`. See `feature_security_authentication_migration_jwt_implementation.md` for cutover detail.
 
 ---
 

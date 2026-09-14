@@ -1,1784 +1,640 @@
-# Feature: Federated Auth Migration — Implementation Guide
+# Feature Implementation: JWT Authentication Migration
 
-**Status:** Pre-implementation — pending approval  
-**Date:** 2026-08-19  
-**Parent doc:** `docs/feature_security_authentication_migration_jwt.md`
+## Status — 2026-09-09
+Planning — rewritten to the canonical browser-cookie, API/iOS Bearer, centralized route-class, atomic-cutover, and sequential-promotion policy. No implementation is authorized by this document.
+
+**Strategic plan:** `docs/feature_security_authentication_migration_jwt.md`  
+**Canonical policy:** `docs/policy_authentication_credential_route.md`  
+**Endpoint inventory:** `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md`  
+**Web prerequisite:** `docs/refactor_security_authentication_shared_auth_function.md`  
+**Completed iOS prerequisite:** `docs/feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md`  
+**OIDC follow-on:** `docs/feature_security_authentication_migration_jwt_oidc_phase5.md`
 
 ---
 
 ## Elevator Pitch
 
-GigHive's shared `admin`/`uploader`/`viewer` passwords mean every person who touches the system has the same key. This implementation replaces those shared keys with individual logins: each person signs in once, gets their own JWT, and the server knows exactly who did what. QR-code event access is untouched.
+GigHive will replace three shared installation passwords with individual identities without breaking its server-rendered pages, mobile app, protected media, downloads, or anonymous QR event access. Browser users authenticate through a secure HttpOnly GigHive JWT cookie; iOS and programmatic clients use Bearer JWTs; QR guests remain restricted to their event token or nonce. One route policy enforces credentials, roles, tenant scope, and client-appropriate errors before Apache Basic Auth is removed.
 
 ---
 
 ## Scope
 
-This document covers only **Phase 1 through Phase 4** — JWT core, PHP guards, iOS client cutover, and Apache Basic Auth removal. Phase 5 (OIDC/federated login) is a follow-on and is scoped separately; only the scaffolding that Phase 5 requires is noted.
+This document implements JWT Migration Phases 0–4:
+
+1. Pre-JWT browser and iOS prerequisites.
+2. JWT core and schema alignment.
+3. Central route policy, browser cookie, CSRF, role/tenant/event guards, and internal-route denial.
+4. iOS Bearer and browser-session behavior.
+5. Atomic Basic-to-JWT cutover in each environment.
+
+JWT Migration Phase 5 OIDC and Phase 6 account management/audit remain separate documents.
+
+### In scope
+
+- Local API/iOS login returning Bearer JWT JSON.
+- Browser login setting a Secure HttpOnly JWT cookie without exposing the token to JavaScript.
+- Browser logout and session-expiry behavior.
+- One normalized authentication context and route-class resolver.
+- Role, tenant, event, and guest-capability scope.
+- CSRF for cookie-authenticated unsafe requests.
+- HTML, JSON, download, guest, and media response behavior.
+- TUS, media Range, direct downloads, and QR credential precedence.
+- Direct HTTP denial for internal workers, libraries, `src/` implementation code, and `vendor/`.
+- iOS JWT storage and Bearer requests while preserving exclusive QR upload-token requests.
+- Per-environment atomic cutover and sequential dev → lab → staging → production gates.
+
+### Out of scope
+
+- OIDC provider implementation (JWT Migration Phase 5).
+- User-management UI, audit-log UI, and self-service deletion (Phase 6).
+- Final Local Admin versus Platform Admin surface split beyond the route/role assignments in the endpoint checklist.
+- A PHP-to-Java rewrite; the contract is designed to remain portable.
+
+---
+
+## Confirmed Architecture
+
+### Credential transport
+
+| Client/flow | Credential |
+|---|---|
+| Browser account session | `__Host-gighive_session` Secure HttpOnly JWT cookie |
+| iOS/programmatic API | `Authorization: Bearer <JWT>` |
+| QR upload | Route token or `X-Upload-Token` |
+| Guest gallery | Nonce in the endpoint's documented query/body/header position |
+| Pre-cutover account access | Apache Basic Auth only |
+
+No browser JWT is stored in localStorage or sessionStorage.
+
+### Route classes
+
+- `PUBLIC`
+- `LOGIN`
+- `HTML_PAGE`
+- `AUTHENTICATED_API`
+- `AUTHENTICATED_DOWNLOAD`
+- `GUEST_UPLOAD`
+- `GUEST_GALLERY`
+- `MIXED_MEDIA`
+- `DUAL_RESPONSE`
+- `INTERNAL_WORKER`
+- `INTERNAL_LIBRARY`
+
+### Precedence invariants
+
+1. An explicitly supplied invalid credential fails; it does not fall back to broader authority.
+2. Guest upload token/nonce is authoritative when explicitly supplied on its guest/mixed route.
+3. Authenticated API uses explicit Bearer when present; otherwise browser cookie.
+4. Browser HTML uses cookie authentication.
+5. Media and downloads never redirect to HTML login.
+6. Public routes do not broaden output because an incidental cookie is present.
+7. Route resolution occurs before role and tenant/event authorization.
+
+---
+
+## Open Decisions — Implementation Gates
+
+Implementation must not begin past the named gate until the user approves:
+
+1. **Revocation:** Request-time account/token-version validation, denylist, or expiry-only. Recommended for SaaS: request-time user `disabled`, role, tenant, and token-version validation so administrative changes take effect on the next request.
+2. **JWT lifetime/renewal:** Exact TTL and browser renewal behavior.
+3. **CSRF:** Exact server token derivation/rotation. Recommended: server-generated token bound to JWT `jti`, rendered to forms/meta without exposing the JWT, validated with `hash_equals`.
+4. **Resolver API:** Exact PHP class/function names shown below are proposed, not approved source signatures.
+5. **Unsafe HTML expiry:** Exact session-expired page and recovery UX; unsafe requests are never replayed.
+6. **Stable error codes:** Final JSON/guest/media code vocabulary.
+7. **Key rotation:** Active/previous key validation window.
+8. **CSP:** Report collection and enforcement policy.
+9. **Role name:** Reconcile existing DB `superadmin` with SaaS `platform_admin` before platform-role implementation.
+
+---
+
+## Implementation Index
+
+### JWT Migration Phase 0 — Prerequisites
+
+- [ ] **Phase 0, Step 1** — Verify completed iOS `AuthCredential` prerequisite
+- [ ] **Phase 0, Step 2** — Complete Web Refactor Phase 1 under Basic Auth
+- [ ] **Phase 0, Step 3** — Verify XSS/CSP prerequisite tests and documentation PPRR
+
+### JWT Migration Phase 1 — JWT Core and Session Foundations
+
+- [ ] **Phase 1, Step 1** — Add PHP JWT dependency
+- [ ] **Phase 1, Step 2** — Apply users-table bootstrap and BABRR live schema alignment
+- [ ] **Phase 1, Step 3** — Add auth/cookie/CSRF/cutover configuration to all environments
+- [ ] **Phase 1, Step 4** — Implement JWT generation/validation and normalized claims
+- [ ] **Phase 1, Step 5** — Implement API/iOS login and Bearer verification
+- [ ] **Phase 1, Step 6** — Implement browser login/logout and HttpOnly cookie lifecycle
+- [ ] **Phase 1, Step 7** — Add Phase 1 permanent tests
+
+### JWT Migration Phase 2 — Route Policy and Server Enforcement
+
+- [ ] **Phase 2, Step 1** — Implement route-policy constants and normalized authentication context
+- [ ] **Phase 2, Step 2** — Implement centralized credential resolver and no-fallback semantics
+- [ ] **Phase 2, Step 3** — Implement HTML/JSON/download/media response helpers
+- [ ] **Phase 2, Step 4** — Implement centralized CSRF generation and validation
+- [ ] **Phase 2, Step 5** — Classify and guard all HTTP pages/endpoints from the endpoint checklist
+- [ ] **Phase 2, Step 6** — Deny direct HTTP to internal workers/libraries/source/vendor paths
+- [ ] **Phase 2, Step 7** — Implement mixed upload, media, download, and dual-response behavior
+- [ ] **Phase 2, Step 8** — Add Phase 2 permanent route-class tests
+
+### JWT Migration Phase 3 — Client Readiness
+
+- [ ] **Phase 3, Step 1** — Implement iOS Bearer login, storage, restoration, and expiry recovery
+- [ ] **Phase 3, Step 2** — Extend `GHAuth.authedFetch()` for cookie-session `401` handling and CSRF header
+- [ ] **Phase 3, Step 3** — Add browser login/logout/session-expiry behavior
+- [ ] **Phase 3, Step 4** — Run static/unit/client tests while environment remains in Basic mode
+- [ ] **Phase 3, Step 5** — Confirm rollback artifact and cutover readiness
+
+### JWT Migration Phase 4 — Atomic Cutover and Promotion
+
+- [ ] **Phase 4, Step 1** — Capture environment rollback state
+- [ ] **Phase 4, Step 2** — Atomically activate JWT mode and remove Apache Basic account auth in dev
+- [ ] **Phase 4, Step 3** — Run full dev post-build, browser, iOS, upload, media, QR, XSS, and rollback tests
+- [ ] **Phase 4, Step 4** — Promote same release to lab and gate on tests
+- [ ] **Phase 4, Step 5** — Promote same release to staging and gate on full regression tests
+- [ ] **Phase 4, Step 6** — Promote same release to production and run safe checks
+- [ ] **Phase 4, Step 7** — Accept cutover or execute coordinated rollback
 
 ---
 
 ## Files Under Change
 
-### New — Server (`ansible/roles/docker/files/apache/webroot/`)
+Exact endpoint-by-endpoint assignments are owned by `feature_security_authentication_migration_jwt_endpoint_guard_checklist.md`. This list defines the implementation subsystems; Step 4.7 of the documentation reconciliation must populate the final endpoint manifest before code implementation approval.
 
-1. `auth/jwt.php` — `JwtAuth` class: `generate()` and `validate()` using `firebase/php-jwt` library. Reads `JWT_SECRET` and `JWT_TTL_SECONDS` from env via constants defined in `config.php`.
-2. `auth/helpers.php` — `requireRole(string $minRole): void` and `hasRole(string $minRole): bool`. Role hierarchy: `owner=3`, `contributor=2`, `viewer=1`.
-3. `api/login.php` — `POST /api/login.php`: email + password exchange for JWT. Validates against `users` table, `idp_provider='local'`.
-4. `api/verify.php` — `GET /api/verify.php`: validates stored JWT; returns distinct `token_expired` vs `invalid_token` error codes.
-5. `auth/gh-auth.js` — Web admin JWT client module: `GHAuth.authedFetch()`, `GHAuth.login()`, `GHAuth.logout()`, `GHAuth.requireAuth()`. Stores JWT in `localStorage`; attaches `Authorization: Bearer <token>` to all authenticated AJAX calls from admin and DB pages. See **Phase 2 Companion — Web Admin Session Management**.
-6. `auth/login.php` — Web admin login page: renders an email/password form, calls `POST /api/login.php` via `GHAuth.login()`, stores the JWT, and redirects to the originally requested admin page. Replaces the Apache Basic Auth browser dialog for the web UI.
+### New — server
 
-### New — Database (`ansible/roles/docker/files/mysql/externalConfigs/`)
+1. `ansible/roles/docker/files/apache/webroot/auth/jwt.php` — GigHive JWT issue/validate/reason API; issuer, audience, expiry, `jti`, subject, role, and tenant claims.
+2. `ansible/roles/docker/files/apache/webroot/auth/helpers.php` — Route constants, normalized `AuthContext`, credential resolver, role/scope enforcement, and response dispatch.
+3. `ansible/roles/docker/files/apache/webroot/auth/csrf.php` — Central browser CSRF issue/render/validate behavior.
+4. `ansible/roles/docker/files/apache/webroot/auth/login.php` — Browser GET/POST login; sets HttpOnly JWT cookie; never returns JWT to JavaScript.
+5. `ansible/roles/docker/files/apache/webroot/auth/logout.php` — CSRF-protected browser logout; clears cookie attributes exactly.
+6. `ansible/roles/docker/files/apache/webroot/auth/gh-auth.js` — Phase 0 passthrough, later cookie-session `401` and CSRF request behavior; never reads a JWT.
+7. `ansible/roles/docker/files/apache/webroot/api/login.php` — API/iOS login; returns Bearer JWT JSON and never sets browser cookie.
+8. `ansible/roles/docker/files/apache/webroot/api/verify.php` — API/iOS Bearer validation with stable expired/invalid codes.
 
-5. `create_media_db.sql` — add `password_hash` and `disabled` columns to the existing `users` table definition (updated in the bootstrap file).
+### Modified — server/configuration
 
-### New — iOS (`GigHive/Sources/App/`)
+9. `ansible/roles/docker/files/apache/webroot/config.php` — Auth mode, JWT, cookie, issuer/audience, and CSRF constants from environment.
+10. `ansible/roles/docker/templates/.env.j2` — Inject approved auth variables.
+11. `ansible/roles/docker/templates/default-ssl.conf.j2` — Preserve forwarding/routing/limits; add internal denials and login access; atomically remove Basic account auth at cutover; CSP policy.
+12. `ansible/roles/docker/files/apache/webroot/composer.json` — Add vetted `firebase/php-jwt` dependency.
+13. `ansible/roles/docker/files/apache/webroot/composer.lock` — Lock dependency graph.
+14. `ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql` — Bootstrap `password_hash` and `disabled`; add any approved token-version field if revocation decision requires it.
+15. `ansible/roles/post_build_checks/tasks/main.yml` — Permanent route, credential, cookie, CSRF, internal-denial, cutover, and rollback tests.
+16. `ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts` — Browser login/session/AJAX/form/download/XSS flows.
+17. Environment `group_vars` and Vault secret files — Values listed below; user manages Vault content.
 
-6. `JWTStore.swift` — Keychain wrapper for `StoredToken` (token string + role + expiry). Replaces `KeychainStore` for account-based auth.
+### Existing webroot route surface requiring classification
 
-### Modified — Server
+18. `admin/` — 59 real PHP files: 9 HTML, 38 JSON/action, 2 downloads, 7 internal workers, 3 include-only libraries.
+19. `db/` — 14 PHP files: public health, authenticated HTML/API, mixed upload, and dual-response routes.
+20. `api/` — 12 PHP files: 4 authenticated API (`ai_jobs.php`, `tags.php`, `taggings.php`, `uploads.php`), 5 guest gallery, 1 guest-token validation, 1 mixed upload (`tus-upload.php`), and 1 mixed media. Current `api/uploads.php` has no QR upload-token handling.
+21. `src/index.php` — Mixed authenticated/guest upload front controller.
+22. `src/Jobs/*.php` — Internal workers; direct HTTP denied.
+23. `src/` implementation classes and `vendor/` PHP — Internal libraries; direct HTTP denied.
+24. `timeline/timeline-api.php`, root public pages, registration, and `.well-known` — Explicit public classifications.
 
-7. `config.php` — add `GIGHIVE_AUTH_MODE`, `JWT_SECRET`, `JWT_TTL_SECONDS` constants.
-8. `api/media-stream.php` — Phase 4: swap Basic Auth trust for JWT Bearer validation in `authenticateRequest()`.
-9. `api/tus-upload.php` — Phase 4: add PHP-side JWT Bearer validation block before the existing QR token block.
-10. `api/uploads.php` — Phase 2: add `requireRole('contributor')` at top.
-11. `api/ai_jobs.php` — Phase 2: add `requireRole('viewer')` or `requireRole('owner')` per endpoint.
-12. `db/database.php` — Phase 2: add `requireRole('viewer')` at top.
-13. `db/database_catalog.php` — Phase 2: add `requireRole('viewer')` at top.
-14. `db/upload_form.php` — Phase 2: add `requireRole('contributor')` at top.
-15. `db/upload_form_admin.php` — Phase 2: add `requireRole('owner')` at top.
-16. `db/delete_media_files.php` — Phase 2: add `requireRole('contributor')` at top.
-17. `admin/*.php` (42 files) — Phase 2: add `requireRole('owner')` at top of each file. The Apache `/admin/` location block enforces `Require user admin` during Phases 1–3, so the PHP guard is defence-in-depth until Phase 4 makes PHP the sole gatekeeper.
-18. `ansible/roles/docker/templates/.env.j2` — add `GIGHIVE_AUTH_MODE`, `JWT_SECRET`, `JWT_TTL_SECONDS`.
-19. `ansible/roles/docker/files/apache/webroot/composer.json` + `composer.lock` — add `firebase/php-jwt ^6.10` (run `composer require firebase/php-jwt:^6.10` locally; commit both files). `Dockerfile.j2` already runs `composer install` — no change to `Dockerfile.j2` is needed for Phases 1–4. Phase 5 does require a Dockerfile change to add `libapache2-mod-auth-openidc`, but that is scoped to the Phase 5 document.
-20. `ansible/roles/docker/templates/default-ssl.conf.j2` — Phase 4: remove all `AuthType Basic` blocks. Retain all QR `AuthMerging Off` blocks and all `SetEnvIf` directives.
-21. `ansible/roles/post_build_checks/tasks/main.yml` — add smoke tests for new endpoints and JWT-auth paths.
+### Proven XSS changes
 
-### Modified — iOS
+25. `admin/admin_system.php` — Remove unescaped dynamic endpoint message/error HTML insertion.
+26. `admin/ai_worker.php` — Render `ai_jobs.error_msg` as text/DOM, not raw HTML.
+27. `admin/admin_database_load_import_csv.php` — Escape or DOM-render endpoint success/error values.
+28. `db/media_tags.php` — Render AJAX job errors without raw `innerHTML` interpolation.
 
-22. `AuthSession.swift` — replace `credentials: (user: String, pass: String)?` with `token: String?` and `expiresAt: Date?`; add role from JWT claim.
-23. `LoginView.swift` — call `POST /api/login.php`; store result via `JWTStore`; replace username-derived role with JWT claim.
-24. `SplashView.swift` — replace all `session.credentials` guards with `session.token` guards.
-25. `DatabaseView.swift` — pass `session.token` as Bearer header instead of `session.credentials`.
-26. `DatabaseDetailView.swift` — pass `token: session.token` to `MediaPlayerView` instead of `credentials:`.
-27. `MediaPlayerView.swift` — replace `credentials: (user: String, pass: String)?` with `token: String?`; build `Authorization: Bearer` header.
-28. `MediaResourceLoader.swift` — replace `init(credentials:)` with `init(token:)`; send Bearer header.
-29. `DatabaseAPIClient.swift` — replace `basicAuth:` param and `Authorization: Basic` with `bearerToken:` and `Authorization: Bearer`.
-30. `TUSUploadClient.swift` — replace `basicAuth` header branch with `bearerToken` branch; `uploadToken` branch unchanged.
-31. `KeychainStore.swift` — mark deprecated; retain `load()` for one-time migration read on first launch; `JWTStore` handles new token storage.
+### Modified/new — iOS
 
-### Unchanged (explicitly)
+29. `GigHive/Sources/App/JWTStore.swift` — Secure Bearer token storage.
+30. `GigHive/Sources/App/LoginView.swift` — API/iOS login returning Bearer only; iOS 14-compatible networking.
+31. `GigHive/Sources/App/SplashView.swift` — Restore/expire Bearer session.
+32. `GigHive/Sources/App/AuthSession.swift` — Token expiry/role/session state as required by final implementation.
 
-- `GuestUploadSession.swift`, `QRTokenAPIClient.swift` — QR flow is independent; no changes.
-- `db/upload_form_single.php` — `Require all granted`; QR guest path unchanged.
-- All `/api/guest-*.php`, `/api/upload-token.php` — unchanged.
-- `apache/webroot/src/Services/UploadTokenValidator.php`, `GuestCredentialResolver.php` — unchanged.
+The completed `AuthCredential` and network-client refactor should avoid further header-construction changes unless source inspection proves otherwise.
 
 ---
 
-## Prerequisite: PHP JWT Library
+## Phase 0 — Prerequisites
 
-**No JWT library is currently vendored.** `composer.json` contains only `guzzlehttp/guzzle`, `guzzlehttp/psr7`, `psr/http-message`, and `zircote/swagger-php`. Before writing `auth/jwt.php`, `firebase/php-jwt` must be added:
+### Phase 0, Step 1 — Completed iOS credential abstraction
 
-```bash
-# Run locally in ansible/roles/docker/files/apache/webroot/
-composer require firebase/php-jwt:^6.10
-```
+Verify `feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md` remains complete and current source still has mutually exclusive `.basic`, `.bearer`, and `.uploadToken` behavior. QR upload token must continue winning over account session credentials.
 
-This updates `composer.json` and `composer.lock`. Both committed files are what the `Dockerfile.j2` `RUN composer install` step uses — no Dockerfile change is needed beyond committing the updated manifests.
+### Phase 0, Step 2 — Web shared-auth/XSS/CSP preparation
 
-`firebase/php-jwt` 6.10 was published 2025-01-13; it is well past the 7-day minimum age. PHP 8.3 is fully supported.
+Complete `refactor_security_authentication_shared_auth_function.md` under Apache Basic Auth:
 
-**SonarQube note:** Using a well-maintained library instead of raw `openssl_sign()`/`base64_encode()` inline avoids RSPEC-2635 (custom crypto) and RSPEC-3512 (predictable IV). Do not roll a JWT implementation by hand.
+- Deploy token-free `GHAuth.authedFetch()` first.
+- Convert the 14 authenticated AJAX caller files.
+- Verify Basic remains the wire credential.
+- Fix the four proven XSS files.
+- Introduce/evaluate CSP report-only mode.
+- Pass T-151–T-168.
+
+### Phase 0, Step 3 — Gate
+
+Do not begin Phase 1 code until Phase 0 tests and the web-refactor PPRR pass.
 
 ---
 
-## Phase 1 — JWT Core
+## Phase 1 — JWT Core and Session Foundations
 
-### 1a. Schema Change: `users` table
+### PHP dependency
 
-The `users` table already exists in `create_media_db.sql` (see parent doc). It does not have `password_hash` or `disabled` columns. Both are required for Phase 1 local-user login.
+Use Composer to add a vetted `firebase/php-jwt` 6.x release published at least seven days earlier. Commit `composer.json` and `composer.lock`; do not use a floating version.
 
-**Update `create_media_db.sql`** — add both columns to the `users` CREATE TABLE block (after `idp_subject`):
+### JWT claims contract
 
-```sql
-  password_hash   varchar(255)  DEFAULT NULL
-                                COMMENT 'bcrypt hash; NULL for OIDC-only users',
-  disabled        tinyint(1)    NOT NULL DEFAULT 0
-                                COMMENT '1 = account suspended',
+Every GigHive JWT contains:
+
+```json
+{
+  "sub": "42",
+  "email": "owner@example.com",
+  "role": "owner",
+  "tenant_id": 7,
+  "jti": "cryptographically-random-id",
+  "iat": 1756000000,
+  "exp": 1756003600,
+  "iss": "configured-gighive-issuer",
+  "aud": "configured-gighive-audience"
+}
 ```
 
-**Live ALTER command (BABRRR Step 2)** — run manually on each existing environment:
+Rules:
 
-```bash
-docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db -e "
-ALTER TABLE users
-  ADD COLUMN password_hash varchar(255) DEFAULT NULL
-      COMMENT '"'"'bcrypt hash; NULL for OIDC-only users'"'"'
-      AFTER idp_subject,
-  ADD COLUMN disabled tinyint(1) NOT NULL DEFAULT 0
-      COMMENT '"'"'1 = account suspended'"'"'
-      AFTER password_hash;
-"'
-```
+- HS256 GigHive-issued tokens; per-environment secret in Vault.
+- Validate algorithm, signature, issuer, audience, expiry, required claims, and claim types.
+- Never log raw token or cookie.
+- Do not trust role/tenant from request input outside validated claims/current-account checks.
+- Final revocation decision controls whether current user state/token version is queried per request.
 
-Prerequisite: confirm neither column exists first: `SHOW COLUMNS FROM users LIKE 'password_hash';`
+### Browser cookie
 
-MySQL 8.4 compatibility: `ADD COLUMN` without `IF NOT EXISTS` is correct — `ADD COLUMN IF NOT EXISTS` is not valid MySQL syntax.
+Recommended approved-policy defaults:
 
-### 1b. `config.php` — new constants
+- Name: `__Host-gighive_session`.
+- `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, no Domain.
+- Expiry no later than JWT expiry.
+- Rotate on login and privilege change.
+- Clear with identical attributes.
+- HTTPS required in every JWT-enabled environment; never weaken Secure/`__Host-` for HTTP.
 
-Add after the existing `define('SAAS_MODE', ...)` line:
+### Separate login contracts
 
-```php
-define('GIGHIVE_AUTH_MODE', getenv('GIGHIVE_AUTH_MODE') ?: 'basic');
-define('JWT_SECRET',        getenv('JWT_SECRET')        ?: '');
-define('JWT_TTL_SECONDS',   (int)(getenv('JWT_TTL_SECONDS') ?: 2592000)); // 30 days
-```
+**API/iOS `POST /api/login.php`:** Returns Bearer JWT JSON; must not emit `Set-Cookie`.
 
-No literals anywhere else. `JWT_SECRET` must never have a hard-coded fallback in production; the empty string default will cause all token validations to fail, which is the safe failure mode.
+**Browser `GET/POST /auth/login.php`:** GET renders login; POST validates credentials, rotates and sets browser cookie, then redirects only to a validated same-origin relative destination. The JWT is never returned to browser JavaScript.
 
-**SonarQube note:** `JWT_SECRET` is never logged or echoed. RSPEC-2635 (sensitive data exposure) satisfied.
+**Browser `POST /auth/logout.php`:** Requires valid CSRF, clears cookie, and redirects to login.
 
-### 1c. `.env.j2` additions
+### Configuration
 
-```jinja2
-GIGHIVE_AUTH_MODE={{ gighive_auth_mode | default('basic') }}
-JWT_SECRET={{ jwt_secret }}
-JWT_TTL_SECONDS={{ jwt_ttl_seconds | default(2592000) }}
-```
-
-`jwt_secret` has no default — it must be set explicitly in each environment's `secrets.yml` under ansible-vault. A missing variable causes Ansible to fail at template render time, which is the correct failure mode.
-
-**group_vars to add in each environment's `secrets.yml`:**
+Proposed group vars (exact values per environment; secrets in Vault):
 
 ```yaml
-jwt_secret: "<generated-per-env-secret-min-32-chars>"
+gighive_auth_mode: basic
+jwt_ttl_seconds: <approved value>
+jwt_issuer: <approved issuer>
+jwt_audience: <approved audience>
+gighive_session_cookie_name: __Host-gighive_session
+gighive_session_cookie_samesite: Lax
+gighive_auth_cutover_confirmed: false
+gighive_csp_report_only: <approved policy>
+gighive_csp_enforced: <approved policy>
 ```
 
-**group_vars to add in each environment's main `.yml` (e.g. `gighive2.yml`, `gighive.yml`, `prod.yml`):**
+Vault:
 
 ```yaml
-gighive_auth_mode: "basic"         # Phase 1: basic (guards not yet deployed)
-                                   # Phase 2+: change to "local" (PHP JWT guards active alongside Apache Basic Auth)
-                                   # Phase 4 cutover: stays "local" (Apache Basic Auth removed, PHP is sole gatekeeper)
-                                   # Phase 5+: change to "oidc"
-jwt_ttl_seconds: 2592000           # 30 days
-auth_mode_phase4_confirmed: false  # Set true ONLY after iOS Phase 3 is verified on all envs
+jwt_secret: <per-environment secret>
+csrf_secret: <per-environment secret>
 ```
 
-All three environments (gighive2, gighive, prod) must have these vars. No hardcoding.
+All variables must exist in dev, lab, staging, and production group vars before templates reference them.
 
-### 1d. `auth/jwt.php`
+---
+
+## Phase 2 — Central Route Policy and Server Enforcement
+
+### Proposed normalized context
 
 ```php
-<?php
-
-declare(strict_types=1);
-
-require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../config.php';
-
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
-
-/**
- * JWT generation and validation for GigHive account-based auth.
- *
- * Uses HS256 throughout all phases (including Phase 5). Role values match the users.role enum:
- * 'owner' | 'contributor' | 'viewer'
- *
- * JWT_SECRET must be at least 32 characters. An empty secret causes
- * validate() to return null (fail-safe).
- */
-final class JwtAuth
+final readonly class AuthContext
 {
-    private const ALGORITHM = 'HS256';
-    private const ISSUER    = 'gighive';
-
-    /**
-     * Generate a signed JWT for a given user.
-     *
-     * @param int    $userId  users.id
-     * @param string $role    'owner' | 'contributor' | 'viewer'
-     * @param string $email   Display email; not used for auth decisions
-     * @param int    $ttl     Seconds until expiry (default: JWT_TTL_SECONDS constant)
-     */
-    public static function generate(int $userId, string $role, string $email, int $ttl = 0): string
-    {
-        $secret = JWT_SECRET;
-        if ($secret === '') {
-            throw new \RuntimeException('JWT_SECRET is not configured');
-        }
-        $now = time();
-        $payload = [
-            'iss'   => self::ISSUER,
-            'sub'   => (string)$userId,
-            'email' => $email,
-            'role'  => $role,
-            'iat'   => $now,
-            'exp'   => $now + ($ttl > 0 ? $ttl : JWT_TTL_SECONDS),
-        ];
-        return JWT::encode($payload, $secret, self::ALGORITHM);
-    }
-
-    /**
-     * Validate a JWT string.
-     *
-     * Returns the decoded payload array on success.
-     * Returns null if the token is invalid, expired, or the secret is unset.
-     * Callers MUST distinguish null (invalid) from a valid payload.
-     *
-     * @return array{sub: string, email: string, role: string, iat: int, exp: int, iss: string}|null
-     */
-    public static function validate(string $token): ?array
-    {
-        $secret = JWT_SECRET;
-        if ($secret === '' || $token === '') {
-            return null;
-        }
-        try {
-            $decoded = JWT::decode($token, new Key($secret, self::ALGORITHM));
-            $payload = (array)$decoded;
-            // Enforce required fields before returning to callers
-            if (!isset($payload['sub'], $payload['role'], $payload['exp'])) {
-                return null;
-            }
-            return $payload;
-        } catch (\Firebase\JWT\ExpiredException $e) {
-            return null; // caller uses HTTP_AUTHORIZATION presence to distinguish expired vs invalid
-        } catch (\Throwable $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Returns the expiry reason string for use in api/verify.php.
-     * 'token_expired' | 'invalid_token' | null (valid)
-     */
-    public static function validateWithReason(string $token): array
-    {
-        $secret = JWT_SECRET;
-        if ($secret === '' || $token === '') {
-            return [null, 'invalid_token'];
-        }
-        try {
-            $decoded = JWT::decode($token, new Key($secret, self::ALGORITHM));
-            $payload = (array)$decoded;
-            if (!isset($payload['sub'], $payload['role'], $payload['exp'])) {
-                return [null, 'invalid_token'];
-            }
-            return [$payload, null];
-        } catch (\Firebase\JWT\ExpiredException $e) {
-            return [null, 'token_expired'];
-        } catch (\Throwable $e) {
-            return [null, 'invalid_token'];
-        }
-    }
+    public function __construct(
+        public string $credentialType,
+        public ?int $userId,
+        public ?string $role,
+        public ?int $tenantId,
+        public ?int $eventId,
+        public ?string $jwtId,
+        public ?int $expiresAt
+    ) {}
 }
 ```
 
-**SonarQube notes:**
-- No force-unwrap equivalent in PHP — all array access uses `isset()` before access. RSPEC-6426 n/a (PHP).
-- Cognitive complexity is low — single responsibility per method. RSPEC-3776 satisfied.
-- No SQL in this file. RSPEC-2635 n/a.
-- `JWT_SECRET` not logged. Sensitive data safe.
+Final constructor/API requires approval and RSPEC-107 review before implementation.
 
-### 1e. `auth/helpers.php`
+### Resolver contract
 
-```php
-<?php
+The shared resolver receives an explicit route class and returns `AuthContext` or dispatches the class-appropriate failure. It distinguishes absent credentials from present-invalid credentials.
 
-declare(strict_types=1);
-
-require_once __DIR__ . '/jwt.php';
-
-/**
- * Role hierarchy constants.
- * Values must match the users.role enum in create_media_db.sql.
- */
-const ROLE_LEVELS = [
-    'viewer'      => 1,
-    'contributor' => 2,
-    'owner'       => 3,
-];
-
-/**
- * Extract and validate a Bearer JWT from the current request.
- * Returns the decoded payload or null.
- */
-function currentJwtPayload(): ?array
-{
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    if (!str_starts_with($authHeader, 'Bearer ')) {
-        return null;
-    }
-    $token = substr($authHeader, 7);
-    return JwtAuth::validate($token);
-}
-
-/**
- * Require that the current request carries a JWT with at least $minRole.
- * Sends 401 (no/invalid token) or 403 (insufficient role) and exits.
- *
- * Call at the top of any PHP page or endpoint that requires authentication.
- */
-function requireRole(string $minRole): void
-{
-    $payload = currentJwtPayload();
-    if ($payload === null) {
-        http_response_code(401);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'unauthenticated']);
-        exit;
-    }
-    $userLevel = ROLE_LEVELS[$payload['role'] ?? ''] ?? 0;
-    $minLevel  = ROLE_LEVELS[$minRole] ?? 999;
-    if ($userLevel < $minLevel) {
-        http_response_code(403);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'forbidden']);
-        exit;
-    }
-}
-
-/**
- * Non-exiting variant for conditional logic inside a page.
- */
-function hasRole(string $minRole): bool
-{
-    $payload = currentJwtPayload();
-    if ($payload === null) {
-        return false;
-    }
-    $userLevel = ROLE_LEVELS[$payload['role'] ?? ''] ?? 0;
-    $minLevel  = ROLE_LEVELS[$minRole] ?? 999;
-    return $userLevel >= $minLevel;
-}
+```text
+PUBLIC: no identity required; incidental cookie does not alter response
+HTML_PAGE: browser cookie; missing/invalid GET redirects safely; wrong role HTML 403
+AUTHENTICATED_API: explicit Bearer, otherwise cookie; JSON failures; CSRF on cookie unsafe method
+AUTHENTICATED_DOWNLOAD: explicit Bearer, otherwise cookie; never return login HTML as file
+GUEST_UPLOAD: explicit upload token authoritative; otherwise Bearer, then cookie
+GUEST_GALLERY: nonce authoritative; cookie ignored for guest authorization
+MIXED_MEDIA: explicit nonce/token authoritative; otherwise Bearer, then cookie; preserve Range
+DUAL_RESPONSE: choose explicit mode before auth; do not rely on Accept alone
+INTERNAL_WORKER / INTERNAL_LIBRARY: direct HTTP denied
 ```
 
-**Brittle coding note:** `ROLE_LEVELS` is the single source of truth for the hierarchy. Do not inline numeric comparisons anywhere else — always call `requireRole()` or `hasRole()`.
+### Role and scope
 
-**Hardcoded path check:** `require_once __DIR__ . '/jwt.php'` is a relative path anchored to the file's own directory — this is correct and not deployment-specific. No group_var needed.
+After identity resolution:
 
-### 1f. `api/login.php`
+1. Validate minimum role from one hierarchy.
+2. Enforce `tenant_id` on every tenant-owned query/resource.
+3. Enforce event/resource scope.
+4. Apply guest capability limitations.
+5. Allow platform scope only on explicitly platform-authorized routes.
 
-```php
-<?php
+### Response behavior
 
-declare(strict_types=1);
+- HTML GET unauthenticated: safe login redirect.
+- HTML unsafe request expired: no replay; clear session and return session-expired HTML behavior.
+- API: stable JSON `401`/`403`.
+- Download/media: status only; never login-page substitution.
+- Guest: guest-contract error; no account login redirect.
+- Public: remain public despite invalid incidental cookie.
 
-require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../auth/jwt.php';
+### CSRF
 
-use Production\Api\Infrastructure\Database;
+- Cookie-authenticated POST/PUT/PATCH/DELETE require CSRF.
+- Native forms carry hidden field.
+- Browser AJAX carries `X-CSRF-Token` via `GHAuth.authedFetch()`.
+- Bearer, QR token, and nonce requests do not inherit browser cookie authority.
+- Missing/invalid CSRF returns `403` and performs no mutation.
+- Validate Origin as defense in depth where reliable.
 
-header('Content-Type: application/json');
+### Internal access
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['error' => 'method_not_allowed']);
-    exit;
-}
-
-$body = (string)file_get_contents('php://input');
-$data = json_decode($body, true);
-
-$email    = trim((string)($data['email']    ?? ''));
-$password = (string)($data['password'] ?? '');
-
-if ($email === '' || $password === '') {
-    http_response_code(400);
-    echo json_encode(['error' => 'missing_fields']);
-    exit;
-}
-
-// Basic email format guard (not a full RFC 5321 check — just prevents injection)
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'invalid_email']);
-    exit;
-}
-
-try {
-    $pdo = Database::createFromEnv();
-} catch (\Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'db_error']);
-    exit;
-}
-
-// Lookup by email + idp_provider='local'. Use prepared statement.
-$stmt = $pdo->prepare(
-    'SELECT id, role, email, password_hash, disabled FROM users
-     WHERE email = :email AND idp_provider = :provider
-     LIMIT 1'
-);
-$stmt->execute([':email' => $email, ':provider' => 'local']);
-$user = $stmt->fetch();
-
-if ($user === false) {
-    // Constant-time comparison even on not-found path (prevent timing oracle)
-    password_verify('dummy', '$2y$12$invalidhashpadding000000000000000000000000000000000000000');
-    http_response_code(401);
-    echo json_encode(['error' => 'invalid_credentials']);
-    exit;
-}
-
-if ((int)$user['disabled'] === 1) {
-    http_response_code(403);
-    echo json_encode(['error' => 'account_disabled']);
-    exit;
-}
-
-if (!password_verify($password, (string)($user['password_hash'] ?? ''))) {
-    http_response_code(401);
-    echo json_encode(['error' => 'invalid_credentials']);
-    exit;
-}
-
-try {
-    $token = JwtAuth::generate((int)$user['id'], (string)$user['role'], (string)$user['email']);
-} catch (\RuntimeException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'token_generation_failed']);
-    exit;
-}
-
-$expiresAt = date('Y-m-d\TH:i:s\Z', time() + JWT_TTL_SECONDS);
-
-http_response_code(200);
-echo json_encode([
-    'token'      => $token,
-    'role'       => $user['role'],
-    'email'      => $user['email'],
-    'expires_at' => $expiresAt,
-]);
-exit;
-```
-
-**Security notes:**
-- PDO prepared statement with named parameters — no string interpolation near SQL. RSPEC-2635 satisfied.
-- Constant-time password check on the not-found path prevents timing oracle attacks (attacker cannot distinguish "user not found" from "wrong password" via response time).
-- `FILTER_VALIDATE_EMAIL` before DB query — input validated before DB access. RSPEC-2635 / secure coding satisfied.
-- Password is not logged anywhere.
-
-**SonarQube notes:**
-- No force unwraps. Nulls handled with `?? ''` and explicit checks.
-- Cognitive complexity: two sequential guard clauses + one credential check. Low. RSPEC-3776 satisfied.
-
-### 1g. `api/verify.php`
-
-```php
-<?php
-
-declare(strict_types=1);
-
-require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../auth/jwt.php';
-
-header('Content-Type: application/json');
-
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode(['error' => 'method_not_allowed']);
-    exit;
-}
-
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-if (!str_starts_with($authHeader, 'Bearer ')) {
-    http_response_code(401);
-    echo json_encode(['valid' => false, 'error' => 'invalid_token']);
-    exit;
-}
-
-$token = substr($authHeader, 7);
-[$payload, $reason] = JwtAuth::validateWithReason($token);
-
-if ($payload === null) {
-    http_response_code(401);
-    echo json_encode(['valid' => false, 'error' => $reason]);
-    exit;
-}
-
-$expiresAt = date('Y-m-d\TH:i:s\Z', (int)$payload['exp']);
-
-http_response_code(200);
-echo json_encode([
-    'valid'      => true,
-    'role'       => $payload['role'],
-    'email'      => $payload['email'] ?? '',
-    'expires_at' => $expiresAt,
-]);
-exit;
-```
-
-**iOS behavior contract:**
-- `error: "token_expired"` → silent re-login flow (stored email/password or OIDC refresh)
-- `error: "invalid_token"` → clear Keychain entry, present full login screen
+- Add Apache denials for exact worker/library/source/vendor paths.
+- Retain/add explicit CLI checks in workers.
+- Add missing CLI guard to `admin/import_manifest_worker.php`.
+- Do not add `requireRole()` to CLI-only code.
 
 ---
 
-## Phase 2 — PHP `requireRole()` Guards
+## Phase 3 — Client Readiness
 
-Add the following at the top of each file, after its existing `require_once` lines. The `GIGHIVE_AUTH_MODE` check allows a graceful no-op during pre-Phase-1 deployments, but is dropped once Phase 1 is live.
+### Browser `GHAuth`
 
-**Pattern for viewer-level pages (`db/database.php`, `db/database_catalog.php`):**
+Phase 0 module is a native-fetch passthrough. Phase 3 extends it only for:
 
-```php
-require_once __DIR__ . '/../auth/helpers.php';
-if (GIGHIVE_AUTH_MODE !== 'basic') {
-    requireRole('viewer');
-}
-```
+- Reading a CSRF token rendered in HTML (not the JWT).
+- Adding `X-CSRF-Token` to cookie-authenticated unsafe AJAX.
+- Detecting API `401` and initiating safe session-expiry UX.
+- Never storing, reading, logging, or returning the JWT.
 
-**Pattern for contributor-level pages (`api/uploads.php`, `db/upload_form.php`, `db/delete_media_files.php`):**
+Native browser credentials use same-origin cookie behavior. Direct navigation, forms, downloads, and media do not depend on JavaScript headers.
 
-```php
-require_once __DIR__ . '/../auth/helpers.php';
-if (GIGHIVE_AUTH_MODE !== 'basic') {
-    requireRole('contributor');
-}
-```
+### Browser login/logout
 
-**Pattern for owner-level pages (`db/upload_form_admin.php`, `admin/*.php`):**
+- Login page reachable while signed out.
+- Valid relative `next` only; reject absolute/protocol-relative/control-character values.
+- Expired safe navigation can redirect to login.
+- Unsafe requests are never persisted/replayed.
+- Logout is CSRF-protected.
 
-```php
-require_once __DIR__ . '/../auth/helpers.php';
-if (GIGHIVE_AUTH_MODE !== 'basic') {
-    requireRole('owner');
-}
-```
+### iOS
 
-The `GIGHIVE_AUTH_MODE !== 'basic'` guard means:
-- In `basic` mode (Phase 1 only): Apache handles auth as today, PHP guards are no-ops.
-- In `local` mode (Phase 2 onward): PHP JWT guard is active alongside Apache Basic Auth during Phases 2–3; PHP is the sole gatekeeper from Phase 4 onward.
-- In `oidc` mode (Phase 5+): PHP JWT guard remains active.
-
-The mode transitions from `basic` → `local` when Phase 2 deploys, not at Phase 4. After Phase 4 removes Basic Auth, the mode is already `local`. The guard expression can be removed in a cleanup pass once all environments are past Phase 4.
-
-**Brittle coding check:** Do not inline role-level integers in any of these files. Always call `requireRole()` from `auth/helpers.php`. This keeps the hierarchy definition in one place.
-
-**Require path:** All `admin/*.php` files require from their directory. The path to `auth/helpers.php` from `admin/` is:
-
-```php
-require_once __DIR__ . '/../../auth/helpers.php';  // admin/ is one level deeper
-```
-
-Verify this path is correct relative to each file's location before committing.
+- API login returns Bearer JSON and no browser cookie.
+- Store JWT in `JWTStore`/Keychain.
+- Restore only non-expired token.
+- `AuthCredential.bearer` supplies Authorization.
+- `.uploadToken` remains exclusive for QR upload.
+- Guest gallery client remains nonce-scoped.
+- Use iOS 14-compatible networking and tests from `testing_ios.md`.
 
 ---
 
-## Phase 2 Companion — Web Admin Session Management
+## Phase 4 — Atomic Cutover
 
-> **Prerequisite for Phase 4:** The audit, 20-step implementation plan, `auth/gh-auth.js` module design, 15-file inventory, and smoke tests (T-151–T-156) are fully documented in `docs/refactor_security_authentication_shared_auth_function.md`. This section is the architectural decision record. That doc is the execution blueprint and must be completed before Phase 4 begins.
+### Pre-cutover gate
 
-**Why this section exists — the tactical problem:**
-The existing admin pages make background AJAX polling calls (export progress, manifest import status, AI worker queue depth, catalog scan stats, etc.). Today those calls work because the browser automatically sends Basic Auth credentials with every request to the same origin — including silent background `fetch()` calls. Phase 4 removes Basic Auth entirely. After Phase 4 deploys, those `fetch()` calls go out with no credentials, hit the `requireRole()` guard added in Phase 2, receive a `401`, and silently fail — progress bars stop updating, status polls return nothing, jobs appear to hang with no error visible to the user. The Phase 2 PHP guard work alone does not solve this; the browser-side client must also be updated to send a token.
+Before changing one environment:
 
-**Decision (2026-09-07):** Browser-side JWTs are stored in `localStorage` and attached to all AJAX requests as `Authorization: Bearer <token>` headers (Option B — localStorage + Bearer). The alternative evaluated was httpOnly cookie (Option A). See `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md` for the full comparison.
+- Phase 0–3 code and tests pass in dev.
+- Exact endpoint checklist is complete.
+- JWT/cookie/CSRF/CSP variables exist.
+- HTTPS works.
+- Login/logout and break-glass account work.
+- Internal paths are denied.
+- Rollback artifact/configuration is captured.
+- `gighive_auth_cutover_confirmed` is explicitly approved for that environment.
 
-**Strategic rationale for Option B over Option A:** An httpOnly cookie would fix the immediate breakage with no JavaScript changes, but it ties the auth mechanism to the browser session model. The `Authorization: Bearer` contract is client-agnostic — when the PHP backend is eventually rewritten in Java or another runtime, every client (web, iOS, future) already speaks the correct protocol with no second round of client changes. This is the same pattern already used by the iOS app. Option A optimises for less work now at the cost of a harder migration later; Option B pays the JS audit cost once and is done.
+### Atomic change
 
----
+In one environment deployment:
 
-### 2a. `auth/gh-auth.js`
+1. Remove Apache Basic account-auth directives.
+2. Set `GIGHIVE_AUTH_MODE=local`.
+3. Activate PHP route-policy guards.
+4. Keep login/public/QR routes reachable as classified.
+5. Keep Authorization forwarding, rewrites, limits, direct denials, and media Range behavior.
+6. Restart/reload required services.
+7. Run applicable tests immediately.
 
-Serve from `/auth/gh-auth.js`. Include in the shared PHP admin template `<head>` block so every admin and DB page receives it automatically.
+There is no Basic/JWT overlap period inside an environment.
 
-```javascript
-/* GigHive web admin JWT client — gh-auth.js
- * Stores JWT in localStorage; attaches Bearer token to all authenticated AJAX calls.
- * NEVER log or display GHAuth.getToken() output.
- */
-const GHAuth = (function () {
-    'use strict';
+### Promotion
 
-    const TOKEN_KEY = 'gighive_jwt';
-    const ROLE_KEY  = 'gighive_role';
-
-    function getToken() { return localStorage.getItem(TOKEN_KEY); }
-    function getRole()  { return localStorage.getItem(ROLE_KEY);  }
-
-    function _store(token, role) {
-        localStorage.setItem(TOKEN_KEY, token);
-        localStorage.setItem(ROLE_KEY,  role);
-    }
-
-    function _clear() {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(ROLE_KEY);
-    }
-
-    /**
-     * Drop-in replacement for fetch() that attaches Authorization: Bearer.
-     * Replace every fetch() call to an authenticated endpoint with this.
-     */
-    function authedFetch(url, opts) {
-        opts = opts || {};
-        opts.headers = Object.assign({}, opts.headers);
-        var token = getToken();
-        if (token) {
-            opts.headers['Authorization'] = 'Bearer ' + token;
-        }
-        return fetch(url, opts);
-    }
-
-    /**
-     * Redirect to the login page if no token is present.
-     * Call at the top of every admin page DOMContentLoaded handler.
-     */
-    function requireAuth() {
-        if (!getToken()) {
-            window.location.replace('/auth/login.php?next=' +
-                encodeURIComponent(window.location.pathname + window.location.search));
-        }
-    }
-
-    /**
-     * POST /api/login.php with email + password; stores result on success.
-     * Returns a Promise resolving to { token, role, email, expires_at }.
-     * Rejects with Error whose message is the server error code.
-     */
-    function login(baseUrl, email, password) {
-        return fetch(baseUrl + '/api/login.php', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ email: email, password: password })
-        }).then(function (res) {
-            return res.json().then(function (data) {
-                if (res.ok) { _store(data.token, data.role); return data; }
-                throw new Error(data.error || 'login_failed');
-            });
-        });
-    }
-
-    /** Clear stored token and redirect to the login page. */
-    function logout() {
-        _clear();
-        window.location.replace('/auth/login.php');
-    }
-
-    return {
-        getToken:    getToken,
-        getRole:     getRole,
-        authedFetch: authedFetch,
-        requireAuth: requireAuth,
-        login:       login,
-        logout:      logout
-    };
-}());
+```text
+Dev passes completely
+  → Lab deploy and gate
+  → Staging deploy and full regression gate
+  → Production controlled cutover and safe gate
 ```
 
-**Security notes:**
-- `localStorage` is readable by any JavaScript on the same origin. Never call `GHAuth.getToken()` in a context where the value could be logged, reflected into the DOM, or sent to a third-party origin.
-- The primary XSS risk is inline JS injection via user-supplied content rendered into admin pages. Existing output-escaping practices apply; no new risk is introduced by this module beyond what already exists.
-- Token is never written to a `console.log`, page title, or DOM attribute.
+A failed gate stops promotion.
 
 ---
 
-### 2b. `auth/login.php` (new web login page)
+## DDL and BABRR
 
-Apache Basic Auth currently shows the browser's native credential dialog. Once Phase 4 removes Basic Auth, the web UI has no login entry point. `auth/login.php` provides an HTML form that calls `GHAuth.login()` and redirects to the original destination.
+Fresh environments update `ansible/roles/docker/files/mysql/externalConfigs/create_media_db.sql`.
 
-Behaviour:
-- Renders an email + password form. No PHP session involvement — entirely stateless on the server side.
-- On submit, calls `GHAuth.login(window.location.origin, email, password)`.
-- On success, reads `?next=` query parameter and redirects; defaults to `/admin/admin_system.php`.
-- On failure, displays the mapped user-facing message (`invalid_credentials` → "Incorrect email or password", `account_disabled` → "Account is disabled", etc.).
-- If a valid token already exists in `localStorage` when the page loads, redirects immediately without showing the form.
-
-Must be reachable without auth — no `requireRole()` call and no Apache `Require` directive on this path.
-
----
-
-### 2c. AJAX Audit — Required Before Phase 4
-
-**Audit orientation:** The role matrix (`ui_role_matrix.html`) is the *what-role-does-this-endpoint-need* reference. The grep below is the *where-are-the-call-sites* discovery tool. You need both — the matrix cannot tell you which PHP files contain JavaScript AJAX calls, and the grep cannot tell you whether the target endpoint requires authentication.
-
-Before Phase 4 deploys, every JavaScript `fetch()` call in admin and DB page `<script>` blocks that targets an authenticated endpoint must be replaced with `GHAuth.authedFetch()`. Calls targeting public or QR-nonce endpoints are unchanged.
-
-**Important:** PHP files also contain `$stmt->fetch(PDO::FETCH_ASSOC)` — PDO row fetching, not AJAX. The refined grep below excludes those:
+Baseline live alignment, after confirming both columns are absent:
 
 ```bash
-# Run from the ansible/roles/docker/files/apache/webroot/ directory.
-# Finds JavaScript fetch() call sites; excludes PHP PDO ->fetch() calls.
-# Must include src/Views/ — view templates contain fetch() calls that are not
-# visible in the controller files that include them.
-grep -rn "fetch(" admin/ db/ src/Views/ --include="*.php" --include="*.js" \
-  | grep -v "\-\>fetch("
+docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db -e "ALTER TABLE users ADD COLUMN password_hash varchar(255) DEFAULT NULL AFTER idp_subject, ADD COLUMN disabled tinyint(1) NOT NULL DEFAULT 0 AFTER password_hash;"'
 ```
 
-**Known call-site inventory (from initial audit run):**
+The user executes schema changes manually through `docs/process_backup_alter_backup_rebuild_restore.md`. Do not use the `db_migrations` role. If token-version revocation is approved and needs DDL, update bootstrap SQL and provide a separate exact BABRR live command before implementation.
 
-| File | JS fetch() calls | Authenticated targets |
+---
+
+## Tests
+
+T-151–T-168 remain owned by the web-refactor prerequisite. T-169–T-184 were checked as unassigned when this guide was rewritten; final namespace verification occurs in documentation Step 5.
+
+| Test | Owner | What it proves |
 |---|---|---|
-| `admin/admin_system.php` | 19 | `run_backup`, `run_backup_status`, `clear_media`, `clear_media_files`, `export_media`, `export_media_download`, `import_media_zip`, `import_media_zip_scan_status`, `upload_restore_backup`, `restore_database`, `restore_database_status`, `admin_system_stats` |
-| `admin/admin_database_load_import_media_from_folder.php` | 8 | manifest endpoints (`prepare`, `finalize`, `upload_start`, `upload_status`, `upload_finalize`, `status`, `replay`, `jobs`) |
-| `admin/admin_database_catalog_promote.php` | 7 | `import_manifest_status`, `catalog_promote_writeback`, `import_manifest_upload_finalize`, `import_manifest_prepare`, `import_manifest_finalize`, `import_manifest_upload_start`, `catalog_promote_start` |
-| `db/media_tags.php` | 5 | `/api/ai_jobs.php`, `/api/taggings.php`, `/api/tags.php` |
-| `db/database_catalog.php` | 5 | `/db/catalog_entry_save.php` |
-| `admin/ai_worker.php` | 4 | `/api/ai_jobs.php` (cancel, status, enqueue_all, retag_all) |
-| `admin/admin_database_load_import_media_from_iphone.php` | 6 | TBD — verify during audit |
-| `admin/admin_database_load_import_csv.php` | 2 | TBD — verify during audit |
-| `admin/admin_database_catalog_media_from_folder.php` | 2 | TBD — verify during audit |
-| `db/upload_form_admin.php` | 2 | Likely TUS — verify; TUS auth handled in Phase 4b |
-| `db/upload_form.php` | 2 | Likely TUS — verify; TUS auth handled in Phase 4b |
-| `db/upload_form_single.php` | 2 | QR-nonce path — likely unchanged; verify |
-| `db/tag_browser.php` | 1 | TBD — verify during audit |
-| `src/Views/media/list.php` | 4 | `/api/tags.php`, `/db/database_edit_save.php`, `/db/database_edit_musicians_preview.php`, `/db/delete_media_files.php` — **view template included by `db/database.php`; fetch() calls live here, not in database.php** |
-| `src/Views/media/random_player.php` | 1 | `/db/singlesRandomPlayer.php` — viewer-level endpoint; verify whether auth required |
+| T-169 | `post_build_checks` | API/iOS login returns Bearer JWT JSON and no `Set-Cookie` |
+| T-170 | `playwright_admin_tests` | Browser login sets correct HttpOnly/Secure/host-only/Path/SameSite cookie and exposes no JWT to JS/storage |
+| T-171 | `playwright_admin_tests` | Browser logout requires CSRF, clears cookie, and protected navigation no longer succeeds |
+| T-172 | `post_build_checks` | Valid Bearer reaches PHP-FPM through `HTTP_AUTHORIZATION` and validates issuer/audience/claims |
+| T-173 | `post_build_checks` | Invalid explicit Bearer plus valid cookie returns JSON `401`; no fallback |
+| T-174 | `playwright_admin_tests` | HTML missing/expired cookie redirects safely; wrong role receives HTML `403`; unsafe action not replayed |
+| T-175 | `playwright_admin_tests` | Cookie mutation succeeds with valid CSRF and fails with no mutation on missing/invalid CSRF |
+| T-176 | `upload_tests` | Valid QR upload token works with incidental cookie; invalid token plus valid cookie fails |
+| T-177 | `post_build_checks` | Valid gallery nonce works with incidental cookie; invalid nonce plus valid cookie fails |
+| T-178 | `post_build_checks` | Mixed media supports nonce/token/Bearer/cookie independently and preserves Range/no-fallback |
+| T-179 | `playwright_admin_tests` | Authenticated browser download succeeds; failure never returns login HTML or partial file |
+| T-180 | `post_build_checks` | All internal workers deny HTTP; intended CLI execution remains functional |
+| T-181 | `post_build_checks` | Admin libraries plus exact `src/`/`vendor/` implementation paths deny direct HTTP |
+| T-182 | `post_build_checks` | `singlesRandomPlayer.php` explicit HTML/JSON modes use correct failure format and equal authorization scope |
+| T-183 | `post_build_checks` | Role hierarchy and cross-tenant/event denial use normalized context |
+| T-184 | `post_build_checks` | Post-cutover Basic rejected; browser cookie and API Bearer accepted; public/QR routes remain intended |
 
-For each call site: confirm the target endpoint has `requireRole()` in the matrix → replace with `GHAuth.authedFetch()`. Targets that are public or QR-nonce → leave as plain `fetch()`. Track completion in the Open Questions item in `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md`.
+Additional requirements:
 
----
-
-### 2d. Admin Page Inclusion Pattern
-
-Add once to the shared PHP admin template `<head>`:
-
-```html
-<script src="/auth/gh-auth.js"></script>
-```
-
-Add to the `DOMContentLoaded` handler at the top of each admin page's inline script:
-
-```javascript
-document.addEventListener('DOMContentLoaded', function () {
-    GHAuth.requireAuth();   // redirect to login if no token
-    // ... existing page init ...
-});
-```
-
-All existing `fetch('/admin/some-status.php')` calls in those pages become:
-
-```javascript
-GHAuth.authedFetch('/admin/some-status.php')
-```
-
-The function signature is identical to `fetch()` — `url` as first argument, optional `opts` object second — so replacing is mechanical.
+- Every new/modified protected `/admin/` or `/api/` endpoint receives the permanent unauthenticated `401` or direct-denial smoke check required by SKILL.md.
+- Credential-log test triggers invalid Bearer/cookie/token/nonce and proves raw values absent from Apache, PHP, and audit logs.
+- Tests creating DB rows or files define safe setup and cleanup; destructive production fixtures are prohibited.
+- iOS tests follow `testing_ios.md` and are updated in the same change window.
 
 ---
 
-## Phase 0 — iOS `AuthCredential` Refactor (prerequisite for Phase 3)
+## Rollback
 
-> **Full specification:** `feature_security_authentication_migration_jwt_ios_auth_cred_type.md`
->
-> Phase 0 is a pure iOS refactor with no server-side changes. It must be completed and merged before Phase 3 begins. It:
-> - Introduces `AuthCredential.swift` — an enum replacing the raw `(user: String, pass: String)` tuple
-> - Replaces all seven duplicate `Authorization: Basic` header constructions with `credential?.apply(to:)`
-> - Updates `AuthSession.credentials` → `AuthSession.credential: AuthCredential?`
-> - Updates `UserRole`: removes `.admin`, adds `.contributor` and `.owner`
-> - Retains `UploadClient`'s dual `sessionCredential:` + `uploadToken:` parameters (QR token and session credential are orthogonal)
-> - Adds `KeychainStore.loadCredential(host:)` convenience without changing the on-disk format
->
-> After Phase 0, Phase 3 changes only `LoginView`, `JWTStore` (new), and `SplashView` — the five network-client files require no further auth changes.
+### Before cutover
+
+JWT code is additive/inert. Revert the application/configuration change while Apache Basic remains authoritative. Schema columns can remain inert; do not drop them without the user executing the documented BABRR process.
+
+### After cutover
+
+Restore the complete captured pre-cutover release for that environment:
+
+- Apache Basic account-auth configuration.
+- `GIGHIVE_AUTH_MODE=basic`.
+- PHP code compatible with Basic enforcement.
+- Compatible browser/iOS client state.
+- Previous CSP/configuration as required.
+
+Do not restore only one variable or template. The user runs Ansible, verifies the environment, and promotion remains stopped.
+
+### OIDC outage after Phase 5
+
+Use local JWT browser-cookie break-glass login. Reverting to Basic is a full environment rollback, not the first-line IdP outage response.
 
 ---
 
-## Phase 3 — iOS Client JWT (Full Call-Site Chain)
-
-> **Requires Phase 0 complete.** The `UserRole` enum, `AuthCredential` type, and seven Basic-header call sites are already updated. Phase 3 covers only the JWT login flow, token storage, and session restore.
-
-### 3a. `UserRole` enum extension
-
-> **Note:** `UserRole` is updated in Phase 0 (`AuthSession.swift` change). The full enum and `fromLegacyUsername` bridge documented here are the Phase 0 output — Phase 3 inherits them and does not repeat this step. Shown here for reference.
-
-Current `AuthSession.swift` has `enum UserRole { case unknown, viewer, admin }`. Must add `contributor` and `owner` to match DB role names, and map the JWT `role` string:
-
-```swift
-enum UserRole: String {
-    case unknown     = ""
-    case viewer      = "viewer"
-    case contributor = "contributor"
-    case owner       = "owner"
-
-    // Legacy Apache username → role mapping, used only during one-time Keychain migration
-    static func fromLegacyUsername(_ username: String) -> UserRole {
-        switch username.lowercased().trimmingCharacters(in: .whitespaces) {
-        case "admin": return .owner
-        default:      return .viewer
-        }
-    }
-}
-```
-
-**iOS 14 compatibility:** `enum UserRole: String` with `rawValue` is available on all iOS versions. No `@available` guard needed.
-
-### 3b. `AuthSession.swift` replacement
-
-```swift
-import Foundation
-import SwiftUI
-
-final class AuthSession: ObservableObject {
-    @Published var baseURL: URL?
-    @Published var token: String?
-    @Published var expiresAt: Date?
-    @Published var role: UserRole = .unknown
-    @Published var allowInsecureTLS: Bool = false
-    @Published var intendedRoute: AppRoute? = nil
-
-    var isLoggedIn: Bool { token != nil }
-
-    // Helper used by all API clients
-    var bearerAuthHeader: String? {
-        guard let t = token else { return nil }
-        return "Bearer \(t)"
-    }
-}
-```
-
-**SonarQube:** No force unwraps. `bearerAuthHeader` returns `Optional<String>`; callers check for nil. RSPEC-6426 satisfied.
-
-**Timing note:** `expiresAt` is checked client-side before calling `api/verify.php` to avoid a round-trip for obviously-expired tokens.
-
-### 3c. `JWTStore.swift` (new file)
-
-```swift
-import Foundation
-import Security
-
-enum JWTStoreError: Error {
-    case unexpectedStatus(OSStatus)
-    case noData
-    case decodingError
-}
-
-struct StoredToken {
-    let token: String
-    let role: UserRole
-    let expiresAt: Date
-}
-
-enum JWTStore {
-    private static let service = "com.gighive.jwt"
-
-    private static func keyAttrs(host: String) -> [String: Any] {
-        [
-            kSecClass as String:       kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: host
-        ]
-    }
-
-    static func save(token: String, host: String, role: UserRole, expiresAt: Date) throws {
-        let payload: [String: Any] = [
-            "token":      token,
-            "role":       role.rawValue,
-            "expires_at": expiresAt.timeIntervalSince1970
-        ]
-        let data = try JSONSerialization.data(withJSONObject: payload, options: [])
-        var query = keyAttrs(host: host)
-        SecItemDelete(query as CFDictionary)
-        query[kSecValueData as String] = data
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else { throw JWTStoreError.unexpectedStatus(status) }
-    }
-
-    static func load(host: String) throws -> StoredToken? {
-        var query = keyAttrs(host: host)
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = item as? Data else {
-            throw JWTStoreError.unexpectedStatus(status)
-        }
-        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tokenStr = dict["token"] as? String,
-              let roleStr  = dict["role"] as? String,
-              let ts       = dict["expires_at"] as? TimeInterval else {
-            throw JWTStoreError.decodingError
-        }
-        let role      = UserRole(rawValue: roleStr) ?? .viewer
-        let expiresAt = Date(timeIntervalSince1970: ts)
-        return StoredToken(token: tokenStr, role: role, expiresAt: expiresAt)
-    }
-
-    static func delete(host: String) throws {
-        let status = SecItemDelete(keyAttrs(host: host) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw JWTStoreError.unexpectedStatus(status)
-        }
-    }
-}
-```
-
-**SonarQube:** No force unwraps — all optionals resolved via `guard let` or `?? .viewer` fallback. RSPEC-6426 satisfied. Token string is never logged.
-
-### 3d. `LoginView.swift` replacement (key diff)
-
-The full view structure (layout, Toggle, Cancel button) is preserved. Only the `signIn()` function changes:
-
-```swift
-private func signIn() async {
-    errorMessage = nil
-    isLoading = true
-    defer { isLoading = false }
-
-    let trimmed = base.trimmingCharacters(in: .whitespacesAndNewlines)
-    let full = trimmed.hasPrefix("http") ? trimmed : "https://" + trimmed
-    guard let baseURL = URL(string: full), baseURL.scheme?.hasPrefix("http") == true else {
-        errorMessage = "Invalid URL"; return
-    }
-
-    guard let loginURL = URL(string: "\(full)/api/login.php") else {
-        errorMessage = "Invalid server URL"; return
-    }
-
-    var request = URLRequest(url: loginURL)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    let body: [String: String] = ["email": username, "password": password]
-    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-    let cfg = URLSessionConfiguration.ephemeral
-    let urlSession: URLSession = disableCertChecking
-        ? URLSession(configuration: cfg, delegate: InsecureTrustDelegate.shared, delegateQueue: nil)
-        : URLSession(configuration: cfg)
-
-    do {
-        let (data, response) = try await urlSession.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            errorMessage = "Invalid server response"; return
-        }
-        logWithTimestamp("[Login] api/login.php HTTP \(http.statusCode)")
-        switch http.statusCode {
-        case 200:
-            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let token    = json["token"]      as? String,
-                  let roleStr  = json["role"]        as? String,
-                  let expiresStr = json["expires_at"] as? String else {
-                errorMessage = "Unexpected server response"; return
-            }
-            let role = UserRole(rawValue: roleStr) ?? .viewer
-            let expiresAt = ISO8601DateFormatter().date(from: expiresStr) ?? Date()
-
-            session.baseURL         = baseURL
-            session.token           = token
-            session.expiresAt       = expiresAt
-            session.role            = role
-            session.allowInsecureTLS = disableCertChecking
-
-            if let host = baseURL.host, !host.isEmpty {
-                do {
-                    if rememberOnDevice {
-                        try JWTStore.save(token: token, host: host, role: role, expiresAt: expiresAt)
-                        UserDefaults.standard.set(host, forKey: lastHostDefaultsKey)
-                        logWithTimestamp("[Login] JWT saved to Keychain for host=\(host)")
-                    } else {
-                        try JWTStore.delete(host: host)
-                        if UserDefaults.standard.string(forKey: lastHostDefaultsKey) == host {
-                            UserDefaults.standard.removeObject(forKey: lastHostDefaultsKey)
-                        }
-                    }
-                } catch {
-                    logWithTimestamp("[Login] Keychain error: \(error.localizedDescription)")
-                }
-            }
-            logWithTimestamp("[Login] Auth success role=\(role.rawValue); dismissing")
-            dismissCompat()
-
-        case 401:
-            errorMessage = "Incorrect email or password"
-        case 403:
-            errorMessage = "Account is disabled"
-        default:
-            errorMessage = "Server error (\(http.statusCode))"
-        }
-    } catch {
-        errorMessage = error.localizedDescription
-        logWithTimestamp("[Login] Network error: \(error.localizedDescription)")
-    }
-}
-```
-
-The form fields change: `GHLabel(text: "USERNAME")` becomes `GHLabel(text: "EMAIL")` and the `NoAccessoryTextField` placeholder becomes `"you@example.com"` with `keyboardType: .emailAddress`.
-
-**One-time Keychain migration on first launch:** In `onAppear`, attempt to read from `KeychainStore` (old format). If found and `JWTStore` is empty for the same host, prompt the user to re-login (do not silently convert — the old data is a password, not a token):
-
-```swift
-// In onAppear: detect old-format credential and clear it
-if let host = URL(string: full)?.host,
-   let _ = try? KeychainStore.load(host: host),
-   (try? JWTStore.load(host: host)) == nil {
-    // Old credential exists but no JWT — delete it and show clean login form
-    try? KeychainStore.delete(host: host)
-    logWithTimestamp("[Login] Cleared old Basic Auth keychain entry for host=\(host)")
-}
-```
-
-**iOS 14 compatibility:** `URLSession.data(for:)` is available from iOS 15. Use `URLSession.data(from:)` with a completion handler bridged via `withCheckedThrowingContinuation` for iOS 14, or confirm minimum deployment target. Current project minimum is iOS 14.0 — this requires the continuation bridge:
-
-```swift
-// iOS 14-compatible async data fetch:
-let (data, response) = try await withCheckedThrowingContinuation { cont in
-    urlSession.dataTask(with: request) { data, response, error in
-        if let error { cont.resume(throwing: error); return }
-        guard let data, let response else {
-            cont.resume(throwing: URLError(.badServerResponse)); return
-        }
-        cont.resume(returning: (data, response))
-    }.resume()
-}
-```
-
-**This is a hard compatibility requirement.** `URLSession.data(for:)` (async/await) is iOS 15+. All new async URLSession calls in this feature must use the continuation bridge for iOS 14.
-
-### 3e. `SplashView.swift` changes
-
-Replace all occurrences of `session.credentials` with `session.token` or `session.isLoggedIn`:
-
-| Current | Replacement |
-|---------|-------------|
-| `session.credentials == nil` | `!session.isLoggedIn` |
-| `session.credentials != nil` | `session.isLoggedIn` |
-| `if let creds = session.credentials { Text("...as \(creds.user)") }` | `if let token = session.token { Text("Logged in") }` (token is not displayed; role or email from session is shown instead) |
-
-The `isGuestOnly` computed property:
-
-```swift
-private var isGuestOnly: Bool {
-    !session.isLoggedIn && !uploadRecords.isEmpty
-}
-```
-
-### 3f. `DatabaseAPIClient.swift` changes
-
-Replace `basicAuth:` parameter with `bearerToken:`:
-
-```swift
-final class DatabaseAPIClient {
-    let baseURL: URL
-    let bearerToken: String?   // replaces basicAuth
-    let allowInsecure: Bool
-
-    init(baseURL: URL, bearerToken: String?, allowInsecure: Bool = false) {
-        self.baseURL     = baseURL
-        self.bearerToken = bearerToken
-        self.allowInsecure = allowInsecure
-    }
-    // ...
-}
-```
-
-In `fetchMediaList()` and `deleteMediaFile()`, replace:
-
-```swift
-// OLD
-if let auth = basicAuth {
-    let credentials = "\(auth.user):\(auth.pass)"
-    let base64 = Data(credentials.utf8).base64EncodedString()
-    request.setValue("Basic \(base64)", forHTTPHeaderField: "Authorization")
-}
-// NEW
-if let token = bearerToken {
-    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-}
-```
-
-Update log line: `authUser=\(basicAuth?.user ?? "<none>")` → `bearerToken=\(bearerToken != nil ? "<set>" : "<none>")` (never log the actual token).
-
-**Call-site update — `DatabaseView.swift`:**
-
-```swift
-// OLD
-let client = DatabaseAPIClient(baseURL: baseURL, basicAuth: session.credentials, allowInsecure: session.allowInsecureTLS)
-// NEW
-let client = DatabaseAPIClient(baseURL: baseURL, bearerToken: session.token, allowInsecure: session.allowInsecureTLS)
-```
-
-**PHP refactor rule:** `DatabaseAPIClient` is the only place that constructs a `DatabaseAPIClient`. Confirm with `grep -r "DatabaseAPIClient(" GigHive/Sources/` before marking complete.
-
-### 3g. `MediaPlayerView.swift` and `MediaResourceLoader.swift` changes
-
-`MediaPlayerView` holds `let credentials: (user: String, pass: String)?`. Replace with `let token: String?`.
-
-The existing `headers["Authorization"] = "Basic \(token)"` block at line 449–451 becomes:
-
-```swift
-if let t = token {
-    headers["Authorization"] = "Bearer \(t)"
-}
-```
-
-`MediaResourceLoader.init` changes from `credentials: (user: String, pass: String)?` to `token: String?`. The `Basic` header construction at line 73–74 becomes:
-
-```swift
-if let t = token {
-    req.setValue("Bearer \(t)", forHTTPHeaderField: "Authorization")
-}
-```
-
-**Call-site update — `DatabaseDetailView.swift` line 46:**
-
-```swift
-// OLD
-credentials: session.credentials,
-// NEW
-token: session.token,
-```
-
-**Call-site update — `MediaPlayerView.swift` line 475:**
-
-```swift
-// OLD
-let loader = MediaResourceLoader(allowInsecureTLS: allowInsecureTLS, credentials: credentials)
-// NEW
-let loader = MediaResourceLoader(allowInsecureTLS: allowInsecureTLS, token: token)
-```
-
-**Phase 0 verification:** Run `grep -r "basicAuth" GigHive/Sources/` and `grep -r "credentials:" GigHive/Sources/` — both must return zero results after Phase 0 merges. `MediaResourceLoader(` call sites must use `credential:` not `credentials:`.
-
-### 3h. `TUSUploadClient.swift` changes
-
-The `headersBlock` in `init`:
-
-```swift
-// OLD
-} else if let basicAuth {
-    let credentials = "\(basicAuth.user):\(basicAuth.pass)"
-    let encoded = Data(credentials.utf8).base64EncodedString()
-    mutated["Authorization"] = "Basic \(encoded)"
-}
-// NEW
-} else if let bearerToken {
-    mutated["Authorization"] = "Bearer \(bearerToken)"
-}
-```
-
-Constructor parameter `basicAuth: (user: String, pass: String)?` → `bearerToken: String?`.
-
-QR `uploadToken` branch is unchanged (highest priority, checked first).
-
-**Call-site:** Locate wherever `TUSUploadClient` is instantiated with `basicAuth:` and pass `bearerToken: session.token` instead. Run `grep -r "TUSUploadClient(" GigHive/Sources/`.
+## SonarQube / Best-Practice Notes
+
+| Concern | Requirement |
+|---|---|
+| RSPEC-3776 | Split route resolution, JWT validation, response dispatch, and CSRF into single-purpose functions |
+| RSPEC-6426 | Validate nullable context/claims before access; no unchecked array keys |
+| RSPEC-2635 | Prepared statements only; never place raw credential material in SQL/logs |
+| RSPEC-107 | Review `AuthContext` constructor parameter count; use typed value objects/factories if needed |
+| Duplicated auth logic | Endpoint declares route class and role; shared helpers parse credentials |
+| Hardcoded config | Cookie/JWT/CSRF/CSP/TTL/issuer/audience/cutover values come from group vars/env |
+| Secrets | Vault only; no token/cookie/nonce/password logging |
+| PHP responses | Correct status plus `exit`; HTML/API/download/media behavior selected explicitly |
+| Dependencies | Use Composer lock and minimum release-age rule |
 
 ---
 
-## Phase 4 — Apache Basic Auth Removal + `tus-upload.php` PHP Auth
-
-**This is an atomic deployment.** Both changes must deploy together:
-
-### 4a. `default-ssl.conf.j2` — remove Basic Auth blocks
-
-Remove all blocks matching:
-
-```
-AuthType Basic
-AuthName "..."
-AuthBasicProvider file
-AuthUserFile ...
-Require valid-user
-Require user admin [uploader]
-```
-
-Retain:
-- All `AuthMerging Off` + `Require all granted` blocks (QR guest paths)
-- All `SetEnvIf` directives (`upload_token_auth`, `gallery_nonce_auth`, `HTTP_AUTHORIZATION`)
-- All `Require all denied` blocks (sensitive paths)
-- All `SecRequestBodyLimit` and `SecRuleEngine` directives (TUS ModSecurity)
-
-Also remove the `media-stream.php` `AuthType Basic` block (replace with the existing `AuthMerging Off` + `Require all granted` only — PHP does all auth).
-
-### 4b. `api/tus-upload.php` — add PHP-side JWT guard
-
-Insert after the OPTIONS block and before the `$userId = 0` line:
-
-```php
-// -------------------------------------------------------------------------
-// Auth: Phase 4+ — Apache Basic Auth is removed; PHP enforces access.
-//   Path 1: JWT Bearer — account-based uploads (owner / contributor)
-//   Path 2: QR upload token (X-Upload-Token) — handled below, unchanged
-// -------------------------------------------------------------------------
-$tusAuthHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-$tusRawToken   = $_SERVER['HTTP_X_UPLOAD_TOKEN'] ?? '';
-
-if ($tusRawToken === '') {
-    // No QR token — must be a JWT Bearer request
-    if (!str_starts_with($tusAuthHeader, 'Bearer ')) {
-        http_response_code(401);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'unauthenticated']);
-        exit;
-    }
-    require_once __DIR__ . '/../config.php';
-    require_once __DIR__ . '/../auth/jwt.php';
-    $tusToken   = substr($tusAuthHeader, 7);
-    $tusPayload = JwtAuth::validate($tusToken);
-    if ($tusPayload === null) {
-        http_response_code(401);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'invalid_token']);
-        exit;
-    }
-    $allowedRoles = ['owner', 'contributor'];
-    if (!in_array($tusPayload['role'] ?? '', $allowedRoles, true)) {
-        http_response_code(403);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'forbidden']);
-        exit;
-    }
-    // $userId stays 0 — same as the existing Basic Auth behaviour
-}
-```
-
-**GIGHIVE_AUTH_MODE guard:** This block is only reached after Phase 4 removes Apache auth. During Phases 1–3, Apache still enforces `Require user admin uploader` before PHP runs, so this code block is harmless but unreachable for non-QR requests. No mode guard needed in `tus-upload.php` — the Apache config change is what gates Phase 4.
-
-### 4c. `api/media-stream.php` — swap Basic Auth path
-
-In `authenticateRequest()`, replace Path 1:
-
-```php
-// OLD — Trust Basic Auth forwarded by Apache (remove in Phase 4)
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-if (str_starts_with($authHeader, 'Basic ')) {
-    return true;
-}
-
-// NEW — JWT Bearer validation (Phase 4+)
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-if (str_starts_with($authHeader, 'Bearer ')) {
-    $token   = substr($authHeader, 7);
-    $payload = JwtAuth::validate($token);
-    return $payload !== null;
-}
-```
-
-Add `require_once __DIR__ . '/../auth/jwt.php';` at the top of the file.
-
-**Media streaming compatibility note:** `media-stream.php` also handles byte-range requests from `MediaResourceLoader.swift` (via AVPlayer). The `Authorization: Bearer` header is set in `MediaResourceLoader` after Phase 3. Range requests work the same — the auth check runs once at the start of the request regardless of byte range.
-
----
-
-## DDL Summary
-
-All schema changes are two `ALTER TABLE` columns on the existing `users` table. They are additive and backward-compatible (both nullable/default-safe).
-
-**Live command for all existing environments:**
-
-```bash
-docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db -e "
-ALTER TABLE users
-  ADD COLUMN password_hash varchar(255) DEFAULT NULL
-      COMMENT '"'"'bcrypt hash; NULL for OIDC-only users'"'"'
-      AFTER idp_subject,
-  ADD COLUMN disabled tinyint(1) NOT NULL DEFAULT 0
-      COMMENT '"'"'1 = account suspended'"'"'
-      AFTER password_hash;
-"'
-```
-
-Run this **before** deploying Phase 1 code. If the columns already exist (e.g. applied on dev before staging), MySQL will return `ERROR 1060 (42S21): Duplicate column name` — that is safe; it means the migration was already applied.
-
-**Seed the initial owner account** (run after Phase 1 deploy on each environment):
-
-```bash
-# Generate hash first (run on any PHP 8.3 system):
-# php -r "echo password_hash('REPLACE_ME', PASSWORD_BCRYPT, ['cost'=>12]);"
-
-docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db -e "
-INSERT INTO users (tenant_id, idp_provider, idp_subject, role, email, password_hash)
-VALUES (1, '"'"'local'"'"', NULL, '"'"'owner'"'"', '"'"'admin@gighive.local'"'"', '"'"'HASH_HERE'"'"')
-ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = VALUES(role);
-"'
-# Note: idp_subject is NULL for local accounts. It stores the IdP sub/oid claim and has
-# no meaning for password-based local users. MySQL allows multiple NULLs in a UNIQUE KEY,
-# so multiple local accounts are correctly supported with idp_subject = NULL.
-```
-
-Store the plaintext password in ansible-vault under `group_vars/<env>/secrets.yml` as `gighive_local_admin_password`. Do not store the hash there — generate it at seed time.
-
----
-
-## Smoke Tests (`post_build_checks/tasks/main.yml`)
-
-Add the following tasks. Use existing `[T-NN]` numbering — assign next available IDs (T-98 onward based on T-97 being the last existing test):
-
-```yaml
-# --- Auth Migration Smoke Tests ---
-
-- name: "[T-98] GET /api/login.php returns 405 (POST only)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/login.php"
-    method: GET
-    status_code: 405
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  tags: [smoke]
-
-- name: "[T-99] POST /api/login.php with no body returns 400"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/login.php"
-    method: POST
-    headers:
-      Content-Type: application/json
-    body: "{}"
-    body_format: raw
-    status_code: 400
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  tags: [smoke]
-
-- name: "[T-100] POST /api/login.php with wrong password returns 401"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/login.php"
-    method: POST
-    headers:
-      Content-Type: application/json
-    body: '{"email":"admin@gighive.local","password":"definitelywrong"}'
-    body_format: raw
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  tags: [smoke]
-
-- name: "[T-101] GET /api/verify.php with no token returns 401"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/verify.php"
-    method: GET
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  tags: [smoke]
-
-- name: "[T-102] GET /api/verify.php with tampered token returns 401"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/verify.php"
-    method: GET
-    headers:
-      Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.dGFtcGVyZWQ.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  register: t102_resp
-  tags: [smoke]
-
-- name: "[T-102a] Assert tampered token returns invalid_token error"
-  ansible.builtin.assert:
-    that:
-      - t102_resp.json is mapping
-      - t102_resp.json.valid == false
-      - t102_resp.json.error == "invalid_token"
-  tags: [smoke]
-
-- name: "[T-103] GET /db/database.php with no auth returns 401 (JWT guard active)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/db/database.php?format=json"
-    method: GET
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when: gighive_auth_mode != 'basic'
-  tags: [smoke]
-
-- name: "[T-104] POST /files/ with no auth returns 401 (Phase 4 — PHP TUS auth)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/files/"
-    method: POST
-    headers:
-      Tus-Resumable: "1.0.0"
-      Content-Length: "0"
-      Upload-Length: "1024"
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when: gighive_auth_mode != 'basic'
-  tags: [smoke]
-
-# --- Phase 1: Positive login path ---
-
-- name: "[T-112] POST /api/login.php with valid credentials returns 200 and token"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/login.php"
-    method: POST
-    headers:
-      Content-Type: application/json
-    body: '{"email":"{{ gighive_smoke_owner_email }}","password":"{{ gighive_smoke_owner_password }}"}'
-    body_format: raw
-    status_code: 200
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  register: t112_resp
-  when: gighive_auth_mode != 'basic'
-  tags: [smoke]
-
-- name: "[T-112a] Assert login response contains token, role, and expires_at"
-  ansible.builtin.assert:
-    that:
-      - t112_resp.json is mapping
-      - t112_resp.json.token is string
-      - t112_resp.json.token | length > 0
-      - t112_resp.json.role == "owner"
-      - t112_resp.json.expires_at is string
-  when: gighive_auth_mode != 'basic'
-  tags: [smoke]
-
-# Note: gighive_smoke_owner_email and gighive_smoke_owner_password must be set in
-# group_vars/<env>/secrets.yml (ansible-vault). Use the seeded local owner account.
-# Never put real credentials in plaintext group_vars.
-
-# --- Phase 1: Disabled user blocked ---
-
-- name: "[T-113] POST /api/login.php with disabled user returns 403"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/login.php"
-    method: POST
-    headers:
-      Content-Type: application/json
-    body: '{"email":"{{ gighive_smoke_disabled_email }}","password":"{{ gighive_smoke_disabled_password }}"}'
-    body_format: raw
-    status_code: 403
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  register: t113_resp
-  when:
-    - gighive_auth_mode != 'basic'
-    - gighive_smoke_disabled_email is defined
-  tags: [smoke]
-
-- name: "[T-113a] Assert disabled login response contains account_disabled error"
-  ansible.builtin.assert:
-    that:
-      - t113_resp.json.error == "account_disabled"
-  when:
-    - gighive_auth_mode != 'basic'
-    - gighive_smoke_disabled_email is defined
-  tags: [smoke]
-
-# --- Phase 1: verify.php positive path and expired-token distinction ---
-
-- name: "[T-114] GET /api/verify.php with valid token returns 200 and valid:true"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/verify.php"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ t112_resp.json.token }}"
-    status_code: 200
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  register: t114_resp
-  when:
-    - gighive_auth_mode != 'basic'
-    - t112_resp is defined
-  tags: [smoke]
-
-- name: "[T-114a] Assert verify response contains valid:true, role, and expires_at"
-  ansible.builtin.assert:
-    that:
-      - t114_resp.json.valid == true
-      - t114_resp.json.role == "owner"
-      - t114_resp.json.expires_at is string
-  when:
-    - gighive_auth_mode != 'basic'
-    - t114_resp is defined
-  tags: [smoke]
-
-- name: "[T-115] GET /api/verify.php with structurally valid but expired token returns 401 token_expired"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/verify.php"
-    method: GET
-    headers:
-      # Pre-generated HS256 JWT with exp=1 (1970-01-01). Secret is irrelevant — expiry is checked first.
-      # Replace with a short-TTL token generated at test-setup time if the secret is known.
-      Authorization: "Bearer {{ gighive_smoke_expired_token }}"
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  register: t115_resp
-  when:
-    - gighive_auth_mode != 'basic'
-    - gighive_smoke_expired_token is defined
-  tags: [smoke]
-
-- name: "[T-115a] Assert expired-token response returns token_expired (not invalid_token)"
-  ansible.builtin.assert:
-    that:
-      - t115_resp.json.valid == false
-      - t115_resp.json.error == "token_expired"
-  when:
-    - gighive_auth_mode != 'basic'
-    - gighive_smoke_expired_token is defined
-  tags: [smoke]
-
-# Note: gighive_smoke_expired_token should be a pre-signed token (using the env jwt_secret)
-# with exp set to a past timestamp. Generate at provisioning time and store in group_vars.
-
-# --- Phase 2: Role hierarchy ---
-
-- name: "[T-116] GET /db/database.php with owner JWT passes viewer-level guard (role inheritance)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/db/database.php?format=json"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ t112_resp.json.token }}"
-    status_code: 200
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when:
-    - gighive_auth_mode != 'basic'
-    - t112_resp is defined
-  tags: [smoke]
-
-- name: "[T-117] POST /api/uploads.php with viewer JWT returns 403 (insufficient role)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/uploads.php"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ gighive_smoke_viewer_token }}"
-      Content-Type: application/json
-    body: "{}"
-    body_format: raw
-    status_code: 403
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when:
-    - gighive_auth_mode != 'basic'
-    - gighive_smoke_viewer_token is defined
-  tags: [smoke]
-
-- name: "[T-118] GET /admin/admin.php with no auth returns 401"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/admin/admin.php"
-    method: GET
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when: gighive_auth_mode != 'basic'
-  tags: [smoke]
-
-# Note: gighive_smoke_viewer_token should be a pre-signed token with role=viewer.
-# Generate at provisioning time alongside gighive_smoke_expired_token and store in group_vars.
-
-# --- Phase 2: QR guest regression (must pass in every mode, every phase) ---
-
-- name: "[T-119] GET /api/guest-gallery.php without auth returns non-401 (QR path unaffected)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/guest-gallery.php?nonce={{ gighive_smoke_gallery_nonce }}"
-    method: GET
-    status_code: [200, 400, 404]   # 400/404 if nonce is invalid/expired; 401 would indicate regression
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when: gighive_smoke_gallery_nonce is defined
-  tags: [smoke, qr_regression]
-
-- name: "[T-120] GET /api/upload-token.php without auth returns non-401 (QR path unaffected)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/upload-token.php"
-    method: GET
-    status_code: [200, 400, 404, 405]   # Any non-401 confirms QR path is not auth-blocked
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  tags: [smoke, qr_regression]
-
-# --- Phase 4: media-stream.php auth cutover ---
-
-- name: "[T-121] GET /api/media-stream.php with no auth returns 401 (Phase 4 — Basic Auth removed)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/media-stream.php?id=1"
-    method: GET
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when: gighive_auth_mode != 'basic'
-  tags: [smoke]
-
-- name: "[T-122] GET /api/media-stream.php with valid Bearer token returns non-401"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/api/media-stream.php?id=1"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ t112_resp.json.token }}"
-    status_code: [200, 206, 404]   # 404 if asset id=1 doesn't exist; anything but 401/403
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when:
-    - gighive_auth_mode != 'basic'
-    - t112_resp is defined
-  tags: [smoke]
-
-# --- Phase 4: Basic Auth explicitly rejected ---
-
-- name: "[T-123] GET /db/database.php with Basic Auth header returns 401 (Phase 4 — Basic removed)"
-  ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/db/database.php?format=json"
-    method: GET
-    headers:
-      Authorization: "Basic YWRtaW46cGFzc3dvcmQ="   # admin:password (base64) — known invalid after Phase 4
-    status_code: 401
-    validate_certs: "{{ gighive_validate_certs | default(true) }}"
-  when: gighive_auth_mode != 'basic'
-  tags: [smoke]
-
-# --- Phase 1: jwt_secret minimum length assertion (pre-deploy gate) ---
-
-- name: "[T-124] Assert jwt_secret meets minimum 32-character length"
-  ansible.builtin.assert:
-    that:
-      - jwt_secret is defined
-      - jwt_secret | length >= 32
-    fail_msg: "jwt_secret must be at least 32 characters. Set it in group_vars/<env>/secrets.yml under ansible-vault."
-  tags: [smoke, pre_deploy]
-```
-
-**Ansible best-practice notes:**
-- All tasks use `ansible.builtin.uri` (preferred module over shell + curl). SKILL.md rule satisfied.
-- `validate_certs` driven by group_var `gighive_validate_certs`, not hardcoded.
-- `when: gighive_auth_mode != 'basic'` gates Phase 2+ tests so they don't fail on pre-migration environments.
-- No credentials appear in the task file — T-100 uses a known-wrong password for a negative test.
-
----
-
-## SonarQube / Best-Practice Notes Summary
-
-| Issue | Location | Status |
-|-------|----------|--------|
-| RSPEC-6426 (force unwrap) | All Swift files | None introduced — all optionals use `guard let`, `??`, or explicit nil checks |
-| RSPEC-3776 (cognitive complexity) | `auth/jwt.php`, `auth/helpers.php`, `api/login.php` | All functions are single-responsibility; complexity kept low |
-| RSPEC-2635 (SQL injection) | `api/login.php` | PDO prepared statement with named params; no string interpolation |
-| RSPEC-2635 (sensitive data) | All files | `JWT_SECRET` and tokens never logged or echoed |
-| Hardcoded paths | `auth/helpers.php`, `auth/jwt.php` | `__DIR__`-relative requires only — not deployment-specific |
-| Hardcoded paths | `Dockerfile.j2` | `gighive_php_version` already a group_var; no new literals |
-| Brittle code — duplicated auth logic | All PHP files | Single `requireRole()` function; no inline role checks |
-| Brittle code — magic strings | `ROLE_LEVELS` constant | Central definition in `auth/helpers.php`; referenced everywhere |
-| iOS 14 compatibility | `LoginView.swift` | `URLSession.data(for:)` is iOS 15+; must use continuation bridge |
-| No JWT library in composer.json | `auth/jwt.php` | `firebase/php-jwt ^6.10` must be added before implementing |
-
----
-
-## Hardcoded Path Audit
-
-| Path | File | Status |
-|------|------|--------|
-| `/var/www/html/audio` | `.env.j2` (via `media_local_audio_dir`) | OK — group_var, not hardcoded |
-| `/tmp/tus-staging` | `.env.j2` (via `tus_local_staging_dir`) | OK — group_var |
-| `com.gighive.jwt` | `JWTStore.swift` (Keychain service name) | Acceptable — app-level constant, not deployment-specific |
-| `com.gighive.credentials` | `KeychainStore.swift` | Existing; not changed by this feature |
-| `gh_last_host` | `LoginView.swift` | Existing UserDefaults key; not changed |
-
-No new hardcoded deployment-specific paths are introduced by this feature.
-
----
-
-## Timing and Sequencing
-
-| Step | Must complete before |
-|------|---------------------|
-| `firebase/php-jwt` added to `composer.json` + `composer.lock` | Any PHP auth code can deploy |
-| ALTER TABLE on all environments | Phase 1 deploy |
-| Phase 1 verified on dev + lab | Phase 2 deploy |
-| Phase 2 verified on dev + lab + staging | Phase 0 iOS build (can run in parallel with server phases) |
-| Phase 0 iOS build merged | Phase 3 iOS build |
-| Phase 3 iOS build verified on all environments | Phase 4 deploy |
-| `auth_mode_phase4_confirmed: true` set in group_vars | Phase 4 playbook runs |
-| Phase 4 deploys `default-ssl.conf.j2` AND `tus-upload.php` changes | In the same playbook run — they are atomic |
-
-**Race condition:** There is no server-side race between Phase 3 and Phase 4 because the server accepts both Basic and Bearer during Phases 1–3. The iOS app cannot send Basic Auth headers after Phase 3 ships (they're removed from the client). If Phase 4 deploys before the iOS Phase 3 build reaches all users, those users get 401 on every API call. This is prevented by the `auth_mode_phase4_confirmed` gate.
+## Full Execution Trace
+
+### Browser HTML success
+
+Login GET → pre-auth protection → credential POST → validate user → issue JWT/cookie → safe relative redirect → resolve cookie → role/tenant check → HTML 200.
+
+### Browser API mutation
+
+Page renders CSRF token → `GHAuth.authedFetch()` adds CSRF header → cookie auto-sent → API route resolves cookie → CSRF → role/tenant → mutation → JSON response.
+
+### API/iOS success
+
+API login → Bearer JSON/no cookie → Keychain → Authorization Bearer → API route → JWT/context → role/tenant → JSON/media/TUS response.
+
+### QR upload with logged-in cookie
+
+Explicit upload token + incidental cookie → `GUEST_UPLOAD` selects token → validates event capability → cookie ignored for guest authorization → upload/finalize remains event-scoped.
+
+### Guest gallery/media with logged-in cookie
+
+Explicit nonce + incidental cookie → guest/media policy selects nonce → invalid nonce fails without cookie fallback → valid nonce remains event-scoped.
+
+### Invalid Bearer plus valid cookie
+
+Explicit Bearer detected → validation fails → JSON/media `401` → cookie not evaluated.
+
+### Expired browser session
+
+HTML safe GET → clear cookie → safe login redirect. API AJAX → JSON `401` → centralized browser session-expiry UX. Unsafe request → no mutation and no replay.
+
+### Download/media failure
+
+No valid credential → HTTP status appropriate to route; no login HTML; media Range semantics preserved when authorized.
+
+### Cutover failure
+
+Tests fail → stop promotion → restore complete pre-cutover artifact/configuration → user runs Ansible → verify Basic behavior and public/QR paths → investigate in failed environment.
 
 ---
 
 ## Resiliency, Security, and Operability
 
 ### Resiliency
-- **JWT secret rotation:** Change `jwt_secret` in ansible-vault, re-run Ansible. All existing JWTs immediately become invalid — all users must re-login. Acceptable given 30-day TTL; communicate before rotating. No server-side revocation list needed for Phase 1–4 (Phase 5 can add one).
-- **Disabled user mid-session:** `users.disabled` is checked at login only. A token already issued to a disabled user remains valid until expiry. For Phase 1–4 (no customers), this is acceptable. Add `api/verify.php` call from iOS on each app launch to detect disabling earlier.
-- **DB unavailable at login:** `api/login.php` returns 500. Existing valid JWTs continue working for all other endpoints (JWT validation is stateless, no DB required). No outage for logged-in users.
+
+- Sequential environment gates and captured rollback state.
+- Login/public/QR route smoke tests prevent lockout.
+- No single stale client header controls browser navigation.
+- Worker queues retain their existing retry/cleanup behavior; auth changes do not execute workers through HTTP.
 
 ### Security
-- **Rate limiting on `api/login.php`:** No Apache `mod_ratelimit` or PHP rate limiter currently exists. For Phase 1 (internal users only), this is acceptable. **Before any public-facing deployment, add IP-based rate limiting** — either via Apache `mod_ratelimit` or a PHP in-memory counter using APCu (which is already installed in the container via `php-apcu`). Document as a follow-on task.
-- **CSRF:** `api/login.php` and `api/verify.php` are JSON-body POST/GET endpoints used by the iOS app via `URLSession`. No browser form submission — no CSRF surface. If these endpoints are ever called from a browser form, add CSRF tokens.
-- **JWT algorithm confusion:** `firebase/php-jwt` validates that the `alg` header matches the expected algorithm. `JwtAuth::validate()` uses `new Key($secret, 'HS256')` — only HS256 tokens are accepted. An attacker cannot forge an RS256 token and have it accepted. Algorithm confusion attack mitigated.
-- **`none` algorithm attack:** `firebase/php-jwt ^6.x` rejects `alg: none` by design. Confirmed by library documentation.
+
+- HttpOnly/Secure browser JWT cookie and HTTPS prerequisite.
+- CSRF on cookie-authenticated unsafe requests.
+- No invalid-explicit-credential fallback.
+- Tenant/event scope after identity resolution.
+- Four proven XSS sinks fixed before privileged browser sessions are accepted.
+- Internal source/vendor/worker/library HTTP denial.
 
 ### Operability
-- **Logging:** `api/login.php` logs `[login] success role=owner email=admin@...` and `[login] failure` (without the attempted password) to PHP FPM log (`/var/log/fpm-php.www.log`). iOS logs `[Login] api/login.php HTTP 200/401/403`. Both observable in existing log infrastructure.
-- **Token TTL observability:** `api/verify.php` returns `expires_at` so operators can confirm TTL is applied correctly. No server-side dashboard needed for Phase 1.
-- **Runbook for locked-out admin:** If the admin loses JWT access (e.g. misconfigured secret), recover via: (1) `GIGHIVE_AUTH_MODE=basic` + Ansible run (restores htpasswd auth), (2) fix the issue, (3) re-deploy `local` mode.
 
----
-
-## Full Execution Trace
-
-### Normal login flow (Phase 3+)
-
-1. iOS user opens app → `SplashView.onAppear`
-2. `JWTStore.load(host:)` → `StoredToken` with `expiresAt`
-3. If `expiresAt > Date()` → set `session.token`, `session.role`, navigate normally
-4. If expired → call `GET /api/verify.php` → `token_expired` → clear `session.token`, present `LoginView`
-5. User enters email + password → `POST /api/login.php` → 200 + JWT
-6. `JWTStore.save(...)` → `session.token` set → `LoginView` dismisses
-7. `DatabaseView` loads: `DatabaseAPIClient(bearerToken: session.token)` → `GET /db/database.php` with `Authorization: Bearer` → 200
-8. User taps media → `DatabaseDetailView` → `MediaPlayerView(token: session.token)` → `MediaResourceLoader(token:)` → byte-range GET with `Authorization: Bearer`
-9. User uploads → `TUSUploadClient(bearerToken: session.token)` → `POST /files/` with `Authorization: Bearer` → 201
-
-### Error flow — expired token
-
-1. `GET /api/verify.php` → 401 `token_expired`
-2. iOS clears `session.token`; presents `LoginView`
-3. User re-logs in → new JWT stored
-4. No data loss; in-progress uploads fail (TUSKit resumable — retry after re-login)
-
-### Error flow — invalid/tampered token
-
-1. `GET /api/verify.php` → 401 `invalid_token`
-2. iOS calls `JWTStore.delete(host:)` — clears Keychain
-3. Presents `LoginView` with clean state
-4. Log: `[Login] Clearing invalid token for host=...`
-
-### Error flow — Phase 4 deployed before iOS Phase 3
-
-1. iOS sends `Authorization: Basic ...`
-2. Apache no longer validates — PHP receives header but `str_starts_with($authHeader, 'Bearer ')` is false
-3. All protected PHP endpoints return 401
-4. Recovery: revert `default-ssl.conf.j2`, run Ansible — one playbook run
-
-### QR upload flow (unchanged throughout all phases)
-
-1. iOS QR scan → `GuestUploadSession` → `TUSUploadClient(uploadToken:)` → `X-Upload-Token` header
-2. Apache `Require env upload_token_auth` passes (QR block, `AuthMerging Off`)
-3. `tus-upload.php`: `$tusRawToken !== ''` → QR path → `UploadTokenValidator::validate()` → `$userId = tokenId`
-4. Never touches JWT code path
+Log route class, credential type, outcome, role result, tenant/event identifier, and correlation ID without credential material. Track `401`, `403`, expiry, CSRF rejection, and credential type by route class. Preserve diagnostics for rewritten media paths. Document key rotation, revocation, and cutover rollback before production.
 
 ---
 
 ## Progress
 
 ### Completed
-- Feature doc reviewed and corrected (parent doc)
-- Implementation doc written with PPRR applied
 
-### Remaining — This Feature (Phase 1–4)
-- [ ] Add `firebase/php-jwt ^6.10` to `composer.json` + `composer.lock`
-- [ ] Update `create_media_db.sql` (add `password_hash`, `disabled` columns)
-- [ ] Apply ALTER TABLE on dev; verify with `SHOW COLUMNS FROM users`
-- [ ] Implement `auth/jwt.php`
-- [ ] Implement `auth/helpers.php`
-- [ ] Implement `api/login.php`
-- [ ] Implement `api/verify.php`
-- [ ] Update `config.php` (new constants)
-- [ ] Update `.env.j2` (new vars)
-- [ ] Add `gighive_auth_mode`, `jwt_ttl_seconds`, `auth_mode_phase4_confirmed` to all group_vars
-- [ ] Add `jwt_secret` to all secrets.yml (ansible-vault)
-- [ ] Add `requireRole()` guards to all PHP pages (Phase 2)
-- [ ] **Phase 0 (iOS refactor — prerequisite; full checklist in `feature_security_authentication_migration_jwt_ios_auth_cred_type.md`):**
-  - [ ] Create `AuthCredential.swift` (enum + `apply(to: URLRequest)` + `apply(to: [String:String])` + `displayUser`)
-  - [ ] Update `AuthSession.swift` (`credential: AuthCredential?`; `UserRole` enum — `.admin` → `.owner`, add `.contributor`)
-  - [ ] Update all seven Basic-header sites: `DatabaseAPIClient` (×2), `TUSUploadClient`, `UploadClient`, `MediaResourceLoader`, `MediaPlayerView` (×2 — proxy + AVURLAsset paths), `NetworkProgressUploadClient`
-  - [ ] Update `SplashView`, `DatabaseView`, `DatabaseDetailView`, `UploadView` credential references
-  - [ ] Add `KeychainStore.loadCredential(host:)` convenience
-  - [ ] Build + smoke test (QR upload, login + DB view); zero compile errors
-- [ ] **Phase 3 (JWT login — after Phase 0 merged):**
-- [ ] Implement `JWTStore.swift`
-- [ ] Update `LoginView.swift` (iOS 14 async bridge, email field, JWT response parsing, set `session.credential = .bearer(token:)`)
-- [ ] Update `SplashView.swift` (restore session from `JWTStore` on launch)
-- [ ] Deprecate `KeychainStore.swift`; add one-time migration read in `LoginView.onAppear`
-- [ ] Phase 4: update `default-ssl.conf.j2` (remove Basic Auth blocks)
-- [ ] Phase 4: update `api/tus-upload.php` (add PHP JWT guard)
-- [ ] Phase 4: update `api/media-stream.php` (Basic → Bearer in `authenticateRequest()`)
-- [ ] Add T-98 through T-124 smoke tests to `post_build_checks/tasks/main.yml`
-- [ ] Add `gighive_smoke_owner_email`, `gighive_smoke_owner_password` to each env's `secrets.yml` (ansible-vault)
-- [ ] Add `gighive_smoke_disabled_email`, `gighive_smoke_disabled_password` to each env's `secrets.yml` (ansible-vault) — requires a seeded disabled account
-- [ ] Add `gighive_smoke_expired_token` to each env's `secrets.yml` — pre-signed JWT with past `exp`
-- [ ] Add `gighive_smoke_viewer_token` to each env's `secrets.yml` — pre-signed JWT with `role=viewer`
-- [ ] Add `gighive_smoke_gallery_nonce` to each env's group_vars — a valid or known-invalid gallery nonce for QR regression
-- [ ] Seed initial owner account on each environment
+- [x] Canonical browser-cookie/API-Bearer/route-class policy approved as reconciliation source.
+- [x] Completed iOS `AuthCredential` prerequisite documented.
+- [x] Exact current server counts identified.
+- [x] Four proven XSS files identified.
+- [x] Implementation guide rewritten to remove browser localStorage and Basic/JWT overlap.
 
-### Remaining — Follow-on Tasks
-- [ ] **Rate limiting on `api/login.php`** — APCu-based IP counter before any public deployment
-- [ ] **Phase 5 OIDC** — Google + Microsoft/AAD; `api/oidc/callback.php`, `api/oidc/token-exchange.php`, `OIDCLoginView.swift`; requires separate implementation doc
-- [ ] **Phase 6 — User management UI + audit log + self-service account deletion** (requires Phase 5 live):
-  - [ ] `CREATE TABLE security_audit_log` — run DDL on all environments; update `create_media_db.sql`
-  - [ ] `admin/users.php` — owner-only user list, role-change, disable/enable, delete (with `user_deleted` audit event); audit log second tab
-  - [ ] `api/account/delete.php` — self-service account deletion endpoint; JWT-authenticated DELETE; hard-deletes caller's `users` row; writes `self_account_deleted` audit event; blocks last-owner deletion with 409 `last_owner_cannot_delete`; records `superadmin_notified` in audit detail when a non-last owner self-deletes
-  - [ ] iOS Settings screen — "Delete my account" row; confirmation alert; calls `DELETE /api/account/delete.php`; clears `JWTStore` + `session.credential` on 200; shows 409 error alert without clearing session
-  - [ ] Web settings page `account/delete.php` — authenticated page; confirmation form POST; calls `api/account/delete.php`; redirects to login on success; shows error on 409
-  - [ ] Smoke tests: self-delete viewer, self-delete contributor, self-delete non-last owner, last-owner blocked (409), unauthenticated (401), audit row survival
-  - [ ] See strategic doc for full test matrix and risk table
-- [ ] **Server-side token revocation table** — if audit requirements emerge post-OIDC
-- [ ] **Remove `GIGHIVE_AUTH_MODE !== 'basic'` guards** from PHP files — cleanup pass after all environments are past Phase 4
-- [ ] **Remove `KeychainStore.swift`** — after migration period confirmed complete across all active installs
+### Remaining — This Feature
+
+- [ ] **Documentation Step 4.7** — Rebuild exact endpoint guard/route-class checklist.
+- [ ] **Documentation Step 4.8** — Reconcile OIDC Phase 5.
+- [ ] **Documentation Step 4.9** — Align web shared-auth refactor.
+- [ ] **Documentation Step 5** — Run stale-guidance and T-number search.
+- [ ] **Documentation Step 6** — Run cross-document PPRR.
+- [ ] Resolve the nine Open Decisions gates in this document.
+- [ ] Obtain explicit implementation approval before changing source/configuration.
+
+### Remaining — Follow-on
+
+- [ ] JWT Migration Phase 5 OIDC implementation.
+- [ ] JWT Migration Phase 6 user management/audit/account lifecycle.
+- [ ] Local Admin/Platform Admin route separation and tenant-scoping implementation.

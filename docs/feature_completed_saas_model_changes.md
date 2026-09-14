@@ -1,5 +1,14 @@
 # SaaS Model Migration Plan
 
+## Status — 2026-09-09
+SaaS data-model direction remains authoritative. Authentication sections are reconciled to `docs/policy_authentication_credential_route.md`; that policy supersedes prior PHP-session, Basic-indefinitely, universal-auth-middleware, and guest-exemption details in this document. Exact JWT implementation remains in the JWT strategic/implementation/checklist documents.
+
+## Elevator Pitch
+
+GigHive uses one tenant-aware application core for both hosted SaaS and self-hosted installations. Individual account access is enforced through the canonical JWT route policy, while anonymous QR contributors remain restricted to event-scoped capabilities. This preserves self-hosting without maintaining a second codebase and gives SaaS customers enforceable tenant isolation.
+
+---
+
 ## Strategic Rationale
 
 The recommended approach is **multi-tenant as the primary architecture, with
@@ -30,10 +39,11 @@ self-hosted as a first-class deployment mode** — the classic open-core model.
 
 **The architectural good news:** if multi-tenancy is implemented with row-level
 `tenant_id` isolation, a self-hosted install is simply multi-tenant with one tenant.
-There is no separate codebase to maintain — only a `SAAS_MODE` env flag that controls
-whether OIDC is required or a simplified local login is acceptable (preserving the
-zero-config experience for self-hosters who do not want to register Google/Microsoft
-app credentials just to run GigHive on a home server).
+There is no separate codebase to maintain. `SAAS_MODE` controls SaaS-only tenancy,
+billing, and onboarding behavior; `GIGHIVE_AUTH_MODE` selects the approved local or
+OIDC login mode. Both modes use the canonical browser HttpOnly JWT cookie, API/iOS
+Bearer JWT, centralized route classes, and QR capability policy. Self-hosters do not
+need Google/Microsoft registration because local JWT login remains available.
 
 ---
 
@@ -46,7 +56,7 @@ have been applied.
 | Layer | `SAAS_MODE=false` (self-hosted) | `SAAS_MODE=true` (SaaS) |
 |---|---|---|
 | Schema | Identical — same tables, same `tenant_id`, seed tenant = 1 | Identical |
-| Auth | Local PHP login form (replaces Basic Auth at step 8) | OIDC required (Google, Microsoft, Apple) |
+| Auth | Local browser login → HttpOnly GigHive JWT cookie; API/iOS → Bearer JWT | Google/Microsoft OIDC → same GigHive cookie/Bearer contracts; local break-glass owner retained |
 | Tenants | Always one (`tenant_id = 1`) | Many; each with their own subdomain |
 | Billing / quotas | Not enforced | Enforced via Stripe + plan limits |
 | Subdomain routing | Not active | Wildcard `*.gighive.app` |
@@ -60,17 +70,9 @@ application behaves identically to today.
 upgrade through any Phase 2 release safely, picking up bug fixes and
 non-SaaS improvements without being forced into OIDC or multi-tenancy.
 
-**The Basic Auth replacement gap (step 8):** When `SAAS_MODE=false` and step 8
-ships, Apache Basic Auth is removed from the codebase. Self-hosted installs
-must not be left without any auth mechanism. The `Auth.php` session gate must
-include a local credential path for `SAAS_MODE=false`: a simple PHP login form
-that validates against a hashed password stored in `.env` (or the `tenants`
-row), sets the same `$_SESSION` keys that the OIDC path would set, and grants
-the `owner` role for `tenant_id = 1`. This is intentionally minimal — it is
-not a full user management system, just a drop-in replacement for the Basic
-Auth gate that self-hosters already rely on. **This local login path must be
-built as part of step 8**, not deferred, or every self-hosted install upgrading
-through that release will be locked out.
+**Basic Auth replacement policy:** Self-hosted and SaaS installations use the same JWT route layer after cutover. Self-hosted browser login validates the local break-glass/user record and sets the canonical Secure HttpOnly GigHive JWT cookie; API/iOS clients receive Bearer JWT. OIDC is optional for self-hosted mode. Credentials are not represented by PHP `$_SESSION` keys or a plaintext/shared password in `.env`.
+
+Each environment remains wholly on Basic account authentication until its JWT implementation and clients pass in dev. It then switches atomically and promotes through dev → lab → staging → production gates. There is no Basic/JWT overlap period and no supported “stay on Basic indefinitely” branch after adopting the JWT release.
 
 ---
 
@@ -123,8 +125,8 @@ done cheaply.
 
 **Phase 2 — Full SaaS Mode** *(post-release)*
 - Step 6: Wildcard subdomain routing + Cloudflare TLS
-- Step 7: OIDC federation — Google, Microsoft, Apple; JIT provisioning; ToS gate
-- Step 8: RBAC middleware; remove Apache Basic Auth; local PHP login for `SAAS_MODE=false`
+- Step 7: Google/Microsoft OIDC federation; JIT provisioning; ToS gate; browser callback issues GigHive HttpOnly JWT cookie; iOS PKCE returns Bearer JWT
+- Step 8: Central JWT route classes, role/tenant/event enforcement, CSRF, internal-route denials, and atomic Apache Basic removal; local browser JWT login remains available for self-hosted/break-glass
 - Step 9: Signed contributor invite links (replace shared htpasswd)
 - Step 10: Migrate file storage to tenant-scoped paths (`/<tenant-id>/`)
 - Step 11: Public/private visibility enforcement (backend)
@@ -208,24 +210,24 @@ the session's `tenant_id` explicitly. That work belongs to step 8, not here.
 
 **Phase 1a — Standalone Enhancements + SaaS Prerequisites** *(pre-release; ships with self-hosted)*
 
-5. Per-event QR code guest upload links + `SAAS_MODE` env flag — owner generates a per-event QR code; guests scan to upload without an account; attribution recorded via ToS checkbox + optional display name; owner can revoke tokens and view guest-contributed uploads in the event admin page; iPhone with app installed uses iOS Universal Link → native app; Android and iPhone without app fall back to `db/upload_form_single.php`. `SAAS_MODE` flag gates Basic Auth (self-hosted, `false`) vs. OIDC (`true`); set via Ansible `group_vars` → `.env.j2`. *Does not depend on OIDC, RBAC, or subdomain routing — implement immediately after Phase 1.*
+5. Per-event QR code guest upload links + `SAAS_MODE` env flag — owner generates a per-event QR code; guests upload without an account; attribution records ToS and optional display name; owner can revoke tokens and view contributions; iOS Universal Link opens the app and other browsers use `db/upload_form_single.php`. `SAAS_MODE` gates SaaS product behavior, not credential transport. QR tokens remain event-scoped under the canonical route policy in both local and SaaS deployments.
 
    → **Full implementation detail, sequenced task list, and test matrix:** [`docs/feature_completed_iphone_qr_code_support.md`](feature_completed_iphone_qr_code_support.md)
 
 **Phase 2 — Full SaaS Mode** *(post-release; each step is independently shippable)*
 
-> **iOS note:** Steps 6, 7, and 8 have parallel iOS app counterparts: step 6 (subdomain tenant routing), step 7 (OIDC login via Google/Apple), and step 8 (RBAC session enforcement). iOS App Store submission requires Sign in with Apple if any third-party login is offered (step 7). Track these as implementation subtasks within each step rather than separate steps.
+> **iOS note:** Steps 6–8 have iOS counterparts for tenant routing, Google/Microsoft OIDC PKCE, Bearer storage, and route/RBAC behavior. Apple Sign-In remains a separate product/App Store decision and must be assessed before distributing third-party login in the iOS app. Track approved iOS work using `testing_ios.md`.
 
 6. Establish subdomain routing — wildcard DNS `*.gighive.app` + wildcard TLS (Cloudflare handles both); front controller extracts slug and resolves tenant; reserve blocked subdomains (`www`, `api`, `auth`, `admin`, `billing`, `login`, `signup`, etc.); single shared OIDC callback at `gighive.app/auth/callback` with tenant slug in `state` parameter; **CSRF protection: `state` must encode both the tenant slug AND a random nonce, and optionally an invite token reference** (e.g. JSON `{"slug":"band-foo","nonce":"<random>","invite_token_id":<id_or_null>}` base64-encoded), where the nonce is stored server-side in the pre-redirect session and verified on callback — without this the callback endpoint is forgeable; the `invite_token_id` field is null for self-serve signup and set to the `contributor_invite_tokens.token_id` for invite redemptions — the callback handler uses this to distinguish the two JIT provisioning paths (see step 9)
-7. Implement OIDC federation — Google, Microsoft, Apple; Authorization Code Flow; single shared callback handler; JIT user provisioning on first login; **ToS/Privacy Policy gate fires here on any first login regardless of path**; **the callback handler owns `tenants` row creation for new self-serve signups** — `users.tenant_id` is `NOT NULL`, so the `tenants` row must be inserted atomically before the `users` row; the three provisioning paths are: (a) self-serve signup (`invite_token_id` null in state) → create `tenants` row → create `users` row with new `tenant_id`; (b) contributor invite (`invite_token_id` set) → validate invite token → look up existing `tenants` row → create `users` row; (c) returning user → find existing `users` row → no row creation; *GDPR/CCPA timing gap: data subject rights obligations begin the moment the first real user accepts ToS at this step. Hard delete (step 17) does not exist yet — any deletion request between steps 7 and 17 must be handled as a manual database operation* (self-serve signup, contributor invite, or direct login — every new `users` row must record ToS version + acceptance timestamp before the user reaches the application)
-8. Build RBAC middleware — `Auth.php` session gate; enforce `owner` / `contributor` / `viewer` / `superadmin` on every page and API endpoint; **the middleware must check `tenants.is_public` before requiring a session** — requests for public-tenant content must pass through without login (the `is_public` column is already on `tenants` from step 1; the toggle UI is wired in step 12); **the QR upload route from step 5 must be explicitly exempted from the session gate** — it is secured by CSPRNG token hash validation (DB lookup), not by session; removing Basic Auth in this step must not break that endpoint; **`SAAS_MODE=false` local auth: a simple PHP login form must be shipped as part of this step** — it validates a hashed password from `.env`, sets the same `$_SESSION` keys as the OIDC path, and grants `owner` role for `tenant_id = 1`; without this, every self-hosted install upgrading through this release is locked out (see Coexistence section above); *drop the `DEFAULT 1` from all `tenant_id` columns at this step — the RBAC middleware now enforces tenant context on every request, so the transitional default added in step 2 is no longer needed and should be removed to prevent silent data leaks from any INSERT that omits `tenant_id`*
+7. Implement Google/Microsoft OIDC federation — browser initiation/callback validates IdP identity, resolves tenant/role/disabled state, performs JIT provisioning, records required ToS acceptance, and issues the canonical Secure HttpOnly GigHive JWT cookie; iOS uses PKCE and receives Bearer JWT JSON without a browser cookie. `state` protects correlation/CSRF but does not by itself authorize tenant selection; the server validates self-serve, invite, and returning-user tenant context before creating/updating rows. Apple remains a separate future decision. GDPR/CCPA obligations begin with the first real accepted user.
+8. Implement canonical JWT route enforcement and atomic cutover — routes declare HTML, API, download, guest upload/gallery, mixed media, dual response, worker, library, login, or public policy; normalized `AuthContext` enforces role plus tenant/event scope; cookie-authenticated unsafe methods require CSRF; internal code denies direct HTTP; explicit invalid credentials do not fall back. Local self-hosted browser login issues the same HttpOnly cookie and API/iOS login returns Bearer. Drop transitional `tenant_id DEFAULT 1` only through the approved BABRR process when every insert supplies explicit tenant context. Remove Apache Basic account auth atomically per environment after dev tests, then gate lab → staging → production.
 9. Replace shared htpasswd with signed contributor invite links — tenant owner generates; guest authenticates via any supported IDP; single-use and expiring; *Quota timing gap: uploads from steps 5 and 9 onwards accumulate without any measurement or enforcement until step 13 ships. Prioritize step 13 immediately after launch to close this window*
-10. Migrate file storage to tenant-scoped paths; add session-gated media serving (PHP passthrough or X-Sendfile); migration scope includes all existing files including those uploaded via QR links in step 5 (which land in the flat filesystem pre-migration); ***breaking upgrade for all install types*** — self-hosted installs upgrading to any release containing this change must run the one-time file migration script to move existing media into `/<tenant-id>/` subdirectories; do not ship this without the migration script
-11. Implement public/private content visibility — **backend only in this step**: wire `tenants.is_public` enforcement into the auth middleware (already built in step 8, which must have been designed `is_public`-aware); default is private (`is_public = 0`); the owner-facing UI toggle lives on the tenant settings page built in step 12; per-event granularity deferred as a future enhancement
+10. Migrate file storage to tenant-scoped paths; use canonical `MIXED_MEDIA` authentication and tenant/event scope (PHP passthrough or X-Sendfile); migration scope includes all existing files including those uploaded via QR links in step 5 (which land in the flat filesystem pre-migration); ***breaking upgrade for all install types*** — self-hosted installs upgrading to any release containing this change must run the one-time file migration script to move existing media into `/<tenant-id>/` subdirectories; do not ship this without the migration script
+11. Implement public/private content visibility — **backend only in this step**: wire `tenants.is_public` enforcement into the canonical route/authorization layer from step 8; default is private (`is_public = 0`); the owner-facing UI toggle lives on the tenant settings page built in step 12; per-event granularity deferred as a future enhancement
 12. Build tenant settings page + self-serve signup + onboarding flow — the tenant settings page is the owner UI shell; **this step wires the visibility toggle UI for step 11** (backend was done there, UI switch lives here), and provides the housing for the quota bar (step 13) and rate limit config (step 18) as those features are built; onboarding: OIDC signup creates tenant row; empty state shows brand message + two CTAs (import existing media / invite contributors); ToS acceptance is enforced at JIT provisioning (step 7), not here — this step covers the first-run UX only; **the admin pages reached at `<slug>.gighive.app/admin` are the tenant owner's complete "mini-GigHive" experience** — event management, uploads, contributor/user list, gallery status, billing status, and storage usage are all scoped to the `tenant_id` resolved from the subdomain by the step 6 front controller; the existing `admin_system.php` and related admin pages must be gated through `AuthContext::tenantId()` so each tenant owner sees only their own tenant's data; see "Two-Tier Admin Structure" note under step 16
 13. Storage quota tracking — track per-tenant bytes used (blob storage is the cost driver; record count is negligible); surface usage bar on owner dashboard; enforce at upload time with a graceful error; alert at configurable threshold; *initial implementation measures local filesystem bytes — quota measurement mechanism must be updated in step 19 when object storage is adopted*
 14. Wire billing — Stripe customer/subscription columns on `tenants`; webhook handling for plan changes
-15. Implement tenant suspension — `is_active = 0` on the `tenants` row must cascade to a 403 at the auth middleware before any query runs; triggered by billing webhook (step 14) or manual superadmin action via the console (step 16); in-app banner shown to owner before full suspension; *note: between steps 15 and 16 the superadmin console does not yet exist — manual suspension in this window requires a direct DB UPDATE on `tenants.is_active`; document this in the ops runbook and treat it as a short-lived gap closed when step 16 ships*
+15. Implement tenant suspension — `is_active = 0` on the `tenants` row must produce `403` in the canonical authorization layer before tenant data is returned or mutated; triggered by billing webhook (step 14) or manual superadmin action via the console (step 16); in-app banner shown to owner before full suspension; *note: between steps 15 and 16 the superadmin console does not yet exist — manual suspension in this window requires a direct DB UPDATE on `tenants.is_active`; document this in the ops runbook and treat it as a short-lived gap closed when step 16 ships*
 16. Build superadmin/operator console — platform-level tenant list, usage metrics, suspend/reactivate controls; **two-tier admin structure (see note below)**
 
    > **Two-Tier Admin Structure (design note, 2026-08-31)**
@@ -241,7 +243,7 @@ the session's `tenant_id` explicitly. That work belongs to step 8, not here.
    > **Admin page modification scope** — the step 12 work must audit every admin page and ensure it (a) reads `tenant_id` from `AuthContext` rather than assuming `tenant_id = 1`, and (b) rejects access if `AuthContext::role()` is below the required minimum for that page. No fundamental new data model columns are expected: `tenants.is_active`, `tenants.plan`, `tenants.plan_expires_at`, `gallery_subscriptions`, and `billing_events` (from `feature_saas_pricing_model.md`) already surface the status data a tenant owner needs. The principal admin page modification is query scoping, not schema work — but this must be tracked explicitly to avoid inadvertent cross-tenant data leaks in any admin query that currently omits a `WHERE tenant_id` clause.
 17. Per-tenant data export + GDPR hard delete cascade; *file deletion targets local filesystem until step 19 migrates to object storage — hard delete implementation must be updated at that point*
 18. Rate limiting — existing Apache rate limit config carries forward as-is; surface current limits on a read-only configuration page (grayed out); future SaaS option allows tenants to adjust their own limits within plan-defined bounds
-19. Upgrade infrastructure — shared DB with row-level isolation, object storage (S3 / Azure Blob), Redis/DB-backed sessions, AI worker quota awareness; update quota measurement (step 13) and hard delete (step 17) to target object storage at this point
+19. Upgrade infrastructure — shared DB with row-level isolation, object storage (S3 / Azure Blob), optional Redis for cache/queues/revocation if approved, AI worker quota awareness; update quota measurement (step 13) and hard delete (step 17) to target object storage at this point
 20. Custom domain support *(deferred)* — Cloudflare Custom Hostnames lets a tenant point `media.theirband.com` → `theirband.gighive.app` with automatic cert issuance; not required for v1
 21. Media provenance + blockchain anchoring *(deferred — requires own design doc)* — pseudonymous identity fingerprint (HMAC of IDP `sub` with GigHive-held key) anchored alongside `checksum_sha256` + upload timestamp via OpenTimestamps (Bitcoin-anchored, no gas fees); third-party verifiable assertion that "this content, in this exact form, was uploaded by this verified-but-pseudonymous identity, at this time"; real-name vs. verified-badge UX decision deferred; prerequisites already in place: OIDC-verified identity (step 7), ToS acceptance (step 7), content hash (`checksum_sha256` on `assets`), upload timestamp
 
@@ -448,13 +450,10 @@ CREATE TABLE anon_upload_attributions (
 
 ## Federated Identity and RBAC
 > **Post-release; required for SaaS sign-up. Breaking change to auth.**
-> Self-hosted installs can remain on Basic Auth (via `SAAS_MODE=false`) indefinitely.
-> This section enables a stranger to sign up and use GigHive without an admin
-> provisioning them a password.
+> Self-hosted installs use local GigHive JWT login and are not forced into OIDC.
+> Basic Auth is retired through the same atomic, gated JWT cutover.
 
-**Goal:** GigHive does not act as an identity provider. All authentication
-is delegated to external IDPs via OpenID Connect (OIDC). GigHive only controls
-*authorization* — what a verified identity is allowed to do.
+**Goal:** SaaS users authenticate through approved external IdPs; self-hosted and break-glass users can authenticate locally. GigHive issues its own browser-cookie or API/iOS Bearer JWT and controls authorization, tenant/event scope, and account state through the canonical route policy.
 
 The htpasswd gate is retired for SaaS. The entire legacy `users` table — including
 `password_hash` and the email-based activation flow — was replaced with a clean
@@ -668,35 +667,18 @@ callback handler can resolve which tenant and role to assign.
 
 ---
 
-### 2e — Session Layer and Auth Middleware
+### 2e — JWT Route and Authentication Layer
 
-1. **`src/Middleware/Auth.php`** — called at the top of every protected page:
-   - Calls `session_start()`.
-   - Reads `$_SESSION['user_id']`, `$_SESSION['tenant_id']`, `$_SESSION['role']`.
-   - Redirects to `/login` if session is absent.
-   - Exposes `AuthContext::userId()`, `AuthContext::tenantId()`,
-     `AuthContext::role()` as a request-scoped singleton.
+1. **Central route resolver** — every HTTP surface declares a canonical route class. The resolver normalizes browser cookie, API/iOS Bearer, QR upload token, or gallery nonce into `AuthContext`; invalid explicit credentials do not fall back.
+2. **Browser session** — local/OIDC browser login issues the Secure HttpOnly GigHive JWT cookie. JavaScript cannot read the JWT. Safe HTML navigation redirects to login; APIs, downloads, and media never receive login HTML.
+3. **API/iOS** — API login and OIDC PKCE exchange return Bearer JWT JSON and do not set browser cookie.
+4. **Authorization** — `AuthContext` supplies user, role, tenant, event/capability, JWT identifier, and expiry. Role, tenant, event/resource, suspension, and public-visibility rules are enforced server-side.
+5. **CSRF** — cookie-authenticated unsafe methods require centralized CSRF validation; Bearer and explicit QR capability paths retain their own non-cookie credential semantics.
+6. **Upload/media** — TUS uses explicit upload token when supplied, otherwise Bearer/cookie contributor authorization. Media uses explicit nonce/token when supplied, otherwise Bearer/cookie viewer authorization; Range behavior remains intact.
+7. **Internal code** — workers, libraries, `src/` implementation classes, and `vendor/` deny direct HTTP rather than using browser session checks.
+8. **Cutover** — remove Apache Basic and activate JWT atomically in each environment after dev validation; gate lab, staging, and production sequentially.
 
-2. **OIDC callback handler** (`/auth/callback.php`) — receives the
-   authorization code, exchanges it for an ID token via the provider's
-   token endpoint, validates the JWT signature against the provider's
-   JWKS, extracts `sub`/`oid`, upserts the `users` row, and sets the
-   session.
-
-3. **Logout** — `session_destroy()` + redirect to the IDP's logout
-   endpoint (important for shared-device scenarios).
-
-4. **Remove Apache Basic Auth** from `httpd.conf` / VHost config for `/db/`
-   and `/admin/`. The PHP session gate replaces it entirely.
-
-5. **Protect the upload API** — the TUS upload endpoint currently has no
-   auth. For SaaS, a tenant-scoped Bearer token (issued at session creation)
-   must be passed in `Upload-Metadata` or as an `Authorization` header.
-   The `/api/` endpoints need the same `Auth.php` check.
-
-6. **Distributed sessions** (step 19 dependency) — PHP file sessions do not
-   work when PHP-FPM runs on multiple nodes. Switch to database-backed or
-   Redis sessions before horizontal scaling.
+JWT validation is stateless unless the approved revocation decision adds request-time account/token-version state. Redis is not required merely to scale browser sessions because the browser credential is the signed GigHive JWT cookie.
 
 ---
 
@@ -978,30 +960,13 @@ script in the deployment runbook. Superadmin rows must never be JIT-provisioned
 
 ### High
 
-**SEC-4 — Session fixation after OIDC login (step 7)**
-*Risk:* If the PHP session ID is not rotated after successful authentication,
-an attacker who obtained the pre-login session ID (shared device, network sniff
-before HTTPS) retains a valid authenticated session.
-*Remediation:* Call `session_regenerate_id(true)` immediately after writing
-user data into `$_SESSION` in the OIDC callback handler, before any redirect.
+**SEC-4 — Browser JWT session fixation/reuse after login (step 7)**
+*Risk:* Reusing an existing browser JWT across authentication or privilege changes can retain stale identity/role state.
+*Remediation:* Issue a new JWT with a new `jti` after local/OIDC login and approved privilege changes; overwrite the canonical cookie; apply the approved revocation/token-version policy; never accept a client-selected JWT identifier.
 
-**SEC-5 — Session cookie security flags not specified (step 7/8)**
-*Risk:* Without explicit flags, PHP session cookies may be readable by
-JavaScript (XSS pivot to session hijack), transmitted over HTTP, or submitted
-cross-site.
-*Remediation:* Set before every `session_start()`:
-```php
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path'     => '/',
-    'domain'   => '.gighive.app',  // leading dot covers all subdomains
-    'secure'   => true,
-    'httponly' => true,
-    'samesite' => 'Lax',
-]);
-```
-Also set `session.gc_maxlifetime` appropriately (e.g. 8 hours) in `php.ini`
-or via `ini_set`.
+**SEC-5 — Browser JWT cookie and CSRF controls (step 7/8)**
+*Risk:* Incorrect cookie attributes can expose the credential or broaden host scope; automatically sent cookies create CSRF risk on unsafe requests.
+*Remediation:* Use the canonical `__Host-gighive_session` cookie with Secure, HttpOnly, Path `/`, no Domain, selected SameSite, and expiry no later than JWT expiry. Require HTTPS. Apply centralized CSRF validation to cookie-authenticated unsafe methods and test missing/invalid token with no mutation. Do not store the JWT in JavaScript, localStorage, sessionStorage, or PHP `$_SESSION`.
 
 **SEC-6a — QR upload token security (step 4)**
 *Design:* QR tokens are opaque CSPRNG tokens (32 bytes, base64url-encoded); the server stores only `SHA-256(raw_token)`. Security comes from 256-bit entropy — no HMAC signing key is required, managed, or rotatable. There is no `APP_HMAC_KEY` dependency for QR tokens.

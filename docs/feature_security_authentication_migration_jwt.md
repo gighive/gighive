@@ -1,50 +1,64 @@
 # Feature: Federated Authentication Migration (JWT + OIDC)
 
-## Executive Summary
+## Status — 2026-09-09
+Strategic plan — reconciled to the canonical browser-cookie, API/iOS Bearer, centralized route-class, atomic-cutover, and sequential-promotion policy. Implementation remains pending explicit approval.
 
-From a user perspective, this is a simple change: the three shared `.htpasswd` accounts (`admin`, `uploader`, `viewer`) are replaced by individual logins backed by Google or Microsoft as the identity provider. Each person who currently uses a shared password will instead sign in with their own Google or Microsoft account. Their role in GigHive (owner, contributor, or viewer) is determined by their IdP group membership — they never need a separate GigHive password.
+**Canonical policy:** `docs/policy_authentication_credential_route.md`  
+**Implementation:** `docs/feature_security_authentication_migration_jwt_implementation.md`  
+**Endpoint inventory:** `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md`
 
-The rest of the application — media playback, uploads, gallery, admin UI, and the QR guest system — is completely unchanged. The only thing that changes for an authenticated user is the login step.
+---
 
-One local `owner` account with a strong password remains in ansible-vault as an emergency backdoor if the IdP is unreachable. That is the only credential the operator manages going forward.
+## Elevator Pitch
 
-Internally, getting to this end state requires a five-phase migration (JWT infrastructure → PHP guards → iOS client cutover → Apache Basic Auth removal → OIDC federation), but that complexity is invisible to users. The QR-code guest system runs in a fully isolated code path and is untouched in every phase.
+GigHive is replacing three shared installation passwords with individual identities that can be assigned a role, restricted to a tenant or event, audited, and revoked without disrupting everyone else. Browser users receive a secure HttpOnly JWT cookie, while iOS and programmatic clients use Bearer JWTs. Anonymous QR upload and gallery access remain accountless and event-scoped under an explicit route policy.
 
 ---
 
 ## Summary
 
-GigHive's move to SaaS requires replacing shared Apache Basic Auth passwords with individual, auditable identities. This feature implements a clean, phased migration to JWT-based authentication with full OIDC federation (Google + Microsoft/AAD), while preserving the existing QR-code guest auth system unchanged.
+GigHive's move to SaaS requires replacing shared Apache Basic Auth accounts with individual, auditable identities while preserving self-hosted operation and QR guest access. The migration introduces one GigHive JWT claims model through client-appropriate transports:
 
-**Architecture decision:** Two auth systems run in parallel and never share state or code paths:
-- **QR Token auth** — event goers (existing, production-grade, untouched forever)
-- **OIDC/JWT auth** — viewers, uploaders, and admins (this feature)
+- **Browser:** Secure HttpOnly GigHive JWT cookie; no JWT in localStorage or sessionStorage.
+- **iOS/API:** `Authorization: Bearer <JWT>`.
+- **QR guest:** Explicit upload token or gallery nonce, restricted to its event capability.
+
+A centralized route-class policy determines accepted credentials, precedence, CSRF requirements, tenant/event scope, and HTML/JSON/download/media failure behavior. QR and account credentials are distinct authorities but can arrive on the same request; an explicit guest credential remains authoritative on guest routes and never silently falls back to broader account access.
 
 **The four customer journeys:**
 
-| Journey | Auth Model | Status |
-|---------|-----------|--------|
-| QR Event Goer (no account) | QR token — event-scoped, accountless | Done — unchanged |
-| Media Library Viewer (account) | OIDC/JWT — individual identity from IdP | To build |
-| Media Uploader / Band Planner (account) | OIDC/JWT — uploader role from IdP group | To build |
-| Administrator (account) | OIDC/JWT + MFA at IdP | To build |
+| Journey | Final authentication model | Status |
+|---|---|---|
+| QR Event Goer | Event-scoped upload token or gallery nonce; no account | Existing behavior preserved under explicit route class |
+| Media Library Viewer | Individual OIDC/local identity; browser cookie or iOS/API Bearer | To build |
+| Media Uploader / Event Planner | Individual contributor/owner identity plus separate QR guest capabilities | To build |
+| Local/Platform Administrator | Individual owner/platform-admin identity; IdP MFA where available | To build |
 
-**Migration phases (clean cutover — no tech debt, no customers to break):**
+**JWT Migration phases:**
 
-| Phase | What | Key constraint |
-|-------|------|---------------|
-| 1 | JWT core: `users` table alignment + `auth/jwt.php` + `api/login.php` | None — purely additive |
-| 2 | PHP `requireRole()` guards on all pages | Dual-auth period; Basic Auth still active at Apache |
-| 3 | iOS app: replace Basic Auth with JWT Bearer tokens | Server accepts both during this phase |
-| 4 | Remove Apache Basic Auth | **Hard gate: Phase 3 must be live and verified first** |
-| 5 | OIDC: Google + Microsoft/AAD; iOS PKCE flow | Additive alongside local JWT |
+| Phase | What | Gate |
+|---:|---|---|
+| 0 | Completed iOS `AuthCredential` refactor plus Web Refactor Phase 1 prerequisite | No wire-auth change; Basic remains authoritative |
+| 1 | JWT core, users-table alignment, API/iOS token login, browser cookie-login foundation | Additive/inert while environment remains in Basic mode |
+| 2 | Central route-class resolver, PHP guards, cookie/CSRF/response helpers, internal-route denial | Deploy inert under Basic; do not require JWT while Apache Basic is authoritative |
+| 3 | iOS Bearer client and browser-session behavior; complete tests in dev | Must be ready before that environment's cutover |
+| 4 | Atomic Basic-to-JWT cutover per environment | Dev passes first; then lab → staging → production, each gated by tests |
+| 5 | OIDC: Google + Microsoft Entra ID; browser callback issues GigHive cookie, iOS uses PKCE/Bearer | Requires Phase 4 policy and routes |
+| 6 | User management, audit, and account lifecycle | Requires identity and tenant scope |
 
-**Key decisions captured:**
-- Clean JWT cutover — no dual-auth on iOS side
-- OIDC primary targets: Google OAuth2/OIDC + Microsoft Entra ID (AAD)
-- All roles (owner/contributor/viewer) move to OIDC simultaneously in Phase 5
-- JWT algorithm: HS256 throughout all phases. GigHive-issued JWTs remain HS256 in Phase 5. The OIDC `id_token` received from the IdP uses RS256 and is validated server-side against the IdP JWKS; it is never forwarded to clients. (RS256 for GigHive-issued tokens is deferred — only needed if a third party must verify GigHive JWTs without the shared secret, which is not a Phase 5 requirement.)
-- Token TTL: 30 days for both local-user and OIDC-user GigHive-issued JWTs. The IdP's short-lived access/refresh tokens are consumed server-side during the OIDC callback and never forwarded to clients.
+**Confirmed decisions:**
+
+- HttpOnly JWT cookie for browser authentication.
+- Bearer JWT for iOS and programmatic API clients.
+- Centralized route classes and no invalid-explicit-credential fallback.
+- CSRF protection for cookie-authenticated unsafe requests.
+- Atomic Basic-to-JWT cutover inside each environment; no Basic/JWT overlap period.
+- Sequential promotion gates: dev → lab → staging → production.
+- Google and Microsoft Entra ID as primary OIDC providers.
+- HS256 for GigHive-issued JWTs; IdP tokens validated server-side against provider JWKS.
+- Local break-glass owner retained.
+
+**Implementation decisions still open:** JWT lifetime/renewal, immediate revocation mechanism, CSRF token design, exact resolver API, stable error codes, and key-rotation window. The canonical policy owns these decisions.
 
 ---
 
@@ -54,16 +68,16 @@ GigHive's move to SaaS requires replacing shared Apache Basic Auth passwords wit
 
 GigHive is moving toward a SaaS deployment model. The current authentication system — Apache HTTP Basic Auth with shared `admin`, `uploader`, `viewer`, and optional `guest` htpasswd accounts — was the correct pragmatic choice for a single-tenant, self-hosted appliance. It is the wrong model for SaaS, where each user is an individual with their own identity, where organizations use SSO for their tools, and where audit trails matter.
 
-At the same time, the QR-code-based guest upload and gallery system is production-grade, deliberately accountless, and must remain exactly as it is. It serves a fundamentally different user: an event attendee who will never have a GigHive account and should not need one.
+At the same time, QR-code guest upload and gallery access is deliberately accountless. It serves an event attendee who should not need a GigHive account. Its product behavior remains, but its interaction with incidental browser cookies and authenticated media routes must be made explicit through the centralized route-class policy.
 
-The key insight driving this plan: **two auth systems must coexist, and they already can**. The QR paths in Apache are already architected with `AuthMerging Off` + `Require all granted`, insulating them from whatever happens to Basic Auth. The migration from Basic Auth to OIDC/JWT happens around the QR system, not through it.
+The key insight driving this plan is that account identity and guest capability are different authorities that can coexist on a request. Route intent determines which is authoritative: an explicit valid QR token/nonce controls a guest flow, while authenticated browser/API routes use the JWT identity and role.
 
-No existing customers means no compatibility constraints on the auth migration. We do it once, cleanly.
+No existing customers or sessions require preservation during migration, so each environment can switch atomically after dev validation rather than running incompatible Basic and JWT authorization simultaneously.
 
 ### Prior Plans This Supersedes (Partially)
 
-- **`security_auth_jwt_token_migration.md`** — The role mapping table and phase structure remain accurate. Updated by: (a) QR guest endpoints now exist and are excluded from the migration; (b) `media-stream.php` already handles all media streaming, changing how Phase 3 (media proxy) applies; (c) TUS is now PHP-based (`api/tus-upload.php`), not a tusd container.
-- **`refactor_security.md`** *(deleted — superseded by this doc)* — The `GIGHIVE_AUTH_MODE` env var design and Keycloak realm export concept are carried forward unchanged.
+- **`security_auth_jwt_token_migration.md`** — Historical and superseded. Its old role names, endpoint list, phases, and dual-auth transition must not be implemented.
+- **`refactor_security.md`** *(deleted — superseded by this doc)* — The auth-mode concept remains, but its transition semantics are replaced by the canonical atomic-cutover policy.
 - **`refactor_security_recommendations_20260530.md`** — Bundle D (JWT) and Bundle E (OIDC) from that document map directly to Phases 1–4 and Phase 5 of this feature respectively.
 
 ---
@@ -79,7 +93,7 @@ The Apache htpasswd layer and the existing `users` table in `create_media_db.sql
 | `viewer` | `viewer` | Read-only access |
 | — | `superadmin` | Reserved for GigHive platform operators; not part of this migration |
 
-All PHP role checks, JWT payloads, and API responses use the DB-side names (`owner`, `contributor`, `viewer`). The old Apache usernames are only referenced during the transitional dual-auth period (Phases 1–3) and are removed in Phase 4.
+All PHP role checks, JWT payloads, and API responses use the DB-side names (`owner`, `contributor`, `viewer`, and the SaaS extension `platform_admin`). Old Apache usernames are used only while an environment remains fully in pre-cutover Basic mode; they are removed from request authentication during that environment's atomic JWT Migration Phase 4 cutover.
 
 ---
 
@@ -95,7 +109,7 @@ All PHP role checks, JWT payloads, and API responses use the DB-side names (`own
 
 **OIDC applicability:** None. Forcing an identity provider login on a concert attendee to submit a video clip is a non-starter UX and defeats the purpose of the feature.
 
-**Invariant:** The QR guest system is never touched by this migration.
+**Invariant:** QR guest access remains accountless and event-scoped. Migration may centralize its credential resolution and tests, but must not require an account or allow an incidental authenticated cookie to broaden guest access.
 
 ---
 
@@ -132,41 +146,28 @@ All PHP role checks, JWT payloads, and API responses use the DB-side names (`own
 **Admin functions (all gated by `requireRole('owner')`):**
 
 - **User management** (`admin/users.php`) — list all OIDC-provisioned users for the tenant; change a user's role; disable or re-enable a user; delete a user row. No local user creation in the UI — all users are provisioned via OIDC. The break-glass `owner` account is seeded by Ansible only.
-- **QR code management** (`admin/event_qr.php`) — generate event-scoped QR tokens; set expiry; view active tokens. This flow is unchanged by the auth migration — the QR token system remains independent.
+- **QR code management** (`admin/event_qr.php`) — generate event-scoped QR tokens, set expiry, and view active tokens. Guest capability behavior remains accountless; route policy ensures an incidental admin cookie cannot broaden a QR request.
 - **Media moderation** (`admin/admin.php` and related pages) — approve/reject uploaded media, manage the catalog, promote items, trigger AI jobs.
 - **Database administration** (`admin/admin_system.php`, `admin/import_*.php`, etc.) — import/export, backup/restore, clear media.
 - **Security audit log** (`admin/users.php`, audit tab) — owner can read the `security_audit_log` table for the tenant: login events, role changes, failed auth attempts, account disable/enable, user deletes. The audit log is a second tab within `admin/users.php` — no separate page.
 
-**Admin → OIDC → QR chain:** The admin authenticates via OIDC (browser) or local JWT fallback (break-glass), receives an `owner`-role GigHive JWT, and uses it to access all `/admin/*` pages. From within the admin UI they generate QR codes for events. Those QR codes are scanned by event goers who authenticate via the entirely separate QR token path — the two systems share no session state.
+**Admin → OIDC → QR chain:** The admin authenticates through OIDC or the local break-glass path and receives the browser HttpOnly GigHive JWT cookie. From the admin UI they generate event-scoped QR capabilities. A browser can later send both that cookie and a QR token/nonce; the centralized route class makes the explicit guest credential authoritative and preserves event scope.
 
 ---
 
-## Architecture: Two Auth Systems in Parallel
+## Architecture: One JWT Identity Model, Explicit Route Classes
 
-```
-                    ┌─────────────────────────────────────┐
-                    │           GigHive Server             │
-                    │                                     │
-  QR Event Goer ──▶ │  QR Token Auth (unchanged)          │
-                    │  ├── /api/upload-token.php           │
-                    │  ├── /api/guest-gallery.php          │
-                    │  ├── /api/guest-stream.php           │
-                    │  ├── /api/guest-status.php           │
-                    │  └── /api/tus-upload.php (token)    │
-                    │                                     │
-  Viewer ──────────▶ │  OIDC/JWT Auth (this feature)       │
-  Contributor ─────▶ │  ├── /api/login.php                 │
-  Owner ───────────▶ │  ├── /api/oidc/callback.php         │
-                    │  ├── /db/database.php                │
-                    │  ├── /db/database_catalog.php        │
-                    │  ├── /api/uploads.php                │
-                    │  ├── /api/tus-upload.php (JWT)       │
-                    │  ├── /api/media-stream.php (JWT)     │
-                    │  └── /admin/*                        │
-                    └─────────────────────────────────────┘
+```text
+Browser ── HttpOnly JWT cookie ─────────────┐
+iOS/API ─ Authorization: Bearer JWT ────────┼─> Central credential resolver
+QR upload ─ X-Upload-Token / route token ───┤      ├─ route class
+QR gallery ─ nonce ─────────────────────────┘      ├─ normalized identity/scope
+                                                   └─ requireRole + tenant/event checks
 ```
 
-The two auth systems share no state. The QR token paths are `AuthMerging Off` + `Require all granted` in Apache — they bypass all Basic Auth directives and will bypass all OIDC directives. The JWT paths replace Basic Auth directives in Apache.
+The route classes are `PUBLIC`, `LOGIN`, `HTML_PAGE`, `AUTHENTICATED_API`, `AUTHENTICATED_DOWNLOAD`, `GUEST_UPLOAD`, `GUEST_GALLERY`, `MIXED_MEDIA`, `DUAL_RESPONSE`, `INTERNAL_WORKER`, and `INTERNAL_LIBRARY`.
+
+A credential is not selected merely because it is more privileged. Route intent controls precedence. An explicit guest token/nonce remains authoritative on guest and mixed routes; an invalid explicit credential fails rather than falling back to a broader cookie or Bearer identity. Full policy: `docs/policy_authentication_credential_route.md`.
 
 ---
 
@@ -174,94 +175,37 @@ The two auth systems share no state. The QR token paths are `AuthMerging Off` + 
 
 ### Server (PHP / Apache)
 
-**Current:** Apache enforces auth at the network layer for most paths. PHP trusts that Apache already validated the user. Two important exceptions:
+**Current:** Apache Basic Auth protects most account routes. Guest exceptions and `media-stream.php` already contain endpoint-specific token/nonce handling.
 
-1. **`media-stream.php`** — Its Apache location block uses `AuthType Basic` but `Require all granted`, meaning Apache validates the Basic credential if one is present but does not block requests that have no credential. PHP then enforces all three auth paths itself (Basic via `HTTP_AUTHORIZATION`, upload token via `X-Upload-Token`, gallery nonce via `?nonce=`). This is intentional — QR nonce and token requests must reach PHP without being blocked.
+**Before an environment cuts over:** JWT classes, route declarations, cookie/CSRF helpers, and client changes may be deployed inert while `GIGHIVE_AUTH_MODE=basic`; Apache remains the sole account-authentication gate.
 
-2. **`tus-upload.php`** — Unlike `media-stream.php`, this endpoint's comment says: *"Auth model enforced by Apache LocationMatch before PHP runs."* The `/files/` Apache location block uses `Require user admin uploader` (or `Require env upload_token_auth` for QR guests). PHP itself does no access control beyond branching on `X-Upload-Token` to set `$userId`. After Phase 4, when Apache Basic Auth is removed, PHP-side JWT validation must be added to `tus-upload.php` — mirroring the pattern already in `media-stream.php`.
+**At that environment's JWT Migration Phase 4 cutover:** one reviewed deployment atomically activates application JWT policy and removes Apache Basic Auth. PHP becomes authoritative for browser-cookie, API/iOS Bearer, QR capability, role, tenant, event, response, and CSRF behavior. Apache retains direct denials, routing, limits, and Authorization forwarding.
 
-**After Phase 1–2:** Dual-auth period. Apache still enforces Basic Auth on all non-QR paths; PHP pages additionally check JWT via `auth/helpers.php`. Both auth paths succeed simultaneously.
+**OIDC:** Browser OIDC callback issues the canonical GigHive HttpOnly JWT cookie. iOS uses OIDC authorization code + PKCE and receives Bearer JSON. OIDC does not create a second application-authorization layer.
 
-**After Phase 4:** Apache Basic Auth directives removed. PHP is the sole auth layer for all account-based paths. Apache keeps `Require all denied` for sensitive file paths (defense in depth). QR paths unchanged.
+### `GIGHIVE_AUTH_MODE` and Atomic Cutover
 
-**After Phase 5 (OIDC):** Apache runs `mod_auth_openidc` for web browser flows. iOS uses the OIDC authorization code + PKCE flow directly via `ASWebAuthenticationSession`. Both paths deliver a JWT that PHP validates via `auth/jwt.php`.
-
-### `GIGHIVE_AUTH_MODE` and Dual-Auth Period
-
-New env var added to `.env.j2` and read by PHP:
-
-```
-GIGHIVE_AUTH_MODE=basic   # pre-Phase 2; Apache owns auth; PHP has no JWT layer
-GIGHIVE_AUTH_MODE=local   # Phase 2 onward: PHP JWT layer active; Apache Basic Auth still in Apache config until Phase 4
-GIGHIVE_AUTH_MODE=oidc    # Phase 5: OIDC active; local-user login still available
+```text
+GIGHIVE_AUTH_MODE=basic   # environment remains entirely on Apache Basic account auth
+GIGHIVE_AUTH_MODE=local   # atomic cutover complete; local browser cookie + API/iOS Bearer active
+GIGHIVE_AUTH_MODE=oidc    # OIDC login available; local break-glass login retained
 ```
 
-**Mode transition sequence:**
-- **Phase 1** (JWT core deployed, guards not yet added): mode stays `basic`.
-- **Phase 2** (PHP `requireRole()` guards deployed): change mode to `local`. Apache Basic Auth continues to enforce auth at the network layer; PHP additionally validates JWT Bearer tokens. Both auth paths succeed simultaneously during Phases 2–3.
-- **Phase 4** (Apache Basic Auth removed): mode stays `local`. Now PHP is the sole auth layer.
-- **Phase 5** (OIDC active): change mode to `oidc`.
+The PHP route guards must remain inert in `basic` mode. An environment changes from `basic` to `local` in the same deployment that removes Apache Basic account-auth directives. It does not run Apache Basic and PHP JWT as simultaneous account-auth requirements.
 
-Setting `GIGHIVE_AUTH_MODE=local` activates the PHP JWT guards but does **not** remove Apache Basic Auth directives — that is Phase 4's job. The Apache config and the PHP mode are independent levers changed at different phases.
+### Media, Upload, Download, and Internal Routes
 
-### `media-stream.php` Auth Path Change
+- **`media-stream.php`:** `MIXED_MEDIA`. Explicit gallery nonce/upload token is authoritative when supplied; otherwise explicit Bearer, then browser cookie. Invalid explicit credentials do not fall back. Range and media error behavior are preserved.
+- **`tus-upload.php` and upload finalization:** `GUEST_UPLOAD` when an upload token is supplied; otherwise authenticated Bearer/cookie upload with contributor-or-higher role and CSRF where cookie-authenticated.
+- **Downloads:** `AUTHENTICATED_DOWNLOAD`; browser cookie or explicit Bearer, with no HTML login substitution in a binary response.
+- **CLI workers:** `INTERNAL_WORKER`; direct HTTP denied rather than requiring a browser JWT. `import_manifest_worker.php` needs the explicit CLI guard used by the other workers.
+- **Include-only code:** `INTERNAL_LIBRARY`; direct HTTP denied or moved outside the webroot.
 
-Currently path 1 trusts Basic Auth because the `HTTP_AUTHORIZATION` env var is only set by the `SetEnvIf Authorization` directive, and Apache validates the password before that fires. After Phase 4, this path changes:
-
-```php
-// BEFORE Phase 4 cutover: Trust Basic Auth forwarded by Apache
-if (str_starts_with($authHeader, 'Basic ')) { return true; }
-
-// AFTER Phase 4 cutover: Validate JWT Bearer token
-if (str_starts_with($authHeader, 'Bearer ')) {
-    $token = substr($authHeader, 7);
-    return JwtAuth::validate($token) !== null;
-}
-```
-
-Paths 2 (upload token via `X-Upload-Token`) and 3 (gallery nonce via `?nonce=`) are unchanged.
-
-### `tus-upload.php` Auth Path Addition (Phase 4)
-
-Currently `tus-upload.php` relies entirely on Apache's `<LocationMatch "^/files(?:/|$)">` block to enforce `Require user admin uploader` for Basic Auth sessions. After Phase 4 removes that Apache block, PHP must take over:
-
-```php
-// ADD after Phase 4 (mirrors media-stream.php pattern):
-// Path 1: JWT Bearer — account-based uploads (owner / contributor)
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-$rawToken   = $_SERVER['HTTP_X_UPLOAD_TOKEN'] ?? '';
-
-if ($rawToken === '') {
-    // No QR token present — require a valid JWT Bearer
-    if (!str_starts_with($authHeader, 'Bearer ')) {
-        http_response_code(401);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'unauthenticated']);
-        exit;
-    }
-    $token   = substr($authHeader, 7);
-    $payload = JwtAuth::validate($token);
-    if ($payload === null) {
-        http_response_code(401);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'invalid_token']);
-        exit;
-    }
-    if (!in_array($payload['role'] ?? '', ['owner', 'contributor'], true)) {
-        http_response_code(403);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'forbidden']);
-        exit;
-    }
-    // userId remains 0 for account-based uploads (same as current Basic Auth behavior)
-}
-
-// Path 2: QR upload token (X-Upload-Token) — existing code, unchanged
-```
+Endpoint code must call the shared route resolver rather than duplicate Bearer/token/nonce parsing.
 
 ### iOS App — Full Call-Site Chain
 
-> **Phase 0 prerequisite:** Before starting Phase 3, complete the `AuthCredential` type refactor documented in `feature_security_authentication_migration_jwt_ios_auth_cred_type.md`. That refactor replaces the `(user: String, pass: String)?` tuple with `AuthCredential` across all call sites and eliminates the seven duplicate Basic header constructions. After Phase 0, Phase 3 reduces to changing `LoginView`, `JWTStore`, and `SplashView` only — the five network-client files pass `AuthCredential` through unchanged.
+> **Completed Phase 0 prerequisite:** The `AuthCredential` refactor is complete and documented in `feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md`. It centralizes Basic/Bearer/upload-token header construction. Future iOS JWT work remains concentrated in login, token storage, and session restoration; network clients retain `AuthCredential.apply(...)` and QR upload-token exclusivity.
 
 The `credentials: (user: String, pass: String)?` tuple flows through multiple files. All must change (Phase 0 reduces this to ~3 files):
 
@@ -287,9 +231,13 @@ The `credentials: (user: String, pass: String)?` tuple flows through multiple fi
 | File | Purpose |
 |------|---------|
 | `auth/jwt.php` | JWT generation and validation. `JwtAuth::generate(int $userId, string $role, string $email, int $ttl = 0): string`. `JwtAuth::validate(string $token): ?array` returns payload array or null. `JwtAuth::validateWithReason(string $token): array` returns `[$payload, null]` or `[null, 'token_expired'|'invalid_token']`. Algorithm: HS256 throughout all phases. Role values in payload: `owner`, `contributor`, `viewer`. |
-| `auth/helpers.php` | `requireRole(string $minRole): void` — validates JWT, checks role hierarchy, sends 401 or 403 and exits. `hasRole(string $minRole): bool` — non-exiting variant. Role hierarchy: `owner` (3) > `contributor` (2) > `viewer` (1). |
-| `api/login.php` | `POST /api/login.php` — local-user credential exchange. Accepts `{email, password}` JSON; validates against `users` table (`idp_provider='local'`); returns `{token, role, expires_at}`. |
-| `api/verify.php` | `GET /api/verify.php` — validates a stored JWT; returns `{valid, role, email, expires_at}` on success, or `{valid: false, error: "token_expired"}` / `{valid: false, error: "invalid_token"}` on distinct failure modes. |
+| `auth/helpers.php` | Central route-class resolver and authorization helpers. Resolves browser cookie, explicit Bearer, QR upload token, or gallery nonce according to declared route policy; returns normalized identity/scope; applies role/tenant/event checks and response-type behavior. |
+| `api/login.php` | API/iOS local-user credential exchange. Returns Bearer JWT JSON and does not set the browser cookie. |
+| `api/verify.php` | API/iOS Bearer verification with stable expired/invalid failure codes. |
+| `auth/login.php` | Browser login page; never receives or stores JWT in JavaScript. |
+| Browser session endpoint *(exact path finalized in implementation guide)* | Validates local browser credentials and sets the Secure HttpOnly GigHive JWT cookie; does not return JWT to JavaScript. |
+| Browser logout endpoint *(exact path finalized in implementation guide)* | CSRF-protected cookie clearing using identical cookie attributes. |
+| CSRF helper *(exact file finalized in implementation guide)* | Central token generation/validation for cookie-authenticated unsafe browser requests. |
 | `auth/oidc.php` | Phase 5. `OidcProvider` class: discovery, JWKS fetch, `id_token` validation. `OidcRoleMapper` class: maps IdP group claims to `owner`/`contributor`/`viewer` using `OIDC_ROLE_MAP_JSON`. Used by both callback paths. |
 | `api/oidc/callback.php` | Phase 5. Browser OIDC authorization code callback. Apache `mod_auth_openidc` exchanges the code and exposes claims as `OIDC_CLAIM_*` env vars; this PHP script reads those claims, upserts the `users` row with `idp_provider` + `idp_subject`, generates a GigHive JWT, and redirects the browser. |
 | `api/oidc/token-exchange.php` | Phase 5. iOS PKCE token exchange — accepts `{code, code_verifier, redirect_uri, provider}`; exchanges code with the IdP, validates the `id_token` against JWKS, upserts `users`, returns a GigHive JWT. Keeps OIDC client secrets server-side. `provider` is `"google"` or `"microsoft"`. |
@@ -328,20 +276,17 @@ See §4 Database Implications for the full DDL and seeding instructions.
 
 | File | Change |
 |------|--------|
-| `api/media-stream.php` | Auth path 1: replace Basic Auth trust with JWT Bearer validation after Phase 4 cutover. Paths 2 and 3 (upload token, gallery nonce) unchanged. |
-| `api/tus-upload.php` | **Add PHP-side JWT Bearer validation** (Phase 4 cutover). Currently auth is enforced entirely by Apache; after Apache Basic Auth is removed, PHP must validate the Bearer token and enforce `owner`/`contributor` role before allowing the upload. QR `X-Upload-Token` path unchanged. |
-| `api/uploads.php` | Add `requireRole('contributor')` call at top (after Phase 2). |
-| `api/ai_jobs.php` | Add `requireRole('viewer')` (read endpoints) or `requireRole('owner')` (write). |
-| `db/database.php` | Add `requireRole('viewer')` at top (after Phase 2). |
-| `db/database_catalog.php` | Add `requireRole('viewer')` at top. |
-| `db/upload_form.php` | Add `requireRole('contributor')` at top. |
-| `db/upload_form_admin.php` | Add `requireRole('owner')` at top. |
-| `db/upload_form_single.php` | No change — QR guest path, already `Require all granted`. |
-| `db/delete_media_files.php` | Add `requireRole('contributor')` at top. |
-| `admin/*.php` (~42 files) | Add `requireRole('owner')` at top (or rely on Apache `/admin/` location block during Phases 1–3 transition). |
-| `config.php` | Add `GIGHIVE_AUTH_MODE` constant reading from env. |
-| `ansible/roles/docker/templates/default-ssl.conf.j2` | Phase 4: Remove all `AuthType Basic` / `Require user ...` / `Require valid-user` blocks. Retain all `Require all denied` blocks, all QR `AuthMerging Off` blocks, all `SetEnvIf` directives. Phase 5: Add `mod_auth_openidc` config. |
-| `ansible/roles/docker/templates/.env.j2` | Add `GIGHIVE_AUTH_MODE`, `JWT_SECRET`, `JWT_TTL_SECONDS`; Phase 5 adds `OIDC_GOOGLE_CLIENT_ID`, `OIDC_GOOGLE_CLIENT_SECRET`, `OIDC_MS_CLIENT_ID`, `OIDC_MS_CLIENT_SECRET`, `OIDC_MS_TENANT_ID`, `OIDC_REDIRECT_URI`, `OIDC_CRYPTO_PASSPHRASE`, `OIDC_ROLE_MAP_JSON`, `OIDC_DEFAULT_ROLE`, `OIDC_GROUPS_CLAIM`. See `feature_security_authentication_migration_jwt_oidc_phase5.md` for the full Phase 5 env var spec. |
+| `api/media-stream.php` | Adopt `MIXED_MEDIA`: explicit guest credential when supplied; otherwise Bearer then browser cookie; no invalid-credential fallback; preserve Range and non-HTML failures. |
+| `api/tus-upload.php`, `src/index.php` upload routes | Adopt mixed `GUEST_UPLOAD`/authenticated policy: explicit upload token authoritative; otherwise Bearer or browser cookie with contributor role and CSRF/Origin controls for cookie-authenticated upload. |
+| `api/uploads.php` | `AUTHENTICATED_API` only: Bearer or browser cookie with contributor role; cookie-authenticated unsafe requests require CSRF. Current source contains no QR upload-token handling. |
+| Other authenticated `api/*.php` and `db/*.php` | Declare `AUTHENTICATED_API`, `HTML_PAGE`, `DUAL_RESPONSE`, or the applicable mixed class; enforce role plus tenant/event scope through shared helpers. |
+| `db/upload_form_single.php` | Preserve dual guest/authenticated page purpose; explicit QR credential controls guest mode even when browser cookie exists. |
+| `admin/` — 59 real PHP files | Classify exactly: 9 HTML pages, 38 JSON/action endpoints, 2 authenticated downloads, 7 internal workers, 3 include-only libraries. Do not apply one blanket page guard. |
+| `import_manifest_worker.php` | Add the explicit CLI-only guard already used by the other six admin workers. |
+| `src/`, `vendor/`, include-only libraries | Deny direct HTTP access or move outside webroot; do not treat implementation code as JWT web endpoints. |
+| `config.php` | Add auth-mode, JWT, browser-cookie, route-policy, and CSRF configuration constants sourced from environment variables. |
+| `ansible/roles/docker/templates/default-ssl.conf.j2` | At atomic cutover remove Basic account-auth directives; retain/add direct denials, public/login/guest routing, request limits, and Authorization forwarding. OIDC callback configuration remains scoped to login/callback behavior. |
+| `ansible/roles/docker/templates/.env.j2` and group vars | Add all JWT, cookie, CSRF, cutover, and later OIDC settings to every environment; secrets remain in Ansible Vault. |
 
 ### Modified Files (iOS)
 
@@ -366,9 +311,9 @@ See §4 Database Implications for the full DDL and seeding instructions.
 
 ## 3. API Contract Changes
 
-### New Endpoint: `POST /api/login.php`
+### API/iOS Endpoint: `POST /api/login.php`
 
-**Purpose:** Local-user credential exchange. Returns a GigHive JWT.
+**Purpose:** Explicit API/iOS local-user credential exchange. Returns a GigHive Bearer JWT in JSON and never sets the browser JWT cookie.
 
 **Request:**
 ```http
@@ -401,11 +346,17 @@ Content-Type: application/json
 { "error": "account_disabled" }
 ```
 
-No change to existing endpoints during Phases 1–3. Basic Auth continues to work. JWT is an additive auth path. Only in Phase 4 is Basic Auth removed.
+The API contract is intentionally separate from browser login so iOS `URLSession` does not acquire a browser cookie alongside its Bearer token.
+
+### Browser Session Contract
+
+The browser login page submits credentials to a dedicated browser-session endpoint. On success the endpoint sets the canonical Secure HttpOnly GigHive JWT cookie and does not return the JWT to JavaScript. Browser logout clears that cookie and is CSRF-protected. Exact endpoint paths and response bodies are finalized in the implementation guide.
+
+While an environment remains in `basic` mode, these JWT routes are inert/test-only and existing protected pages remain Apache Basic-authenticated. At atomic cutover the environment switches fully to application JWT policy.
 
 ---
 
-### New Endpoint: `GET /api/verify.php`
+### API/iOS Endpoint: `GET /api/verify.php`
 
 **Purpose:** iOS app uses this to validate a stored JWT when the local expiry check shows the token is expired or borderline. On launch, if the stored `expiresAt` is still in the future the app navigates directly without a network round-trip. Only when the local check shows expired does the app call `verify.php` — receiving `token_expired` or `invalid_token` — so it can act differently for each case.
 
@@ -429,7 +380,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```json
 { "valid": false, "error": "token_expired" }
 ```
-iOS behavior: silently re-login using stored credentials (Phase 3) or re-run the OIDC flow to obtain a new GigHive JWT (Phase 5). There is no client-side refresh token — GigHive issues a 30-day JWT on each successful OIDC login.
+iOS behavior: clear the expired token and run the approved API/local or OIDC login flow again. The final JWT lifetime and renewal behavior are open implementation decisions in the canonical policy; the app must not retain a local password for silent re-authentication.
 
 **Response (401 — tampered, malformed, or unknown token):**
 ```json
@@ -485,18 +436,21 @@ Content-Type: application/json
 
 ---
 
-### Existing Endpoints — Auth Header Change Only
+### Existing Endpoints — Route-Class Contract
 
-All existing endpoints change only in their auth header expectation:
+Existing URLs are classified rather than given one universal header rule:
 
-- **Phase 1–3 (dual):** Accept `Authorization: Basic ...` OR `Authorization: Bearer ...`
-- **Phase 4+ (JWT only):** Accept only `Authorization: Bearer ...`
+- Browser HTML uses the HttpOnly JWT cookie and HTML redirect/403 behavior.
+- JSON APIs accept explicit Bearer or browser cookie; cookie-authenticated unsafe methods require CSRF.
+- Authenticated downloads accept Bearer or cookie and never substitute login HTML for a file.
+- Mixed media accepts explicit guest capability, otherwise Bearer or cookie, and preserves Range behavior.
+- Internal workers/libraries deny direct HTTP.
 
-No response shape changes. No query parameter changes. No URL changes.
+Response shapes remain stable where compatible; authentication failures become deliberately HTML, JSON, guest, download, or media-specific.
 
-### QR Guest Endpoints — No Change
+### QR Guest Endpoints — Product Behavior Preserved, Precedence Explicit
 
-`/api/upload-token.php`, `/api/guest-gallery.php`, `/api/guest-stream.php`, `/api/guest-status.php`, `/api/guest-report.php`, `/api/guest-delete.php`, `/db/upload_form_single.php` — all unchanged in every phase.
+`/api/upload-token.php`, `/api/guest-gallery.php`, `/api/guest-stream.php`, `/api/guest-status.php`, `/api/guest-report.php`, `/api/guest-delete.php`, and `/db/upload_form_single.php` retain accountless event-scoped behavior. They are not “untouched”: route policy explicitly makes a supplied valid token/nonce authoritative and prevents an incidental authenticated cookie from broadening access or hiding an invalid guest credential.
 
 ---
 
@@ -689,186 +643,113 @@ CREATE TABLE IF NOT EXISTS security_audit_log (
 
 ## 5. Deployment Considerations
 
-### Phase Sequence
+### Implementation and Promotion Sequence
 
-| Phase | Name | Estimated Effort | Deployable independently? |
-|-------|------|-----------------|--------------------------|
-| 0 | Already done (QR auth, media-stream.php) | — | N/A |
-| 1 | JWT Core (ALTER TABLE `users` + PHP auth helpers + `api/login.php` + `api/verify.php`) | 1–2 days | Yes — purely additive; `GIGHIVE_AUTH_MODE` stays `basic` |
-| 2 | PHP `requireRole()` guards on all pages; set `GIGHIVE_AUTH_MODE=local` | 1 day | Yes — dual-auth; Basic Auth still active at Apache |
-| 0 | iOS `AuthCredential` type refactor — prerequisite for Phase 3 | 1–2 days | Yes — pure iOS refactor; no server change; see `feature_security_authentication_migration_jwt_ios_auth_cred_type.md` |
-| 3 | iOS JWT login (replace Basic Auth credentials with Bearer tokens throughout call chain) | 1–2 days (reduced from 2–3 by Phase 0) | Yes — server accepts both during this phase |
-| 4 | Remove Apache Basic Auth + add PHP-side JWT to `tus-upload.php` | 0.5 days | **Hard gate: Phase 3 verified first** |
-| 5 | OIDC: Google + Microsoft/AAD; iOS PKCE flow | 3–5 days | Yes — additive alongside local JWT |
-| 6 | User management UI (`admin/users.php`) + `security_audit_log` table + self-service account deletion (`api/account/delete.php` + iOS settings screen) | 2–3 days | Yes — additive; requires Phase 5 OIDC provisioning to be live |
-
-**Critical dependency:** Phase 4 must not deploy until Phase 3 is live and verified. The `auth_mode_phase4_confirmed: true` flag (a new Ansible group var, default `false`) must be set explicitly before the Phase 4 playbook tasks run. After Phase 4, `tus-upload.php` has its own PHP auth layer, so removing the Apache `/files/` location block is safe.
+1. Complete the Web Refactor Phase 1 prerequisite under Basic Auth, including shared AJAX wrapper, proven XSS fixes, CSP report-only evaluation, and tests.
+2. Implement JWT core, browser cookie, API/iOS Bearer, route resolver, CSRF, response helpers, and exact endpoint classes in dev while Basic remains authoritative until cutover.
+3. Complete iOS Bearer and browser-session behavior in dev.
+4. Capture rollback state.
+5. Atomically remove Apache Basic account auth and activate `GIGHIVE_AUTH_MODE=local` in dev.
+6. Run the complete route-class, browser, iOS, upload, media, QR, security, and rollback test suite.
+7. Promote the same reviewed release sequentially to lab, staging, and production; each environment must pass before the next.
+8. Add OIDC only after the JWT cutover policy is stable.
 
 ### Apache Config Transition
 
-**Phase 1–3:** No Apache changes. Basic Auth blocks remain. PHP pages add JWT-checking guards in addition to Apache auth. Both pass simultaneously.
+Before cutover, an environment remains fully in Basic account-auth mode and PHP JWT guards remain inert. At cutover, one reviewed deployment removes Basic account-auth directives and activates PHP JWT policy. Retain or add:
 
-**Phase 4:** Remove all `AuthType Basic` / `AuthName` / `AuthBasicProvider` / `AuthUserFile` / `Require user ...` / `Require valid-user` directives. Retain:
-- All `Require all denied` blocks (sensitive paths)
-- All QR guest `AuthMerging Off` + `Require all granted` blocks
-- All `SetEnvIf` directives (`upload_token_auth`, `gallery_nonce_auth`, `HTTP_AUTHORIZATION`)
+- Direct denials for sensitive files, internal workers, include-only code, `src/` implementation paths, and `vendor/`.
+- Public/login/QR route access required to establish or exercise the intended credential.
+- Request/body/range controls.
+- Authorization forwarding to PHP-FPM.
+- Explicit media/upload rewrites.
 
-**Phase 5:** Add `mod_auth_openidc` at VirtualHost level for browser-based OIDC flows.
+OIDC configuration is limited to login/initiation/callback duties; the resulting GigHive browser cookie remains the application credential.
 
-### Ansible Changes Summary
+### Ansible and Configuration
 
-- **`.env.j2`:** Add `GIGHIVE_AUTH_MODE`, `JWT_SECRET` (vault), `JWT_TTL_SECONDS`; Phase 5 adds OIDC vars.
-- **`group_vars/<env>/secrets.yml`:** Add `jwt_secret` (per-environment, ansible-vault encrypted); Phase 5 adds `oidc_google_client_id`, `oidc_google_client_secret`, `oidc_ms_client_id`, `oidc_ms_client_secret`, `oidc_crypto_passphrase`. See `feature_security_authentication_migration_jwt_oidc_phase5.md` for the full Phase 5 secrets spec.
-- **`group_vars/<env>/<env>.yml`** (e.g. `gighive2.yml`, `gighive.yml`, `prod.yml`)**:** Add `gighive_auth_mode: "basic"` (changes to `"local"` when Phase 2 activates), `jwt_ttl_seconds: 2592000`, and `auth_mode_phase4_confirmed: false` (must be set to `true` explicitly before Phase 4 runs). These are per-environment so each can be promoted independently — do **not** place them in `all.yml`.
-- **`security_basic_auth` role:** Retained for `GIGHIVE_AUTH_MODE=basic`. Add parallel DB user-seeding task for `local` and `oidc` modes.
+All auth mode, JWT, cookie, CSRF, CSP, cutover, and OIDC values are declared in every applicable environment group vars file and injected through templates. Secrets remain in Ansible Vault. No production cutover flag is enabled until the preceding environment passes. The user runs all Ansible playbooks.
 
-### Docker / Container Changes
+### Docker / Container
 
-- **Phase 1–4:** No Docker changes. JWT validation is pure PHP.
-- **Phase 5:** `mod_auth_openidc` must be installed in the Apache container:
-  ```dockerfile
-  RUN apt-get install -y libapache2-mod-auth-openidc && a2enmod auth_openidc
-  ```
-  This requires a container rebuild and restart.
+JWT validation is PHP-library based. OIDC later adds `mod_auth_openidc` and requires a rebuilt Apache image; its version and startup prerequisites must be smoke-tested before promotion.
 
 ---
 
-## 6. Backward Compatibility
+## 6. Compatibility and Cutover Boundary
 
-### Phases 1–3: Full Backward Compatibility
+### Before an environment cuts over
 
-- Apache Basic Auth remains active on all protected paths.
-- PHP pages add JWT guards; existing Basic Auth sessions continue to work at the Apache layer.
-- No client (iOS app, web browser, curl) needs to change.
-- QR guest flows: completely unaffected in every phase.
+- Apache Basic remains authoritative for account routes.
+- Additive JWT code and route declarations remain inert.
+- The completed iOS `AuthCredential` and Web Refactor Phase 1 changes preserve Basic wire behavior.
+- QR product behavior remains accountless and event-scoped.
 
-### Phase 4: Controlled Breaking Change
+### After that environment cuts over
 
-- `Authorization: Basic ...` on protected paths → 401.
-- `Authorization: Bearer <jwt>` required for all account-based paths.
-- `tus-upload.php`: PHP-side JWT validation is active; the Apache `/files/` Basic Auth block is removed simultaneously.
-- **Web browser:** Users prompted to re-login via new login page.
-- **iOS app:** Must be on the JWT-based version before Phase 4 deploys.
-- **QR flows:** Unchanged — they use `X-Upload-Token` or `?nonce=` headers/params, not Authorization headers.
+- Browser account access uses the HttpOnly JWT cookie.
+- iOS/API account access uses Bearer JWT.
+- Basic account credentials are rejected.
+- Explicit QR token/nonce remains authoritative on guest routes even when a cookie is present.
+- Media, downloads, HTML, and APIs use route-specific response behavior.
 
-### Phase 5: Additive
+### OIDC addition
 
-- OIDC login is an additional path alongside local-user JWT.
-- Existing local-user accounts still work via `POST /api/login.php`.
-- Web browser users see new "Sign in with Google" / "Sign in with Microsoft" buttons.
-- iOS app users see a new OIDC login option alongside username/password.
+OIDC adds Google/Microsoft identity proofing but still results in the same GigHive credentials: browser callback issues the cookie; iOS PKCE exchange returns Bearer JSON; local break-glass login remains.
 
-### What Breaks if Phase 4 Deploys Without Phase 3
+### Failed-cutover recovery
 
-- iOS app fails all API calls (sends Basic Auth, receives 401).
-- Recovery: revert `default-ssl.conf.j2` to restore `AuthType Basic` blocks, run Ansible. One playbook run.
-- The `auth_mode_phase4_confirmed: false` default gate prevents accidental early promotion.
+Rollback restores the complete reviewed pre-cutover artifact/configuration for that environment—Apache rules, PHP auth mode, clients, and supporting configuration—not only one variable or one template. Promotion stops until the failed environment is clean.
 
 ---
 
 ## 7. Test Strategy
 
-### Phase 1 — JWT Core
+Permanent tests are assigned in the implementation, endpoint-checklist, iOS, upload, and OIDC documents after checking the shared T-number namespace. At minimum the strategic suite covers:
 
-| Test | Method |
-|------|--------|
-| `POST /api/login.php` valid credentials → 200 + JWT with `role: "owner"` | `curl -X POST -H "Content-Type: application/json" -d '{"email":"...","password":"..."}' https://dev.gighive.app/api/login.php` |
-| `POST /api/login.php` wrong password → 401 `invalid_credentials` | Same with bad password |
-| `POST /api/login.php` disabled user → 403 `account_disabled` | Set `disabled=1` in DB |
-| `GET /api/verify.php` valid token → 200 `{valid: true, role: "owner"}` | Bearer header |
-| `GET /api/verify.php` expired token → 401 `{valid: false, error: "token_expired"}` | 1-second TTL token |
-| `GET /api/verify.php` tampered token → 401 `{valid: false, error: "invalid_token"}` | Flip one byte in payload |
-| Role hierarchy: `owner` JWT passes `requireRole('viewer')` | Call viewer-guarded endpoint → 200 |
-| Role hierarchy: `viewer` JWT fails `requireRole('contributor')` | Call upload endpoint with viewer JWT → 403 |
+### JWT and role core
 
-### Phase 2 — PHP Page Guards
+- API/iOS login success, wrong password, disabled account, valid/expired/tampered token.
+- One authoritative role hierarchy across viewer, contributor, owner, and platform admin.
+- Tenant and event isolation.
+- Raw credentials absent from logs.
 
-| Test | Method |
-|------|--------|
-| `GET /db/database.php` with viewer JWT → 200 | Bearer header |
-| `GET /db/database.php` with no auth → 401 | No header |
-| `GET /db/database.php` with Basic Auth (dual-auth) → 200 | Apache still accepts it |
-| `POST /api/uploads.php` with viewer JWT → 403 | Viewer cannot upload |
-| `POST /api/uploads.php` with contributor JWT → 200/201 | Contributor can upload |
-| `/admin/admin.php` with viewer JWT → 403 | Viewer cannot admin |
-| `/admin/admin.php` with owner JWT → 200 | Owner can admin |
-| All `/api/guest-*.php` with no Authorization header → unchanged responses | QR paths unaffected |
+### Browser cookie and CSRF
 
-### Phase 3 — iOS App JWT
+- HttpOnly, Secure, host-only, Path `/`, selected SameSite, and expiry attributes.
+- JWT absent from browser JavaScript, localStorage, and sessionStorage.
+- Safe browser login destination validation and logout clearing.
+- Cookie-authenticated unsafe request succeeds with valid CSRF and fails without mutation when missing/invalid.
+- HTML navigation receives login/HTML errors rather than JSON.
 
-| Test | Method |
-|------|--------|
-| Login → JWT in Keychain (not password) | Open app, log in, verify `JWTStore` entry (not `KeychainStore`) |
-| `SplashView` guards use `session.token` correctly | Authenticated and unauthenticated states render correctly |
-| DatabaseView loads with stored JWT | Navigate; data loads |
-| Media playback works with Bearer token | Tap a media item; AVPlayer streams via `MediaResourceLoader` |
-| TUS upload succeeds with Bearer token | Upload a video file as owner/contributor |
-| Token expiry → `token_expired` response → re-login prompt | Short TTL; app prompts gracefully |
-| Invalid/tampered token → `invalid_token` → Keychain cleared, login screen shown | Verify distinct UI behavior from expiry |
-| QR guest upload works independently | Scan QR code, upload; no JWT involved |
-| Viewer JWT: Upload button hidden | Login as viewer; Upload button not visible |
-| Owner JWT: Upload button visible | Login as owner; Upload button visible |
+### Route-class matrix
 
-### Phase 4 — Basic Auth Removal
+- `AUTHENTICATED_API`: Bearer and cookie succeed independently; invalid explicit Bearer does not fall back.
+- `AUTHENTICATED_DOWNLOAD`: cookie/Bearer download works; failure never substitutes login HTML or partial file.
+- `GUEST_UPLOAD`: valid token works with incidental cookie; invalid token + valid cookie fails.
+- `GUEST_GALLERY`: valid nonce works with incidental cookie; invalid nonce + valid cookie fails.
+- `MIXED_MEDIA`: nonce/upload-token/Bearer/cookie paths work independently; invalid explicit credential does not fall back; Range preserved.
+- `DUAL_RESPONSE`: explicit HTML mode gets HTML failures; explicit JSON mode gets JSON failures.
+- `INTERNAL_WORKER` and `INTERNAL_LIBRARY`: direct HTTP denied; intended CLI/include behavior preserved.
+- `PUBLIC`: response remains public and does not broaden when a cookie is present.
 
-| Test | Method |
-|------|--------|
-| `curl -u admin:password .../db/database.php` → 401 | Basic Auth rejected |
-| `curl -H "Authorization: Bearer <jwt>" .../db/database.php` → 200 | JWT accepted |
-| TUS upload `POST /files/` with Bearer token → 201 | PHP-side auth in `tus-upload.php` accepts owner/contributor JWT |
-| TUS upload `POST /files/` with QR upload token → 201 | `X-Upload-Token` path unchanged |
-| TUS upload `POST /files/` with no auth → 401 | PHP rejects unauthenticated request |
-| `/api/guest-gallery.php?nonce=<nonce>` → 200 | QR endpoint still works |
-| `/upload/<token>` → 200 | QR landing page loads |
-| iOS app (Phase 3 version): all flows end-to-end | Smoke test on dev + staging |
+### iOS
 
-### Phase 5 — OIDC
+- API login stores Bearer JWT in secure storage and receives no browser cookie.
+- Database, media, Range, and TUS flows work with Bearer.
+- QR upload token remains exclusive and authoritative.
+- Expired/invalid tokens reach clean login recovery.
+- iOS 14 compatibility tests follow `testing_ios.md`.
 
-| Test | Method |
-|------|--------|
-| Google OIDC login → `users` row with `idp_provider='google'`, `idp_subject` populated | Login via Google; check DB |
-| Microsoft/AAD OIDC login → `idp_provider='microsoft'` | Login via Microsoft; check DB |
-| OIDC user in "gighive-owners" group → `owner` role in JWT | Configure group mapping; verify JWT claim |
-| OIDC user in no mapped group → `viewer` default role | Ungrouped user; verify role |
-| iOS PKCE flow → JWT in `JWTStore` | Tap "Sign in with Google"; authorize; verify token |
-| Bad `code_verifier` → 401 | Send wrong verifier to token-exchange endpoint |
-| Existing local-user accounts still work | Login with email+password form |
-| Same email in both Google and Microsoft → two separate `users` rows (different `idp_provider`) | Account-linking edge case; verify no collision |
+### OIDC
 
-### Phase 6 — User Management and Audit Log
+- Google and Microsoft browser callback issue canonical browser cookie.
+- iOS PKCE exchange returns Bearer JSON without browser cookie.
+- Group-to-role and tenant mapping, disabled account, callback state/nonce, and local break-glass login.
 
-| Test | Method |
-|------|--------|
-| `GET /admin/users.php` with no auth → 401 | Unauthenticated request |
-| `GET /admin/users.php` with viewer JWT → 403 | `requireRole('owner')` rejects viewer |
-| `GET /admin/users.php` with contributor JWT → 403 | `requireRole('owner')` rejects contributor |
-| `GET /admin/users.php` with owner JWT → 200, user list rendered | Valid owner token |
-| Owner changes user role via UI → `security_audit_log` row with `event_type='role_changed'`, correct `actor_user_id`, `target_user_id`, `detail` JSON | DB inspection after action |
-| Owner disables user → `security_audit_log` row `event_type='account_disabled'` → subsequent auth by that user returns 403 `account_disabled` | DB inspection + auth attempt |
-| Owner re-enables user → `security_audit_log` row `event_type='account_enabled'` → auth succeeds | DB inspection + auth attempt |
-| Owner deletes user row → `security_audit_log` row `event_type='user_deleted'` **survives** the delete (no FK cascade) | DB inspection — log row must persist |
-| `DELETE /api/account/delete.php` with valid viewer JWT → 200, `users` row deleted, `self_account_deleted` audit log row present | DB inspection |
-| `DELETE /api/account/delete.php` with valid contributor JWT → 200, row deleted, audit row present | DB inspection |
-| `DELETE /api/account/delete.php` with no auth → 401 | Unauthenticated request |
-| `DELETE /api/account/delete.php` as the tenant's last owner → 409 `last_owner_cannot_delete` | Attempt from sole owner account; verify row survives |
-| `DELETE /api/account/delete.php` as a non-last owner → 200, row deleted, `self_account_deleted` audit row with `superadmin_notified` in `detail` | DB inspection after action |
-| iOS Settings screen "Delete my account" → confirmation alert → DELETE call → session cleared, login screen shown | Manual end-to-end on device |
-| iOS Settings screen "Delete my account" as last owner → confirmation alert → DELETE call → 409 → error alert displayed, session preserved | Manual on device |
-| Web settings page `account/delete.php` → confirmation form → DELETE call → redirect to login | Manual browser flow |
-| Failed login (bad password) → `security_audit_log` row `event_type='login_failure'`, `actor_user_id=NULL` | Check log after bad login |
-| Disabled user auth attempt → `security_audit_log` row `event_type='account_disabled_attempt'` | Check log after disabled-user login |
-| `security_audit_log` audit tab loads for tenant owner → shows only rows for that `tenant_id` | Multi-tenant isolation check |
+### Environment gates
 
-### Regression Checklist (run after each phase on dev → staging → prod)
-
-- [ ] QR code scan → upload → moderation → gallery approval flow works end-to-end
-- [ ] `/db/health.php` returns 200 with no auth
-- [ ] `/.well-known/apple-app-site-association` returns 200 with no auth
-- [ ] Media streaming (video, audio, thumbnails) works for authenticated user via Bearer token
-- [ ] Media streaming via gallery nonce works for QR guest
-- [ ] Admin moderation queue (approve/reject) works
-- [ ] TUS upload works for owner/contributor role
-- [ ] TUS upload works for QR guest via upload token
+Run the full applicable suite in dev. Promote the same release only after success: lab, then staging, then production. Each environment must pass its safe applicable checks before the next deploy.
 
 ---
 
@@ -876,87 +757,42 @@ CREATE TABLE IF NOT EXISTS security_audit_log (
 
 ### Risk Matrix
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|-----------|
-| Phase 4 deployed before iOS Phase 3 ships | Medium | High — iOS app breaks entirely | `auth_mode_phase4_confirmed: false` default gate; requires explicit `true` in `group_vars` before Phase 4 playbook runs. |
-| `tus-upload.php` left unprotected after Phase 4 (if PHP auth not added simultaneously) | Medium | High — unauthenticated uploads possible | Phase 4 is a single atomic deployment: remove Apache Basic Auth block AND add PHP JWT check to `tus-upload.php` in the same release. |
-| JWT secret compromise | Low | High — all tokens invalidated; all users must re-login | `JWT_SECRET` in ansible-vault only; per-environment secrets. Rotation: change vault secret, redeploy. |
-| OIDC IdP outage during admin login | Low | High — no admin web access | Local fallback: `GIGHIVE_AUTH_MODE=local` keeps `api/login.php` active. Switch via Ansible in minutes. |
-| QR flow disrupted by auth changes | Very Low | Very High — live event use case | QR paths are architecturally isolated: `AuthMerging Off` in Apache; PHP JWT code path never intersects with QR token code path. |
-| OIDC: same email in Google + Microsoft creates two rows (no account linking) | Medium | Low (SaaS v1) | Document in operator guide. Future: add account-linking UI. Mitigation: `UNIQUE KEY uq_users_idp(idp_provider, idp_subject)` prevents duplicate IdP rows; only email collision is the risk. |
-| Token TTL too short → frequent re-login UX friction | Low | Medium | Configurable via `JWT_TTL_SECONDS`. Default: 30 days for all GigHive-issued JWTs (local and OIDC). |
-| Admin loses access after htpasswd removal (misconfiguration) | Low | High | Rollback is one Ansible run. Local-user JWT via `api/login.php` is also available immediately. |
-| Phase 6: `admin/users.php` bug leaves owner unable to manage users | Low | Medium | DB access via `docker exec -i mysqlServer mysql ...` always available as operator fallback. |
-| Phase 6: `security_audit_log` write failure silently drops audit events | Low | Medium | Wrap audit INSERTs in try/catch; log PHP error on failure but do not block the auth action — availability > audit completeness in v1. |
-| Phase 6: owner uses delete function to destroy a user row irreversibly | Low | Medium | `user_deleted` audit row survives (no FK cascade). Add a confirmation prompt in the UI before delete. Consider soft-delete (`disabled=1`) as the default; hard-delete requires a second confirmation. |
-| Phase 6: user self-deletes account, wiping their `users` row; contributed media is orphaned (no uploader FK) | Low | Low | Media remains in the tenant library; uploader attribution is lost. Owner is notified via audit log. No media is deleted. Acceptable for v1. |
-| Phase 6: tenant's last owner self-deletes, leaving tenant with no owner | Low | High | `api/account/delete.php` checks `SELECT COUNT(*) FROM users WHERE tenant_id = ? AND role = 'owner' AND id != ?`. If count is 0 the delete is rejected with 409 `last_owner_cannot_delete`. |
-| Phase 6: owner self-deletes (non-last) using a stolen JWT | Low | High | Deletion is immediate and irreversible once the JWT is valid. Mitigation: iOS confirmation alert; web confirmation form; `superadmin_notified` audit entry. Add explicit re-authentication step (password/OIDC re-auth) before delete in a future hardening pass. |
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Environment cuts over before browser/iOS/server routes are ready | Account access fails | Atomic cutover gate; full dev suite; sequential environment promotion |
+| Browser JWT exposed to JavaScript/XSS | Privileged credential theft | HttpOnly cookie; no local/session storage; four proven XSS sink fixes; CSP rollout |
+| Cookie-authenticated mutation lacks CSRF | Cross-site privileged action | Central CSRF policy and route-class tests |
+| Invalid QR credential falls back to admin cookie | Guest scope broadens or broken links appear valid | Explicit guest credential authoritative; present-invalid never falls back |
+| Worker/library becomes public after Basic removal | Internal code executed directly | Exact `INTERNAL_WORKER`/`INTERNAL_LIBRARY` denial inventory and tests |
+| Download/media receives login HTML | Corrupt download or playback failure | Download/media response classes never redirect |
+| JWT secret compromise | All tokens untrustworthy | Per-environment Vault secret, rotation runbook, bounded lifetime |
+| IdP outage | OIDC users cannot establish new sessions | Local break-glass owner remains available |
+| Existing JWT survives disable/role change | Access persists until expiry | Finalize request-time account/token-version validation or denylist decision |
+| Environment-specific deployment drift | Later environment fails despite dev success | Lab, staging, and production gates each run applicable checks |
 
-### Rollback by Phase
+### Rollback Policy
 
-**Phase 1 (JWT Core):** Non-destructive. Reverse the `ALTER TABLE` (`DROP COLUMN password_hash, disabled`); delete `auth/jwt.php`, `auth/helpers.php`, `api/login.php`, `api/verify.php`. PHP pages revert to Apache-only auth.
-
-**Phase 2 (PHP guards):** Non-destructive. Remove `requireRole()` calls from PHP files. Apache Basic Auth still protects everything.
-
-**Phase 3 (iOS JWT):** Rollback = release iOS update reverting to Basic Auth. App Store review adds ~24h. During that window, server (pre-Phase 4) accepts both auth methods. No server change needed.
-
-**Phase 4 (Basic Auth removal + `tus-upload.php` PHP auth):** Rollback = revert `default-ssl.conf.j2` to restore `AuthType Basic` blocks, revert `tus-upload.php` PHP auth addition, run Ansible. All Basic Auth resumes. One playbook run.
-
-**Phase 5 (OIDC):** Rollback = set `GIGHIVE_AUTH_MODE=local`, run Ansible. OIDC login disabled; local-user JWT continues. OIDC-only users (no `password_hash`) cannot login until admin sets a local password — document this in the operator guide.
-
-**Phase 6 (User management + audit log + self-delete):** Rollback = remove `admin/users.php` and `api/account/delete.php` from the webroot; revert the iOS build to the prior version. The `security_audit_log` table is inert without the UI — leave it in place. Any `users` rows already deleted by self-delete are unrecoverable; the `self_account_deleted` audit row survives and confirms the deletion was self-initiated. No Ansible change required.
+- Capture the exact pre-cutover application/configuration state for each environment.
+- Before cutover, additive JWT code can be reverted while Basic remains authoritative.
+- After cutover, rollback restores Apache Basic rules, PHP auth mode, compatible clients, and supporting configuration as one coordinated release.
+- Do not roll back only `GIGHIVE_AUTH_MODE` or only `default-ssl.conf.j2`.
+- The user runs Ansible and verifies the failed environment before any further promotion.
+- OIDC-only rollback returns to local JWT/browser-cookie login, not directly to Basic, unless the full environment rollback is intentionally executed.
+- Irreversible Phase 6 data operations require their own backup/audit/recovery controls.
 
 ---
 
-## Implementation Schedule (Suggested Sequencing)
+## Implementation Sequence
 
-```
-Week 1:  Phase 1 — JWT Core
-         - ALTER TABLE users: add password_hash + disabled columns
-         - auth/jwt.php, auth/helpers.php (role hierarchy: owner/contributor/viewer)
-         - api/login.php (local-user token exchange)
-         - api/verify.php (token validation with token_expired vs invalid_token distinction)
-         - Deploy to dev + lab; verify endpoints with curl
+- [ ] **JWT Migration Phase 0** — Keep the completed iOS `AuthCredential` refactor; complete and verify Web Refactor Phase 1 under Basic Auth.
+- [ ] **JWT Migration Phase 1** — Add schema alignment, JWT core, API/iOS login, browser-session foundation, and tests while auth mode remains Basic.
+- [ ] **JWT Migration Phase 2** — Add centralized route declarations/resolver, cookie/CSRF/response helpers, exact guards, worker/library denials, and tests; keep them inert in Basic mode.
+- [ ] **JWT Migration Phase 3** — Complete iOS Bearer login/storage/session behavior and browser login/logout/session behavior in dev.
+- [ ] **JWT Migration Phase 4** — Capture rollback state; atomically switch dev from Basic to JWT; run full suite; then promote sequentially to lab, staging, and production with a gate after each.
+- [ ] **JWT Migration Phase 5** — Add Google/Microsoft OIDC using browser-cookie callback and iOS PKCE/Bearer paths.
+- [ ] **JWT Migration Phase 6** — Add user management, security audit, and account lifecycle after role/tenant/revocation policies are finalized.
 
-Week 1:  Phase 2 — PHP requireRole() guards
-         - Add requireRole() to all PHP pages using canonical role names
-         - Deploy to dev + lab; verify dual-auth (Basic + Bearer both accepted)
-         - Deploy to staging; run regression checklist
-
-Week 1b: Phase 0 — iOS AuthCredential refactor (prerequisite for Phase 3; independent of server work)
-         - AuthCredential.swift (new): enum with apply(to: URLRequest) and apply(to: [String:String]) overloads
-         - AuthSession.swift: credentials tuple → credential: AuthCredential?; UserRole .admin → .owner + .contributor
-         - All seven Basic-header construction sites replaced with credential?.apply(to:)
-         - UploadClient/TUSUploadClient: retain uploadToken: String? separately; precedence resolved internally
-         - MediaPlayerView: both proxy-loader path and direct AVURLAsset dict path updated
-         - KeychainStore: add loadCredential(host:) convenience
-         - Build + smoke test (no server change needed)
-         - Must merge before Phase 3 begins
-
-Week 2:  Phase 3 — iOS app JWT (LoginView + JWTStore + SplashView only; network clients unchanged by Phase 0)
-         - JWTStore.swift (new Keychain API for tokens)
-         - LoginView.swift: calls api/login.php, sets session.credential = .bearer(token:), stores via JWTStore
-         - SplashView.swift: restore session from JWTStore on launch
-         - Test on dev + lab; full iOS smoke test including media playback and TUS upload
-         - Submit to TestFlight
-
-Week 3:  Phase 4 — Remove Apache Basic Auth (atomic deployment)
-         - Set auth_mode_phase4_confirmed: true only after Phase 3 verified on all envs
-         - Simultaneously: remove Apache Basic Auth blocks AND add PHP JWT to tus-upload.php
-         - Deploy to dev; verify TUS, media-stream, admin, database, QR all work
-         - Promote to lab → staging → prod
-         - Run full regression checklist on each environment
-
-Later:   Phase 5 — OIDC (Google + Microsoft/AAD)
-         - Register app in Google Cloud Console + Azure Entra ID
-         - Implement api/oidc/callback.php + api/oidc/token-exchange.php
-         - iOS OIDCLoginView.swift (ASWebAuthenticationSession + PKCE)
-         - Add mod_auth_openidc to Apache Dockerfile; rebuild container
-         - Configure group → role mapping (OIDC_ROLE_MAP_JSON)
-         - Deploy to dev; validate end-to-end OIDC flow for all three roles
-         - Promote through environments
-```
+Detailed executable steps belong in the implementation and phase-specific documents; this strategic plan does not authorize implementation.
 
 ---
 
@@ -964,17 +800,19 @@ Later:   Phase 5 — OIDC (Google + Microsoft/AAD)
 
 | Decision | Answer |
 |----------|--------|
-| Clean JWT cutover (no dual-auth in iOS) | Yes — no tech debt, no customers to break |
+| Clean JWT cutover | Yes — atomic inside each environment; fully validate dev, then gate lab → staging → production |
 | Primary OIDC targets | Google OAuth2/OIDC + Microsoft Entra ID (AAD) |
 | OIDC scope — all roles or owner first? | All roles at once (owner, contributor, viewer) |
 | OIDC provider for self-hosted operators | Keycloak realm export bundled as an option |
 | JWT algorithm | HS256 throughout all phases. IdP `id_token` (RS256) is validated server-side only and never forwarded to clients. |
-| Token TTL | 30 days for all GigHive-issued JWTs (local and OIDC). IdP tokens are consumed server-side only — no client-side refresh token. |
-| Role naming | DB schema names canonical: `owner`, `contributor`, `viewer`; Apache htpasswd names retired in Phase 4 |
+| Token TTL / renewal | Open implementation decision in the canonical route policy; IdP tokens remain server-side and are not used as GigHive application credentials. |
+| Role naming | `owner`, `contributor`, and `viewer` remain canonical for this migration; reconcile DB `superadmin` with SaaS `platform_admin` before platform-role implementation; htpasswd names retire at each environment's JWT Migration Phase 4 cutover |
 | Separate `user_roles` table? | No — role is inline on `users.role` as per existing schema |
 | `password_hash` storage | `ALTER TABLE users ADD COLUMN password_hash` — additive to existing schema |
 | Account linking (same email, two IdPs) | Not in scope for v1; two separate `users` rows, documented edge case |
-| Session tracking | Stateless JWT; add server-side revocation table if audit requirement emerges |
+| Browser/API credential transport | Browser HttpOnly JWT cookie; iOS/API Bearer JWT; browser and API login responses remain separate |
+| Credential precedence | Central route-class policy; explicit invalid Bearer/token/nonce never falls back to broader authority |
+| Session tracking / revocation | Open: finalize request-time account/token-version validation, denylist, or expiry-only behavior before implementation |
 | `superadmin` role | Reserved in DB schema for GigHive platform operators; not part of this migration |
 | Local user creation via admin UI | **No.** Wholesale cutover to federated (OIDC) logins only. No customers to migrate; clean break is the right call. The break-glass `owner` account is seeded by Ansible only and is not visible or creatable in `admin/users.php`. |
 | Local users after OIDC cutover | `password_hash` column remains in schema for the break-glass account. All other `users` rows are OIDC-provisioned (`idp_provider != 'local'`). The admin UI does not expose local user management. |

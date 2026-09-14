@@ -2,8 +2,8 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
-releaseNotes20260909.txt
-Changes: Planning doc updates ui_role_matrix plus new pre-JWT work: docs/refactor_security_authentication_shared_auth_function.md 
+releaseNotes20260914.txt
+Changes: Planning doc updates pre docs/refactor_security_authentication_shared_auth_function.md implementation
 
 macbook2025:gighiveinfra sodo$ git status
 On branch master
@@ -11,28 +11,22 @@ Your branch is up to date with 'origin/master'.
 
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
-	modified:   docs/feature_azure_blob_import.md
-	renamed:    docs/feature_azure_blob_export.md -> docs/feature_completed_azure_blob_export.md
-	renamed:    docs/feature_saas_model_changes.md -> docs/feature_completed_saas_model_changes.md
-	renamed:    docs/feature_security_authentication_migration_jwt_ios_auth_cred_type.md -> docs/feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md
-	modified:   docs/feature_mcp_server_doc_addition.md
-	modified:   docs/feature_saas_pricing_model.md
+	modified:   CHANGELOG.md
+	new file:   docs/architecture_options_202609.md
+	modified:   docs/feature_completed_saas_model_changes.md
+	modified:   docs/feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md
 	modified:   docs/feature_security_authentication_migration_jwt.md
-	new file:   docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md
+	modified:   docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md
 	modified:   docs/feature_security_authentication_migration_jwt_implementation.md
-	modified:   docs/milestone_20260819_storage_media_endpoint.md
-	new file:   docs/next_major_changes_20260906.md
-	modified:   docs/problem_ios_testing_media_player_unification.md
-	deleted:    docs/refactor_security.md
-	new file:   docs/refactor_security_authentication_shared_auth_function.md
-	modified:   docs/refactor_security_recommendations_20260530.md
-	deleted:    docs/refactor_status_20260819.md
-	renamed:    docs/refactor_export_media_streaming_download.md -> docs/refactored_export_media_streaming_download.md
-	renamed:    docs/refactor_video_player_page.md -> docs/refactored_video_player_page.md
-	modified:   docs/testing_ios.md
-	new file:   docs/ui_role_matrix.html
-	deleted:    docs/update_choices_as_of_20260609.md
+	modified:   docs/feature_security_authentication_migration_jwt_oidc_benefits.md
+	modified:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
+	modified:   docs/next_major_changes_20260906.md
+	new file:   docs/policy_authentication_credential_route.md
+	modified:   docs/refactor_schema_upload_jobs_token_attribution.md
+	modified:   docs/refactor_security_authentication_shared_auth_function.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
+	modified:   docs/refactor_video_player_page_delete_eligibility.md
+	modified:   docs/security_auth_jwt_token_migration.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
@@ -135,6 +129,39 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260909.txt
+Changes: Planning doc updates ui_role_matrix plus new pre-JWT work: docs/refactor_security_authentication_shared_auth_function.md 
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   docs/feature_azure_blob_import.md
+	renamed:    docs/feature_azure_blob_export.md -> docs/feature_completed_azure_blob_export.md
+	renamed:    docs/feature_saas_model_changes.md -> docs/feature_completed_saas_model_changes.md
+	renamed:    docs/feature_security_authentication_migration_jwt_ios_auth_cred_type.md -> docs/feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md
+	modified:   docs/feature_mcp_server_doc_addition.md
+	modified:   docs/feature_saas_pricing_model.md
+	modified:   docs/feature_security_authentication_migration_jwt.md
+	new file:   docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md
+	modified:   docs/feature_security_authentication_migration_jwt_implementation.md
+	modified:   docs/milestone_20260819_storage_media_endpoint.md
+	new file:   docs/next_major_changes_20260906.md
+	modified:   docs/problem_ios_testing_media_player_unification.md
+	deleted:    docs/refactor_security.md
+	new file:   docs/refactor_security_authentication_shared_auth_function.md
+	modified:   docs/refactor_security_recommendations_20260530.md
+	deleted:    docs/refactor_status_20260819.md
+	renamed:    docs/refactor_export_media_streaming_download.md -> docs/refactored_export_media_streaming_download.md
+	renamed:    docs/refactor_video_player_page.md -> docs/refactored_video_player_page.md
+	modified:   docs/testing_ios.md
+	new file:   docs/ui_role_matrix.html
+	deleted:    docs/update_choices_as_of_20260609.md
 
 *** 
 releaseNotes20260906.txt

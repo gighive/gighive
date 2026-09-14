@@ -1,7 +1,17 @@
 # JWT Authentication Migration - Apache to Application Layer Mapping
 
 **Created**: 2025-11-09  
-**Purpose**: Map existing Apache HTTP Basic Auth rules to new JWT-based application authentication
+**Status**: Historical — superseded 2026-09-09  
+**Original purpose**: Map the former Apache HTTP Basic Auth rules to an early JWT application-authentication design
+
+> **SUPERSEDED — DO NOT IMPLEMENT:** This document preserves the original migration analysis for historical context. Its role names, endpoint inventory, Apache rules, dual-auth transition, phase order, and implementation checklist are obsolete. Current authentication behavior and implementation must follow:
+>
+> 1. `docs/policy_authentication_credential_route.md` — authoritative credential transports, route classes, precedence, response policy, and cutover gates.
+> 2. `docs/feature_security_authentication_migration_jwt.md` — current strategic JWT/OIDC migration plan.
+> 3. `docs/feature_security_authentication_migration_jwt_implementation.md` — current implementation blueprint.
+> 4. `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md` — current endpoint-level role and route-policy assignments.
+>
+> The historical body below is intentionally unchanged and must not be treated as current guidance.
 
 ---
 

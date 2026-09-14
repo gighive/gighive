@@ -1,16 +1,18 @@
 # Refactor: iOS `AuthCredential` Type — Unify Auth Header Construction
 
-**Date:** 2026-08-12
-**Status:** ✅ Complete — `AuthCredential` enum implemented; all call sites updated
+**Date:** 2026-08-12  
+**Status:** Complete — `AuthCredential` enum implemented; all call sites updated  
+**JWT narrative reconciled:** 2026-09-09  
 **Related docs:**
-- `feature_security_authentication_migration_jwt.md` — strategic plan (Phase 3)
-- `feature_security_authentication_migration_jwt_implementation.md` — Phases 1–4 implementation
+- `policy_authentication_credential_route.md` — authoritative browser-cookie, API/iOS Bearer, QR precedence, response, and atomic-cutover policy
+- `feature_security_authentication_migration_jwt.md` — strategic JWT Migration plan
+- `feature_security_authentication_migration_jwt_implementation.md` — JWT Migration implementation blueprint
 
 ---
 
 ## Elevator Pitch
 
-The iOS app currently constructs `Authorization: Basic <base64>` headers in **seven separate places** across six files. Every file that needs to make an authenticated request holds its own copy of the same `"\(user):\(pass)"` → base64 → `"Basic ..."` logic. Phase 3 of the JWT migration requires changing all of those to `Authorization: Bearer <token>` — and without this refactor, that means touching each of those seven sites individually, with a high risk of missing one. This refactor introduces a single `AuthCredential` type that encapsulates the current auth material and owns `Authorization` header production. Phase 3 then becomes: change `AuthSession` to publish `AuthCredential` instead of a credentials tuple, and the network clients pass it through unchanged — `LoginView`, `JWTStore`, and `SplashView` still change in Phase 3, but the five network-client files do not.
+The iOS app currently constructs `Authorization: Basic <base64>` headers in **seven separate places** across six files. Every file that needs to make an authenticated request holds its own copy of the same `"\(user):\(pass)"` → base64 → `"Basic ..."` logic. JWT Migration Phase 3 of the JWT migration requires changing all of those to `Authorization: Bearer <token>` — and without this refactor, that means touching each of those seven sites individually, with a high risk of missing one. This refactor introduces a single `AuthCredential` type that encapsulates the current auth material and owns `Authorization` header production. JWT Migration Phase 3 then becomes: change `AuthSession` to publish `AuthCredential` instead of a credentials tuple, and the network clients pass it through unchanged — `LoginView`, `JWTStore`, and `SplashView` still change in JWT Migration Phase 3, but the five network-client files do not.
 
 ---
 
@@ -48,11 +50,11 @@ This pattern appears in:
 - `MediaPlayerView` — passes to `MediaResourceLoader`; builds AVURLAsset headers
 - `UploadView` — passes to `UploadClient` and `DatabaseAPIClient`
 
-Because the tuple is passed raw through the view hierarchy, Phase 3 requires updating each layer's init signature individually.
+Because the tuple is passed raw through the view hierarchy, JWT Migration Phase 3 requires updating each layer's init signature individually.
 
 ### Role derived from username string
 
-`AuthSession.role` is currently set in `LoginView.signIn()` by checking `username.lowercased() == "admin"`. This is acknowledged in the code as a temporary hack. Phase 3 replaces this with role decoded from the JWT `role` claim — but this refactor is the right time to cleanly separate `UserRole` from username string matching.
+`AuthSession.role` is currently set in `LoginView.signIn()` by checking `username.lowercased() == "admin"`. This is acknowledged in the code as a temporary hack. JWT Migration Phase 3 replaces this with role decoded from the JWT `role` claim — but this refactor is the right time to cleanly separate `UserRole` from username string matching.
 
 ---
 
@@ -61,47 +63,42 @@ Because the tuple is passed raw through the view hierarchy, Phase 3 requires upd
 1. Introduce `AuthCredential` — a type that encapsulates the current auth material and produces the correct `Authorization` header value, regardless of auth scheme.
 2. Replace all seven duplicate Basic header constructions with a single call site on `AuthCredential`.
 3. Replace `AuthSession.credentials: (user: String, pass: String)?` with `AuthSession.credential: AuthCredential?`.
-4. Replace `UserRole` `.admin` with `.owner` and `.contributor` to match the DB enum (Phases 3+ requirement, clean to do here).
-5. Replace `KeychainStore`'s `(user, pass)` storage with `JWTStore`-ready groundwork — specifically, make `KeychainStore` aware that it stores a credential, not a raw tuple, so Phase 3's `JWTStore` introduction is additive rather than a rip-and-replace.
+4. Replace `UserRole` `.admin` with `.owner` and `.contributor` to match the DB enum (JWT Migration Phase 3+ requirement, clean to do here).
+5. Replace `KeychainStore`'s `(user, pass)` storage with `JWTStore`-ready groundwork — specifically, make `KeychainStore` aware that it stores a credential, not a raw tuple, so JWT Migration Phase 3's `JWTStore` introduction is additive rather than a rip-and-replace.
 
 ---
 
-## Current vs Future Authentication Plan Phases
+## Current vs Future Authentication Migration
 
 ### Today
 
-Apache validates every request against the htpasswd file. The iOS app sends `Authorization: Basic <base64(user:pass)>` and Apache accepts or rejects it directly — PHP never sees the auth header at all.
+Apache validates every account-authenticated request against the htpasswd file. The iOS app sends `Authorization: Basic <base64(user:pass)>`; QR upload requests select `X-Upload-Token` instead. PHP-FPM receives a forwarded Authorization value only on paths configured for application inspection.
 
-### Phase 0 (this refactor)
+### Completed iOS prerequisite (this refactor)
 
-The iOS app still sends `Authorization: Basic <base64(user:pass)>`. Nothing changes on the wire. The server cannot tell the difference before and after Phase 0. The app continues to work identically. Phase 0 is purely internal restructuring — it replaces seven copies of the same Base64 construction with one, and wraps the credential in `AuthCredential.basic(user:pass)` instead of a raw tuple. The value sent over the network is unchanged.
+The iOS app still sends the same Basic or QR upload-token wire credential as before this refactor. The completed change replaced seven copies of header construction with the `AuthCredential` enum. It did not activate JWT authentication or change server behavior.
 
-### Phase 3 — the breaking change (safely contained)
+### Future iOS JWT change
 
-Two things flip simultaneously:
+The future JWT Migration changes `LoginView` to call the API/iOS login endpoint, which returns a GigHive JWT in JSON and does **not** set the browser HttpOnly JWT cookie. `LoginView` sets `session.credential = .bearer(token: jwt)`. Existing network clients continue calling `credential.apply(...)`, so account-authenticated requests switch centrally from Basic to Bearer while QR uploads continue selecting `.uploadToken` exclusively.
 
-- **Server side (Phases 1+2 already deployed):** Apache is accepting both `Basic` and `Bearer` because Phase 2 added `requireRole()` guards to PHP. The server is ready.
-- **iOS side (Phase 3):** `LoginView` calls `POST /api/login.php` and receives a JWT. It sets `session.credential = .bearer(token: jwt)`. From that point forward, every network client sends `Authorization: Bearer <jwt>` instead of `Authorization: Basic`.
-
-**Why Phase 0 makes Phase 3 safe:** Without Phase 0, switching from `Basic` to `Bearer` in Phase 3 means hunting down and changing all seven independent header construction sites — miss one and that code path silently sends no `Authorization` header at all (or still sends `Basic` after the server has stopped accepting it in Phase 4). With Phase 0 already merged, `session.credential` is the single source of truth. Phase 3 changes `credential` from `.basic(...)` to `.bearer(...)` in exactly one place — `LoginView` — and all seven clients automatically send the right header with no further changes.
-
-### Phase 4 — where it becomes truly breaking without Phase 3
-
-Phase 4 removes `AuthType Basic` from Apache entirely. At that point, any client still sending `Basic` gets a 401 with no fallback. The `auth_mode_phase4_confirmed` gate in Ansible exists precisely to enforce the sequencing — Phase 3 must be live and verified before Phase 4 can deploy.
+The old plan stated that Apache Basic and PHP Bearer authentication would run simultaneously. That is superseded. A single Authorization header cannot satisfy both schemes. Each environment instead performs an atomic Basic-to-JWT cutover after the server and iOS changes pass in dev, then promotes through sequential gates: dev → lab → staging → production.
 
 ### Dependency chain summary
 
-```
-Phase 0  →  Phase 3  →  Phase 4
+```text
+Completed AuthCredential refactor
+  → JWT server + iOS Bearer implementation fully validated in dev
+  → atomic Basic-to-JWT cutover per environment
+  → sequential lab, staging, production promotion gates
 ```
 
-| Phase | What changes | Wire format | Server accepts | Safe to skip? |
-|-------|-------------|-------------|----------------|--------------|
-| 0 | iOS internal refactor only | `Basic` (unchanged) | `Basic` | No — Phase 3 becomes high-risk without it |
-| 3 | iOS switches to JWT login | `Bearer` | `Basic` + `Bearer` | No — Phase 4 becomes catastrophic without it |
-| 4 | Apache drops Basic Auth | `Bearer` only | `Bearer` only | No — this is the hard cutover |
+| Step | iOS account credential | QR upload credential | Server expectation |
+|---|---|---|---|
+| Before environment cutover | `Basic` | `X-Upload-Token` | Apache Basic for accounts; QR token on guest upload routes |
+| After environment cutover | `Bearer` | `X-Upload-Token` | Central JWT route policy; Bearer for iOS accounts; QR token remains authoritative when supplied |
 
-Skip Phase 0 and Phase 3 is risky. Skip Phase 3 and Phase 4 is catastrophic.
+The completed `AuthCredential` refactor remains a prerequisite: it makes the future Basic-to-Bearer switch centralized and preserves the existing exclusive QR upload-token path.
 
 ---
 
@@ -164,7 +161,7 @@ enum AuthCredential {
     var displayUser: String? {
         switch self {
         case .basic(let user, _): return user
-        case .bearer: return nil   // role/email will be decoded from JWT in Phase 3
+        case .bearer: return nil   // role/email will be decoded from JWT Migration Phase 3 token
         case .uploadToken: return nil
         }
     }
@@ -188,7 +185,7 @@ let tusClient = try TUSUploadClient(tusBaseURL: ..., credential: effectiveCreden
 
 `TUSUploadClient` and `NetworkProgressUploadClient` each receive a single `credential: AuthCredential?` — they never see the original two-parameter split. `UploadView` passes `session.credential` as `sessionCredential` and, for QR guest uploads, passes the raw upload token string from the `GuestUploadRecord` as `uploadToken`. This preserves the existing precedence behaviour and keeps session identity separate from per-upload QR token authority.
 
-**Why not a protocol:** The credential type is a closed set of three cases. An enum is safer than a protocol here — exhaustive switch catches any missed case at compile time when Phase 3 adds `.bearer`.
+**Why not a protocol:** The credential type is a closed set of three cases. An enum is safer than a protocol here — exhaustive switch catches any missed case at compile time when JWT Migration Phase 3 adds `.bearer`.
 
 ### `AuthSession` after refactor
 
@@ -217,7 +214,7 @@ static func loadCredential(host: String) throws -> AuthCredential? {
 }
 ```
 
-Phase 3 adds `JWTStore` alongside `KeychainStore` — the two coexist. `KeychainStore` is deprecated for credential storage after Phase 3 ships, but not removed in this refactor.
+JWT Migration Phase 3 adds `JWTStore` alongside `KeychainStore` — the two coexist. `KeychainStore` is deprecated for credential storage after JWT Migration Phase 3 ships, but not removed in this refactor.
 
 ---
 
@@ -227,7 +224,7 @@ Phase 3 adds `JWTStore` alongside `KeychainStore` — the two coexist. `Keychain
 |------|--------|
 | `AuthCredential.swift` *(new)* | Introduce `AuthCredential` enum with `authorizationHeaderValue`, `uploadTokenHeaderValue`, `apply(to:)`. |
 | `AuthSession.swift` | Replace `credentials: (user: String, pass: String)?` with `credential: AuthCredential?`. Update `UserRole`: remove `.admin`, add `.contributor`, `.owner`. |
-| `LoginView.swift` | Replace `session.credentials = (username, password)` with `session.credential = .basic(user: username, pass: password)`. Replace `username == "admin"` role derivation with `.viewer` (role will be server-derived in Phase 3; `.basic` credentials carry no role information). **`onAppear` pre-fill:** `KeychainStore.load(host:)` still returns `(user, pass)` tuple; pre-filling `username` / `password` text fields from the tuple is unchanged — `KeychainStore.load(host:)` is not removed. `loadCredential(host:)` is used where an `AuthCredential` value is needed (e.g. session restore in `SplashView`), not in `LoginView`. |
+| `LoginView.swift` | Replace `session.credentials = (username, password)` with `session.credential = .basic(user: username, pass: password)`. Replace `username == "admin"` role derivation with `.viewer` (role will be server-derived in JWT Migration Phase 3; `.basic` credentials carry no role information). **`onAppear` pre-fill:** `KeychainStore.load(host:)` still returns `(user, pass)` tuple; pre-filling `username` / `password` text fields from the tuple is unchanged — `KeychainStore.load(host:)` is not removed. `loadCredential(host:)` is used where an `AuthCredential` value is needed (e.g. session restore in `SplashView`), not in `LoginView`. |
 | `SplashView.swift` | Replace `session.credentials == nil` / `!= nil` guards with `session.credential == nil` / `!= nil`. Replace `creds.user` display string with `session.credential?.displayUser ?? "<unknown>"`. Use `KeychainStore.loadCredential(host:)` for session restore on launch. |
 | `DatabaseView.swift` | Replace `basicAuth: session.credentials` with `credential: session.credential`. Replace `session.credentials?.user ?? "<none>"` log string with `session.credential?.displayUser ?? "<none>"`. |
 | `DatabaseDetailView.swift` | Replace `credentials: session.credentials` with `credential: session.credential`. |
@@ -243,21 +240,21 @@ Phase 3 adds `JWTStore` alongside `KeychainStore` — the two coexist. `Keychain
 **Unchanged:**
 - `QRTokenAPIClient.swift` — does not use Basic Auth; uses QR token path only. No change.
 - `GuestUploadView.swift` — QR guest path. No change.
-- `JWTStore.swift` — not yet introduced; that is Phase 3.
+- `JWTStore.swift` — not yet introduced; that is JWT Migration Phase 3.
 - All server-side files — this is a pure iOS refactor.
 
 ---
 
-## Phase 3 Impact After This Refactor
+## Future iOS JWT Impact After This Refactor
 
-With `AuthCredential` in place, Phase 3 reduces to:
+With `AuthCredential` in place, the future iOS JWT change reduces to:
 
-1. `LoginView`: call `POST /api/login.php`; on success, set `session.credential = .bearer(token: jwt)` and `session.role` from JWT payload. No call-site changes in any other file.
-2. `JWTStore`: introduced alongside `KeychainStore`; stores `StoredToken` struct. `LoginView` persists via `JWTStore` instead of `KeychainStore`.
-3. `SplashView`: on startup, attempt `JWTStore.load(host:)` → if found and not expired, set `session.credential = .bearer(token:)`. Existing `credentials == nil` guard becomes `credential == nil` — already done in this refactor.
-4. `DatabaseAPIClient`, `TUSUploadClient`, `UploadClient`, `MediaResourceLoader`, `MediaPlayerView` — **zero changes**. They already call `credential?.apply(to: &request)`.
+1. `LoginView`: call the API/iOS login endpoint; on success, set `session.credential = .bearer(token: jwt)` and `session.role` from the validated JWT payload. The endpoint returns Bearer JSON and does not set the browser cookie.
+2. `JWTStore`: introduced alongside `KeychainStore`; stores `StoredToken`. `LoginView` persists through `JWTStore` instead of `KeychainStore`.
+3. `SplashView`: load a non-expired stored JWT and set `session.credential = .bearer(token:)`.
+4. `DatabaseAPIClient`, `TUSUploadClient`, `UploadClient`, `MediaResourceLoader`, and `MediaPlayerView`: no authentication-header redesign. They already call `credential.apply(...)`.
 
-This is the core value of the refactor: Phase 3's iOS diff shrinks from ~13 files to **3 files** (`LoginView`, `JWTStore` (new), `SplashView`). The five network-client files (`DatabaseAPIClient`, `TUSUploadClient`, `UploadClient`, `MediaResourceLoader`, `MediaPlayerView`) require **zero changes** in Phase 3.
+This is the core value of the completed refactor: the future iOS JWT diff remains concentrated in `LoginView`, `JWTStore` (new), and `SplashView`. The network clients retain the shared `AuthCredential` path, and `UploadClient` continues making an explicit QR upload token authoritative over an account session credential.
 
 ---
 
@@ -268,9 +265,9 @@ This is the core value of the refactor: Phase 3's iOS diff shrinks from ~13 file
 | `.unknown` | `.unknown` | Unchanged |
 | `.viewer` | `.viewer` | Unchanged |
 | `.admin` | `.owner` | Matches DB enum `owner`; `admin` was a legacy Apache htpasswd concept |
-| *(missing)* | `.contributor` | New role from Phase 3 JWT payload |
+| *(missing)* | `.contributor` | New role from the future JWT payload |
 
-`LoginView` currently sets `.admin` when `username == "admin"`. After this refactor, all `.basic` logins default to `.viewer` — role is not derivable from a username/password pair. Phase 3 overwrites `session.role` from the JWT `role` claim after a successful `/api/login.php` response.
+`LoginView` currently sets `.admin` when `username == "admin"`. After this refactor, all `.basic` logins default to `.viewer` — role is not derivable from a username/password pair. The future JWT login flow overwrites `session.role` from the validated JWT `role` claim after a successful API/iOS login response.
 
 Any existing `switch session.role` in the UI that handled `.admin` must be updated to handle `.owner` (and optionally `.contributor`). A compile-time exhaustive switch catches every site.
 
@@ -278,7 +275,7 @@ Any existing `switch session.role` in the UI that handled `.admin` must be updat
 
 ## iOS 14 Compatibility Note
 
-`DatabaseAPIClient` currently uses `URLSession.data(for:)` (async/await), which is iOS 15+. This is a pre-existing issue, not introduced by this refactor. It must be addressed as part of Phase 3 per the iOS 14 constraint documented in `feature_security_authentication_migration_jwt.md` §Modified Files (iOS). This refactor does not add new `async` URLSession calls and does not make the iOS 14 situation worse.
+`DatabaseAPIClient` currently uses `URLSession.data(for:)` (async/await), which is iOS 15+. This is a pre-existing issue, not introduced by this refactor. It must be addressed as part of the future iOS JWT work under the iOS 14 constraint documented in `feature_security_authentication_migration_jwt.md` §Modified Files (iOS). This refactor does not add new async URLSession calls and does not make the iOS 14 situation worse.
 
 ---
 
@@ -310,7 +307,7 @@ Any existing `switch session.role` in the UI that handled `.admin` must be updat
 | `KeychainStore` on-disk format change causing credential loss on upgrade | No format change. `load(host:)` is unchanged; `loadCredential(host:)` is additive. |
 | `TUSUploadClient` `headersBlock` and `MediaPlayerView` AVURLAsset path use `[String: String]` dicts, not `URLRequest` | Resolved in design: `AuthCredential` has a `func apply(to headers: inout [String: String])` overload alongside the `URLRequest` form. Both `TUSUploadClient` and `MediaPlayerView`'s direct AVURLAsset path use the dict overload. |
 
-**Rollback:** This is a pure iOS refactor with no server-side changes. Rollback = revert the iOS commit. Server continues to accept Basic Auth through Phase 3.
+**Rollback:** This completed change is a pure iOS refactor with no server-side changes. Before an environment's JWT cutover, rollback means reverting the iOS refactor release while that environment remains on Basic Auth. After atomic JWT cutover, this refactor must not be rolled back independently because the server no longer accepts account Basic credentials; use the coordinated environment rollback defined by the canonical route policy and JWT implementation plan.
 
 ---
 
@@ -349,4 +346,4 @@ Any existing `switch session.role` in the UI that handled `.admin` must be updat
 | R4 | Medium | Completeness | `SplashView` (line 50), `UploadView` (line 192), and `DatabaseView` (line 91 log string) all access `session.credentials?.user` for display or logging. The doc only mentioned a `displayUser` property for `SplashView`. `UploadView` had no mention of the display string change; `DatabaseView` listed only the `credential:` parameter change, not the log string. `AuthCredential` had no `displayUser` property defined. | Added `displayUser: String?` computed property to `AuthCredential` design snippet. Updated `SplashView`, `DatabaseView`, and `UploadView` rows in Files Under Change to cover `displayUser` usage. |
 | R5 | Medium | Logic | `MediaPlayerView` has **two** auth paths: (1) proxy-loader path passes `credentials` to `MediaResourceLoader`; (2) direct `AVURLAsset` path builds `headers["Authorization"]` as a `[String: String]` dict. The Files Under Change row mentioned replacing the proxy-loader path but not the AVURLAsset dict path. The dict-form `apply(to: inout [String: String])` overload was noted in the Risks table but not connected to `MediaPlayerView` in the change description, creating a gap that could cause the AVURLAsset path to be missed during implementation. | Updated `MediaPlayerView` change description to explicitly name both paths. Moved dict-form overload from Risks to the `AuthCredential` design snippet. Risks table updated to reflect this is resolved in design, not deferred. Added verification step for both paths to the test checklist. |
 | R6 | Low | Completeness | Remaining Checklist was missing `UploadView.swift`. Also missing: the `displayUser` property addition to `AuthCredential`, and the `MediaPlayerView` dual-path verification test. | Updated checklist: added `UploadView.swift` entry; added `displayUser` to `AuthCredential.swift` item; added explicit `MediaPlayerView` dual-path smoke test. |
-| R7 | Low | Accuracy | Elevator pitch said "Phase 3 then becomes: change `AuthSession`… and every call site passes it through unchanged" — which overstated the benefit. `LoginView`, `JWTStore`, and `SplashView` still change in Phase 3. | Corrected elevator pitch to state that network clients pass `AuthCredential` through unchanged; `LoginView`, `JWTStore`, and `SplashView` still change. Phase 3 Impact section closing line updated to name the 3 remaining files explicitly. |
+| R7 | Low | Accuracy | Elevator pitch said "JWT Migration Phase 3 then becomes: change `AuthSession`… and every call site passes it through unchanged" — which overstated the benefit. `LoginView`, `JWTStore`, and `SplashView` still change in JWT Migration Phase 3. | Corrected elevator pitch to state that network clients pass `AuthCredential` through unchanged; `LoginView`, `JWTStore`, and `SplashView` still change. JWT Migration Phase 3 Impact section closing line updated to name the 3 remaining files explicitly. |

@@ -1,17 +1,18 @@
 # Feature: Federated Auth — Phase 5 OIDC Implementation
 
-**Status:** Pre-implementation — pending Phase 4 completion  
+**Status:** Pre-implementation — reconciled 2026-09-09; pending JWT Migration Phase 4 completion and explicit approval  
 **Date:** 2026-08-19  
 **Parent doc:** `docs/feature_security_authentication_migration_jwt.md`  
-**Phases 1–4 doc:** `docs/feature_security_authentication_migration_jwt_implementation.md`
+**Phases 0–4 implementation:** `docs/feature_security_authentication_migration_jwt_implementation.md`  
+**Canonical credential/route policy:** `docs/policy_authentication_credential_route.md`
 
 ---
 
 ## Elevator Pitch
 
-Phase 4 gave every user an individual GigHive account with their own password. Phase 5 removes the need for a GigHive-specific password entirely: users sign in with their existing Google or Microsoft identity, and GigHive maps their IdP group membership to a role. No new passwords to manage, no shared accounts, and organizations can provision and deprovision access through their own identity infrastructure.
+JWT Migration Phase 4 gives each account an individual GigHive identity. Phase 5 lets users sign in with an existing Google or Microsoft identity and maps trusted IdP claims to a GigHive role and tenant. Browser OIDC ends by issuing the same Secure HttpOnly GigHive JWT cookie as local browser login; iOS OIDC ends by returning the same Bearer JWT used by its API clients.
 
-Local-user login (`api/login.php`) remains active alongside OIDC — it is the operator's fallback if an IdP goes down.
+Local browser break-glass login remains active alongside OIDC for the operator. The API/iOS local login endpoint remains separate and never sets a browser cookie.
 
 ---
 
@@ -29,33 +30,30 @@ This document covers Phase 5 only: OIDC federation with Google OAuth2/OIDC and M
 
 ## How Phase 5 Works — Architecture Overview
 
-```
-                 ┌─────────────────────────────────────────────┐
-                 │                GigHive Server                │
-                 │                                             │
-  Browser ──────▶│  Apache + mod_auth_openidc                  │
-                 │  ├── /oidc/callback  ──▶ api/oidc/callback.php
-                 │  └── all other paths: pass-through          │
-                 │                                             │
-                 │  PHP JWT layer (unchanged from Phase 4)      │
-                 │  └── auth/jwt.php validates Bearer tokens    │
-                 │                                             │
-  iOS app ──────▶│  api/oidc/token-exchange.php                │
-                 │  └── PKCE code exchange; returns GigHive JWT │
-                 └─────────────────────────────────────────────┘
-                           │               │
-                 ┌──────────┘               └──────────┐
-                 ▼                                     ▼
-       Google OAuth2/OIDC                  Microsoft Entra ID
-  accounts.google.com/.well-known    login.microsoftonline.com/{tenant}
+```text
+Browser
+  → OIDC initiation/callback handled by mod_auth_openidc
+  → validated IdP claims passed to GigHive callback
+  → user/tenant/role resolved
+  → GigHive JWT issued in Secure HttpOnly browser cookie
+  → application routes continue using canonical HTML/API/download/media policy
+
+iOS
+  → ASWebAuthenticationSession + PKCE
+  → api/oidc/token-exchange.php
+  → validated IdP token exchanged for GigHive Bearer JWT JSON
+  → no browser cookie set
 ```
 
 **Key design choices:**
-- GigHive **always issues its own JWT** — neither Google nor Microsoft tokens reach the PHP API layer. The IdP token is consumed by the server and exchanged for a GigHive JWT with the same `{sub, role, email, iss, iat, exp}` payload as a local-user JWT. PHP validation code (`auth/jwt.php`) is unchanged.
-- `mod_auth_openidc` handles the browser OIDC flow (authorization code redirect). The iOS app uses a pure PKCE flow via `ASWebAuthenticationSession` — no Apache involvement for mobile.
-- Role is determined server-side from IdP group claims, with a configurable group→role mapping. The user cannot influence their own role.
-- Local-user login (`POST /api/login.php`) stays active. `GIGHIVE_AUTH_MODE=oidc` does **not** disable it.
-- QR guest paths are untouched. They have never intersected with account auth and never will.
+
+- GigHive always issues its own JWT. Google/Microsoft tokens are consumed and validated server-side and never become application credentials.
+- The GigHive JWT uses the same required claims as local login, including user subject, role, tenant, `jti`, issuer, audience, issue time, and expiry.
+- `mod_auth_openidc` is limited to browser OIDC initiation/callback identity proofing. It is not a second authorization system for all protected application routes.
+- The callback issues the canonical GigHive browser cookie and safely redirects; it never puts JWT in a URL fragment, query string, localStorage, sessionStorage, or JavaScript response.
+- iOS uses PKCE and receives Bearer JWT JSON without `Set-Cookie`.
+- Local browser break-glass login and local API/iOS login remain available through their separate contracts.
+- QR product behavior remains accountless/event-scoped. An explicit QR token/nonce remains authoritative on guest routes even when a browser cookie is present.
 
 ---
 
@@ -63,12 +61,13 @@ This document covers Phase 5 only: OIDC federation with Google OAuth2/OIDC and M
 
 ### Path A — Browser (web UI)
 
-1. User visits a protected page (e.g. `/admin/admin.php`)
-2. Apache `mod_auth_openidc` detects no OIDC session cookie → redirects to IdP authorization endpoint
-3. IdP authenticates user (with MFA if configured), redirects back to `https://<host>/oidc/callback` with an authorization code
-4. `mod_auth_openidc` exchanges code for IdP tokens; sets an encrypted session cookie; makes IdP claims available as Apache environment variables (e.g. `OIDC_CLAIM_sub`, `OIDC_CLAIM_email`, `OIDC_CLAIM_groups`)
-5. Apache proxies the request to `api/oidc/callback.php` with claims in the environment
-6. PHP upserts the `users` row, maps IdP groups to a GigHive role, generates a GigHive JWT, sets it as a cookie or returns it to the browser
+1. User selects Google or Microsoft from the public GigHive browser login page.
+2. The OIDC initiation route invokes `mod_auth_openidc` for the selected provider.
+3. The IdP authenticates the user and redirects to the configured HTTPS callback.
+4. `mod_auth_openidc` validates the authorization response and IdP tokens, then exposes validated claims to the narrowly scoped callback.
+5. PHP resolves provider identity, tenant, role, and disabled state; upserts the user; issues a GigHive JWT.
+6. PHP sets the canonical `__Host-gighive_session` Secure HttpOnly cookie and redirects only to a validated same-origin relative destination.
+7. Any temporary `mod_auth_openidc` session is scoped/cleared according to the final Apache design so it does not remain a competing application-authorization authority.
 
 ### Path B — iOS app (native PKCE)
 
@@ -77,9 +76,10 @@ This document covers Phase 5 only: OIDC federation with Google OAuth2/OIDC and M
 3. System browser opens the IdP login page; user authenticates
 4. IdP redirects to `gighive://oidc/callback?code=…&state=…`
 5. `GigHiveApp.onOpenURL` fires → routed to `OIDCLoginView` via `session.pendingOIDCCallback`
-6. iOS calls `POST /api/oidc/token-exchange.php` with `{code, code_verifier, redirect_uri, provider}`
+6. iOS calls `POST /api/oidc/token-exchange.php` with `{code, code_verifier, redirect_uri, provider, nonce}`; server validates returned `id_token.nonce` with `hash_equals`
 7. Server exchanges code with IdP, validates claims, upserts `users` row, returns GigHive JWT
-8. iOS stores JWT in `JWTStore`; session proceeds identically to local-user login
+8. The endpoint returns GigHive Bearer JWT JSON and does not set the browser cookie
+9. iOS stores JWT in `JWTStore`; session proceeds identically to local API/iOS login
 
 ---
 
@@ -87,9 +87,9 @@ This document covers Phase 5 only: OIDC federation with Google OAuth2/OIDC and M
 
 ### New — Server (`ansible/roles/docker/files/apache/webroot/`)
 
-1. `api/oidc/callback.php` — browser OIDC callback handler. Reads IdP claims from Apache env vars; upserts `users` row; maps groups to role; generates GigHive JWT.
-2. `api/oidc/token-exchange.php` — iOS PKCE code exchange. Accepts `{code, code_verifier, redirect_uri, provider}`; exchanges with IdP discovery endpoint; validates `id_token`; upserts `users` row; returns GigHive JWT. The OIDC client secret never leaves the server.
-3. `auth/oidc.php` — shared OIDC helpers: `OidcProvider::discover(string $provider): array` (caches `.well-known/openid-configuration`), `OidcProvider::exchangeCode(...)`, `OidcProvider::validateIdToken(...)`, `OidcRoleMapper::mapGroups(array $groups): string`.
+1. `api/oidc/callback.php` — browser OIDC callback. Reads validated IdP claims, resolves tenant/role/disabled state, upserts user, generates GigHive JWT, sets canonical Secure HttpOnly browser cookie, and redirects safely; never exposes token to JavaScript/URL.
+2. `api/oidc/token-exchange.php` — iOS PKCE exchange. Validates provider/code/PKCE/IdP token, resolves tenant/role/disabled state, upserts user, and returns GigHive Bearer JWT JSON without `Set-Cookie`. The OIDC client secret never leaves the server.
+3. `auth/oidc.php` — shared OIDC helpers: provider discovery/code exchange/IdP token validation, group-to-role mapping, and the approved `OidcTenantResolver`; browser and iOS paths reuse the same resolver.
 
 ### New — iOS (`GigHive/Sources/App/`)
 
@@ -99,7 +99,7 @@ This document covers Phase 5 only: OIDC federation with Google OAuth2/OIDC and M
 ### Modified — Server
 
 6. `ansible/roles/docker/templates/Dockerfile.j2` — add `libapache2-mod-auth-openidc` and `a2enmod auth_openidc` to the container build.
-7. `ansible/roles/docker/templates/default-ssl.conf.j2` — add `mod_auth_openidc` configuration block at VirtualHost level; add `<Location "/oidc/callback">` block.
+7. `ansible/roles/docker/templates/default-ssl.conf.j2` — add provider configuration plus narrowly scoped OIDC initiation/callback locations; do not protect ordinary application routes with `mod_auth_openidc`; ensure temporary module session cannot compete with the GigHive browser cookie.
 8. `ansible/roles/docker/templates/.env.j2` — add `OIDC_GOOGLE_CLIENT_ID`, `OIDC_GOOGLE_CLIENT_SECRET`, `OIDC_MS_CLIENT_ID`, `OIDC_MS_CLIENT_SECRET`, `OIDC_MS_TENANT_ID`, `OIDC_CRYPTO_PASSPHRASE`, `OIDC_ROLE_MAP_JSON`, `OIDC_DEFAULT_ROLE`, `OIDC_GROUPS_CLAIM`. (`OIDC_REDIRECT_URI` is not included — the browser redirect URI is rendered directly into the Apache VirtualHost config by Jinja2 and is not read by PHP.)
 9. `auth/jwt.php` — **no functional change in Phase 5.** HS256 continues; GigHive-issued JWTs remain HS256 throughout Phase 5. The strategic document (`feature_security_authentication_migration_jwt.md` line 34) states "RS256 for OIDC interop in Phase 5" — this is superseded by the Phase 5 design decision: GigHive does **not** expose its JWTs to external parties, so RS256 is not required for interop. RS256 would be required only if GigHive JWTs were consumed by a third party that needs to verify them without the shared secret. That is not the case. The OIDC `id_token` (an external JWT from the IdP) is validated using the IdP's RS256 public JWKS; the GigHive-issued JWT remains HS256. **Action required:** update the strategic document's algorithm table to reflect this decision when Phase 5 is approved.
 10. `config.php` — add `OIDC_*` constants reading from env.
@@ -110,12 +110,13 @@ This document covers Phase 5 only: OIDC federation with Google OAuth2/OIDC and M
 
 ### Unchanged (explicitly)
 
-- `auth/jwt.php`, `auth/helpers.php` — PHP JWT validation is identical for OIDC-issued tokens. No changes.
-- `api/login.php`, `api/verify.php` — local-user login remains active.
-- `api/media-stream.php`, `api/tus-upload.php` — Bearer token auth is provider-agnostic.
-- All QR paths — untouched in every phase.
-- `JWTStore.swift`, `KeychainStore.swift` — token storage is identical for OIDC-issued tokens.
-- `DatabaseAPIClient.swift`, `TUSUploadClient.swift`, `MediaResourceLoader.swift` — Bearer token sending is provider-agnostic.
+- `auth/jwt.php`, `auth/helpers.php`, `auth/csrf.php` — reuse the Phase 1–4 JWT, route-context, browser-cookie, and CSRF contracts; no parallel OIDC authorization path.
+- `auth/login.php`, `auth/logout.php` — local browser break-glass session remains active.
+- `api/login.php`, `api/verify.php` — local API/iOS Bearer login remains active and cookie-free.
+- `api/media-stream.php`, `api/tus-upload.php` — provider-agnostic route policy continues; guest credential precedence is unchanged by OIDC.
+- QR product behavior remains accountless and event-scoped; centralized route policy governs cookie/token/nonce precedence without requiring OIDC.
+- `JWTStore.swift`, `KeychainStore.swift` — iOS secure token storage is identical for OIDC-issued tokens.
+- `DatabaseAPIClient.swift`, `TUSUploadClient.swift`, `MediaResourceLoader.swift` — Bearer sending is provider-agnostic.
 
 ---
 
@@ -212,6 +213,8 @@ OIDCAuthNHeader             X-OIDC-Remote-User
 ```
 {% endraw %}
 
+This Apache sketch must be revised during implementation so `mod_auth_openidc` protects only OIDC initiation/callback routes. It must not become the authentication gate for `/admin/`, `/db/`, general `/api/`, downloads, or media. After callback issues the canonical GigHive cookie, any module session must be cleared or narrowly scoped so PHP's centralized route policy remains the sole application authorization authority.
+
 **Microsoft requires a second provider entry.** `mod_auth_openidc` supports multiple providers via `OIDCMetadataDir`. The Microsoft discovery URL is:
 
 {% raw %}
@@ -288,8 +291,13 @@ try {
     exit;
 }
 
-// Upsert user row. idp_provider + idp_subject is the unique key.
-// tenant_id = 1 for SaaS v1 single-tenant; extend when multi-tenant provisioning arrives.
+// Resolve tenant from trusted provider claims/configuration before upsert.
+// Never hardcode a shared tenant or accept tenant_id from browser input.
+$tenantId = OidcTenantResolver::resolve($idpProvider, $groups, $email);
+if ($tenantId === null) {
+    http_response_code(403);
+    exit;
+}
 $stmt = $pdo->prepare(
     'INSERT INTO users (tenant_id, idp_provider, idp_subject, role, email, display_name)
      VALUES (:tenant_id, :provider, :subject, :role, :email, :name)
@@ -300,7 +308,7 @@ $stmt = $pdo->prepare(
        updated_at   = CURRENT_TIMESTAMP'
 );
 $stmt->execute([
-    ':tenant_id' => 1,
+    ':tenant_id' => $tenantId,
     ':provider'  => $idpProvider,
     ':subject'   => $sub,
     ':role'      => $role,
@@ -332,26 +340,31 @@ if ((int)$user['disabled'] === 1) {
 }
 
 try {
-    $token = JwtAuth::generate((int)$user['id'], $role, $email);
+    $token = JwtAuth::generate((int)$user['id'], $role, $email, $tenantId);
 } catch (\RuntimeException $e) {
     http_response_code(500);
     error_log('[oidc/callback] JWT generation failed: ' . $e->getMessage());
     exit;
 }
 
-// For browser flows: redirect to the app root with the token in a fragment.
-// The SPA/page reads it from the fragment and stores it in sessionStorage.
-// A fragment is not sent to the server in subsequent requests.
-$dest = rtrim(SITE_URL, '/') . '/#token=' . urlencode($token);
+// Browser callback: issue the canonical HttpOnly JWT cookie through the
+// shared browser-session helper. Do not place the token in a URL or JS response.
+issueBrowserSessionCookie($token);
+$dest = validatedRelativeLoginDestination($requestedDestination ?? '/');
 header('Location: ' . $dest, true, 302);
 exit;
 ```
 
+The exact helper names above are implementation placeholders; the JWT Migration Phase 1–4 implementation guide owns the final shared cookie and safe-destination APIs. The callback must not duplicate cookie attributes or redirect validation.
+
 **Security notes:**
-- Claims are read from `$_SERVER` env vars set by Apache/mod_auth_openidc, not from user-supplied input — Apache has already validated the IdP token's signature, expiry, audience, and nonce.
-- The `users.id` (not `idp_subject`) becomes the JWT `sub`. This prevents JWT `sub` from leaking IdP-internal identifiers.
-- `email` is display-only; auth decisions use `idp_provider + idp_subject` as identity.
-- The token is delivered in a URL fragment (after `#`), which is never sent to the server in HTTP requests.
+- Claims come only from the narrowly scoped, validated `mod_auth_openidc` callback context.
+- The callback still validates normalized issuer, tenant resolution, role mapping, and disabled state before JWT issuance.
+- `users.id` becomes JWT `sub`; role and tenant claims come from server-side resolution.
+- Email is display data, not the authorization identity.
+- The GigHive JWT is set only as the canonical Secure HttpOnly cookie; never URL fragment/query, localStorage, sessionStorage, page HTML, or JavaScript-readable JSON.
+- Redirect destination is a validated same-origin relative path.
+- Raw IdP/GigHive tokens and cookies are never logged.
 
 ### `api/oidc/token-exchange.php` — iOS PKCE exchange
 
@@ -378,12 +391,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $body = (string)file_get_contents('php://input');
 $data = json_decode($body, true);
 
-$code         = (string)($data['code']          ?? '');
-$codeVerifier = (string)($data['code_verifier'] ?? '');
-$redirectUri  = (string)($data['redirect_uri']  ?? '');
-$provider     = (string)($data['provider']       ?? '');
+$code          = (string)($data['code']          ?? '');
+$codeVerifier  = (string)($data['code_verifier'] ?? '');
+$redirectUri   = (string)($data['redirect_uri']  ?? '');
+$provider      = (string)($data['provider']       ?? '');
+$expectedNonce = (string)($data['nonce']          ?? '');
 
-if ($code === '' || $codeVerifier === '' || $redirectUri === '' || $provider === '') {
+if ($code === '' || $codeVerifier === '' || $redirectUri === '' || $provider === '' || $expectedNonce === '') {
     http_response_code(400);
     echo json_encode(['error' => 'missing_fields']);
     exit;
@@ -415,9 +429,10 @@ try {
     exit;
 }
 
-// Validate id_token: signature, iss, aud, exp, nonce not required (PKCE replaces it)
+// Validate id_token: signature, iss, aud, exp, and the nonce generated for this PKCE transaction.
+// PKCE protects code redemption; it does not replace OIDC nonce validation.
 try {
-    $claims = OidcProvider::validateIdToken($provider, $idpTokens['id_token']);
+    $claims = OidcProvider::validateIdToken($provider, $idpTokens['id_token'], $expectedNonce);
 } catch (\RuntimeException $e) {
     http_response_code(401);
     echo json_encode(['error' => 'invalid_id_token']);
@@ -448,6 +463,15 @@ try {
     exit;
 }
 
+// Resolve tenant from trusted provider claims/configuration before upsert.
+// Never accept tenant_id from the iOS request and never hardcode a shared tenant.
+$tenantId = OidcTenantResolver::resolve($provider, $groups, $email);
+if ($tenantId === null) {
+    http_response_code(403);
+    echo json_encode(['error' => 'tenant_not_authorized']);
+    exit;
+}
+
 // Upsert user row — mirrors callback.php; display_name is updated on every login.
 // disabled is intentionally excluded from ON DUPLICATE KEY UPDATE: a suspended account
 // remains suspended even if it re-authenticates with a valid IdP token.
@@ -461,7 +485,7 @@ $stmt = $pdo->prepare(
        updated_at   = CURRENT_TIMESTAMP'
 );
 $stmt->execute([
-    ':tenant_id'    => 1,
+    ':tenant_id'    => $tenantId,
     ':provider'     => $provider,
     ':subject'      => $sub,
     ':role'         => $role,
@@ -490,7 +514,7 @@ if ((int)$user['disabled'] === 1) {
 }
 
 try {
-    $token = JwtAuth::generate((int)$user['id'], $role, $email);
+    $token = JwtAuth::generate((int)$user['id'], $role, $email, $tenantId);
 } catch (\RuntimeException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'token_generation_failed']);
@@ -508,6 +532,8 @@ echo json_encode([
 ]);
 exit;
 ```
+
+The API/iOS token-exchange endpoint must not start a browser session or emit `Set-Cookie`. Permanent tests assert the header is absent. The exact `JwtAuth::generate` signature and `OidcTenantResolver` API are finalized by the Phase 1–4 implementation guide and endpoint checklist; the OIDC implementation reuses them rather than defining parallel contracts.
 
 ### `auth/oidc.php` — shared OIDC helpers
 
@@ -644,12 +670,12 @@ final class OidcProvider
 
     /**
      * Validate an id_token JWT from the IdP.
-     * Fetches the IdP's JWKS, validates signature, iss, aud, and exp.
+     * Fetches the IdP's JWKS; validates signature, iss, aud, exp, and transaction nonce.
      * Returns the decoded claims array.
      *
      * @throws \RuntimeException on validation failure
      */
-    public static function validateIdToken(string $provider, string $idToken): array
+    public static function validateIdToken(string $provider, string $idToken, string $expectedNonce): array
     {
         $meta = self::discover($provider);
         $jwksUri = $meta['jwks_uri']
@@ -698,6 +724,10 @@ final class OidcProvider
         $audList = is_array($aud) ? $aud : [$aud];
         if (!in_array($clientId, $audList, true)) {
             throw new \RuntimeException("id_token aud does not include client_id=$clientId");
+        }
+
+        if ($expectedNonce === '' || !hash_equals($expectedNonce, (string)($claims['nonce'] ?? ''))) {
+            throw new \RuntimeException('id_token nonce mismatch');
         }
 
         return $claims;
@@ -890,7 +920,7 @@ Add to `ansible/roles/docker/tasks/main.yml` (or a new `oidc_setup.yml` task fil
 ## Phase 5c — iOS: `OIDCLoginView.swift` and `PKCEHelper.swift`
 
 **Phase 0 + Phase 3 dependency:** `OIDCLoginView` references `StoredToken`, `UserRole`, and `JWTStore`. These are delivered across two phases:
-- `UserRole` (`case unknown, viewer, contributor, owner`) — corrected in **Phase 0** (`feature_security_authentication_migration_jwt_ios_auth_cred_type.md`). Phase 0 removes `.admin` and adds `.contributor` and `.owner`.
+- `UserRole` (`case unknown, viewer, contributor, owner`) — corrected in **Phase 0** (`feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md`). Phase 0 removes `.admin` and adds `.contributor` and `.owner`.
 - `JWTStore` and `StoredToken` — introduced in **Phase 3**.
 
 Phase 5 iOS work must not begin until both Phase 0 and Phase 3 are merged. If Phase 5 begins before Phase 0, the `UserRole` enum will still have the legacy `.admin` case — do not use `.admin` in any Phase 5 code.
@@ -978,7 +1008,8 @@ struct OIDCLoginView: View {
 
         let verifier  = PKCEHelper.generateVerifier()
         let challenge = PKCEHelper.challenge(for: verifier)
-        let state     = UUID().uuidString
+        let state      = UUID().uuidString
+        let nonce      = UUID().uuidString
 
         // Build authorization URL from server-side discovery
         // Using well-known URLs directly avoids a round-trip to the server
@@ -1008,6 +1039,7 @@ struct OIDCLoginView: View {
             URLQueryItem(name: "redirect_uri",           value: "gighive://oidc/callback"),
             URLQueryItem(name: "scope",                  value: "openid email profile"),
             URLQueryItem(name: "state",                  value: state),
+            URLQueryItem(name: "nonce",                  value: nonce),
             URLQueryItem(name: "code_challenge",         value: challenge),
             URLQueryItem(name: "code_challenge_method",  value: "S256"),
         ]
@@ -1028,6 +1060,7 @@ struct OIDCLoginView: View {
                         callbackURL: callbackURL,
                         provider: provider,
                         expectedState: state,
+                        expectedNonce: nonce,
                         verifier: verifier
                     )
                     cont.resume(returning: result)
@@ -1095,6 +1128,7 @@ struct OIDCLoginView: View {
         callbackURL: URL,
         provider: String,
         expectedState: String,
+        expectedNonce: String,
         verifier: String
     ) async -> StoredToken? {
         let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
@@ -1126,6 +1160,7 @@ struct OIDCLoginView: View {
             "code_verifier": verifier,
             "redirect_uri":  "gighive://oidc/callback",
             "provider":      provider,
+            "nonce":         expectedNonce,
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
@@ -1323,19 +1358,23 @@ Add `@State private var showOIDCLogin = false` to `LoginView`.
 
 ## Tenant Resolution in Phase 5
 
-All Phase 5 upserts hard-code `tenant_id = 1`. This is correct for SaaS v1 (single-tenant GigHive deployment). When multi-tenant support arrives, the tenant must be resolved before the upsert — options:
+OIDC login must resolve an authorized tenant before user upsert or JWT issuance. Hardcoding `tenant_id = 1` is prohibited for the multi-tenant SaaS design. The resolver may use trusted deployment/provider configuration, validated host/tenant login context, and approved IdP claims; it must never accept an unvalidated tenant identifier from browser/iOS input.
 
-- From the `state` parameter (encode tenant slug in the PKCE state and validate it on callback)
-- From the hostname of the redirect URI (each tenant has its own subdomain)
-- From the IdP's `hd` (hosted domain) claim (Google Workspace only)
+The exact `OidcTenantResolver` contract remains an implementation gate shared with the canonical authentication context. Required outcomes:
 
-Document as a follow-on. Do not add multi-tenant resolution to Phase 5.
+- Browser and iOS paths use the same tenant-resolution policy.
+- OIDC `state` protects request correlation/CSRF and may reference a server-validated tenant context; it is not itself trusted tenant authority.
+- Unknown or unauthorized tenant mapping returns `403` before upsert/JWT issuance.
+- Existing users cannot be moved between tenants solely because an IdP claim changes.
+- Cross-tenant login and role tests are permanent.
+
+Phase 5 cannot be approved until this resolver is specified and tested.
 
 ---
 
 ## `superadmin` Role and OIDC
 
-The `users.role` enum includes `superadmin`. `OidcRoleMapper::mapGroups()` never returns `superadmin` — the highest role it can emit is `owner`. `superadmin` is a GigHive platform operator role assigned directly in the database; it is not grantable through IdP group membership. No change needed.
+The current `users.role` enum includes `superadmin`, while SaaS policy documents use `platform_admin`. That naming conflict must be resolved before platform-role implementation. Regardless of the final canonical value, `OidcRoleMapper::mapGroups()` must never grant the platform role; its highest tenant role is `owner`. Platform authority is assigned through a separate operator-controlled process and tested against privilege escalation.
 
 ---
 
@@ -1389,7 +1428,7 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
     method: POST
     headers:
       Content-Type: application/json
-    body: '{"code":"x","code_verifier":"y","redirect_uri":"gighive://oidc/callback","provider":"evil"}'
+    body: '{"code":"x","code_verifier":"y","redirect_uri":"gighive://oidc/callback","provider":"evil","nonce":"test-nonce"}'
     body_format: raw
     status_code: 400
     validate_certs: "{{ gighive_validate_certs | default(true) }}"
@@ -1402,7 +1441,7 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
     method: POST
     headers:
       Content-Type: application/json
-    body: '{"code":"x","code_verifier":"y","redirect_uri":"https://evil.example.com","provider":"google"}'
+    body: '{"code":"x","code_verifier":"y","redirect_uri":"https://evil.example.com","provider":"google","nonce":"test-nonce"}'
     body_format: raw
     status_code: 400
     validate_certs: "{{ gighive_validate_certs | default(true) }}"
@@ -1415,7 +1454,7 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
     method: POST
     headers:
       Content-Type: application/json
-    body: '{"code":"invalid","code_verifier":"invalid","redirect_uri":"gighive://oidc/callback","provider":"google"}'
+    body: '{"code":"invalid","code_verifier":"invalid","redirect_uri":"gighive://oidc/callback","provider":"google","nonce":"test-nonce"}'
     body_format: raw
     status_code: 401
     validate_certs: "{{ gighive_validate_certs | default(true) }}"
@@ -1457,31 +1496,34 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
   when: gighive_auth_mode == 'oidc'
   tags: [smoke]
 
-- name: "[T-125a] Assert local login in oidc mode returns token and role"
+- name: "[T-125a] Assert API local login returns Bearer token and no browser cookie"
   ansible.builtin.assert:
     that:
       - t125_resp.json.token is string
       - t125_resp.json.token | length > 0
       - t125_resp.json.role in ["owner", "contributor", "viewer"]
+      - t125_resp.cookies | default({}) | length == 0
   when: gighive_auth_mode == 'oidc'
   tags: [smoke]
 
 # --- Phase 5: Auth-guarded endpoints still require auth in oidc mode (regression) ---
 
-- name: "[T-126] GET /db/database.php with no auth returns 401 in oidc mode (PHP guard still active)"
+- name: "[T-126] GET /db/database.php without browser cookie redirects to login in oidc mode"
   ansible.builtin.uri:
-    url: "{{ gighive_base_url }}/db/database.php?format=json"
+    url: "{{ gighive_base_url }}/db/database.php"
     method: GET
-    status_code: 401
+    status_code: 302
+    follow_redirects: none
     validate_certs: "{{ gighive_validate_certs | default(true) }}"
   when: gighive_auth_mode == 'oidc'
   tags: [smoke]
 
-- name: "[T-127] GET /admin/admin.php with no auth returns 401 in oidc mode"
+- name: "[T-127] GET /admin/admin.php without browser cookie redirects to login in oidc mode"
   ansible.builtin.uri:
     url: "{{ gighive_base_url }}/admin/admin.php"
     method: GET
-    status_code: 401
+    status_code: 302
+    follow_redirects: none
     validate_certs: "{{ gighive_validate_certs | default(true) }}"
   when: gighive_auth_mode == 'oidc'
   tags: [smoke]
@@ -1501,22 +1543,22 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
 
 # --- Phase 5: QR guest regression (must pass regardless of mode) ---
 
-- name: "[T-129] GET /api/guest-gallery.php without auth returns non-401 in oidc mode (QR path unaffected)"
+- name: "[T-129] GET /api/guest-gallery.php with valid nonce returns 200 in oidc mode"
   ansible.builtin.uri:
     url: "{{ gighive_base_url }}/api/guest-gallery.php?nonce={{ gighive_smoke_gallery_nonce }}"
     method: GET
-    status_code: [200, 400, 404]   # Any response except 401/403 confirms QR isolation is intact
+    status_code: 200
     validate_certs: "{{ gighive_validate_certs | default(true) }}"
   when:
     - gighive_auth_mode == 'oidc'
     - gighive_smoke_gallery_nonce is defined
   tags: [smoke, qr_regression]
 
-- name: "[T-130] GET /api/upload-token.php without auth returns non-401 in oidc mode (QR path unaffected)"
+- name: "[T-130] GET /api/upload-token.php without token returns 400 in oidc mode"
   ansible.builtin.uri:
     url: "{{ gighive_base_url }}/api/upload-token.php"
     method: GET
-    status_code: [200, 400, 404, 405]
+    status_code: 400
     validate_certs: "{{ gighive_validate_certs | default(true) }}"
   when: gighive_auth_mode == 'oidc'
   tags: [smoke, qr_regression]
@@ -1560,44 +1602,61 @@ Phase 5 adds no new columns or tables. The `users` table already has `idp_provid
 
 ---
 
+## Canonical Route-Policy Tests Required
+
+In addition to existing OIDC discovery, callback, PKCE, claim, and role-map tests:
+
+1. Browser OIDC callback sets the canonical HttpOnly/Secure/host-only/Path/SameSite GigHive cookie and exposes no JWT in URL, HTML, JavaScript, localStorage, or sessionStorage.
+2. iOS token exchange returns Bearer JWT JSON and no `Set-Cookie`.
+3. Browser and iOS paths resolve the same tenant/role for the same approved identity.
+4. Unknown/cross-tenant mapping returns `403` before user upsert or JWT issuance.
+5. Disabled OIDC user receives no cookie or Bearer token.
+6. Invalid callback `state`/nonce and invalid PKCE verifier fail without session creation.
+7. Logged-in browser cookie plus valid QR token/nonce remains guest/event-scoped.
+8. Logged-in browser cookie plus invalid QR token/nonce fails without cookie fallback.
+9. OIDC completion redirects only to a validated same-origin relative destination.
+10. Local browser break-glass login remains functional after OIDC activation.
+11. Raw IdP tokens, GigHive JWTs, cookies, codes, verifiers, and nonces are absent from logs.
+12. Any temporary `mod_auth_openidc` session cannot authorize ordinary application routes after callback.
+
+Test IDs must be allocated only after the shared documentation T-number scan in reconciliation Step 5.
+
+---
+
 ## Security Analysis
 
 | Threat | Mitigation |
 |--------|-----------|
 | Authorization code interception | PKCE: `code_verifier` is never transmitted; `code_challenge` is useless without it. An intercepted code cannot be exchanged. |
-| CSRF on authorization callback | `state` parameter round-trips through the IdP; iOS checks `state` matches before proceeding. |
+| CSRF/replay on authorization callback | `state` is validated for request correlation/CSRF; OIDC `nonce` is validated against `id_token.nonce`; PKCE separately protects code redemption. |
 | Token substitution (wrong IdP token sent to server) | `api/oidc/token-exchange.php` validates `iss` and `aud` claims on the `id_token` against the IdP's own JWKS and discovery document. |
 | Client secret exposure | Secret stays on the server. iOS fetches only the public `client_id` from `api/oidc/config.php`. |
-| Open redirect in browser callback | `api/oidc/callback.php` redirects only to `SITE_URL + /#token=…` — no user-supplied redirect parameter. |
+| Open redirect in browser callback | Callback sets the canonical HttpOnly GigHive cookie and redirects only to a validated same-origin relative destination; JWT never enters the URL. |
 | Open redirect in iOS PKCE | `redirect_uri` is validated against an allowlist on the server before the code exchange proceeds. |
 | OIDC issuer confusion (wrong IdP for `sub`) | `idp_provider` is stored alongside `idp_subject`; `UNIQUE KEY uq_users_idp(idp_provider, idp_subject)` prevents cross-provider `sub` collisions. A Google `sub` value can never match a Microsoft `sub` — they are keyed separately. |
 | Account takeover via shared email | Email is display-only; auth decisions use `idp_provider + idp_subject`. Two users with the same email in different IdPs get two separate `users` rows — no confusion. |
 | JWKS cache poisoning | JWKS is fetched over HTTPS from the IdP's own discovery endpoint. APCu cache TTL is 1 hour; no user input influences the cache key. |
 | `none` algorithm attack on id_token | `firebase/php-jwt` + `JWK::parseKeySet()` validates against the JWKS keys; the algorithm is taken from the JWKS key definition, not the token header. |
-| Token delivered via URL fragment (browser) | Fragments are never sent to the server in HTTP requests. The token stays in the browser process. |
+| Browser JWT exposure | Callback sets only the canonical Secure HttpOnly GigHive cookie; JWT never enters fragment/query, JavaScript, localStorage, or sessionStorage. |
 
 ---
 
 ## Rollback
 
-**Phase 5 rollback = one Ansible variable change:**
+OIDC rollback returns the environment to the already-verified **local JWT** mode; it does not restore Apache Basic Auth.
 
-```yaml
-gighive_auth_mode: "local"
-```
+Required rollback behavior:
 
-Run Ansible. Apache `mod_auth_openidc` blocks are disabled (they are inside `{% raw %}{% if gighive_auth_mode == 'oidc' %}{% endraw %}`). Local-user login via `api/login.php` continues. The `api/oidc/token-exchange.php` and `api/oidc/config.php` endpoints become unreachable from the iOS app (but are still deployed — they just don't matter).
+1. Restore the reviewed pre-OIDC application/Apache configuration for that environment.
+2. Set `GIGHIVE_AUTH_MODE=local` through the approved group var.
+3. Disable OIDC initiation/callback routes and any temporary `mod_auth_openidc` application-facing behavior.
+4. Retain the canonical local browser JWT-cookie login, API/iOS Bearer login, route classes, CSRF, and QR policy.
+5. Verify local break-glass browser login before accepting rollback.
+6. Run rollback smoke tests and stop promotion on failure.
 
-**OIDC-only users after rollback:** Any user whose `users` row has `password_hash = NULL` (i.e. they never set a local password) cannot log in after rollback. Recovery: the operator runs:
+The user runs Ansible. A single variable may select the reviewed configuration, but rollback is not considered complete until the rendered Apache/PHP behavior and tests pass.
 
-```bash
-# php -r "echo password_hash('temppass', PASSWORD_BCRYPT, ['cost'=>12]);"
-docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db -e "
-UPDATE users SET password_hash = '"'"'HASH_HERE'"'"' WHERE idp_provider = '"'"'google'"'"' AND email = '"'"'user@example.com'"'"';
-"'
-```
-
-Document this in the operator guide. For internal-only deployments (current state: no customers), this is acceptable.
+OIDC-only users without a local password cannot establish a new local session after rollback. Do not bulk-create temporary local passwords. Use the existing break-glass owner for operation, restore OIDC after correction, or follow a separately approved account-recovery procedure. Existing JWT validity follows the approved revocation/expiry policy.
 
 ---
 
@@ -1605,7 +1664,7 @@ Document this in the operator guide. For internal-only deployments (current stat
 
 | Question | Notes |
 |----------|-------|
-| Multi-tenant OIDC tenant resolution | Deferred. Phase 5 uses `tenant_id = 1` for all OIDC users. |
+| Multi-tenant OIDC tenant resolution | **Blocking implementation decision.** Specify shared `OidcTenantResolver`; no hardcoded tenant and no unvalidated client-supplied tenant. |
 | AAD group claim format (display name vs object ID) | Confirm at registration time. Populate `oidc_role_map` keys accordingly. |
 | Google Workspace groups claim availability | Requires Google Identity Platform + directory sync or custom attribute. May not be available for all Google accounts. Fallback: email domain matching for role assignment. |
 | `gighive://` custom URL scheme registration in Xcode | **PPRR finding:** `GigHive/Configs/AppInfo.plist` does not contain `CFBundleURLSchemes` — the scheme is not registered. `onOpenURL` fires for Universal Links (HTTPS) but not for custom scheme URLs unless `CFBundleURLSchemes` is declared. Without this, the IdP redirect to `gighive://oidc/callback` will not open the app. Add `gighive` to `CFBundleURLSchemes` in `AppInfo.plist` before Phase 5 can work on device. |
@@ -1617,37 +1676,38 @@ Document this in the operator guide. For internal-only deployments (current stat
 ## Progress
 
 ### Completed
-- Feature doc written (parent doc)
-- Phases 1–4 implementation doc written and PPRR'd
-- Phase 5 scope and architecture documented (this doc)
+- Strategic JWT feature reconciled to canonical route policy
+- JWT Migration Phases 0–4 implementation guide rewritten; final cross-document PPRR pending
+- Phase 5 browser-cookie/API-Bearer architecture reconciled in this document
 
 ### Remaining — Phase 5
 - [ ] Register app in Google Cloud Console; add `gighive://oidc/callback` as iOS redirect URI
 - [ ] Register app in Azure Entra ID; configure group claims; add `gighive://oidc/callback` as mobile redirect URI
 - [ ] Confirm AAD group claim format (display name vs object ID); populate `oidc_role_map`
 - [ ] **Add `gighive` to `CFBundleURLSchemes` in `GigHive/Configs/AppInfo.plist`** — scheme is not currently registered; without it the PKCE callback redirect will not open the app (PPRR P3)
-- [ ] Implement `auth/oidc.php` (`OidcProvider`, `OidcRoleMapper`)
+- [ ] Implement `auth/oidc.php` (`OidcProvider`, `OidcRoleMapper`, approved `OidcTenantResolver`)
 - [ ] Implement `api/oidc/config.php`
-- [ ] Implement `api/oidc/callback.php`
-- [ ] Implement `api/oidc/token-exchange.php`
+- [ ] Implement `api/oidc/callback.php` with canonical HttpOnly GigHive cookie and safe redirect; no browser-visible JWT
+- [ ] Implement `api/oidc/token-exchange.php` with Bearer JSON and no `Set-Cookie`
 - [ ] Update `config.php` (OIDC constants)
 - [ ] Update `.env.j2` (OIDC vars)
 - [ ] Add OIDC group_vars to all environments (main `.yml` + secrets.yml)
 - [ ] Update `Dockerfile.j2` (`libapache2-mod-auth-openidc`)
-- [ ] Update `default-ssl.conf.j2` (OIDC VirtualHost config; multi-provider `OIDCMetadataDir`)
+- [ ] Update `default-ssl.conf.j2` (multi-provider metadata plus OIDC initiation/callback only; no competing application-route authorization; temporary module session scoped/cleared)
 - [ ] Add Ansible tasks for `OIDCMetadataDir` JSON files (`no_log: true`)
 - [ ] Implement `PKCEHelper.swift`
 - [ ] Implement `OIDCLoginView.swift`
 - [ ] Update `AuthSession.swift` (`pendingOIDCCallback`)
 - [ ] Update `GigHiveApp.swift` (`handleIncomingURL` OIDC routing)
 - [ ] Update `LoginView.swift` (OIDC button and sheet)
-- [ ] Add T-105 through T-133 smoke tests to `post_build_checks/tasks/main.yml`
+- [ ] Reconcile T-105 through T-133 with the canonical cookie/Bearer/route-policy tests; allocate any additional IDs only after documentation Step 5 namespace scan
 - [ ] Add `mod_auth_openidc` version to Stack Versions Summary in `post_build_checks/tasks/main.yml`: fetch via `dpkg-query -W -f='${Version}' libapache2-mod-auth-openidc` inside the Apache container (gated on `gighive_auth_mode == 'oidc'`); add `mod_auth_openidc` key to the `Build Stack Versions Summary` fact (`'not installed (pre-Phase 5)'` when mode is not `oidc`). `firebase/php-jwt` version is already covered automatically by the existing `Composer_PHP_Dependency_Manager_Packages` key — no additional task needed for it.
 - [ ] Add `gighive_smoke_owner_email`, `gighive_smoke_owner_password` to each env's `secrets.yml` (ansible-vault) if not already added in Phase 1–4
 - [ ] Add `gighive_smoke_gallery_nonce` to each env's group_vars for QR regression tests
-- [ ] End-to-end test: Google login → `users` row → JWT → DatabaseView loads
-- [ ] End-to-end test: Microsoft login → `users` row → JWT → role from group
-- [ ] End-to-end test: OIDC user TUS upload succeeds with contributor/owner role
+- [ ] End-to-end browser test: Google login → tenant/user/role → HttpOnly GigHive cookie → authenticated page; JWT absent from JavaScript
+- [ ] End-to-end browser test: Microsoft login → tenant/user/role → HttpOnly GigHive cookie
+- [ ] End-to-end iOS test: PKCE exchange → Bearer JWT/no cookie → DatabaseView and TUS upload
+- [ ] End-to-end QR collision tests: valid/invalid token or nonce with incidental browser cookie preserves guest scope/no-fallback
 - [ ] End-to-end test: `gighive_auth_mode=local` rollback; OIDC-only user cannot login; local user can
 - [ ] Operator guide: document `oidc_role_map` configuration; rollback procedure; OIDC-only user recovery
 
@@ -1677,7 +1737,7 @@ The following issues were identified and corrected in this document during post-
 | R1 | High | Resilience | `launchWebAuthSession` cleared `pendingOIDCCallback` on error but did not resume the `withCheckedContinuation` continuation, leaving it permanently suspended (Swift concurrency warning; memory leak in practice). | Fixed by passing `cont` to `launchWebAuthSession` and calling `cont.resume(returning: nil)` in all early-exit paths inside the `ASWebAuthenticationSession` completion handler. |
 | R2 | Low | Clarity | Two Ansible tasks had the same name `[T-105]` — the `uri` task and the `assert` task. Duplicate task names break Ansible playbook idempotency reporting and make log output ambiguous. | Renamed the assert task to `[T-105a] Assert config.php response contains client_id keys`. |
 | C1 | Medium | Cross-doc | The strategic document (`feature_security_authentication_migration_jwt.md`, line 34 and table row "JWT algorithm") states "RS256 for OIDC interop in Phase 5". The implementation doc (`feature_security_authentication_migration_jwt_implementation.md`, line 187/195) and `auth/jwt.php` use `HS256` hardcoded. These are contradictory. | Resolved in this document: GigHive-issued JWTs remain HS256. The OIDC `id_token` is an external RS256 JWT from the IdP; GigHive validates it using the IdP JWKS but does not adopt RS256 for its own tokens. The strategic document's algorithm table must be updated when Phase 5 is approved. Noted in the "Files Under Change" section above. |
-| C2 | Low | Cross-doc | `AuthSession.swift` currently defines `UserRole` as `case unknown, viewer, admin` (legacy). The Phase 5 doc's `OIDCLoginView` code uses `UserRole(rawValue: roleStr)` expecting the corrected enum (`owner`, `contributor`, `viewer`, `unknown`). | `UserRole` correction now belongs to **Phase 0** (`feature_security_authentication_migration_jwt_ios_auth_cred_type.md`), not Phase 3. Updated Phase 5c dependency note: Phase 5 iOS work must not begin until both Phase 0 (`UserRole` enum) and Phase 3 (`JWTStore`) are merged. |
+| C2 | Low | Cross-doc | `AuthSession.swift` currently defines `UserRole` as `case unknown, viewer, admin` (legacy). The Phase 5 doc's `OIDCLoginView` code uses `UserRole(rawValue: roleStr)` expecting the corrected enum (`owner`, `contributor`, `viewer`, `unknown`). | `UserRole` correction now belongs to **Phase 0** (`feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md`), not Phase 3. Updated Phase 5c dependency note: Phase 5 iOS work must not begin until both Phase 0 (`UserRole` enum) and Phase 3 (`JWTStore`) are merged. |
 | C3 | Medium | Logic | Cross-document review (all three docs) found 13 additional inconsistencies: (1) Strategic/impl docs still said RS256 Phase 5 — strategic doc updated. (2) Strategic doc's `token-exchange` body omitted `provider` field — updated. (3) Strategic doc named generic OIDC env vars (`OIDC_CLIENT_ID` etc.) instead of provider-specific names — updated. (4) Strategic doc `secrets.yml` used generic Ansible var names — updated. (5) Strategic doc used `OIDC_ROLE_MAP` instead of `OIDC_ROLE_MAP_JSON` — updated. (6) Keycloak realm files in strategic doc were framed as required deliverables — clarified as optional operator references. (7) Strategic doc promised "1h access + 7d refresh" OIDC token TTL — corrected: GigHive issues a 30-day JWT for both local and OIDC users; IdP tokens are consumed server-side only. (8) Impl doc spelled BABRRR as "BABRR" at line 110 — corrected. (9) Both strategic and impl docs seeded local users with `idp_subject='admin@gighive.local'` — corrected to `NULL` (local users have no IdP subject). (10) `auth/oidc.php` and `api/oidc/config.php` were absent from strategic doc's new-files table — added. (11) `PKCEHelper.swift` was absent from strategic doc's new iOS files table — added. (12) Impl doc item 19 attributed `firebase/php-jwt` addition to `Dockerfile.j2` — corrected to `composer.json` + `composer.lock`. (13) `token-exchange.php` upsert omitted `display_name`, making it asymmetric with `callback.php` — fixed in this document. | Applied all 13 corrections across the three documents. |
 | C4 | Medium | Correctness | Fourth cross-document PPRR (covering all four docs including the new benefits doc) found 5 issues: see C4a–C4e below. | All corrected in this PPRR pass. |
 | C4a | Medium | Correctness | Strategic doc `auth/jwt.php` function signature listed as `JwtAuth::generate(int $userId, string $role, int $ttlSeconds): string` — missing the `$email` parameter added during Phase 1 implementation, and missing the `validateWithReason()` method entirely. The impl doc has the correct signature. | Updated strategic doc table entry to `JwtAuth::generate(int $userId, string $role, string $email, int $ttl = 0): string` and added `validateWithReason()` to the description. |

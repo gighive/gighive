@@ -1,18 +1,19 @@
 # Refactor: Shared Authentication Function for Web AJAX Calls
 
-## Status — 2026-09-07
-Planning — PPRR complete. Pending implementation approval.
+## Status — 2026-09-09
+Planning — reconciled to the canonical HttpOnly browser-cookie, API/iOS Bearer, route-class, atomic-cutover, and sequential-promotion policy. The exact 15-file AJAX core and four-file XSS subset are identified; implementation remains pending cross-document PPRR and explicit approval.
 
-**Parent doc:** `docs/feature_security_authentication_migration_jwt_implementation.md` (Phase 2 Companion)  
+**Parent implementation:** `docs/feature_security_authentication_migration_jwt_implementation.md`  
+**Canonical policy:** `docs/policy_authentication_credential_route.md`  
 **Related docs:**
-- `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md` (scope reference, AJAX audit Open Question)
-- `docs/ui_role_matrix.html` (full page inventory and role assignments)
+- `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md` (exact route/role/scope manifest)
+- `docs/ui_role_matrix.html` (page and role planning reference)
 
 ---
 
 ## Elevator Pitch
 
-Every admin and DB page in GigHive makes background AJAX calls to authenticated endpoints. Today those calls piggyback on Apache Basic Auth — the browser sends credentials automatically and invisibly. When the JWT migration removes Basic Auth, those calls will silently fail with `401`: progress bars stop, jobs appear stuck, exports disappear mid-flight, and the page appears loaded while the backend has stopped responding. This refactor insulates the JWT cutover from that risk by replacing every `fetch()` call with a shared `GHAuth.authedFetch()` wrapper now, while Basic Auth is still active, so the cutover itself becomes a config flip rather than a broad code change.
+Every admin and DB page in GigHive makes background AJAX calls to authenticated endpoints. Today those calls piggyback on Apache Basic Auth—the browser sends credentials automatically and invisibly. Removing Basic Auth without preparing these callers would silently break progress, polling, imports, exports, and other background work. Phase 1 centralizes the calls safely while Basic Auth remains active; Phase 2 introduces and verifies JWT authentication before Basic Auth is removed.
 
 ---
 
@@ -25,7 +26,7 @@ The JWT migration (Phase 4) removes Apache Basic Auth. At that moment:
 3. PHP endpoints guarded by `requireRole()` return `401`.
 4. The page appears loaded. Polling loops stop. Status endpoints stop updating. The user sees nothing — until they notice a backup that never finished or an import that hung.
 
-The fix is structural: replace every `fetch()` call to an authenticated endpoint with a wrapper that attaches a Bearer token when one is available, and behaves identically to native `fetch()` when one is not. The wrapper is deployed now, before the JWT migration, making the two changes independent of each other.
+The Phase 1 fix is structural: replace every `fetch()` call to an authenticated endpoint with a token-free shared passthrough while Basic Auth remains authoritative. Phase 2 then adds centralized cookie-backed browser session handling to that wrapper while retaining Bearer authentication for iOS/API clients. This separates the broad caller refactor from the authentication cutover.
 
 ---
 
@@ -33,15 +34,17 @@ The fix is structural: replace every `fetch()` call to an authenticated endpoint
 
 Replace every JavaScript `fetch()` call to an authenticated endpoint across all 14 caller pages with `GHAuth.authedFetch()`, and create the shared `auth/gh-auth.js` module that provides it — while Apache Basic Auth remains active and the running system is unchanged.
 
-**Policy: no direct `fetch()` call to an authenticated endpoint may remain in any admin, DB, or view template page after Stage 1 ships.**
+**Policy: no direct `fetch()` call to an authenticated endpoint may remain in any admin, DB, or view template page after Phase 1 ships.**
 
 ---
 
 ## Decision
 
-**Option B selected — localStorage + `Authorization: Bearer`.**
+**Phase 1 decision:** Introduce a token-free `GHAuth.authedFetch()` passthrough and convert the 14 authenticated AJAX caller files while Apache Basic Auth remains authoritative.
 
-Evaluated against Option A (httpOnly JWT cookie). Option B was chosen because the `Authorization: Bearer` contract is backend-agnostic: a future Java service, Go service, or any other implementation validates the JWT signature without caring whether the client is a PHP page or a native app. A cookie-based contract ties the browser to session semantics that a Java service would need to replicate. Full rationale in `feature_security_authentication_migration_jwt_implementation.md` (Phase 2 Companion decision note).
+**Phase 2 API/iOS decision:** Retain `Authorization: Bearer` as the backend-agnostic contract for iOS and programmatic API clients.
+
+**Phase 2 browser decision:** A signed-in browser uses the canonical Secure HttpOnly GigHive JWT cookie; no JWT is stored in localStorage or sessionStorage. iOS and programmatic clients retain Bearer JWT. Central route classes govern cookie/Bearer/QR precedence, CSRF, role/scope, and HTML/JSON/download/media failures. The prior localStorage-only choice is rejected.
 
 ---
 
@@ -49,23 +52,24 @@ Evaluated against Option A (httpOnly JWT cookie). Option B was chosen because th
 
 | Benefits | Potential Drawbacks |
 |---|---|
-| JWT cutover (Stage 2) becomes a config flip — no AJAX call changes needed at that point | 14 PHP files must be touched; scope is large, though changes are mechanical |
-| Zero auth impact during Stage 1 — Basic Auth still active; `authedFetch()` is a no-op passthrough without a token | `gh-auth.js` is a new deployment dependency; if it goes missing, all admin AJAX breaks |
-| Single canonical location for authenticated request logic — future changes (token refresh, expiry handling) are made once | localStorage token is accessible to XSS if a vulnerability exists; mitigated by the same defenses already applied to the admin pages |
-| Bearer token contract is backend-agnostic — Java/Go rewrite needs no second client-side migration round | |
-| Clear stage boundary — Stage 1 is verifiable in isolation with no JWT infrastructure present | |
+| Phase 2 requires no second 14-file AJAX call-site rewrite | 14 caller files must be touched in Phase 1; scope is large, though changes are mechanical |
+| Zero auth impact during Phase 1 — Basic Auth still active; `authedFetch()` is a no-op passthrough without a token | `gh-auth.js` is a new deployment dependency; if it goes missing, all admin AJAX breaks |
+| Single canonical location for authenticated AJAX behavior — future changes (`401` handling, expiry behavior) are made once | Cookie-authenticated browser requests require CSRF protections in Phase 2 |
+| Bearer token contract remains backend-agnostic for iOS/API clients; a Java/Go rewrite needs no second native-client migration round | The browser and API use two credential transports, so one centralized server resolver is required |
+| Clear phase boundary — Phase 1 is verifiable in isolation with no JWT infrastructure present | |
 
 ---
 
 ## Design Principles
 
-The following invariants must hold after Stage 1 ships:
+The following invariants must hold after Phase 1 ships:
 
-1. `authedFetch(url, opts)` is a drop-in replacement for `fetch(url, opts)` — identical call signature, identical behavior when no token is in `localStorage`.
-2. The `gighive_jwt` localStorage key is defined exactly once, as a named constant inside `auth/gh-auth.js`. No other file uses the bare string.
+1. During Phase 1, `authedFetch(url, opts)` is an unconditional, token-free passthrough to `fetch(url, opts)` with the same signature and return value.
+2. No JWT is stored in localStorage or sessionStorage.
 3. The `<script src="/auth/gh-auth.js">` tag is placed in `<head>` without `async` or `defer`. Inline `<script>` blocks in `<body>` depend on `GHAuth` being defined synchronously.
-4. `GHAuth.requireAuth()` and `auth/login.php` are **not** part of Stage 1. Both redirect or depend on a JWT login flow that does not exist until Stage 2.
+4. Login, logout, cookie issuance, role guards, and `401` handling are Phase 2 concerns; none are introduced during Phase 1 Steps 2–4.
 5. Public and QR-nonce `fetch()` calls are not changed. Only calls to authenticated endpoints are wrapped.
+6. Phase 2 uses one centralized server-side identity resolver: Bearer for iOS/API clients and the selected secure browser credential transport for page navigation and same-origin browser requests.
 
 ---
 
@@ -75,7 +79,7 @@ Today, all admin and DB pages are protected by Apache Basic Auth (`AuthType Basi
 
 This means background AJAX calls (backup status polling, export progress, import manifest steps, AI job status) work today without any JavaScript credential handling. The browser is the credential carrier.
 
-Phase 4 of the JWT migration removes `AuthType Basic` from the Apache config. At that point, the browser stops carrying credentials. The PHP endpoints gain `requireRole()` guards and expect `Authorization: Bearer <token>` headers. Existing `fetch()` calls send nothing — and receive `401`.
+The parent JWT plan's Phase 4 removes `AuthType Basic` from Apache. Before that happens, Phase 2 must make PHP role guards accept the centrally resolved browser cookie or API/iOS Bearer identity. Existing direct `fetch()` calls have no centralized session-expiry behavior, which is why Phase 1 converts them first.
 
 ---
 
@@ -87,18 +91,18 @@ Phase 4 of the JWT migration removes `AuthType Basic` from the Apache config. At
 
 | Type | What they need | Which doc covers them |
 |---|---|---|
-| **Caller pages** — render HTML with `<script>` blocks that call `fetch()` on authenticated endpoints | Replace `fetch()` with `GHAuth.authedFetch()` + include `gh-auth.js` | **This refactor (Stage 1) — 14 files** |
-| **Endpoint files** — pure PHP backends that receive and respond to those calls; no JS of their own | Add `requireRole()` PHP guard | **JWT Phase 2 — separate work** |
+| **Caller pages** — render HTML with `<script>` blocks that call `fetch()` on authenticated endpoints | Replace `fetch()` with `GHAuth.authedFetch()` + include `gh-auth.js` | **This refactor (Phase 1) — 14 files** |
+| **Non-caller files** — HTML without AJAX, JSON/action endpoints, downloads, CLI workers, and include-only libraries | Apply the exact `HTML_PAGE`, `AUTHENTICATED_API`, `AUTHENTICATED_DOWNLOAD`, `INTERNAL_WORKER`, or `INTERNAL_LIBRARY` policy | **JWT implementation + endpoint checklist** |
 
-The `admin/` directory has 64 PHP files. Only 7 are caller pages with inline JS. The other 57 are endpoint files — `run_backup.php`, `restore_database.php`, `export_media_worker.php`, all status endpoints and import workers. They are the targets of `fetch()` calls inside the caller pages. They need Phase 2 guards but have zero JavaScript to change in Stage 1.
+The `admin/` directory has 59 real PHP files; the earlier 64 count included five macOS `._*` metadata files. Seven are AJAX caller pages. The other 52 comprise 2 HTML pages without AJAX, 38 JSON/action endpoints, 2 downloads, 7 CLI workers, and 3 include-only libraries. Only the seven callers need this Phase 1 fetch refactor; the endpoint checklist owns the distinct JWT-era treatment for every other file.
 
-Example: `admin_system.php` makes 19 `fetch()` calls to 13 different backend files. All 13 backends are Phase 2 scope. `admin_system.php` itself is in both: `authedFetch()` in Stage 1, `requireRole('owner')` in Phase 2.
+Example: `admin_system.php` makes 19 `fetch()` calls to 13 different backend files. All 13 backends are Phase 2 scope. `admin_system.php` itself is in both: `authedFetch()` in Phase 1, `requireRole('owner')` in Phase 2.
 
 ### Directories in scope
 
 | Directory | Files touched |
 |---|---|
-| `admin/*.php` | 7 of 64 — the caller pages with inline JS |
+| `admin/*.php` | 7 of 59 real PHP files — the caller pages with inline JS |
 | `db/*.php` | 5 — authenticated viewer / owner DB pages |
 | `src/Views/media/*.php` | 2 — view templates; `fetch()` calls live here, not in the controller files that include them |
 
@@ -106,7 +110,7 @@ Example: `admin_system.php` makes 19 `fetch()` calls to 13 different backend fil
 
 ---
 
-## Stage 1 — File Inventory
+## Phase 1 — File Inventory
 
 Audit command (run from `ansible/roles/docker/files/apache/webroot/`):
 
@@ -123,14 +127,14 @@ grep -rn "fetch(" admin/ db/ src/Views/ --include="*.php" --include="*.js" \
 | `admin/admin_database_load_import_media_from_folder.php` | 8 | `import_manifest_prepare`, `import_manifest_finalize`, `import_manifest_upload_start`, `import_manifest_upload_status`, `import_manifest_upload_finalize`, `import_manifest_status`, `import_manifest_replay`, `import_manifest_jobs` |
 | `admin/admin_database_catalog_promote.php` | 7 | `import_manifest_status`, `catalog_promote_writeback`, `import_manifest_upload_finalize`, `import_manifest_prepare`, `import_manifest_finalize`, `import_manifest_upload_start`, `catalog_promote_start` |
 | `admin/ai_worker.php` | 4 | `/api/ai_jobs.php` (cancel, status, enqueue_all, retag_all) |
-| `admin/admin_database_load_import_media_from_iphone.php` | 6 | Verify targets during implementation (Step 9) |
-| `admin/admin_database_load_import_csv.php` | 2 | Verify targets during implementation (Step 10) |
-| `admin/admin_database_catalog_media_from_folder.php` | 2 | Verify targets during implementation (Step 11) |
+| `admin/admin_database_load_import_media_from_iphone.php` | 6 | Verify targets during Phase 1 Step 3.5 |
+| `admin/admin_database_load_import_csv.php` | 2 | Verify targets during Phase 1 Step 3.6 |
+| `admin/admin_database_catalog_media_from_folder.php` | 2 | Verify targets during Phase 1 Step 3.7 |
 | `db/media_tags.php` | 5 | `/api/ai_jobs.php`, `/api/taggings.php`, `/api/tags.php` |
 | `db/database_catalog.php` | 5 | `/db/catalog_entry_save.php` |
 | `db/upload_form_admin.php` | 2 | `/db/delete_media_files.php`, `/api/uploads/finalize` |
 | `db/upload_form.php` | 2 | `/db/delete_media_files.php`, `/api/uploads/finalize` |
-| `db/upload_form_single.php` | 2 | `/db/delete_media_files.php` (dual-mode: `IS_ADMIN` flag), `/api/uploads/finalize` (dual-mode: `X-Upload-Token` when QR). `authedFetch()` safe in both cases — see Stage 2 note in Progress |
+| `db/upload_form_single.php` | 2 | `/db/delete_media_files.php` (dual-mode: `IS_ADMIN` flag), `/api/uploads/finalize` (dual-mode: `X-Upload-Token` when QR). `authedFetch()` safe in both cases — see Phase 2 note in Progress |
 | `src/Views/media/list.php` | 4 | `/api/tags.php`, `/db/database_edit_save.php`, `/db/database_edit_musicians_preview.php`, `/db/delete_media_files.php` |
 | `src/Views/media/random_player.php` | 1 | `/db/singlesRandomPlayer.php?format=json` — Phase 2 adds `requireRole('viewer')`; JS callback needs `authedFetch()` once guarded |
 
@@ -144,170 +148,214 @@ grep -rn "fetch(" admin/ db/ src/Views/ --include="*.php" --include="*.js" \
 
 ## Proposed Implementation
 
-**Implementation index:**
+The plan uses **Phase** as the only temporal indicator. Phase 1 has 7 ordered steps and prepares the current Basic Auth application. Phase 2 has 8 ordered steps and implements JWT authentication and the cutover. Numbered substeps under Phase 1 Step 3 preserve one-file-at-a-time implementation and verification.
 
-- [ ] **Step 1** — Verify Apache config: `/auth/` path is served without Basic Auth
-- [ ] **Step 2** — Create `ansible/roles/docker/files/apache/webroot/auth/` directory
-- [ ] **Step 3** — Write `auth/gh-auth.js` (Stage 1 module: `TOKEN_KEY`, `getToken`, `authedFetch` only)
-- [ ] **Step 4** — Add T-151, T-152, T-153, T-154 to `post_build_checks/tasks/main.yml`
-- [ ] **Step 5** — Deploy Phase A; verify T-151 and T-152 pass — **GATE before Steps 6–17**
-- [ ] **Step 6** — `admin/admin_system.php` — script tag + 19 authedFetch replacements
-- [ ] **Step 7** — `admin/admin_database_load_import_media_from_folder.php` — script tag + 8
-- [ ] **Step 8** — `admin/admin_database_catalog_promote.php` — script tag + 7
-- [ ] **Step 9** — `admin/ai_worker.php` — script tag + 4
-- [ ] **Step 10** — `admin/admin_database_load_import_media_from_iphone.php` — verify targets, script tag + 6
-- [ ] **Step 11** — `admin/admin_database_load_import_csv.php` — verify targets, script tag + 2
-- [ ] **Step 12** — `admin/admin_database_catalog_media_from_folder.php` — verify targets, script tag + 2
-- [ ] **Step 13** — `db/media_tags.php` — script tag + 5
-- [ ] **Step 14** — `db/database_catalog.php` — script tag + 5
-- [ ] **Step 15** — `db/upload_form_admin.php` — script tag + 2
-- [ ] **Step 16** — `db/upload_form.php` — script tag + 2
-- [ ] **Step 17** — `db/upload_form_single.php` — script tag + 2 (dual-mode; note Stage 2 concern)
-- [ ] **Step 18** — `src/Views/media/list.php` — script tag + 4
-- [ ] **Step 19** — `src/Views/media/random_player.php` — script tag + 1
-- [ ] **Step 20** — Add Playwright tests T-155, T-156 to `playwright_admin_tests` role
+### Implementation Index
+
+#### Phase 1 — Pre-JWT Preparation (7 steps)
+
+- [x] **Phase 1, Step 1** — Record the confirmed canonical browser-cookie/API-Bearer/route-class architecture
+- [ ] **Phase 1, Step 2** — Create and deploy the token-free `GHAuth.authedFetch()` module
+- [ ] **Phase 1, Step 3** — Refactor all 14 caller files through substeps 3.1–3.14
+- [ ] **Phase 1, Step 4** — Verify each converted AJAX workflow under Apache Basic Auth
+- [ ] **Phase 1, Step 5** — Remediate high-risk XSS sinks before browser JWT credentials exist
+- [ ] **Phase 1, Step 6** — Introduce and evaluate Content Security Policy in report-only mode
+- [ ] **Phase 1, Step 7** — Add and run permanent Phase 1 smoke and Playwright tests
+
+#### Phase 2 — JWT Implementation and Cutover (8 steps)
+
+- [ ] **Phase 2, Step 1** — Implement Bearer JWT authentication for iOS and API clients
+- [ ] **Phase 2, Step 2** — Implement secure HttpOnly cookie authentication for browser pages
+- [ ] **Phase 2, Step 3** — Implement one dual-transport server credential resolver
+- [ ] **Phase 2, Step 4** — Implement browser login, logout, expiry, and `401` handling
+- [ ] **Phase 2, Step 5** — Verify pages, native forms, AJAX, downloads, and media requests
+- [ ] **Phase 2, Step 6** — Atomically activate JWT policy and remove Apache Basic Auth in dev
+- [ ] **Phase 2, Step 7** — Gate and promote the same release through lab, staging, and production
+- [ ] **Phase 2, Step 8** — Enforce the final CSP after auth stabilizes and complete verification
 
 ---
 
-### Phase A — Create shared module (Steps 1–5)
+### Phase 1 — Pre-JWT Preparation
 
-**Goal:** Deploy `auth/gh-auth.js` and verify it is served before any PHP file is modified. Steps 6–19 must not begin until Step 5 (the gate) is verified.
+**Goal:** Prepare all browser AJAX callers and browser security controls while Apache Basic Auth remains authoritative. Phase 1 stores no JWT in localStorage or cookies and makes no JWT authorization decision.
 
-> **Critical deployment order:** If files modified in Steps 6–19 are deployed before `auth/gh-auth.js` exists, every admin page throws `TypeError: Cannot read properties of undefined (reading 'authedFetch')` and all AJAX functionality breaks. `auth/gh-auth.js` is a hard prerequisite.
+#### Phase 1, Step 1 — Record confirmed browser authentication architecture
 
-- [ ] **Step 1** — Verify Apache config (`default-ssl.conf.j2`): confirm `/auth/` does not fall inside a `Require valid-user` `<Directory>` block. `/auth/gh-auth.js` must be publicly served — the Stage 2 login page will load it before a JWT exists. If a Basic Auth block covers it, add a `<Location "/auth/gh-auth.js">` exemption now.
+- [x] Browser account sessions use the canonical Secure HttpOnly GigHive JWT cookie; no JWT in localStorage/sessionStorage.
+- [x] iOS and programmatic API clients use `Authorization: Bearer`.
+- [x] Central route classes govern credential precedence, role/scope, CSRF, and response type.
+- [x] Explicit guest token/nonce is authoritative on guest routes and never falls back when invalid.
+- [x] Existing JWT strategic, implementation, and endpoint-checklist documents are reconciled; final cross-document PPRR remains pending.
+- [x] Each environment cuts over atomically and promotes sequentially through dev → lab → staging → production.
 
-- [ ] **Step 2** — Create directory `ansible/roles/docker/files/apache/webroot/auth/`. The `auth/` directory does not yet exist in the webroot. The docker Ansible role will deploy it alongside the webroot on the next playbook run.
+This documentation decision deploys no JWT code.
 
-- [ ] **Step 3** — Write `auth/gh-auth.js` — Stage 1 module only. `login()`, `logout()`, and `requireAuth()` are Stage 2 additions; do not include them now. See module skeleton below.
+#### Phase 1, Step 2 — Create and deploy the token-free shared module
 
-- [ ] **Step 4** — Add T-151, T-152, T-153, T-154 to `post_build_checks/tasks/main.yml` using the `uri` module. Credentials for T-153/T-154 come from `{{ admin_htpasswd_user }}` and `{{ admin_htpasswd_password }}` group_vars.
+- [ ] Verify `default-ssl.conf.j2` allows `/auth/gh-auth.js` to be served without an Apache Basic challenge; the future login page must load it before authentication.
+- [ ] Create `ansible/roles/docker/files/apache/webroot/auth/`.
+- [ ] Create `auth/gh-auth.js` with `authedFetch()` only—no token key, localStorage access, login, logout, or `requireAuth()`.
+- [ ] Add deployment tests T-151 and T-152.
+- [ ] Deploy and verify T-151 and T-152 before Phase 1 Step 3 begins.
 
-- [ ] **Step 5 (GATE)** — Deploy and verify T-151 and T-152 pass in the target environment before any PHP page is modified. Do not proceed to Phase B until this gate clears.
+> **Critical gate:** If a caller file is deployed before `auth/gh-auth.js`, `GHAuth` is undefined and every converted AJAX call fails. Phase 1 Step 3 is blocked until T-151 and T-152 pass.
 
-#### `auth/gh-auth.js` — Stage 1 module skeleton
+##### `auth/gh-auth.js` — Phase 1 module
 
 ```javascript
 (function (window) {
     'use strict';
 
-    var TOKEN_KEY = 'gighive_jwt';   // single authoritative definition of the key name
-
-    function getToken() {
-        try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
-    }
-
     function authedFetch(url, opts) {
-        opts = opts || {};
-        opts.headers = Object.assign({}, opts.headers);
-        var token = getToken();
-        if (token) {
-            opts.headers['Authorization'] = 'Bearer ' + token;
-        }
         return fetch(url, opts);
     }
 
-    // login(), logout(), requireAuth() are Stage 2 additions — not present here.
-
     window.GHAuth = {
-        getToken:     getToken,
-        authedFetch:  authedFetch
+        authedFetch: authedFetch
     };
-
 }(window));
 ```
 
-Key points:
-- `TOKEN_KEY` is a named constant — the string `'gighive_jwt'` appears exactly once in the entire codebase.
-- `getToken()` wraps `localStorage` access in a try/catch to guard against private-browsing restrictions.
-- `authedFetch()` is a drop-in for native `fetch()` — identical signature and return value.
-- The IIFE prevents global variable pollution except for the intentional `window.GHAuth` export.
+This is deliberately an unconditional native-fetch passthrough. It cannot replace the browser-generated Basic header with a Bearer header during Phase 1.
 
-#### Failure mode: `auth/gh-auth.js` fails to load
+#### Phase 1, Step 3 — Refactor all 14 caller files
 
-If `gh-auth.js` returns a non-200 (e.g., the file was deleted, or the Ansible deploy failed), the `GHAuth` global is never defined. Every subsequent `GHAuth.authedFetch()` call throws `TypeError: Cannot read properties of undefined`. Admin pages render but all AJAX functionality breaks silently — no `fetch()` error is visible to the user.
+Apply the Change Pattern below one file at a time. Each substep follows: approve → implement → browser verify → mark complete.
 
-Detection: T-151 catches this in the next post-build check run. Rollback: see Rollback Procedure below.
+- [ ] **Phase 1, Step 3.1** — `admin/admin_system.php` — script tag + 19 replacements
+- [ ] **Phase 1, Step 3.2** — `admin/admin_database_load_import_media_from_folder.php` — script tag + 8 replacements
+- [ ] **Phase 1, Step 3.3** — `admin/admin_database_catalog_promote.php` — script tag + 7 replacements
+- [ ] **Phase 1, Step 3.4** — `admin/ai_worker.php` — script tag + 4 replacements
+- [ ] **Phase 1, Step 3.5** — `admin/admin_database_load_import_media_from_iphone.php` — verify all 6 targets, then replace
+- [ ] **Phase 1, Step 3.6** — `admin/admin_database_load_import_csv.php` — verify both targets, then replace
+- [ ] **Phase 1, Step 3.7** — `admin/admin_database_catalog_media_from_folder.php` — verify both targets, then replace
+- [ ] **Phase 1, Step 3.8** — `db/media_tags.php` — script tag + 5 replacements
+- [ ] **Phase 1, Step 3.9** — `db/database_catalog.php` — script tag + 5 replacements
+- [ ] **Phase 1, Step 3.10** — `db/upload_form_admin.php` — script tag + 2 replacements
+- [ ] **Phase 1, Step 3.11** — `db/upload_form.php` — script tag + 2 replacements
+- [ ] **Phase 1, Step 3.12** — `db/upload_form_single.php` — script tag + 2 dual-mode replacements
+- [ ] **Phase 1, Step 3.13** — `src/Views/media/list.php` — script tag + 4 replacements
+- [ ] **Phase 1, Step 3.14** — `src/Views/media/random_player.php` — script tag + 1 replacement
 
----
+##### Change Pattern
 
-### Phase B — Update `admin/` pages (Steps 6–12)
-
-**Goal:** Apply the Change Pattern to all 7 admin caller pages. Verify each page in a browser before marking the step complete.
-
-Per-step cycle (SKILL.md): request approval → implement → browser verify → mark step complete.
-
-- [ ] **Step 6** — `admin/admin_system.php`
-- [ ] **Step 7** — `admin/admin_database_load_import_media_from_folder.php`
-- [ ] **Step 8** — `admin/admin_database_catalog_promote.php`
-- [ ] **Step 9** — `admin/ai_worker.php`
-- [ ] **Step 10** — `admin/admin_database_load_import_media_from_iphone.php` *(confirm all 6 targets are authenticated endpoints before replacing)*
-- [ ] **Step 11** — `admin/admin_database_load_import_csv.php` *(confirm 2 targets)*
-- [ ] **Step 12** — `admin/admin_database_catalog_media_from_folder.php` *(confirm 2 targets)*
-
----
-
-### Phase C — Update `db/` pages (Steps 13–17)
-
-**Goal:** Apply the Change Pattern to all 5 DB caller pages.
-
-- [ ] **Step 13** — `db/media_tags.php`
-- [ ] **Step 14** — `db/database_catalog.php`
-- [ ] **Step 15** — `db/upload_form_admin.php`
-- [ ] **Step 16** — `db/upload_form.php`
-- [ ] **Step 17** — `db/upload_form_single.php` *(dual-mode page — authedFetch() safe for both IS_ADMIN paths in Stage 1; Stage 2 concern logged in Progress)*
-
----
-
-### Phase D — Update `src/Views/` templates (Steps 18–19)
-
-**Goal:** Apply the Change Pattern to the 2 view templates.
-
-- [ ] **Step 18** — `src/Views/media/list.php`
-- [ ] **Step 19** — `src/Views/media/random_player.php`
-
----
-
-### Phase E — Playwright tests (Step 20)
-
-**Goal:** Add functional regression tests proving AJAX calls still succeed after the refactor.
-
-- [ ] **Step 20** — Add T-155 and T-156 to `playwright_admin_tests` role (see Tests section)
-
----
-
-### Change Pattern (applied per file in Steps 6–19)
-
-**1. Add script tag to `<head>` — no `async` or `defer`**
-
-Every page owns its own `<head>` block (no shared template). Add exactly this line:
+Add this synchronous script tag to each caller page; do not use `async` or `defer`:
 
 ```html
 <script src="/auth/gh-auth.js"></script>
 ```
 
-> The tag must not carry `async` or `defer`. Inline `<script>` blocks in `<body>` execute immediately after parse and depend on `GHAuth` already being defined. An `async` or `defer` tag would allow body scripts to run before `gh-auth.js` loads, causing the same `TypeError` as a missing file.
-
-**2. Replace `fetch()` with `GHAuth.authedFetch()`**
+Replace only calls to authenticated endpoints:
 
 ```javascript
 // Before
 const r = await fetch('/admin/export_media_status.php?job_id=' + id);
-const r = await fetch('/admin/run_backup.php', { method: 'POST', body: JSON.stringify(payload) });
 
 // After
 const r = await GHAuth.authedFetch('/admin/export_media_status.php?job_id=' + id);
-const r = await GHAuth.authedFetch('/admin/run_backup.php', { method: 'POST', body: JSON.stringify(payload) });
 ```
 
-The function signature is identical to native `fetch()`. Replacement is mechanical. Do NOT add `GHAuth.requireAuth()` calls during Stage 1.
+Public and QR-nonce calls remain native `fetch()`. Do not add JWT, cookie, login, logout, or `GHAuth.requireAuth()` behavior during Phase 1.
 
-**3. Browser verify**
+#### Phase 1, Step 4 — Verify AJAX behavior under Basic Auth
 
-- Load the page with Basic Auth active.
-- Exercise the AJAX functionality (trigger an export, run an import, open the AI worker page, etc.).
-- Confirm behaviour is identical to before.
-- Mark the step complete in this doc.
+- [ ] Exercise every converted caller's background workflow with Apache Basic Auth active.
+- [ ] Confirm polling, uploads, imports, exports, backup/restore, catalog operations, AI jobs, tagging, and media-list operations behave exactly as before.
+- [ ] Confirm browser developer tools show Basic—not Bearer—on converted requests.
+- [ ] Mark each Phase 1 Step 3 substep complete only after its workflow passes.
+
+#### Phase 1, Step 5 — Remediate high-risk XSS sinks
+
+- [x] Classify the 115 known `innerHTML` assignments: one vendored file, many static/escaped/local values, and four files with proven unescaped dynamic API/database data.
+- [ ] Fix `admin/admin_system.php` endpoint message/error/error-array sinks.
+- [ ] Fix `admin/ai_worker.php` raw `ai_jobs.error_msg` rendering.
+- [ ] Fix `admin/admin_database_load_import_csv.php` endpoint success/error rendering.
+- [ ] Fix `db/media_tags.php` AJAX job-error progress rendering.
+- [ ] Prefer `textContent`/DOM construction; use one reviewed escape helper only where formatted HTML is required.
+- [ ] Add T-165–T-167 permanent XSS regression coverage for the remediated data classes.
+
+The HttpOnly browser credential planned for Phase 2 prevents JavaScript token extraction, but XSS could still perform privileged same-origin actions. This step therefore remains required.
+
+#### Phase 1, Step 6 — Introduce CSP report-only mode
+
+- [ ] Inventory inline scripts, inline event handlers, and required script origins.
+- [ ] Add `Content-Security-Policy-Report-Only` without breaking the existing UI.
+- [ ] Collect and review violations in the development environment.
+- [ ] Plan migration of inline scripts/handlers to external files or request-specific nonces.
+- [ ] Do not claim XSS mitigation from a policy that still broadly allows `'unsafe-inline'`.
+
+#### Phase 1, Step 7 — Add and run permanent Phase 1 tests
+
+- [ ] Retain the Phase 1 Step 2 deployment tests T-151 and T-152.
+- [ ] Add T-153 and T-154 to `post_build_checks/tasks/main.yml`.
+- [ ] Add T-155, T-156, T-165, T-166, and T-167 to `playwright_admin_tests`.
+- [ ] Add CSP report-only test T-168 to `post_build_checks/tasks/main.yml`.
+- [ ] Run all Phase 1 tests and record successful verification before Phase 2 begins.
+
+---
+
+### Phase 2 — JWT Implementation and Cutover
+
+**Goal:** Introduce JWT authentication through transports appropriate to each client, verify every browser request type, then remove Apache Basic Auth.
+
+#### Phase 2, Step 1 — Implement Bearer JWT for iOS and API clients
+
+- [ ] Implement the JWT issuer, signature validation, claims, expiry, and role hierarchy defined in the parent JWT implementation document.
+- [ ] Migrate iOS and programmatic API requests to `Authorization: Bearer`.
+- [ ] Verify Apache forwards Bearer headers to PHP-FPM through `HTTP_AUTHORIZATION` with T-172.
+
+#### Phase 2, Step 2 — Implement secure browser cookie authentication
+
+- [ ] Issue the browser credential as an HttpOnly, Secure, SameSite cookie; do not expose the JWT through localStorage or sessionStorage.
+- [ ] Define cookie name, path, lifetime, SameSite policy, rotation, and clearing behavior centrally.
+- [ ] Add CSRF protection for cookie-authenticated state-changing requests.
+- [ ] Verify cookie attributes and JavaScript inaccessibility with T-170.
+
+#### Phase 2, Step 3 — Implement one dual-transport credential resolver
+
+- [ ] Resolve Bearer first for API/iOS clients and cookie second for browser requests.
+- [ ] Validate both transports through one JWT validation implementation.
+- [ ] Make `requireRole()` consume the resolved identity rather than parse transport details.
+- [ ] Reject an explicitly supplied invalid Bearer token rather than silently falling back to a valid cookie; verify with T-173.
+
+#### Phase 2, Step 4 — Implement browser login and session handling
+
+- [ ] Exempt only the browser login page, login endpoint, and required static auth assets from authentication so a signed-out user can reach them without an Apache challenge or redirect loop.
+- [ ] Implement browser login that sets the secure cookie.
+- [ ] Implement logout that clears it using identical cookie attributes.
+- [ ] Centralize expired-session and `401` behavior in `GHAuth.authedFetch()` without storing credentials in JavaScript.
+- [ ] Prevent redirect loops and preserve the originally requested same-origin destination safely.
+
+#### Phase 2, Step 5 — Verify every browser request type
+
+- [ ] Verify direct PHP page navigation.
+- [ ] Verify native GET and POST forms with CSRF protection.
+- [ ] Verify AJAX polling and mutations.
+- [ ] Verify direct downloads and generated download links.
+- [ ] Verify protected image, audio, and video requests.
+- [ ] Verify direct navigation, CSRF/AJAX, guest upload/gallery, downloads/media, internal denials, dual-response, and cutover behavior with T-174 through T-184.
+
+#### Phase 2, Step 6 — Atomic dev JWT cutover
+
+- [ ] Capture the complete dev rollback artifact/configuration.
+- [ ] In one deployment, remove Apache Basic account auth and set `GIGHIVE_AUTH_MODE=local`.
+- [ ] Keep login/public/QR routes, Authorization forwarding, request limits, rewrites, Range behavior, and internal denials.
+- [ ] Run the complete dev JWT/route/browser/iOS/upload/media/QR/XSS suite.
+- [ ] Accept dev or execute coordinated rollback; no Basic/JWT overlap period.
+
+#### Phase 2, Step 7 — Sequential environment promotion
+
+- [ ] Promote the same reviewed release to lab; gate on applicable tests.
+- [ ] Promote to staging only after lab passes; run full regression gate.
+- [ ] Promote to production only after staging passes; run safe post-cutover checks.
+- [ ] Stop promotion and roll back the failed environment on any gate failure.
+
+#### Phase 2, Step 8 — Enforce CSP after authentication stabilizes
+
+- [ ] Resolve remaining report-only CSP violations after JWT behavior is stable.
+- [ ] Enforce the final CSP in a separately gated change without broad `'unsafe-inline'` reliance.
+- [ ] Run authentication, AJAX, navigation, form, download, media, XSS, CSP, and QR regression tests.
+- [ ] Mark the complete migration verified only after every gate passes.
 
 ---
 
@@ -315,22 +363,22 @@ The function signature is identical to native `fetch()`. Replacement is mechanic
 
 | Rule | Finding |
 |---|---|
-| RSPEC-3776 (cognitive complexity) | `authedFetch()` is a trivial wrapper; complexity = 1. No concern. |
-| RSPEC-6426 (null dereference) | `getToken()` wraps `localStorage` in try/catch; `null` return is guarded by `if (token)`. No concern. |
-| RSPEC-2635 (sensitive data in SQL) | No SQL. N/A. |
-| Magic strings | `'gighive_jwt'` is defined once as `TOKEN_KEY` inside the IIFE. No other file references the bare string. |
-| Repeated global name | `GHAuth` is the canonical global name. It appears 14+ times across PHP files. If the name changes, all 14 files must change — document this as a stable, intentional contract. |
-| PHP files | Changes are additive only: one script tag + mechanical call-site substitutions. No new PHP logic, no SQL, no new endpoints. No PHP SonarQube concerns. |
+| RSPEC-3776 | Phase 1 `authedFetch()` is a direct passthrough; no complexity concern. Phase 2 credential resolution must remain centralized. |
+| RSPEC-6426 | No Phase 1 token or nullable token lookup exists. Phase 2 must validate resolved payloads before claim access. |
+| RSPEC-2635 | No SQL is introduced by Phase 1. |
+| Credential storage | No JWT is stored in localStorage or sessionStorage. Browser credentials are HttpOnly in Phase 2. |
+| Repeated global name | `GHAuth` is the stable browser client contract across all 14 caller files. |
+| PHP files | Phase 1 changes are additive script tags and mechanical call-site substitutions; XSS sink remediation is tracked separately in Phase 1 Step 5. |
 
 ---
 
 ## Files Under Change
 
-All files are in the `gighiveinfra` repo under `ansible/roles/docker/files/apache/webroot/`.
+The numbered 15-file list below is the exact **Phase 1 AJAX shared-function core** in the `gighiveinfra` repo under `ansible/roles/docker/files/apache/webroot/`. Phase 1 XSS/CSP work and Phase 2 authentication add supporting files separately; they do not alter the 15-file core count.
 
 ### New (1 file)
 
-1. `auth/gh-auth.js` — New JavaScript IIFE module; exports `window.GHAuth = { getToken, authedFetch }`; Stage 1 only; `login`, `logout`, `requireAuth` deferred to Stage 2
+1. `auth/gh-auth.js` — New JavaScript IIFE module; Phase 1 exports only the token-free `window.GHAuth.authedFetch()` passthrough; Phase 2 adds centralized browser-session error handling after the credential architecture is implemented
 
 ### Modified (14 files)
 
@@ -338,30 +386,40 @@ All files are in the `gighiveinfra` repo under `ansible/roles/docker/files/apach
 3. `admin/admin_database_load_import_media_from_folder.php` — Add script tag; replace 8 `fetch()` calls
 4. `admin/admin_database_catalog_promote.php` — Add script tag; replace 7 `fetch()` calls
 5. `admin/ai_worker.php` — Add script tag; replace 4 `fetch()` calls
-6. `admin/admin_database_load_import_media_from_iphone.php` — Add script tag; replace 6 `fetch()` calls (targets verified at Step 10)
-7. `admin/admin_database_load_import_csv.php` — Add script tag; replace 2 `fetch()` calls (targets verified at Step 11)
-8. `admin/admin_database_catalog_media_from_folder.php` — Add script tag; replace 2 `fetch()` calls (targets verified at Step 12)
+6. `admin/admin_database_load_import_media_from_iphone.php` — Add script tag; replace 6 `fetch()` calls (targets verified at Phase 1 Step 3.5)
+7. `admin/admin_database_load_import_csv.php` — Add script tag; replace 2 `fetch()` calls (targets verified at Phase 1 Step 3.6)
+8. `admin/admin_database_catalog_media_from_folder.php` — Add script tag; replace 2 `fetch()` calls (targets verified at Phase 1 Step 3.7)
 9. `db/media_tags.php` — Add script tag; replace 5 `fetch()` calls
 10. `db/database_catalog.php` — Add script tag; replace 5 `fetch()` calls
 11. `db/upload_form_admin.php` — Add script tag; replace 2 `fetch()` calls
 12. `db/upload_form.php` — Add script tag; replace 2 `fetch()` calls
-13. `db/upload_form_single.php` — Add script tag; replace 2 `fetch()` calls (dual-mode; authedFetch safe for both paths in Stage 1)
+13. `db/upload_form_single.php` — Add script tag; replace 2 `fetch()` calls (dual-mode; authedFetch safe for both paths in Phase 1)
 14. `src/Views/media/list.php` — Add script tag; replace 4 `fetch()` calls
 15. `src/Views/media/random_player.php` — Add script tag; replace 1 `fetch()` call
 
-**Total: 15 files — 1 new, 14 modified**
+**Phase 1 shared-function core total: 15 files — 1 new, 14 modified.**
+
+### Phase 1 supporting files
+
+16. `ansible/roles/post_build_checks/tasks/main.yml` — Add T-151–T-154 and T-168
+17. `ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts` — Add T-155, T-156, and T-165–T-167
+18. `ansible/roles/docker/templates/default-ssl.conf.j2` — Add CSP report-only header during Phase 1 Step 6; preserve public access to required login/auth static routes
+
+**Additional XSS changes occur inside four already-numbered core files:** #2 `admin_system.php`, #5 `ai_worker.php`, #7 `admin_database_load_import_csv.php`, and #9 `db/media_tags.php`. They do not increase the 15-file core count.
+
+Phase 2's exact server, browser, Apache, Ansible, and iOS inventory is authoritative in `feature_security_authentication_migration_jwt_implementation.md` and the endpoint checklist. This refactor does not duplicate that full manifest.
 
 ### Unchanged (key files explicitly unaffected)
 
-- `ansible/roles/docker/templates/default-ssl.conf.j2` — Apache config unchanged in Stage 1 (unless Step 1 reveals `/auth/` needs an exemption block)
-- All `api/*.php` endpoint files — zero JS AJAX calls confirmed
-- All `admin/*.php` endpoint files (the 57 non-caller pages) — Phase 2 work only
+- `ansible/roles/docker/templates/default-ssl.conf.j2` — unchanged by Phase 1 Steps 2–4 unless `/auth/` needs an exemption; Phase 1 Step 6 may add CSP report-only headers
+- All `api/*.php` endpoint files — zero JS AJAX caller changes; Phase 2 server-auth work is tracked separately
+- The other 52 `admin/*.php` files — no Phase 1 Step 3 JavaScript changes; exact HTML/API/download/worker/library treatment belongs to the endpoint checklist
 
 ---
 
 ## Rollback Procedure
 
-If Stage 1 introduces a regression:
+If Phase 1 introduces a regression:
 
 1. Revert files #2–#15 to their pre-refactor state (git checkout or re-deploy from previous Ansible artifact).
 2. Remove `auth/gh-auth.js` from the webroot (`auth/` directory can remain).
@@ -371,47 +429,36 @@ Rollback is clean — no schema changes, no config changes, no data changes.
 
 ---
 
-## Stage 2 — JWT Cutover Additions (not this refactor)
-
-Stage 2 is part of JWT Phase 4, documented in `feature_security_authentication_migration_jwt_implementation.md`. For reference, Stage 2 adds the following on top of Stage 1:
-
-- Expand `auth/gh-auth.js` with `login()`, `logout()`, `requireAuth()`
-- Deploy `auth/login.php` — web login form; calls `GHAuth.login()`; stores JWT in `localStorage`
-- Add `GHAuth.requireAuth()` to each admin page's `DOMContentLoaded` handler
-- Set `GIGHIVE_AUTH_MODE=local` in each environment's Ansible vars
-- Remove Apache `AuthType Basic` blocks from `default-ssl.conf.j2`
-
-Because Stage 1 is complete by this point, Stage 2 has no AJAX call changes to make — only the login flow and the auth mode flip.
-
----
-
 ## Relationship to Future Java Rewrite
 
-The `Authorization: Bearer <token>` contract is backend-agnostic. When the PHP backend is replaced by a Java service, the web client already uses the correct protocol — the Java service validates the JWT signature with the same secret and claims. No second round of client-side changes is required. An httpOnly cookie alternative was evaluated and rejected for this reason.
+The dual-transport model remains backend-agnostic. iOS and programmatic clients use `Authorization: Bearer`; browser pages use the selected secure HttpOnly credential transport. A future Java service can validate the same JWT claims from either transport through one centralized resolver, so no second iOS/API client migration is required.
 
 ---
 
 ## Tests
 
-T-numbers verified against all `docs/*.md` — highest existing is T-150. New assignments: T-151 through T-156.
+This refactor reserves T-151–T-156 and T-165–T-168 for its Phase 1 AJAX/XSS/CSP work. T-157–T-164 are released; JWT route/session/cutover tests are owned by T-169–T-184 in the implementation guide.
 
-### Smoke tests — `post_build_checks/tasks/main.yml`
+### Phase 1 tests
 
-| Test | Tag | What it validates |
-|---|---|---|
-| T-151 | `[smoke]` | `GET /auth/gh-auth.js` → HTTP 200; module is deployed and served |
-| T-152 | `[smoke]` | Response body of `/auth/gh-auth.js` contains `authedFetch`; module content is present, not empty or misrouted |
-| T-153 | `[smoke]` | `GET /admin/admin_system.php` with `{{ admin_htpasswd_user }}` / `{{ admin_htpasswd_password }}` → HTTP 200; representative admin page loads without regression |
-| T-154 | `[smoke]` | `GET /db/media_tags.php` with valid Basic Auth → HTTP 200; representative DB page loads without regression |
+| Test | Role | Tag | What it validates |
+|---|---|---|---|
+| T-151 | `post_build_checks` | `[smoke]` | `GET /auth/gh-auth.js` → HTTP 200; shared module is deployed |
+| T-152 | `post_build_checks` | `[smoke]` | `/auth/gh-auth.js` contains `authedFetch`; content is present and correctly routed |
+| T-153 | `post_build_checks` | `[smoke]` | `GET /admin/admin_system.php` with the configured Basic Auth group_vars → HTTP 200 |
+| T-154 | `post_build_checks` | `[smoke]` | `GET /db/media_tags.php` with configured Basic Auth → HTTP 200 |
+| T-155 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, System Stats AJAX completes through `GHAuth.authedFetch()` |
+| T-156 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `db/media_tags.php` AI-job AJAX completes through `GHAuth.authedFetch()` |
+| T-165 | `playwright_admin_tests` | `[smoke]` | AJAX-rendered `ai_jobs.error_msg` payload containing HTML renders as text and does not execute |
+| T-166 | `playwright_admin_tests` | `[smoke]` | Dynamic filename/CSV error payload containing HTML renders as text and does not execute |
+| T-167 | `playwright_admin_tests` | `[smoke]` | Dynamic tag/API error payload containing HTML renders as text and does not execute |
+| T-168 | `post_build_checks` | `[smoke]` | Expected `Content-Security-Policy-Report-Only` header is present after Phase 1 Step 6 |
 
-> **must never:** An admin or DB page that previously returned HTTP 200 with valid credentials must never return a non-200 after Stage 1 is deployed. T-153 and T-154 enforce this for representative pages; expand coverage during implementation if regressions are suspected on other pages.
+> **Invariant covered by T-153/T-154:** The two representative authenticated pages must continue returning HTTP 200 with valid Basic credentials after Phase 1.
 
-### Playwright tests — `playwright_admin_tests` role
+### Phase 2 tests
 
-| Test | Tag | What it validates |
-|---|---|---|
-| T-155 | `[smoke]` | Log in with Basic Auth, navigate to `admin/admin_system.php`, trigger the System Stats AJAX call (`/admin/admin_system_stats.php`), confirm JSON response appears in the UI — proves `authedFetch()` correctly calls an authenticated endpoint |
-| T-156 | `[smoke]` | Log in with Basic Auth, navigate to `db/media_tags.php`, verify the AI jobs status fetch to `/api/ai_jobs.php` returns without error — proves a DB page AJAX call works end-to-end |
+JWT browser-cookie, API/iOS Bearer, route-class, CSRF, download/media, internal-denial, and atomic-cutover behavior is tested by T-169–T-184 in `feature_security_authentication_migration_jwt_implementation.md`. This refactor does not duplicate or reserve those test IDs.
 
 ---
 
@@ -423,30 +470,35 @@ T-numbers verified against all `docs/*.md` — highest existing is T-150. New as
 - [x] Identified `src/Views/media/list.php` as a hidden call-site inside a view template
 - [x] Confirmed `api/` directory is clean — zero JS fetch() calls
 - [x] Discovered and documented missing pages (`timeline-api.php`, `src/index.php`) and added to matrix
-- [x] PPRR complete
+- [x] Initial PPRR completed for the original shared-function plan
+- [x] Browser credential/route architecture and exact four-file XSS scope resolved in documentation
+- [ ] Final cross-document PPRR — reconciliation Step 6
 
 ### Remaining — This Feature
-- [ ] **Phase A, Step 1** — Verify Apache config for `/auth/` directory access
-- [ ] **Phase A, Step 2** — Create `auth/` directory in webroot
-- [ ] **Phase A, Step 3** — Write `auth/gh-auth.js` (Stage 1 module)
-- [ ] **Phase A, Step 4** — Add T-151 through T-154 to `post_build_checks/tasks/main.yml`
-- [ ] **Phase A, Step 5 (GATE)** — Deploy and verify T-151, T-152 pass
-- [ ] **Phase B, Step 6** — `admin/admin_system.php`
-- [ ] **Phase B, Step 7** — `admin/admin_database_load_import_media_from_folder.php`
-- [ ] **Phase B, Step 8** — `admin/admin_database_catalog_promote.php`
-- [ ] **Phase B, Step 9** — `admin/ai_worker.php`
-- [ ] **Phase B, Step 10** — `admin/admin_database_load_import_media_from_iphone.php` (verify targets)
-- [ ] **Phase B, Step 11** — `admin/admin_database_load_import_csv.php` (verify targets)
-- [ ] **Phase B, Step 12** — `admin/admin_database_catalog_media_from_folder.php` (verify targets)
-- [ ] **Phase C, Step 13** — `db/media_tags.php`
-- [ ] **Phase C, Step 14** — `db/database_catalog.php`
-- [ ] **Phase C, Step 15** — `db/upload_form_admin.php`
-- [ ] **Phase C, Step 16** — `db/upload_form.php`
-- [ ] **Phase C, Step 17** — `db/upload_form_single.php`
-- [ ] **Phase D, Step 18** — `src/Views/media/list.php`
-- [ ] **Phase D, Step 19** — `src/Views/media/random_player.php`
-- [ ] **Phase E, Step 20** — Add T-155, T-156 to `playwright_admin_tests` role
 
-### Remaining — Follow-on Tasks
-- [ ] **Stage 2:** Reroute the `IS_ADMIN=false` delete path in `upload_form_single.php` from `delete_media_files.php` to `/api/guest-delete.php` before Phase 4 ships — without this, QR guest delete returns `401` after Basic Auth is removed
-- [ ] **Stage 2:** Expand `auth/gh-auth.js` with `login()`, `logout()`, `requireAuth()` when `auth/login.php` is ready
+#### Phase 1 — Pre-JWT Preparation
+- [x] **Phase 1, Step 1** — Record confirmed browser-cookie/API-Bearer/route-class architecture
+- [ ] **Phase 1, Step 2** — Create, test, deploy, and gate the token-free shared module
+- [ ] **Phase 1, Step 3** — Complete caller-file substeps 3.1–3.14
+- [ ] **Phase 1, Step 4** — Verify all converted AJAX workflows under Basic Auth
+- [ ] **Phase 1, Step 5** — Remediate high-risk XSS sinks and add T-165–T-167
+- [ ] **Phase 1, Step 6** — Add CSP report-only policy and T-168
+- [ ] **Phase 1, Step 7** — Run and record all Phase 1 tests
+
+#### Phase 2 — JWT Implementation and Cutover
+- [ ] **Phase 2, Step 1** — Implement and test Bearer JWT for iOS/API clients
+- [ ] **Phase 2, Step 2** — Implement and test secure HttpOnly browser-cookie authentication
+- [ ] **Phase 2, Step 3** — Implement and test centralized dual-transport credential resolution
+- [ ] **Phase 2, Step 4** — Implement browser login, logout, expiry, and `401` behavior
+- [ ] **Phase 2, Step 5** — Verify every browser request type and reroute the QR guest delete path to `/api/guest-delete.php`
+- [ ] **Phase 2, Step 6** — Atomically cut dev from Basic to JWT and gate on full tests
+- [ ] **Phase 2, Step 7** — Promote sequentially through lab, staging, and production gates
+- [ ] **Phase 2, Step 8** — Enforce CSP separately after auth stabilizes and complete verification
+
+### Risk Resolution Status
+
+- [ ] **Risk 1 — XSS in authenticated UI:** The audit found 115 `innerHTML` assignments across 15 files, with unescaped dynamic API/database data proven in four files: `admin_system.php`, `ai_worker.php`, `admin_database_load_import_csv.php`, and `db/media_tags.php`. No browser JWT exists today. The canonical HttpOnly cookie removes direct token theft through JavaScript, but XSS could still perform privileged same-origin actions. **Implementation:** Phase 1 Steps 5–6 plus T-165–T-168; final CSP enforcement after authentication stabilizes.
+
+- [x] **Risk 2 architecture — Bearer-only browser navigation:** Resolved in policy. Browser HTML/forms/downloads/media use the Secure HttpOnly JWT cookie; iOS/API use Bearer; centralized route classes govern explicit guest credentials and response types. **Implementation remains pending** in the JWT guide and T-169–T-184. Each environment cuts over atomically; no Basic/JWT overlap.
+
+These risks were not caused by the 14-file shared-function refactor. The refactor solves the separate AJAX migration problem and provides one browser request hook for CSRF and API-session failure behavior.
