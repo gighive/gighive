@@ -209,6 +209,7 @@
     .tag-manage-link{display:block;margin-top:3px;font-size:.68rem;color:#a8b3cf;text-decoration:none;line-height:1.6;}
     .tag-manage-link:hover{color:#60a5fa;text-decoration:underline;}
   </style>
+  <script src="/auth/gh-auth.js"></script>
 </head>
  <body class="<?= $isGighive ? 'theme-gighive' : 'theme-defaultcodebase' ?>">
    <?php
@@ -613,7 +614,7 @@
     const unique = [...new Set(ids)];
     if(!unique.length){ return; }
     cells.forEach(c => { c.textContent = ''; c.innerHTML = '<span class="tag-chip-loading">…</span>'; });
-    fetch('/api/tags.php?target_type=asset&asset_ids=' + unique.join(','))
+    GHAuth.authedFetch('/api/tags.php?target_type=asset&asset_ids=' + unique.join(','))
       .then(r => r.json())
       .then(map => {
         cells.forEach(cell => {
@@ -816,7 +817,7 @@
         return;
       }
       try{
-        const resp = await fetch('/db/database_edit_musicians_preview.php', {
+        const resp = await GHAuth.authedFetch('/db/database_edit_musicians_preview.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ participants_csv: raw }),
@@ -948,7 +949,7 @@
       if(btn && btn instanceof HTMLButtonElement){ btn.disabled = true; }
 
       try{
-        const resp = await fetch('/db/database_edit_save.php', {
+        const resp = await GHAuth.authedFetch('/db/database_edit_save.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -1432,7 +1433,7 @@
         status.textContent = 'Deleting…';
       }
       try{
-        const resp = await fetch('/db/delete_media_files.php', {
+        const resp = await GHAuth.authedFetch('/db/delete_media_files.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ asset_ids: ids })

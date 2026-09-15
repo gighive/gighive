@@ -29,7 +29,7 @@
     async function fetchNext(){
       markUserIntent();
       try {
-        const res = await fetch('/db/singlesRandomPlayer.php?format=json', { cache: 'no-store' });
+        const res = await GHAuth.authedFetch('/db/singlesRandomPlayer.php?format=json', { cache: 'no-store' });
         if(!res.ok) throw new Error('HTTP '+res.status);
         const j = await res.json();
         if(!j || !j.url) throw new Error('Invalid JSON');
@@ -115,6 +115,7 @@
     }
     document.addEventListener('DOMContentLoaded', function(){ initControls(); tryAutoplay(); });
   </script>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
 <?php

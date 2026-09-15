@@ -9,28 +9,40 @@
   delegate_to: localhost
   become: false
 
-- name: Add NodeSource LTS repository on controller
+- name: Check if Node.js is already installed on controller
+  ansible.builtin.command:
+    cmd: node --version
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  failed_when: false
+  register: node_precheck
+
+- name: Add NodeSource LTS repository on controller (Debian/Ubuntu only)
   ansible.builtin.shell:
     cmd: curl -fsSL {{ nodesource_setup_url }} | bash -
   args:
     creates: /etc/apt/sources.list.d/nodesource.list
   delegate_to: localhost
   become: true
+  when: node_precheck.rc != 0
 
-- name: Accept any repository label changes on controller (e.g. ondrej/php PPA)
+- name: Accept any repository label changes on controller (Debian/Ubuntu only)
   ansible.builtin.command:
     cmd: apt-get update --allow-releaseinfo-change
   delegate_to: localhost
   become: true
   changed_when: false
+  when: node_precheck.rc != 0
 
-- name: Install Node.js (LTS) on controller
+- name: Install Node.js (LTS) on controller (Debian/Ubuntu only)
   ansible.builtin.apt:
     name: nodejs
     state: present
     update_cache: yes
   delegate_to: localhost
   become: true
+  when: node_precheck.rc != 0
 
 - name: Check Node version
   ansible.builtin.command:
@@ -105,9 +117,23 @@
   delegate_to: localhost
   become: false
 
-- name: Install npm dependencies (npm ci)
+- name: Remove stale node_modules from playwright work dir
+  ansible.builtin.file:
+    path: "{{ playwright_work_dir }}/node_modules"
+    state: absent
+  delegate_to: localhost
+  become: false
+
+- name: Remove stale package-lock.json from playwright work dir
+  ansible.builtin.file:
+    path: "{{ playwright_work_dir }}/package-lock.json"
+    state: absent
+  delegate_to: localhost
+  become: false
+
+- name: Install npm dependencies (npm install)
   ansible.builtin.command:
-    cmd: npm ci
+    cmd: npm install
     chdir: "{{ playwright_work_dir }}"
   delegate_to: localhost
   become: false

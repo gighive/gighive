@@ -68,6 +68,7 @@ $__upload_trace_max_client = max(50, (int)(getenv('UPLOAD_TRACE_MAX_CLIENT') ?: 
   <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
   <link rel="stylesheet" href="/admin/assets/import_progress.css" />
   <script src="/admin/assets/import_progress.js"></script>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
 <div class="wrap"><div class="card">
@@ -422,7 +423,7 @@ function renderOkBannerWithDbLink(message,linkLabel){
   const s=_S[id];
   if(!s || !s.jobId) return null;
   try {
-    const r=await fetch('import_manifest_upload_status.php?job_id='+encodeURIComponent(s.jobId)+'&_t='+Date.now(), { cache:'no-store' });
+    const r=await GHAuth.authedFetch('import_manifest_upload_status.php?job_id='+encodeURIComponent(s.jobId)+'&_t='+Date.now(), { cache:'no-store' });
     const d=await r.json().catch(()=>null);
     const summary={
       status_code: r.status,
@@ -508,7 +509,7 @@ async function pollManifestJob(jobId, statusEl, onDone) {
   const tick=async()=>{
     if(stopped)return;
     try{
-      const r=await fetch('import_manifest_status.php?job_id='+encodeURIComponent(jobId)+'&_t='+Date.now(),{cache:'no-store'});
+      const r=await GHAuth.authedFetch('import_manifest_status.php?job_id='+encodeURIComponent(jobId)+'&_t='+Date.now(),{cache:'no-store'});
       const d=await r.json().catch(()=>null);
       const state=(d&&d.state)?String(d.state):'queued';
       if(statusEl){
@@ -657,7 +658,7 @@ async function sectionScan(id) {
 
   let jobId;
   try{
-    const prep=await fetch('import_manifest_prepare.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,items,duplicates:dupGroups})});
+    const prep=await GHAuth.authedFetch('import_manifest_prepare.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,items,duplicates:dupGroups})});
     const pd=await prep.json().catch(()=>null);
     if(!(prep.ok&&pd&&pd.success&&pd.job_id))throw new Error((pd&&pd.message)||'prepare failed');
     jobId=String(pd.job_id);
@@ -666,7 +667,7 @@ async function sectionScan(id) {
   html(id+'-status','<div class="muted">Finalizing job '+escapeHtml(jobId)+'…</div>');
 
   try{
-    const fin=await fetch('import_manifest_finalize.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:jobId,resolutions})});
+    const fin=await GHAuth.authedFetch('import_manifest_finalize.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:jobId,resolutions})});
     const fd=await fin.json().catch(()=>null);
     if(fin.status===409&&fd&&fd.job_id){
       html(id+'-status','<div class="muted" style="color:#dc2626">Another import is running. Attaching to job '+escapeHtml(String(fd.job_id))+'…</div>');
@@ -747,7 +748,7 @@ async function sectionStartUpload(id){
       phase: 'upload_start_request',
       job_id: s.jobId,
     });
-    const r=await fetch('import_manifest_upload_start.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:s.jobId})});
+    const r=await GHAuth.authedFetch('import_manifest_upload_start.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:s.jobId})});
     const d=await r.json().catch(()=>null);
     pushClientTrace(id, {
       endpoint: 'import_manifest_upload_start.php',
@@ -1095,7 +1096,7 @@ async function uploadOneFile(id, fileInfo, localFile, jobId){
             upload_id: uploadId,
             source_relpath: fileInfo.source_relpath,
           });
-          const r=await fetch('import_manifest_upload_finalize.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:jobId,upload_id:uploadId,checksum_sha256:fileInfo.checksum_sha256})});
+          const r=await GHAuth.authedFetch('import_manifest_upload_finalize.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:jobId,upload_id:uploadId,checksum_sha256:fileInfo.checksum_sha256})});
           const d=await r.json().catch(()=>null);
           pushClientTrace(id, {
             endpoint: 'import_manifest_upload_finalize.php',
@@ -1127,7 +1128,7 @@ async function uploadOneFile(id, fileInfo, localFile, jobId){
 async function refreshJobsUi(id){
   const mode=_S[id].mode;
   try{
-    const r=await fetch('import_manifest_jobs.php?mode='+encodeURIComponent(mode)+'&limit=25');
+    const r=await GHAuth.authedFetch('import_manifest_jobs.php?mode='+encodeURIComponent(mode)+'&limit=25');
     const d=await r.json().catch(()=>null);
     if(!(r.ok&&d&&d.success&&Array.isArray(d.jobs)))return;
     const sel=el(id+'-jobs-select');const btn=el(id+'-replay-btn');const rBtn=el(id+'-resume-upload-btn');
@@ -1162,7 +1163,7 @@ async function sectionReplay(id){
   resetProgressLatch();
   html(id+'-replay-status','<div class="muted">Replaying job '+escapeHtml(jobId)+'\u2026</div>');
   try{
-    const r=await fetch('import_manifest_replay.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:jobId})});
+    const r=await GHAuth.authedFetch('import_manifest_replay.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:jobId})});
     const d=await r.json().catch(()=>null);
     const newId=d&&d.job_id?String(d.job_id):jobId;
     pollManifestJob(newId,statusEl,(state,data)=>{

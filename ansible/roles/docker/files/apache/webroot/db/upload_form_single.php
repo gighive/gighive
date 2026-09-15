@@ -66,6 +66,7 @@ if ($rawToken !== null) {
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
   <?php
@@ -242,7 +243,7 @@ if ($rawToken !== null) {
             this.textContent = 'Deleting…';
 
             try {
-              const resp = await fetch('/db/delete_media_files.php', {
+              const resp = await GHAuth.authedFetch('/db/delete_media_files.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: IS_ADMIN
@@ -513,7 +514,7 @@ if ($rawToken !== null) {
                 }
               : { upload_id: uploadId };
 
-            fetch('/api/uploads/finalize', {
+            GHAuth.authedFetch('/api/uploads/finalize', {
               method: 'POST',
               headers: UPLOAD_TOKEN !== null
                 ? { 'Content-Type': 'application/json', 'X-Upload-Token': UPLOAD_TOKEN }

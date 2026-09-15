@@ -3,7 +3,7 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260914.txt
-Changes: Planning doc updates pre docs/refactor_security_authentication_shared_auth_function.md implementation
+Changes: centralized browser hook for authentication: every AJAX call to an authenticated endpoint goes through one function
 
 macbook2025:gighiveinfra sodo$ git status
 On branch master
@@ -12,25 +12,32 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	new file:   docs/architecture_options_202609.md
-	modified:   docs/feature_completed_saas_model_changes.md
-	modified:   docs/feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md
-	modified:   docs/feature_security_authentication_migration_jwt.md
-	modified:   docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md
-	modified:   docs/feature_security_authentication_migration_jwt_implementation.md
-	modified:   docs/feature_security_authentication_migration_jwt_oidc_benefits.md
-	modified:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
-	modified:   docs/next_major_changes_20260906.md
-	new file:   docs/policy_authentication_credential_route.md
-	modified:   docs/refactor_schema_upload_jobs_token_attribution.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_promote.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_csv.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_iphone.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/ai_worker.php
+	new file:   ansible/roles/docker/files/apache/webroot/auth/gh-auth.js
+	modified:   ansible/roles/docker/files/apache/webroot/db/database_catalog.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/media_tags.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_single.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/random_player.php
+	deleted:    ansible/roles/playwright_admin_tests/files/package-lock.json
+	modified:   ansible/roles/playwright_admin_tests/files/package.json
+	modified:   ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts
+	modified:   ansible/roles/playwright_admin_tests/tasks/main.yml
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/upload_tests/tasks/test_7.yml
 	modified:   docs/refactor_security_authentication_shared_auth_function.md
-	modified:   docs/refactor_storage_media_rest_endpoint.md
-	modified:   docs/refactor_video_player_page_delete_eligibility.md
-	modified:   docs/security_auth_jwt_token_migration.md
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260904.log
+Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20260914.log
 # BASE GIG2, rebuild 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260720.log
 # GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
@@ -129,6 +136,33 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+*** 
+releaseNotes20260914.txt
+Changes: Planning doc updates pre docs/refactor_security_authentication_shared_auth_function.md implementation
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	new file:   docs/architecture_options_202609.md
+	modified:   docs/feature_completed_saas_model_changes.md
+	modified:   docs/feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md
+	modified:   docs/feature_security_authentication_migration_jwt.md
+	modified:   docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md
+	modified:   docs/feature_security_authentication_migration_jwt_implementation.md
+	modified:   docs/feature_security_authentication_migration_jwt_oidc_benefits.md
+	modified:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
+	modified:   docs/next_major_changes_20260906.md
+	new file:   docs/policy_authentication_credential_route.md
+	modified:   docs/refactor_schema_upload_jobs_token_attribution.md
+	modified:   docs/refactor_security_authentication_shared_auth_function.md
+	modified:   docs/refactor_storage_media_rest_endpoint.md
+	modified:   docs/refactor_video_player_page_delete_eligibility.md
+	modified:   docs/security_auth_jwt_token_migration.md
 
 *** 
 releaseNotes20260909.txt

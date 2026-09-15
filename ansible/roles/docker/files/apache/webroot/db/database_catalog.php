@@ -267,6 +267,7 @@ $clearSearchHref      = qp(['q_file' => '', 'q_relpath' => '', 'q_org' => '', 'q
     .bulk-toolbar { display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; margin-bottom:.75rem; }
     .th-search-row input[type=text] { width:100%; box-sizing:border-box; margin-top:.3rem; font-size:.78rem; }
   </style>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -617,7 +618,7 @@ async function cascadeSave(ids, fields) {
     if (msg) { msg.textContent = 'Saving…'; msg.className = 'muted'; }
     try {
       const body = Object.assign({catalog_entry_id: id, action: 'save'}, fields);
-      const res  = await fetch('/db/catalog_entry_save.php', {
+      const res  = await GHAuth.authedFetch('/db/catalog_entry_save.php', {
         method : 'POST',
         headers: {'Content-Type': 'application/json'},
         body   : JSON.stringify(body),
@@ -647,7 +648,7 @@ async function saveRow(id) {
   msg.className   = 'muted';
   try {
     const payload = getRowPayload(id);
-    const res  = await fetch('/db/catalog_entry_save.php', {
+    const res  = await GHAuth.authedFetch('/db/catalog_entry_save.php', {
       method : 'POST',
       headers: {'Content-Type': 'application/json'},
       body   : JSON.stringify(payload),
@@ -690,7 +691,7 @@ async function deleteRow(id) {
   const msg = el('msg-' + id);
   msg.textContent = 'Deleting…';
   try {
-    const res  = await fetch('/db/catalog_entry_save.php', {
+    const res  = await GHAuth.authedFetch('/db/catalog_entry_save.php', {
       method : 'POST',
       headers: {'Content-Type': 'application/json'},
       body   : JSON.stringify({catalog_entry_id: id, action: 'delete'}),
@@ -743,7 +744,7 @@ async function deleteChecked() {
   if (statusSpan) statusSpan.innerHTML = 'Deleting\u2026 ' + bulkProgressHtml(done, total);
   for (const id of ids) {
     try {
-      const res = await fetch('/db/catalog_entry_save.php', {
+      const res = await GHAuth.authedFetch('/db/catalog_entry_save.php', {
         method : 'POST',
         headers: {'Content-Type': 'application/json'},
         body   : JSON.stringify({catalog_entry_id: id, action: 'delete'}),
@@ -775,7 +776,7 @@ async function applyStatusChecked() {
     const id = parseInt(row.dataset.id, 10);
     if (!Number.isFinite(id) || id <= 0) continue;
     try {
-      const res = await fetch('/db/catalog_entry_save.php', {
+      const res = await GHAuth.authedFetch('/db/catalog_entry_save.php', {
         method : 'POST',
         headers: {'Content-Type': 'application/json'},
         body   : JSON.stringify({catalog_entry_id: id, action: 'save', status: newStatus}),

@@ -281,6 +281,7 @@ unset($__cpu_sample1, $__cgroup_usage1, $__sample_started_at, $__net_raw1);
   </style>
   <link rel="stylesheet" href="/admin/assets/import_progress.css" />
   <script src="/admin/assets/import_progress.js"></script>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -638,7 +639,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     btn.textContent = 'Writing…';
     status.innerHTML = '<div class="muted">Processing request...</div>';
 
-    fetch('write_resize_request.php', {
+    GHAuth.authedFetch('write_resize_request.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -695,7 +696,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     btn.textContent = 'Clearing...';
     status.innerHTML = '<div class="muted">Processing request...</div>';
 
-    fetch('clear_media.php', {
+    GHAuth.authedFetch('clear_media.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -735,7 +736,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     btn.textContent = 'Deleting...';
     status.innerHTML = '<div class="muted">Processing request...</div>';
 
-    fetch('clear_media_files.php', {
+    GHAuth.authedFetch('clear_media_files.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     })
@@ -798,7 +799,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       __backupPollTimer = null;
     }
 
-    fetch('/admin/run_backup.php', {
+    GHAuth.authedFetch('/admin/run_backup.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
@@ -836,7 +837,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     let offset = 0;
 
     const tick = () => {
-      fetch('/admin/run_backup_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
+      GHAuth.authedFetch('/admin/run_backup_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
         method: 'GET'
       })
       .then(async response => {
@@ -892,7 +893,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
                       suggestedName: data.filename,
                       types: [{ description: 'Gzip archive', accept: { 'application/gzip': ['.gz'] } }]
                     });
-                    const response = await fetch(dlUrl);
+                    const response = await GHAuth.authedFetch(dlUrl);
                     if (!response.ok) throw new Error('Download failed: ' + response.status);
                     const writable = await fileHandle.createWritable();
                     await response.body.pipeTo(writable);
@@ -1064,7 +1065,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       btn.textContent = 'Uploading backup…';
       status.innerHTML = '<div class="muted">Uploading backup file…</div>';
       try {
-        const uploadResp = await fetch('/admin/upload_restore_backup.php?filename=' + encodeURIComponent(__restoreLocalFile.name), {
+        const uploadResp = await GHAuth.authedFetch('/admin/upload_restore_backup.php?filename=' + encodeURIComponent(__restoreLocalFile.name), {
           method: 'POST',
           body: __restoreLocalFile,
           headers: { 'Content-Type': 'application/octet-stream' }
@@ -1090,7 +1091,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
 
     btn.textContent = 'Starting restore…';
 
-    fetch('/admin/restore_database.php', {
+    GHAuth.authedFetch('/admin/restore_database.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename, confirm: confirmText })
@@ -1134,7 +1135,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
     let offset = 0;
 
     const tick = () => {
-      fetch('/admin/restore_database_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
+      GHAuth.authedFetch('/admin/restore_database_status.php?job_id=' + encodeURIComponent(jobId) + '&offset=' + String(offset), {
         method: 'GET'
       })
       .then(async response => {
@@ -1292,7 +1293,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       // ── Step 1: Query database (prepare) ──────────────────────────────────
       let prepResp, prepData;
       try {
-        prepResp = await fetch('export_media.php', {
+        prepResp = await GHAuth.authedFetch('export_media.php', {
           method: 'POST',
           body: new URLSearchParams({ ...baseParams, mode: 'prepare', destination: dest })
         });
@@ -1366,7 +1367,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       // ── Step 2: Start async worker ─────────────────────────────────────────
       let startResp, startData;
       try {
-        startResp = await fetch('export_media.php', {
+        startResp = await GHAuth.authedFetch('export_media.php', {
           method: 'POST',
           body: new URLSearchParams({ ...baseParams, mode: 'start', destination: dest })
         });
@@ -1437,7 +1438,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
 
       let dlResp;
       try {
-        dlResp = await fetch('export_media_download.php?job_id=' + encodeURIComponent(jobId));
+        dlResp = await GHAuth.authedFetch('export_media_download.php?job_id=' + encodeURIComponent(jobId));
       } catch (err) {
         steps[2] = { name: 'Download', status: 'error', message: 'Network error: ' + err.message };
         render();
@@ -1591,7 +1592,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
                    message: 'Checking server space\u2026', progress: null };
       render();
       try {
-        const pfResp = await fetch('import_media_zip.php?mode=preflight&size=' + fileSize);
+        const pfResp = await GHAuth.authedFetch('import_media_zip.php?mode=preflight&size=' + fileSize);
         if (!pfResp.ok) {
           const pfErr = await pfResp.json().catch(() => ({ error: 'Space check failed (HTTP ' + pfResp.status + ')' }));
           const errMsg = String((pfErr && pfErr.error) ? pfErr.error : 'Insufficient server space');
@@ -1665,7 +1666,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         return new Promise(function (resolve, reject) {
           var pollTimer = setInterval(async function () {
             try {
-              var resp = await fetch('import_media_zip_scan_status.php?job_id=' + encodeURIComponent(scanJobId));
+              var resp = await GHAuth.authedFetch('import_media_zip_scan_status.php?job_id=' + encodeURIComponent(scanJobId));
               var data = await resp.json().catch(function () { return null; });
               if (!resp.ok || !(data && data.success)) {
                 clearInterval(pollTimer);
@@ -1731,7 +1732,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       // ── Step 3: Start — spawn worker ──────────────────────────────────────
       let startResp, startData;
       try {
-        startResp = await fetch('import_media_zip.php', {
+        startResp = await GHAuth.authedFetch('import_media_zip.php', {
           method: 'POST',
           body: new URLSearchParams({ mode: 'start', prepare_token: prepareToken })
         });
@@ -1832,7 +1833,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       // ── Step 1: List blobs (prepare) ──────────────────────────────────────
       let prepResp, prepData;
       try {
-        prepResp = await fetch('import_media_zip.php', {
+        prepResp = await GHAuth.authedFetch('import_media_zip.php', {
           method: 'POST',
           body: new URLSearchParams({ mode: 'prepare', source: 'azure', prefix: blobPrefix }),
           cache: 'no-store',
@@ -1879,7 +1880,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       // ── Step 3: Start — spawn Azure worker ────────────────────────────────
       let startResp, startData;
       try {
-        startResp = await fetch('import_media_zip.php', {
+        startResp = await GHAuth.authedFetch('import_media_zip.php', {
           method: 'POST',
           body: new URLSearchParams({ mode: 'start', source: 'azure', prepare_token: prepareToken, prefix: blobPrefix }),
           cache: 'no-store',
@@ -2162,7 +2163,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       if (liveTimer) { disableLive('Live Mode Disabled'); } else { enableLive(); }
     };
     function pollStats() {
-      fetch('/admin/admin_system_stats.php')
+      GHAuth.authedFetch('/admin/admin_system_stats.php')
         .then(function(r) { return r.json(); })
         .then(function(d) { if (d.success) applyStats(d); })
         .catch(function() { /* silent — do not change button state on transient errors */ });

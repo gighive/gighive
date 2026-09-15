@@ -43,6 +43,7 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
   <!-- This page is under /db/, protected by Basic Auth via Apache LocationMatch -->
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
   <?php
@@ -167,7 +168,7 @@
             this.textContent = 'Deleting…';
 
             try {
-              const resp = await fetch('/db/delete_media_files.php', {
+              const resp = await GHAuth.authedFetch('/db/delete_media_files.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: IS_ADMIN
@@ -409,7 +410,7 @@
               statusEl.innerHTML = prefix.replace(/^Uploading…/, 'Finalizing…') + '<span class="spinner"></span>';
             }
 
-            fetch('/api/uploads/finalize', {
+            GHAuth.authedFetch('/api/uploads/finalize', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ upload_id: uploadId }),

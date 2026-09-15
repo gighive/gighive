@@ -139,6 +139,7 @@ $untaggedCount = $stats['video_assets'] - $stats['tagged_assets'];
     .btn-stop { background:transparent; border:1px solid #7f1d1d; color:#f87171; padding:3px 14px; border-radius:6px; font-size:.78rem; cursor:pointer; }
     .btn-stop:hover { background:#7f1d1d33; }
   </style>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -291,7 +292,7 @@ function makeProgressController(prefix) {
         clearInterval(timer);
         showStopBtn(false);
         try {
-            const r = await fetch('/api/ai_jobs.php?action=cancel_jobs', {
+            const r = await GHAuth.authedFetch('/api/ai_jobs.php?action=cancel_jobs', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({job_ids: ids}),
@@ -327,7 +328,7 @@ function makeProgressController(prefix) {
             const url = jobIdSet && jobIdSet.size > 0
                 ? '/api/ai_jobs.php?action=status_counts&job_ids=' + Array.from(jobIdSet).join(',')
                 : '/api/ai_jobs.php?action=status_counts';
-            const r = await fetch(url);
+            const r = await GHAuth.authedFetch(url);
             if (!r.ok) return;
             const d = await r.json();
             const queued  = d.queued  || 0;
@@ -379,7 +380,7 @@ if (enqueueBtn) {
         setMsg(statusMsg, '', null);
         bulkCtrl.show(5, 'pf-active', '<strong>ENQUEUEING</strong> — sending jobs to queue…');
         try {
-            const resp = await fetch('/api/ai_jobs.php?action=enqueue_all_untagged', {method: 'POST'});
+            const resp = await GHAuth.authedFetch('/api/ai_jobs.php?action=enqueue_all_untagged', {method: 'POST'});
             const data = await resp.json();
             if (!resp.ok) {
                 setMsg(statusMsg, 'Error: ' + (data.error || resp.status), false);
@@ -418,7 +419,7 @@ if (retagAllBtn) {
         setMsg(retagMsgEl, '', null);
         retagCtrl.show(5, 'pf-active', '<strong>ENQUEUEING</strong> — sending jobs to queue…');
         try {
-            const resp = await fetch('/api/ai_jobs.php?action=retag_all', {method: 'POST'});
+            const resp = await GHAuth.authedFetch('/api/ai_jobs.php?action=retag_all', {method: 'POST'});
             const data = await resp.json();
             if (!resp.ok) {
                 setMsg(retagMsgEl, 'Error: ' + (data.error || resp.status), false);

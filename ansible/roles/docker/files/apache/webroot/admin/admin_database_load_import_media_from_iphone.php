@@ -43,6 +43,7 @@ if ($user !== 'admin') { http_response_code(403); echo '<h1>Forbidden</h1>'; exi
   </style>
   <link rel="stylesheet" href="/admin/assets/import_progress.css" />
   <script src="/admin/assets/import_progress.js"></script>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
 <div class="wrap"><div class="card">
@@ -231,7 +232,7 @@ async function checkReady() {
   html('step1-checks', '<div class="muted">Contacting server…</div>');
 
   try {
-    const r = await fetch('iphone_import_status.php?_t=' + Date.now(), { cache: 'no-store' });
+    const r = await GHAuth.authedFetch('iphone_import_status.php?_t=' + Date.now(), { cache: 'no-store' });
     const d = await r.json().catch(() => null);
 
     if (!d || !d.success) {
@@ -275,7 +276,7 @@ async function detectFiles() {
   html('step2-proxy-warn', '');
 
   try {
-    const r = await fetch('iphone_import_status.php?_t=' + Date.now(), { cache: 'no-store' });
+    const r = await GHAuth.authedFetch('iphone_import_status.php?_t=' + Date.now(), { cache: 'no-store' });
     const d = await r.json().catch(() => null);
 
     if (!d || !d.success) {
@@ -366,7 +367,7 @@ async function startImport() {
   _cancelRequested = false;
 
   try {
-    const r = await fetch('iphone_import_server_scan.php', {
+    const r = await GHAuth.authedFetch('iphone_import_server_scan.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ org_name: orgName, event_type: eventType }),
@@ -401,7 +402,7 @@ function startPolling() {
 async function pollProgress() {
   if (!_jobId) return;
   try {
-    const r = await fetch('import_manifest_status.php?job_id=' + encodeURIComponent(_jobId) + '&_t=' + Date.now(), { cache: 'no-store' });
+    const r = await GHAuth.authedFetch('import_manifest_status.php?job_id=' + encodeURIComponent(_jobId) + '&_t=' + Date.now(), { cache: 'no-store' });
     const d = await r.json().catch(() => null);
 
     const state   = (d && d.state) ? String(d.state) : 'queued';
@@ -466,7 +467,7 @@ async function stopImport() {
   el('step4-stop-btn').disabled = true;
   el('step4-stop-btn').textContent = 'Cancellation requested…';
   try {
-    await fetch('import_manifest_cancel.php', {
+    await GHAuth.authedFetch('import_manifest_cancel.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ job_id: _jobId }),
@@ -481,7 +482,7 @@ async function clearStaging() {
   btn.disabled = true;
   btn.textContent = 'Clearing…';
   try {
-    const r = await fetch('iphone_import_clear_staging.php', { method: 'POST', cache: 'no-store' });
+    const r = await GHAuth.authedFetch('iphone_import_clear_staging.php', { method: 'POST', cache: 'no-store' });
     const d = await r.json().catch(() => null);
     if (d && d.success) {
       btn.textContent = '✓ Cleared (' + (d.deleted_count || 0) + ' files deleted)';

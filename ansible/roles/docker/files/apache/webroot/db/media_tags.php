@@ -145,6 +145,7 @@ $namespaceColors = [
     #progress-label { font-size:.82rem; color:#a8b3cf; }
     #progress-label strong { color:#e9eef7; }
   </style>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -268,7 +269,7 @@ function showProgress(status, extraLabel) {
 
 async function pollJob(jobId) {
     try {
-        const r = await fetch('/api/ai_jobs.php?id=' + jobId);
+        const r = await GHAuth.authedFetch('/api/ai_jobs.php?id=' + jobId);
         if (!r.ok) { clearInterval(pollTimer); return; }
         const d = await r.json();
         const job = d.job;
@@ -293,7 +294,7 @@ if (retagBtn) {
         setMsg('');
         showProgress('queued', 'Sending request to server…');
         try {
-            const r = await fetch('/api/ai_jobs.php', {
+            const r = await GHAuth.authedFetch('/api/ai_jobs.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({job_type:'categorize_video', target_type:'asset', target_id: assetId}),
@@ -329,7 +330,7 @@ document.querySelectorAll('.del-btn').forEach(btn => {
         const id = btn.dataset.taggingId;
         if (!confirm('Remove this tag?')) return;
         try {
-            const r = await fetch('/api/taggings.php?id=' + id, {method: 'DELETE'});
+            const r = await GHAuth.authedFetch('/api/taggings.php?id=' + id, {method: 'DELETE'});
             const d = await r.json();
             if (!r.ok) { setMsg('Error: ' + (d.error || r.status), false); return; }
             btn.closest('.chip').remove();
@@ -347,7 +348,7 @@ document.getElementById('newNs').addEventListener('change', async function() {
     if (isOther) { customInput.focus(); return; }
     dl.innerHTML = '';
     try {
-        const r = await fetch('/api/tags.php?namespace=' + encodeURIComponent(this.value));
+        const r = await GHAuth.authedFetch('/api/tags.php?namespace=' + encodeURIComponent(this.value));
         if (r.ok) {
             const data = await r.json();
             (data.tags || []).forEach(t => {
@@ -378,7 +379,7 @@ if (addTagBtn) {
         if (!name) { setMsg('Enter a tag name.', false); return; }
         addTagBtn.disabled = true;
         try {
-            const r = await fetch('/api/taggings.php', {
+            const r = await GHAuth.authedFetch('/api/taggings.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({target_type:'asset', target_id:assetId, namespace:ns, name:name, source:'human', confidence:1.0}),

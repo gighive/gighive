@@ -46,6 +46,7 @@ if ($user !== 'admin') {
   </style>
   <link rel="stylesheet" href="/admin/assets/import_progress.css" />
   <script src="/admin/assets/import_progress.js"></script>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -262,7 +263,7 @@ if ($user !== 'admin') {
       btn.textContent = 'Uploading and Importing...';
       status.innerHTML = '<div class="muted">Processing request...</div>';
 
-      fetch('import_database.php', {
+      GHAuth.authedFetch('import_database.php', {
         method: 'POST',
         body: formData
       })
@@ -340,7 +341,7 @@ if ($user !== 'admin') {
       btn.textContent = 'Uploading and Importing...';
       status.innerHTML = '<div class="muted">Processing request...</div>';
 
-      fetch('import_normalized.php', {
+      GHAuth.authedFetch('import_normalized.php', {
         method: 'POST',
         body: formData
       })

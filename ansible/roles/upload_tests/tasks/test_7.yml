@@ -19,23 +19,20 @@
     fail_msg: "TUS fixture missing or empty: {{ upload_test_tus_fixture }}"
 
 - name: Upload tests 7 - TUS create upload (POST /files/)
-  ansible.builtin.shell: |
-    set -euo pipefail
-    SIZE=$(stat -c%s "{{ upload_test_tus_fixture }}")
-    ENC_FNAME=$(printf '%s' "$(basename '{{ upload_test_tus_fixture }}')" | base64 -w0)
-    RESPONSE=$(curl -sk -D - -o /dev/null \
-      -u "{{ admin_user }}:{{ gighive_admin_password }}" \
-      -X POST "{{ gighive_base_url }}/files/" \
-      -H "Tus-Resumable: 1.0.0" \
-      -H "Upload-Length: ${SIZE}" \
-      -H "Upload-Metadata: filename ${ENC_FNAME}" \
-      -H "Content-Length: 0")
-    HTTP_STATUS=$(printf '%s' "$RESPONSE" | head -1 | grep -oP '\d{3}')
-    LOCATION=$(printf '%s' "$RESPONSE" | grep -i '^location:' | tr -d '\r' | awk '{print $2}')
-    UPLOAD_ID=$(basename "$LOCATION")
-    printf '%s\n%s\n%s\n%s' "$HTTP_STATUS" "$LOCATION" "$UPLOAD_ID" "$SIZE"
-  args:
-    executable: /bin/bash
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/files/"
+    method: POST
+    url_username: "{{ admin_user }}"
+    url_password: "{{ gighive_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    headers:
+      Tus-Resumable: "1.0.0"
+      Upload-Length: "{{ upload_tests_7_stat.stat.size }}"
+      Upload-Metadata: "filename {{ upload_test_tus_fixture | basename | b64encode }}"
+      Content-Length: "0"
+    status_code: [201]
+    return_content: false
   register: upload_tests_7_create
   changed_when: false
   delegate_to: localhost
@@ -43,10 +40,10 @@
 
 - name: Upload tests 7 - parse create response
   ansible.builtin.set_fact:
-    upload_tests_7_create_status: "{{ upload_tests_7_create.stdout_lines[0] }}"
-    upload_tests_7_location:      "{{ upload_tests_7_create.stdout_lines[1] }}"
-    upload_tests_7_upload_id:     "{{ upload_tests_7_create.stdout_lines[2] }}"
-    upload_tests_7_file_size:     "{{ upload_tests_7_create.stdout_lines[3] }}"
+    upload_tests_7_create_status: "{{ upload_tests_7_create.status }}"
+    upload_tests_7_location:      "{{ upload_tests_7_create.location | default('') }}"
+    upload_tests_7_upload_id:     "{{ upload_tests_7_create.location | default('') | basename }}"
+    upload_tests_7_file_size:     "{{ upload_tests_7_stat.stat.size }}"
 
 - name: Upload tests 7 - debug create response
   ansible.builtin.debug:

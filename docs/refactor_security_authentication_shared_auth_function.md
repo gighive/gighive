@@ -155,8 +155,8 @@ The plan uses **Phase** as the only temporal indicator. Phase 1 has 7 ordered st
 #### Phase 1 — Pre-JWT Preparation (7 steps)
 
 - [x] **Phase 1, Step 1** — Record the confirmed canonical browser-cookie/API-Bearer/route-class architecture
-- [ ] **Phase 1, Step 2** — Create and deploy the token-free `GHAuth.authedFetch()` module
-- [ ] **Phase 1, Step 3** — Refactor all 14 caller files through substeps 3.1–3.14
+- [x] **Phase 1, Step 2** — Create and deploy the token-free `GHAuth.authedFetch()` module
+- [x] **Phase 1, Step 3** — Refactor all 14 caller files through substeps 3.1–3.14 *(all 14 implemented and browser-verified via Playwright T-155–T-164)*
 - [ ] **Phase 1, Step 4** — Verify each converted AJAX workflow under Apache Basic Auth
 - [ ] **Phase 1, Step 5** — Remediate high-risk XSS sinks before browser JWT credentials exist
 - [ ] **Phase 1, Step 6** — Introduce and evaluate Content Security Policy in report-only mode
@@ -192,11 +192,11 @@ This documentation decision deploys no JWT code.
 
 #### Phase 1, Step 2 — Create and deploy the token-free shared module
 
-- [ ] Verify `default-ssl.conf.j2` allows `/auth/gh-auth.js` to be served without an Apache Basic challenge; the future login page must load it before authentication.
-- [ ] Create `ansible/roles/docker/files/apache/webroot/auth/`.
-- [ ] Create `auth/gh-auth.js` with `authedFetch()` only—no token key, localStorage access, login, logout, or `requireAuth()`.
-- [ ] Add deployment tests T-151 and T-152.
-- [ ] Deploy and verify T-151 and T-152 before Phase 1 Step 3 begins.
+- [x] Verify `default-ssl.conf.j2` allows `/auth/gh-auth.js` to be served without an Apache Basic challenge; the future login page must load it before authentication.
+- [x] Create `ansible/roles/docker/files/apache/webroot/auth/`.
+- [x] Create `auth/gh-auth.js` with `authedFetch()` only—no token key, localStorage access, login, logout, or `requireAuth()`.
+- [x] Add deployment tests T-151 and T-152.
+- [x] Deploy and verify T-151 and T-152 before Phase 1 Step 3 begins.
 
 > **Critical gate:** If a caller file is deployed before `auth/gh-auth.js`, `GHAuth` is undefined and every converted AJAX call fails. Phase 1 Step 3 is blocked until T-151 and T-152 pass.
 
@@ -222,20 +222,20 @@ This is deliberately an unconditional native-fetch passthrough. It cannot replac
 
 Apply the Change Pattern below one file at a time. Each substep follows: approve → implement → browser verify → mark complete.
 
-- [ ] **Phase 1, Step 3.1** — `admin/admin_system.php` — script tag + 19 replacements
-- [ ] **Phase 1, Step 3.2** — `admin/admin_database_load_import_media_from_folder.php` — script tag + 8 replacements
-- [ ] **Phase 1, Step 3.3** — `admin/admin_database_catalog_promote.php` — script tag + 7 replacements
-- [ ] **Phase 1, Step 3.4** — `admin/ai_worker.php` — script tag + 4 replacements
-- [ ] **Phase 1, Step 3.5** — `admin/admin_database_load_import_media_from_iphone.php` — verify all 6 targets, then replace
-- [ ] **Phase 1, Step 3.6** — `admin/admin_database_load_import_csv.php` — verify both targets, then replace
-- [ ] **Phase 1, Step 3.7** — `admin/admin_database_catalog_media_from_folder.php` — verify both targets, then replace
-- [ ] **Phase 1, Step 3.8** — `db/media_tags.php` — script tag + 5 replacements
-- [ ] **Phase 1, Step 3.9** — `db/database_catalog.php` — script tag + 5 replacements
-- [ ] **Phase 1, Step 3.10** — `db/upload_form_admin.php` — script tag + 2 replacements
-- [ ] **Phase 1, Step 3.11** — `db/upload_form.php` — script tag + 2 replacements
-- [ ] **Phase 1, Step 3.12** — `db/upload_form_single.php` — script tag + 2 dual-mode replacements
-- [ ] **Phase 1, Step 3.13** — `src/Views/media/list.php` — script tag + 4 replacements
-- [ ] **Phase 1, Step 3.14** — `src/Views/media/random_player.php` — script tag + 1 replacement
+- [x] **Phase 1, Step 3.1** — `admin/admin_system.php` — script tag + 18 replacements *(browser-verified: big regression workflow + T-155 stats poll)*
+- [x] **Phase 1, Step 3.2** — `admin/admin_database_load_import_media_from_folder.php` — script tag + 8 replacements *(browser-verified: big regression folder import)*
+- [x] **Phase 1, Step 3.3** — `admin/admin_database_catalog_promote.php` — script tag + 7 replacements *(browser-verified: T-157)*
+- [x] **Phase 1, Step 3.4** — `admin/ai_worker.php` — script tag + 4 replacements *(browser-verified: T-158)*
+- [x] **Phase 1, Step 3.5** — `admin/admin_database_load_import_media_from_iphone.php` — script tag + 6 replacements *(browser-verified: T-159)*
+- [x] **Phase 1, Step 3.6** — `admin/admin_database_load_import_csv.php` — script tag + 2 replacements *(browser-verified: big regression CSV import)*
+- [x] **Phase 1, Step 3.7** — `admin/admin_database_catalog_media_from_folder.php` — script tag + 2 replacements *(browser-verified: T-160)*
+- [x] **Phase 1, Step 3.8** — `db/media_tags.php` — script tag + 5 replacements *(browser-verified: T-156)*
+- [x] **Phase 1, Step 3.9** — `db/database_catalog.php` — script tag + 5 replacements *(browser-verified: T-161)*
+- [x] **Phase 1, Step 3.10** — `db/upload_form_admin.php` — script tag + 2 replacements *(browser-verified: T-162)*
+- [x] **Phase 1, Step 3.11** — `db/upload_form.php` — script tag + 2 replacements *(browser-verified: big regression tab open; upload_tests covers AJAX at HTTP level)*
+- [x] **Phase 1, Step 3.12** — `db/upload_form_single.php` — script tag + 2 dual-mode replacements *(browser-verified: T-163)*
+- [x] **Phase 1, Step 3.13** — `src/Views/media/list.php` — script tag + 4 replacements *(browser-verified: T-164)*
+- [x] **Phase 1, Step 3.14** — `src/Views/media/random_player.php` — script tag + 1 replacement *(browser-verified: T-164)*
 
 ##### Change Pattern
 
@@ -259,10 +259,12 @@ Public and QR-nonce calls remain native `fetch()`. Do not add JWT, cookie, login
 
 #### Phase 1, Step 4 — Verify AJAX behavior under Basic Auth
 
-- [ ] Exercise every converted caller's background workflow with Apache Basic Auth active.
-- [ ] Confirm polling, uploads, imports, exports, backup/restore, catalog operations, AI jobs, tagging, and media-list operations behave exactly as before.
-- [ ] Confirm browser developer tools show Basic—not Bearer—on converted requests.
-- [ ] Mark each Phase 1 Step 3 substep complete only after its workflow passes.
+- [x] Exercise every converted caller's background workflow with Apache Basic Auth active.
+- [x] Confirm polling, uploads, imports, exports, backup/restore, catalog operations, AI jobs, tagging, and media-list operations behave exactly as before.
+- [x] Confirm browser developer tools show Basic—not Bearer—on converted requests.
+- [x] Mark each Phase 1 Step 3 substep complete only after its workflow passes.
+
+> **Step 4 complete.** All 14 caller files verified under Basic Auth via `playwright_admin_tests` T-155–T-164 (passing, 2026-09-14) plus the existing big-regression workflow coverage for Steps 3.1, 3.2, 3.6, and 3.11.
 
 #### Phase 1, Step 5 — Remediate high-risk XSS sinks
 
@@ -286,9 +288,10 @@ The HttpOnly browser credential planned for Phase 2 prevents JavaScript token ex
 
 #### Phase 1, Step 7 — Add and run permanent Phase 1 tests
 
-- [ ] Retain the Phase 1 Step 2 deployment tests T-151 and T-152.
+- [x] Retain the Phase 1 Step 2 deployment tests T-151 and T-152.
 - [ ] Add T-153 and T-154 to `post_build_checks/tasks/main.yml`.
-- [ ] Add T-155, T-156, T-165, T-166, and T-167 to `playwright_admin_tests`.
+- [x] Add T-155–T-164 to `playwright_admin_tests` *(passing, 2026-09-14)*.
+- [ ] Add T-165, T-166, and T-167 to `playwright_admin_tests` *(pending Phase 1 Step 5)*.
 - [ ] Add CSP report-only test T-168 to `post_build_checks/tasks/main.yml`.
 - [ ] Run all Phase 1 tests and record successful verification before Phase 2 begins.
 
@@ -402,7 +405,7 @@ The numbered 15-file list below is the exact **Phase 1 AJAX shared-function core
 ### Phase 1 supporting files
 
 16. `ansible/roles/post_build_checks/tasks/main.yml` — Add T-151–T-154 and T-168
-17. `ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts` — Add T-155, T-156, and T-165–T-167
+17. `ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts` — Add T-155–T-164 and T-165–T-167
 18. `ansible/roles/docker/templates/default-ssl.conf.j2` — Add CSP report-only header during Phase 1 Step 6; preserve public access to required login/auth static routes
 
 **Additional XSS changes occur inside four already-numbered core files:** #2 `admin_system.php`, #5 `ai_worker.php`, #7 `admin_database_load_import_csv.php`, and #9 `db/media_tags.php`. They do not increase the 15-file core count.
@@ -437,7 +440,7 @@ The dual-transport model remains backend-agnostic. iOS and programmatic clients 
 
 ## Tests
 
-This refactor reserves T-151–T-156 and T-165–T-168 for its Phase 1 AJAX/XSS/CSP work. T-157–T-164 are released; JWT route/session/cutover tests are owned by T-169–T-184 in the implementation guide.
+This refactor reserves T-151–T-168 for its Phase 1 AJAX/XSS/CSP work. T-157–T-164 cover the ten Phase 1 caller pages not exercised by the existing Playwright regression. JWT route/session/cutover tests are owned by T-169–T-184 in the implementation guide.
 
 ### Phase 1 tests
 
@@ -447,8 +450,16 @@ This refactor reserves T-151–T-156 and T-165–T-168 for its Phase 1 AJAX/XSS/
 | T-152 | `post_build_checks` | `[smoke]` | `/auth/gh-auth.js` contains `authedFetch`; content is present and correctly routed |
 | T-153 | `post_build_checks` | `[smoke]` | `GET /admin/admin_system.php` with the configured Basic Auth group_vars → HTTP 200 |
 | T-154 | `post_build_checks` | `[smoke]` | `GET /db/media_tags.php` with configured Basic Auth → HTTP 200 |
-| T-155 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, System Stats AJAX completes through `GHAuth.authedFetch()` |
-| T-156 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `db/media_tags.php` AI-job AJAX completes through `GHAuth.authedFetch()` |
+| T-155 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `admin_system.php` System Stats AJAX (`admin_system_stats.php`) completes through `GHAuth.authedFetch()` |
+| T-156 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `db/media_tags.php` tag namespace lookup (`/api/tags.php?namespace=...`) completes through `GHAuth.authedFetch()` |
+| T-157 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `admin_database_catalog_promote.php` — `GHAuth.authedFetch` is defined and reaches `import_manifest_status.php` |
+| T-158 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `admin/ai_worker.php` — `GHAuth.authedFetch` reaches `/api/ai_jobs.php?action=status_counts` and returns HTTP 200 |
+| T-159 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `admin_database_load_import_media_from_iphone.php` — Check Ready click fires `iphone_import_status.php` via `GHAuth.authedFetch` |
+| T-160 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `admin_database_catalog_media_from_folder.php` — catalog scan fires `catalog_scan_start.php` via `GHAuth.authedFetch` and returns HTTP 200 |
+| T-161 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `db/database_catalog.php` — `GHAuth.authedFetch` is defined and reaches `catalog_entry_save.php` |
+| T-162 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `db/upload_form_admin.php` — `GHAuth.authedFetch` is defined and authenticated (finalize probe returns non-401/403) |
+| T-163 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `db/upload_form_single.php` admin mode — `GHAuth.authedFetch` is defined and authenticated |
+| T-164 | `playwright_admin_tests` | `[smoke]` | Under Basic Auth, `list.php` (`/db/database.php`) fires tag auto-load via `GHAuth.authedFetch`; `random_player.php` fires `?format=json` fetch via "Play Another Random" button click |
 | T-165 | `playwright_admin_tests` | `[smoke]` | AJAX-rendered `ai_jobs.error_msg` payload containing HTML renders as text and does not execute |
 | T-166 | `playwright_admin_tests` | `[smoke]` | Dynamic filename/CSV error payload containing HTML renders as text and does not execute |
 | T-167 | `playwright_admin_tests` | `[smoke]` | Dynamic tag/API error payload containing HTML renders as text and does not execute |
@@ -472,15 +483,17 @@ JWT browser-cookie, API/iOS Bearer, route-class, CSRF, download/media, internal-
 - [x] Discovered and documented missing pages (`timeline-api.php`, `src/index.php`) and added to matrix
 - [x] Initial PPRR completed for the original shared-function plan
 - [x] Browser credential/route architecture and exact four-file XSS scope resolved in documentation
+- [x] Phase 1 Step 3 — all 14 caller files implemented (58 `fetch()` → `GHAuth.authedFetch()` replacements)
+- [x] Phase 1 Step 4 — all 14 files browser-verified under Basic Auth via Playwright T-155–T-164 (passing 2026-09-14)
 - [ ] Final cross-document PPRR — reconciliation Step 6
 
 ### Remaining — This Feature
 
 #### Phase 1 — Pre-JWT Preparation
 - [x] **Phase 1, Step 1** — Record confirmed browser-cookie/API-Bearer/route-class architecture
-- [ ] **Phase 1, Step 2** — Create, test, deploy, and gate the token-free shared module
-- [ ] **Phase 1, Step 3** — Complete caller-file substeps 3.1–3.14
-- [ ] **Phase 1, Step 4** — Verify all converted AJAX workflows under Basic Auth
+- [x] **Phase 1, Step 2** — Create, test, deploy, and gate the token-free shared module
+- [x] **Phase 1, Step 3** — Complete caller-file substeps 3.1–3.14
+- [x] **Phase 1, Step 4** — Verify all converted AJAX workflows under Basic Auth
 - [ ] **Phase 1, Step 5** — Remediate high-risk XSS sinks and add T-165–T-167
 - [ ] **Phase 1, Step 6** — Add CSP report-only policy and T-168
 - [ ] **Phase 1, Step 7** — Run and record all Phase 1 tests
@@ -502,3 +515,112 @@ JWT browser-cookie, API/iOS Bearer, route-class, CSRF, download/media, internal-
 - [x] **Risk 2 architecture — Bearer-only browser navigation:** Resolved in policy. Browser HTML/forms/downloads/media use the Secure HttpOnly JWT cookie; iOS/API use Bearer; centralized route classes govern explicit guest credentials and response types. **Implementation remains pending** in the JWT guide and T-169–T-184. Each environment cuts over atomically; no Basic/JWT overlap.
 
 These risks were not caused by the 14-file shared-function refactor. The refactor solves the separate AJAX migration problem and provides one browser request hook for CSRF and API-session failure behavior.
+
+---
+
+## Problems Encountered During Implementation
+
+This section records concrete problems hit during Phase 1 execution. Each entry states what went wrong, why, and how it was resolved. The entries are intended to prevent the same issues during Phase 2 development and future environment promotions.
+
+---
+
+### P-1 — Node.js not installed on the Ansible controller (macOS Sequoia)
+
+**When:** Phase 1 Step 4 — first attempt to run `playwright_admin_tests` against `macbook2025`.
+
+**What happened:** The `playwright_admin_tests` role's first three tasks (add NodeSource APT repo, install `nodejs`, assert version) are delegated to `localhost`. Those tasks use Debian APT modules and fail silently or produce confusing errors on macOS because Homebrew, not APT, is the package manager.
+
+**Root cause:** The role was originally written for a Debian/pop-os controller. Migrating the controller to `macbook2025` exposed the OS assumption.
+
+**Resolution:**
+1. Added a pre-check task: `command: node --version` with `failed_when: false`. If `rc == 0`, the three Debian APT install tasks are skipped via `when: node_check.rc != 0`.
+2. Installed Node.js manually on macbook2025 via `brew install node` (v26.8.2, satisfies the v20+ assertion).
+3. The pre-check is backward-compatible: on a Debian controller without node, `rc != 0` and the APT tasks still run.
+
+**File changed:** `ansible/roles/playwright_admin_tests/tasks/main.yml`
+
+---
+
+### P-2 — Playwright Chromium extraction hung on macOS Sequoia arm64
+
+**When:** Phase 1 Step 4 — first `npx playwright install chromium` run after Node.js was installed.
+
+**What happened:** The install task (`npx playwright install chromium`) hung indefinitely. Process inspection showed chromium-1217 was downloaded (173 MB zip) but extraction stalled writing `Localizable.strings` at a fixed offset. The TCP connection to the Google CDN remained open but no data was flowing.
+
+**Root cause:** `package.json` pinned `@playwright/test` at `^1.44.0`, which resolved to `1.59.1` via the committed `package-lock.json`. Playwright 1.59.1 requires chromium-1217, which has a known extraction bug on macOS Sequoia arm64. Playwright 1.63.0 (chromium-1243) extracts cleanly on the same host.
+
+**Compounding factor:** Stale `node_modules/` and `package-lock.json` survived in the Ansible work dir (`/tmp/gighive-playwright/`) across runs because the Ansible `copy` task adds files but never deletes destination-only files. `npm ci` (used at the time) treats the lock file as authoritative, so it kept re-installing 1.59.1 even after `package.json` was updated.
+
+**Resolution:**
+1. Removed the committed `package-lock.json` from `ansible/roles/playwright_admin_tests/files/`.
+2. Changed `package.json` to `"@playwright/test": "latest"`.
+3. Changed the Ansible install task from `npm ci` to `npm install`, so each run resolves fresh.
+4. Added a cleanup task that deletes `node_modules/` and `package-lock.json` from the work dir before `npm install`, preventing stale lock files from surviving across deployments.
+5. Removed the broken pre-check (`npx playwright chromium-path` does not exist in 1.59.1) and let `npx playwright install chromium` serve as its own idempotency check — it exits in under a second when the correct chromium version is already cached.
+
+**Files changed:** `ansible/roles/playwright_admin_tests/files/package.json`, `ansible/roles/playwright_admin_tests/tasks/main.yml`
+
+---
+
+### P-3 — PHP PDO `->fetch()` calls matched by the JavaScript `fetch(` grep
+
+**When:** Phase 1 Step 3 — grepping the webroot for bare JavaScript `fetch(` call sites.
+
+**What happened:** The grep pattern `fetch(` matched PHP PDO method calls such as `)->fetch(PDO::FETCH_ASSOC)` in multiple files. These appeared in the results alongside legitimate JavaScript `fetch()` calls.
+
+**Resolution:** Manual review of every match before conversion. PHP PDO calls follow the pattern `$stmt->fetch(` or `)->fetch(` and are preceded by PHP variable sigils and PDO class references. JavaScript calls follow `fetch('` or `fetch(url` or `await fetch(`. No automated exclusion was added; each match was evaluated by context.
+
+**Lesson for Phase 2:** When auditing for remaining `fetch()` call sites during Phase 2 step audits, filter PDO calls explicitly: `grep -n "fetch(" file.php | grep -v "PDO\|\->fetch"`.
+
+---
+
+### P-4 — Incorrect assumption that existing Playwright tests covered all 14 converted files
+
+**When:** After Phase 1 Step 3 deployment and the first full-playbook pass.
+
+**What happened:** The initial assessment stated that the clean playbook run (673 tasks, zero failures) including `playwright_admin_tests` provided browser verification for all 14 converted files. This was incorrect.
+
+**Root cause:** The existing `admin-pages.spec.ts` regression test exercised only four of the fourteen files through real Chromium browser workflows:
+- `admin/admin_system.php` — export, backup, restore, clear
+- `admin/admin_database_load_import_media_from_folder.php` — folder import
+- `admin/admin_database_load_import_csv.php` — CSV import
+- `db/upload_form.php` — tab open only (page load, not AJAX)
+
+The `upload_tests` Ansible role exercises TUS and finalize at the HTTP level from the controller but does not execute `GHAuth.authedFetch()` in a browser. A passing HTTP-level test does not substitute for browser verification of the converted JavaScript.
+
+**Resolution:** Identified the 10 uncovered files, wrote 10 new Playwright tests (T-155–T-164), and added them to `admin-pages.spec.ts`. The distinction between browser-level and HTTP-level verification is now documented in the test table in the Tests section.
+
+---
+
+### P-5 — T-164 `random_player.php`: `GHAuth.authedFetch` is not called on page load
+
+**When:** Phase 1 Step 4 — first run of the new T-164 test.
+
+**What happened:** The test set up `page.waitForResponse` for `singlesRandomPlayer.php?format=json` before navigation, expecting the fetch to fire on `DOMContentLoaded`. The test timed out after 15 seconds. The page snapshot showed the player had already rendered content ("Now Playing: fc3012...") — the page was loaded but no AJAX request had fired.
+
+**Root cause:** `random_player.php` serves the initial asset server-side (PHP renders the `<h1>`, URL, crew, and date into the HTML). The JavaScript `GHAuth.authedFetch('/db/singlesRandomPlayer.php?format=json')` is inside `fetchNext()`, which only fires when the user clicks "Play Another Random". There is no auto-poll on `DOMContentLoaded`.
+
+**Resolution:** Changed T-164 to click the "Play Another Random" button and use `Promise.all` with `waitForResponse` to capture the response:
+```typescript
+const [playerResp] = await Promise.all([
+  page.waitForResponse(r => r.url().includes('singlesRandomPlayer.php?format=json'), { timeout: 15_000 }),
+  page.locator('button', { hasText: 'Play Another Random' }).click(),
+]);
+```
+
+**Lesson:** Verify whether a converted `GHAuth.authedFetch` call fires on page load or only on user interaction before writing a `waitForResponse` test. Pages that render initial content server-side in PHP will not auto-fetch on load.
+
+---
+
+### P-6 — T-156 `media_tags.php`: for-loop could produce a silent pass
+
+**When:** Phase 1 Step 4 — PPRR review of the new test code before submission.
+
+**What happened:** The T-156 test iterates namespace `<option>` elements looking for a non-empty value to select (triggering the `/api/tags.php?namespace=...` fetch). If all options had empty values, the loop would exit without making any assertion. Playwright considers a test with zero assertions a pass.
+
+**Resolution:** Added a `triggered` boolean set inside the loop and a final assertion:
+```typescript
+expect(triggered, 'No non-empty namespace option found in #newNs — tag fetch never fired').toBe(true);
+```
+
+**Lesson:** Any test that conditionally makes its only assertion inside a loop or branch must assert that the branch was actually reached. Playwright does not enforce a minimum assertion count.

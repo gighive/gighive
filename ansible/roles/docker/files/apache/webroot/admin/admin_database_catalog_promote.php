@@ -62,6 +62,7 @@ $__upload_trace_max       = max(50, (int)(getenv('UPLOAD_TRACE_MAX_CLIENT') ?: '
   <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
   <link rel="stylesheet" href="/admin/assets/import_progress.css"/>
   <script src="/admin/assets/import_progress.js"></script>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -179,7 +180,7 @@ function pollManifestJob(jobId, onDone) {
   const tick = async () => {
     if (stopped) return;
     try {
-      const r = await fetch('import_manifest_status.php?job_id='+encodeURIComponent(jobId)+'&_t='+Date.now(), {cache:'no-store'});
+      const r = await GHAuth.authedFetch('import_manifest_status.php?job_id='+encodeURIComponent(jobId)+'&_t='+Date.now(), {cache:'no-store'});
       const d = await r.json().catch(()=>null);
       const state = (d&&d.state) ? String(d.state) : 'queued';
       const elapsed = formatElapsed(Date.now()-start);
@@ -200,7 +201,7 @@ function pollManifestJob(jobId, onDone) {
 // ── writeBack ──────────────────────────────────────────────────────────────
 async function writeBack(pathHash, checksum, uploadJobId) {
   try {
-    const r = await fetch('catalog_promote_writeback.php', {
+    const r = await GHAuth.authedFetch('catalog_promote_writeback.php', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({path_hash:pathHash, checksum_sha256:checksum, upload_job_id:uploadJobId}),
     });
@@ -243,7 +244,7 @@ async function uploadOneFile(fileInfo, localFile, jobId, relpathToPathHash) {
         } catch(e) { uploadId = upload.url ? String(upload.url).split('/').pop() : ''; }
 
         try {
-          const fr = await fetch('import_manifest_upload_finalize.php', {
+          const fr = await GHAuth.authedFetch('import_manifest_upload_finalize.php', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({job_id:jobId, upload_id:uploadId, checksum_sha256:fileInfo.checksum_sha256}),
           });
@@ -284,7 +285,7 @@ async function runGroup(groupIdx, groupCount, group, fileMap, relpathToPathHash)
   }));
 
   let jobId;
-  const prepRes = await fetch('import_manifest_prepare.php', {
+  const prepRes = await GHAuth.authedFetch('import_manifest_prepare.php', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({mode:'add', org_name:group.org_name, event_type:group.event_type, items:prepItems, duplicates:[]}),
   });
@@ -295,7 +296,7 @@ async function runGroup(groupIdx, groupCount, group, fileMap, relpathToPathHash)
   jobId = String(prepData.job_id);
 
   // 2. Finalize (kicks off background worker)
-  const finRes = await fetch('import_manifest_finalize.php', {
+  const finRes = await GHAuth.authedFetch('import_manifest_finalize.php', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({job_id:jobId, resolutions:[]}),
   });
@@ -315,7 +316,7 @@ async function runGroup(groupIdx, groupCount, group, fileMap, relpathToPathHash)
   });
 
   // 4. Upload start — get file list
-  const startRes = await fetch('import_manifest_upload_start.php', {
+  const startRes = await GHAuth.authedFetch('import_manifest_upload_start.php', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({job_id:jobId}),
   });
@@ -565,7 +566,7 @@ async function loadManifest() {
   setStatus('<div class="muted"><span class="spinner"></span>Loading manifest from catalog…</div>');
   setContent('');
   try {
-    const r = await fetch('catalog_promote_start.php', {method:'POST', headers:{'Content-Type':'application/json'}});
+    const r = await GHAuth.authedFetch('catalog_promote_start.php', {method:'POST', headers:{'Content-Type':'application/json'}});
     const d = await r.json().catch(()=>null);
 
     if (!d) { setStatus('<div class="alert-err">Server returned an invalid response. Try reloading.</div>'); return; }

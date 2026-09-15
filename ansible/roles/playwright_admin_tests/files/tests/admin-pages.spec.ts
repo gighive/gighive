@@ -287,3 +287,201 @@ test('Admin pages full regression — all 13 steps', async ({ page }) => {
   await page.click('#importNormalizedBtn');
   await expect(page.locator('#importNormalizedStatus .alert-ok')).toBeVisible({ timeout: 60_000 });
 });
+
+// ── T-155: admin_system.php — System Stats AJAX via GHAuth.authedFetch ────────
+// Enables Live Mode (toggles poll timer) and waits for admin_system_stats.php
+// to confirm GHAuth.authedFetch delivers credentials and receives a valid JSON response.
+test('admin_system.php — System Stats AJAX via GHAuth.authedFetch', async ({ page }) => {
+  await page.goto('/admin/admin_system.php');
+  await expect(page.locator('#live-btn')).toBeVisible({ timeout: 10_000 });
+  const [response] = await Promise.all([
+    page.waitForResponse(r => r.url().includes('admin_system_stats.php'), { timeout: 15_000 }),
+    page.click('#live-btn'),
+  ]);
+  expect(response.status()).toBe(200);
+});
+
+// ── T-156: db/media_tags.php — tag namespace lookup via GHAuth.authedFetch ────
+// Navigates via the list page to find a real asset_id, then triggers the namespace
+// selector to fire GHAuth.authedFetch('/api/tags.php?namespace=...').
+test('db/media_tags.php — tag namespace AJAX via GHAuth.authedFetch', async ({ page }) => {
+  await page.goto('/db/database.php');
+  const assetId = await page.evaluate(() => {
+    const el = document.querySelector('[data-asset-id]');
+    return el instanceof HTMLElement ? (el.dataset.assetId ?? null) : null;
+  });
+  test.skip(!assetId, 'No assets in database — ensure fixture import ran before this test');
+  if (!assetId) return;
+
+  await page.goto('/db/media_tags.php?asset_id=' + assetId);
+  const nsSel = page.locator('#newNs');
+  await expect(nsSel).toBeVisible({ timeout: 10_000 });
+
+  const opts = await nsSel.locator('option').all();
+  let triggered = false;
+  for (const opt of opts) {
+    const v = await opt.getAttribute('value') ?? '';
+    if (v !== '') {
+      const [response] = await Promise.all([
+        page.waitForResponse(r => r.url().includes('/api/tags.php'), { timeout: 10_000 }),
+        nsSel.selectOption(v),
+      ]);
+      expect(response.status()).toBe(200);
+      triggered = true;
+      break;
+    }
+  }
+  expect(triggered, 'No non-empty namespace option found in #newNs — tag fetch never fired').toBe(true);
+});
+
+// ── T-157: admin_database_catalog_promote.php — GHAuth.authedFetch reachable ──
+// No auto-poll fires without an active promote job; calls import_manifest_status.php
+// directly via page.evaluate() to confirm authedFetch is defined and authenticated.
+test('admin_database_catalog_promote.php — GHAuth.authedFetch reachable', async ({ page }) => {
+  await page.goto('/admin/admin_database_catalog_promote.php');
+  const status = await page.evaluate(async () => {
+    const r = await (window as any).GHAuth.authedFetch(
+      '/admin/import_manifest_status.php?job_id=0&_t=' + Date.now(),
+      { cache: 'no-store' }
+    );
+    return r.status;
+  });
+  // 404/422 for unknown job_id is expected; any non-401/403 HTTP response proves authedFetch works
+  expect(status).not.toBe(401);
+  expect(status).not.toBe(403);
+  expect(status).toBeLessThan(500);
+});
+
+// ── T-158: admin/ai_worker.php — ai_jobs status_counts via GHAuth.authedFetch ─
+// The poll timer only fires when active jobs exist; calls /api/ai_jobs.php directly
+// via page.evaluate() to confirm GHAuth.authedFetch is callable from this page.
+test('admin/ai_worker.php — GHAuth.authedFetch fires ai_jobs status_counts', async ({ page }) => {
+  await page.goto('/admin/ai_worker.php');
+  const status = await page.evaluate(async () => {
+    const r = await (window as any).GHAuth.authedFetch('/api/ai_jobs.php?action=status_counts');
+    return r.status;
+  });
+  expect(status).toBe(200);
+});
+
+// ── T-159: iphone_import.php — check-ready call via GHAuth.authedFetch ─────────
+// checkReady() fires GHAuth.authedFetch('iphone_import_status.php') when the
+// Check Ready button is clicked; confirms authedFetch reaches the server.
+test('admin_database_load_import_media_from_iphone.php — GHAuth.authedFetch fires check-ready', async ({ page }) => {
+  await page.goto('/admin/admin_database_load_import_media_from_iphone.php');
+  await expect(page.locator('#step1-check-btn')).toBeVisible({ timeout: 10_000 });
+  const [response] = await Promise.all([
+    page.waitForResponse(r => r.url().includes('iphone_import_status.php'), { timeout: 15_000 }),
+    page.click('#step1-check-btn'),
+  ]);
+  expect(response.status()).not.toBe(401);
+  expect(response.status()).not.toBe(403);
+  expect(response.status()).toBeLessThan(500);
+});
+
+// ── T-160: catalog_media_from_folder.php — catalog scan via GHAuth.authedFetch ─
+// Selects the media fixture folder (Section B, non-destructive) and clicks the
+// scan button; waitForResponse confirms catalog_scan_start.php was called via authedFetch.
+test('admin_database_catalog_media_from_folder.php — catalog scan via GHAuth.authedFetch', async ({ page }) => {
+  const mediaDir = getMediaDir();
+  page.on('dialog', dialog => dialog.accept());
+
+  await page.goto('/admin/admin_database_catalog_media_from_folder.php');
+  await page.locator('#b-folder').setInputFiles(mediaDir);
+  await page.waitForFunction(
+    () => !(document.getElementById('b-scan-btn') as HTMLButtonElement)?.disabled,
+    { timeout: 15_000 }
+  );
+  const [response] = await Promise.all([
+    page.waitForResponse(r => r.url().includes('catalog_scan_start.php'), { timeout: 30_000 }),
+    page.click('#b-scan-btn'),
+  ]);
+  expect(response.status()).toBe(200);
+  await expect(page.locator('#b-status .alert-ok')).toBeVisible({ timeout: 60_000 });
+});
+
+// ── T-161: db/database_catalog.php — catalog_entry_save via GHAuth.authedFetch ─
+// The save trigger requires an existing row; calls catalog_entry_save.php directly
+// via page.evaluate() with an invalid id to confirm authedFetch is authenticated.
+test('db/database_catalog.php — GHAuth.authedFetch fires catalog_entry_save', async ({ page }) => {
+  await page.goto('/db/database_catalog.php');
+  await expect(page.locator('#catalog-table')).toBeVisible({ timeout: 15_000 });
+  const status = await page.evaluate(async () => {
+    const r = await (window as any).GHAuth.authedFetch('/db/catalog_entry_save.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ catalog_entry_id: 0, action: 'save' }),
+    });
+    return r.status;
+  });
+  // 404/422 for invalid catalog_entry_id; non-401/403 proves authedFetch passed credentials
+  expect(status).not.toBe(401);
+  expect(status).not.toBe(403);
+  expect(status).toBeLessThan(500);
+});
+
+// ── T-162: db/upload_form_admin.php — GHAuth.authedFetch reachable ────────────
+// Full TUS upload + delete flow is covered by upload_tests; this test confirms
+// GHAuth.authedFetch is defined and authenticated on the upload form admin page.
+test('db/upload_form_admin.php — GHAuth.authedFetch reachable', async ({ page }) => {
+  await page.goto('/db/upload_form_admin.php');
+  await expect(page.locator('#btnUpload')).toBeVisible({ timeout: 10_000 });
+  const status = await page.evaluate(async () => {
+    const r = await (window as any).GHAuth.authedFetch('/api/uploads/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upload_id: 'playwright-probe' }),
+    });
+    return r.status;
+  });
+  // 422/404 for unknown upload_id; non-401/403 proves authedFetch passed credentials
+  expect(status).not.toBe(401);
+  expect(status).not.toBe(403);
+  expect(status).toBeLessThan(500);
+});
+
+// ── T-163: db/upload_form_single.php — GHAuth.authedFetch reachable ───────────
+// Under Basic Auth the page is served in admin mode; confirms GHAuth.authedFetch
+// is callable from the single-upload form context.
+test('db/upload_form_single.php — GHAuth.authedFetch reachable in admin mode', async ({ page }) => {
+  await page.goto('/db/upload_form_single.php');
+  await expect(page.locator('#btnUpload')).toBeVisible({ timeout: 10_000 });
+  const status = await page.evaluate(async () => {
+    const r = await (window as any).GHAuth.authedFetch('/api/uploads/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upload_id: 'playwright-probe' }),
+    });
+    return r.status;
+  });
+  expect(status).not.toBe(401);
+  expect(status).not.toBe(403);
+  expect(status).toBeLessThan(500);
+});
+
+// ── T-164: media view pages — GHAuth.authedFetch fires for list.php and random_player.php ─
+// list.php fires GHAuth.authedFetch('/api/tags.php?...') on DOMContentLoaded when assets exist.
+// random_player.php fires authedFetch('?format=json') inside fetchNext() on button click.
+test('media view pages (list.php, random_player.php) — GHAuth.authedFetch fires on load', async ({ page }) => {
+  // list.php — tag auto-load on DOMContentLoaded
+  const tagsPromise = page.waitForResponse(
+    r => r.url().includes('/api/tags.php?target_type=asset'),
+    { timeout: 15_000 }
+  );
+  await page.goto('/db/database.php');
+  const tagsResp = await tagsPromise;
+  expect(tagsResp.status()).toBe(200);
+
+  // random_player.php — GHAuth.authedFetch fires inside fetchNext() on button click
+  await page.goto('/db/singlesRandomPlayer.php');
+  const [playerResp] = await Promise.all([
+    page.waitForResponse(
+      r => r.url().includes('singlesRandomPlayer.php?format=json'),
+      { timeout: 15_000 }
+    ),
+    page.locator('button', { hasText: 'Play Another Random' }).click(),
+  ]);
+  expect(playerResp.status()).not.toBe(401);
+  expect(playerResp.status()).not.toBe(403);
+  expect(playerResp.status()).toBeLessThan(500);
+});

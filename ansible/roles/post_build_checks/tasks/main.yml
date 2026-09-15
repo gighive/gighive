@@ -2137,3 +2137,26 @@
   failed_when: t149a_resp.rc == 0
   changed_when: false
   tags: [smoke]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-151 through T-152: gh-auth.js Deployment (Phase 1 Step 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: "[T-151] GET /auth/gh-auth.js returns HTTP 200 (shared module deployed)"
+  ansible.builtin.uri:
+    url: "https://{{ gighive_fqdn }}/auth/gh-auth.js"
+    method: GET
+    validate_certs: false
+    status_code: 200
+  changed_when: false
+  tags: [smoke]
+
+- name: "[T-152] /auth/gh-auth.js contains authedFetch (content present)"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      grep -c "authedFetch" /var/www/html/auth/gh-auth.js
+  register: t152_resp
+  failed_when: t152_resp.rc != 0
+  changed_when: false
+  tags: [smoke]

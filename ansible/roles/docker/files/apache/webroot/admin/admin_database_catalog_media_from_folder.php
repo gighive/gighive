@@ -66,6 +66,7 @@ $__video_exts = $__json_env_array('UPLOAD_VIDEO_EXTS_JSON') ?: ['mp4', 'mov', 'm
     .badge-unsup { background:#3b2700; color:#fb923c; }
     details summary { cursor:pointer; color:#60a5fa; font-size:.9rem; margin-bottom:.5rem; }
   </style>
+  <script src="/auth/gh-auth.js"></script>
 </head>
 <body>
 <div class="wrap"><div class="card">
@@ -333,7 +334,7 @@ async function runScan(sec, mode) {
   html(sec + '-status', '<div class="muted">Sending ' + files.length.toLocaleString() + ' file entries to server…</div>');
 
   try {
-    const res  = await fetch('/admin/catalog_scan_start.php', {
+    const res  = await GHAuth.authedFetch('/admin/catalog_scan_start.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -344,7 +345,7 @@ async function runScan(sec, mode) {
     html(sec + '-result', renderSummary(data));
     if (sec === 'b') {
       try {
-        const statsRes = await fetch('/admin/catalog_stats.php');
+        const statsRes = await GHAuth.authedFetch('/admin/catalog_stats.php');
         if (!statsRes.ok) throw new Error('HTTP ' + statsRes.status);
         const statsData = await statsRes.json();
         if (statsData.success) html('b-total-result', renderTotalStats(statsData));
