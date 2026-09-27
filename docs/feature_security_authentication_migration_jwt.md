@@ -25,14 +25,15 @@ GigHive's move to SaaS requires replacing shared Apache Basic Auth accounts with
 
 A centralized route-class policy determines accepted credentials, precedence, CSRF requirements, tenant/event scope, and HTML/JSON/download/media failure behavior. QR and account credentials are distinct authorities but can arrive on the same request; an explicit guest credential remains authoritative on guest routes and never silently falls back to broader account access.
 
-**The four customer journeys:**
+**The five customer journeys:**
 
 | Journey | Final authentication model | Status |
 |---|---|---|
+| Platform Operator | OIDC primary + Ansible-seeded local break-glass; `platform_admin` JWT role; cross-tenant authority | To build (Phase 5+) |
 | QR Event Goer | Event-scoped upload token or gallery nonce; no account | Existing behavior preserved under explicit route class |
 | Media Library Viewer | Individual OIDC/local identity; browser cookie or iOS/API Bearer | To build |
 | Media Uploader / Event Planner | Individual contributor/owner identity plus separate QR guest capabilities | To build |
-| Local/Platform Administrator | Individual owner/platform-admin identity; IdP MFA where available | To build |
+| Tenant Administrator | Individual `owner` identity; OIDC primary + local break-glass; IdP MFA | To build |
 
 **JWT Migration phases:**
 
@@ -56,9 +57,31 @@ A centralized route-class policy determines accepted credentials, precedence, CS
 - Sequential promotion gates: dev → lab → staging → production.
 - Google and Microsoft Entra ID as primary OIDC providers.
 - HS256 for GigHive-issued JWTs; IdP tokens validated server-side against provider JWKS.
-- Local break-glass owner retained.
+- Local break-glass account retained for both `owner` (tenant administrator) and `platform_admin` (platform operator); both coexist with OIDC so an IdP outage never locks out either tier.
 
 **Implementation decisions still open:** JWT lifetime/renewal, immediate revocation mechanism, CSRF token design, exact resolver API, stable error codes, and key-rotation window. The canonical policy owns these decisions.
+
+---
+
+## Platform Account Tier Definitions
+
+Two distinct account tiers exist in the GigHive SaaS model. These are not two levels of the same role — they are fundamentally different authorities:
+
+| Tier | Who | DB role | Auth | Scope |
+|---|---|---|---|---|
+| **Platform Operator** (god account) | GigHive SaaS operator | `platform_admin` | OIDC primary + Ansible-seeded local break-glass; both must coexist | Cross-tenant: all tenants, platform config, billing, infra — no `tenant_id` restriction |
+| **Tenant Administrator** | Customer managing their GigHive subdomain | `owner` | OIDC primary + Ansible-seeded local break-glass | Scoped to their `tenant_id`: events, QR codes, users, media, export/import |
+
+**Exclusive Platform Operator capabilities** (inaccessible to any Tenant Administrator):
+- Cross-tenant visibility: all tenants' data, usage, and security audit logs
+- Tenant provisioning, suspension, and deletion
+- Platform DB backup/restore (structurally different from per-tenant media export)
+- Platform config/infra ops: phpinfo, disk resize, Azure workers, OIDC/IdP config, rate limit config, cron workers
+- Superadmin operator console
+
+**Naming note:** Earlier planning documents used "Local Admin" and "Tenant Admin" interchangeably to describe the tenant customer. **"Tenant Administrator"** is the canonical term going forward. "Local Admin" is retired. The role value in the DB and JWT is `owner`.
+
+**OIDC invariant:** `OidcRoleMapper::mapGroups()` must never grant `platform_admin` via IdP group claims. Platform authority is assigned exclusively through Ansible-controlled provisioning. A tenant cannot escalate to `platform_admin` by manipulating their IdP configuration.
 
 ---
 
@@ -91,15 +114,37 @@ The Apache htpasswd layer and the existing `users` table in `create_media_db.sql
 | `admin` | `owner` | Full control: events, gallery, users, admin UI |
 | `uploader` | `contributor` | Upload + view access |
 | `viewer` | `viewer` | Read-only access |
-| — | `superadmin` | Reserved for GigHive platform operators; not part of this migration |
+| — | `platform_admin` | GigHive SaaS platform operator (god account); cross-tenant authority; OIDC primary + Ansible-seeded local break-glass; never granted via OIDC group claims |
 
-All PHP role checks, JWT payloads, and API responses use the DB-side names (`owner`, `contributor`, `viewer`, and the SaaS extension `platform_admin`). Old Apache usernames are used only while an environment remains fully in pre-cutover Basic mode; they are removed from request authentication during that environment's atomic JWT Migration Phase 4 cutover.
+All PHP role checks, JWT payloads, and API responses use the DB-side names (`owner`, `contributor`, `viewer`, and `platform_admin`). Old Apache usernames are used only while an environment remains fully in pre-cutover Basic mode; they are removed from request authentication during that environment's atomic JWT Migration Phase 4 cutover.
 
 ---
 
-## The Four Customer Journeys
+## The Five Customer Journeys
 
-### Journey 1 — QR Event Goer (upload + gallery, no account)
+### Journey 1 — Platform Operator (GigHive SaaS god account)
+
+**Persona:** The GigHive SaaS operator — the person who runs the platform. Manages all tenants, platform infrastructure, billing oversight, and cross-tenant operations. Has no `tenant_id` restriction; can view and act on any tenant's data.
+
+**Auth today:** No web UI login. Platform access is direct DB + Ansible + server-level tooling only.
+
+**Auth after this feature:** OIDC primary (Google or Microsoft) + Ansible-seeded local break-glass. Both must coexist so an IdP outage never locks the operator out of the platform. JWT `role` claim is `platform_admin`. The break-glass account is provisioned by Ansible at a system-level tenant context, is invisible in any tenant admin UI, and cannot be disabled through any web surface.
+
+**OIDC applicability:** Full OIDC support in Phase 5, identical pattern to the `owner` break-glass account. MFA enforced at the IdP level.
+
+**Platform Operator-exclusive functions (all gated by `requireRole('platform_admin')`):**
+
+- **Superadmin operator console** (`/platform/` prefix, planned) — view and manage all tenants; suspend/unsuspend a tenant; inspect cross-tenant usage and audit logs.
+- **Platform DB backup/restore** (`admin/run_backup.php`, `admin/restore_database.php`, related) — full DB dump and restoration; structurally different from per-tenant media export.
+- **Platform config/infra ops** — phpinfo, disk resize (`admin/write_resize_request.php`), Azure workers, OIDC/IdP config, rate limit configuration, cron workers.
+- **Cross-tenant security audit log** — direct read access across all tenants' `security_audit_log` rows; tenant administrators can only read their own tenant's entries.
+- **Tenant provisioning and suspension** — create new tenant accounts, soft-suspend a tenant at auth middleware.
+
+**Invariant:** `OidcRoleMapper::mapGroups()` must never grant `platform_admin` via IdP group claims. Platform authority is assigned exclusively through Ansible. No tenant can escalate to `platform_admin` by manipulating their IdP configuration.
+
+---
+
+### Journey 2 — QR Event Goer (upload + gallery, no account)
 
 **Persona:** Concert attendee, wedding guest, corporate event participant. Scans a printed QR code at the venue.
 
@@ -113,7 +158,7 @@ All PHP role checks, JWT payloads, and API responses use the DB-side names (`own
 
 ---
 
-### Journey 2 — Media Library Viewer (browse-only, with account)
+### Journey 3 — Media Library Viewer (browse-only, with account)
 
 **Persona:** Media librarian, band member, wedding videography client who needs ongoing access to the curated catalog.
 
@@ -125,7 +170,7 @@ All PHP role checks, JWT payloads, and API responses use the DB-side names (`own
 
 ---
 
-### Journey 3 — Media Uploader / Band/Event Planner (upload + view, with account)
+### Journey 4 — Media Uploader / Band/Event Planner (upload + view, with account)
 
 **Persona:** Videographer, band manager, musician ingesting media into the library.
 
@@ -135,9 +180,9 @@ All PHP role checks, JWT payloads, and API responses use the DB-side names (`own
 
 ---
 
-### Journey 4 — Administrator (full control)
+### Journey 5 — Tenant Administrator (full control, scoped to their tenant)
 
-**Persona:** In the current single-tenant deployment: the platform operator. In the SaaS model: the tenant owner — the person who wants to send a QR code to their fans, manage their media library, and control who has access. Has access to `/admin/*`.
+**Persona:** In the current single-tenant deployment: the local administrator. In the SaaS model: the tenant owner — the person who signed up for GigHive to manage their events, send QR codes to fans, manage their media library, and control who has access within their tenant. Has access to `/admin/*` scoped to their `tenant_id`. Distinguished from the Platform Operator: a Tenant Administrator has no visibility into other tenants and cannot perform platform-level infrastructure operations.
 
 **Auth today:** Shared `admin` htpasswd credential. Highest-privilege account; one password shared by all operators.
 
@@ -243,7 +288,7 @@ The `credentials: (user: String, pass: String)?` tuple flows through multiple fi
 | `api/oidc/token-exchange.php` | Phase 5. iOS PKCE token exchange — accepts `{code, code_verifier, redirect_uri, provider}`; exchanges code with the IdP, validates the `id_token` against JWKS, upserts `users`, returns a GigHive JWT. Keeps OIDC client secrets server-side. `provider` is `"google"` or `"microsoft"`. |
 | `api/oidc/config.php` | Phase 5. Public endpoint returning OIDC client IDs and the redirect URI for iOS. Allows the app to fetch provider configuration at runtime rather than embedding it in the bundle. |
 | `admin/users.php` | Phase 6 (post-OIDC). Owner-only user management UI. Lists all OIDC-provisioned users for the tenant; allows role change, disable/enable, and user row delete. Audit log displayed as a second tab. No local-user creation — all users are provisioned via OIDC. Uses existing `db/database.php` PDO helper and `config.php` constants — no new DB connection logic. See `feature_security_admin_user_management.md` (planned). |
-| `api/account/delete.php` *(new)* | Phase 6. Self-service account deletion endpoint. Accepts `DELETE` with a valid JWT (any role except `superadmin`). Immediately hard-deletes the caller's `users` row. Writes a `self_account_deleted` event to `security_audit_log`. Special case: if the caller is the tenant's last `owner`, returns 409 with `last_owner_cannot_delete` — they must transfer ownership first or contact the platform superadmin. Owner self-delete (not last owner) is allowed after a confirmation step in the UI; a `superadmin_notified` detail is recorded in the audit log. No `Authorization` header → 401. |
+| `api/account/delete.php` *(new)* | Phase 6. Self-service account deletion endpoint. Accepts `DELETE` with a valid JWT (any role except `platform_admin`). Immediately hard-deletes the caller's `users` row. Writes a `self_account_deleted` event to `security_audit_log`. Special case: if the caller is the tenant's last `owner`, returns 409 with `last_owner_cannot_delete` — they must transfer ownership first or contact the platform administrator. Owner self-delete (not last owner) is allowed after a confirmation step in the UI; a `platform_admin_notified` detail is recorded in the audit log. No `Authorization` header → 401. |
 
 ### Database — Schema Change
 
@@ -466,7 +511,7 @@ CREATE TABLE users (
   tenant_id       int unsigned  NOT NULL,                        -- SaaS tenant FK
   idp_provider    varchar(32)   NOT NULL DEFAULT 'local',        -- 'google'|'microsoft'|'apple'|'local'
   idp_subject     varchar(255)  DEFAULT NULL,                    -- IdP sub/oid claim
-  role            enum('owner','contributor','viewer','superadmin') NOT NULL DEFAULT 'viewer',
+  role            enum('owner','contributor','viewer','platform_admin') NOT NULL DEFAULT 'viewer',
   email           varchar(255)  DEFAULT NULL,
   display_name    varchar(255)  DEFAULT NULL,
   avatar_url      varchar(1024) DEFAULT NULL,
@@ -518,6 +563,16 @@ ALTER TABLE users
 ```
 
 No new tables are needed. Role assignment remains inline on the `users` row using the existing `role` enum.
+
+**Additional live ALTER required — rename `superadmin` to `platform_admin` in the enum (BABRRR Step 2):**
+
+```bash
+docker exec -i mysqlServer bash -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" media_db -e "
+ALTER TABLE users MODIFY COLUMN role enum('"'"'owner'"'"','"'"'contributor'"'"','"'"'viewer'"'"','"'"'platform_admin'"'"') NOT NULL DEFAULT '"'"'viewer'"'"';
+"'
+```
+
+Verify no existing rows use the old `superadmin` value before running (there should be none in a fresh environment).
 
 ### Seeding Initial Users (replaces htpasswd provisioning)
 
@@ -610,7 +665,7 @@ CREATE TABLE security_audit_log (
 - `detail` JSON stores event-specific context: `{"old_role":"viewer","new_role":"contributor"}` for role changes; `{"reason":"token_expired"}` for validation failures; `{"idp_sub":"...","provider":"google"}` for OIDC issuance.
 - No foreign key constraints on `actor_user_id` / `target_user_id` — audit rows must survive user deletion.
 - Retention: indefinite (no purge policy in v1). A future purge policy can be added as a scheduled Ansible task.
-- Consumer: the tenant `owner` reads this via `admin/users.php` (or a dedicated audit view). The `superadmin` (platform operator) can query directly.
+- Consumer: the tenant `owner` reads this via `admin/users.php` (or a dedicated audit view) scoped to their `tenant_id`. The `platform_admin` (platform operator) can query directly across all tenants.
 - Future: the structured `event_type` and `occurred_at` columns are designed to support alerting rules (e.g. N `login_failure` events in a window from the same IP) without schema changes.
 
 **Live ALTER command (BABRRR Step 2 — apply on existing environments):**
@@ -806,16 +861,16 @@ Detailed executable steps belong in the implementation and phase-specific docume
 | OIDC provider for self-hosted operators | Keycloak realm export bundled as an option |
 | JWT algorithm | HS256 throughout all phases. IdP `id_token` (RS256) is validated server-side only and never forwarded to clients. |
 | Token TTL / renewal | Open implementation decision in the canonical route policy; IdP tokens remain server-side and are not used as GigHive application credentials. |
-| Role naming | `owner`, `contributor`, and `viewer` remain canonical for this migration; reconcile DB `superadmin` with SaaS `platform_admin` before platform-role implementation; htpasswd names retire at each environment's JWT Migration Phase 4 cutover |
+| Role naming | **Resolved.** `platform_admin` is the canonical name everywhere (DB enum, JWT payload, `requireRole()` calls, all docs). The old `superadmin` enum value is renamed via BABRRR ALTER. htpasswd names retire at each environment's JWT Migration Phase 4 cutover. |
 | Separate `user_roles` table? | No — role is inline on `users.role` as per existing schema |
 | `password_hash` storage | `ALTER TABLE users ADD COLUMN password_hash` — additive to existing schema |
 | Account linking (same email, two IdPs) | Not in scope for v1; two separate `users` rows, documented edge case |
 | Browser/API credential transport | Browser HttpOnly JWT cookie; iOS/API Bearer JWT; browser and API login responses remain separate |
 | Credential precedence | Central route-class policy; explicit invalid Bearer/token/nonce never falls back to broader authority |
 | Session tracking / revocation | Open: finalize request-time account/token-version validation, denylist, or expiry-only behavior before implementation |
-| `superadmin` role | Reserved in DB schema for GigHive platform operators; not part of this migration |
+| `superadmin` role | **Resolved.** Renamed to `platform_admin` (canonical). Auth: OIDC primary + Ansible-seeded local break-glass. Exclusive capabilities: cross-tenant visibility, tenant provisioning/suspension, platform DB backup/restore, platform config/infra ops. Never granted via OIDC group claims. |
 | Local user creation via admin UI | **No.** Wholesale cutover to federated (OIDC) logins only. No customers to migrate; clean break is the right call. The break-glass `owner` account is seeded by Ansible only and is not visible or creatable in `admin/users.php`. |
 | Local users after OIDC cutover | `password_hash` column remains in schema for the break-glass account. All other `users` rows are OIDC-provisioned (`idp_provider != 'local'`). The admin UI does not expose local user management. |
-| Security audit log | **Yes — `security_audit_log` table (Phase 6).** Captures all security-relevant events: login success/failure, JWT issuance, token validation failure, role changes, account disable/enable, user delete. Per-attempt logging (no threshold). Retention: indefinite. Consumer: tenant `owner` via admin UI; `superadmin` via direct DB access. Separate from application-level audit (media, QR) — that is a future feature. |
+| Security audit log | **Yes — `security_audit_log` table (Phase 6).** Captures all security-relevant events: login success/failure, JWT issuance, token validation failure, role changes, account disable/enable, user delete. Per-attempt logging (no threshold). Retention: indefinite. Consumer: tenant `owner` via admin UI; `platform_admin` via direct DB access (cross-tenant). Separate from application-level audit (media, QR) — that is a future feature. |
 | Admin user management | **`admin/users.php` (Phase 6).** Owner-only. List, role-change, disable/enable, delete OIDC-provisioned users. No local user creation. Reads `security_audit_log` for the tenant. |
-| Self-service account deletion | **Yes — `api/account/delete.php` (Phase 6).** Any authenticated non-superadmin user may delete their own account immediately. Required for Apple App Store compliance (guideline 5.1.1) and GDPR/CCPA right-to-erasure. Tenant's last owner is blocked (409 `last_owner_cannot_delete`). Owner self-delete (non-last) is permitted with a UI confirmation step; a `superadmin_notified` detail is written to the audit log. Contributed media is orphaned, not deleted. Surface: iOS settings screen + web settings page (`account/delete.php`). |
+| Self-service account deletion | **Yes — `api/account/delete.php` (Phase 6).** Any authenticated non-`platform_admin` user may delete their own account immediately. Required for Apple App Store compliance (guideline 5.1.1) and GDPR/CCPA right-to-erasure. Tenant's last owner is blocked (409 `last_owner_cannot_delete`). Owner self-delete (non-last) is permitted with a UI confirmation step; a `platform_admin_notified` detail is written to the audit log. Contributed media is orphaned, not deleted. Surface: iOS settings screen + web settings page (`account/delete.php`). |

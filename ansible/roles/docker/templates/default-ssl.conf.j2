@@ -9,6 +9,10 @@
     {% if gighive_hsts_enabled | default(false) %}
     Header always set Strict-Transport-Security "{{ gighive_hsts_value | default('max-age=31536000; includeSubDomains; preload') }}"
     {% endif %}
+    # Phase 1 Step 6 — report-only; 'unsafe-inline' is intentional while inline scripts remain.
+    # Purpose: surface external-origin, eval, object, and base-uri violations in browser devtools.
+    # This policy does NOT provide XSS mitigation; unsafe-inline is removed in Phase 2, Step 8.
+    Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
 </IfModule>
 
 # Never serve cache/logs over HTTP

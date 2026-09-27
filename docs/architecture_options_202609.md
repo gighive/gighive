@@ -7,7 +7,7 @@ Planning / options assessment — architectures ranked for fit; no architecture 
 **Related documents:**
 - `docs/feature_security_authentication_migration_jwt.md`
 - `docs/feature_security_authentication_migration_jwt_implementation.md`
-- `docs/refactor_security_authentication_shared_auth_function.md`
+- `docs/refactored_security_authentication_shared_auth_function.md`
 - `docs/feature_completed_saas_model_changes.md`
 - `docs/ui_role_matrix.html`
 

@@ -73,8 +73,8 @@
 
 ### 2. `feature_security_authentication_migration_jwt_implementation.md` — JWT Phases 1–4
 
-**Status:** Pre-implementation — no code written; pending approval.  
-**Effort:** Large but fully planned — multi-phase, server + iOS + Apache, detailed smoke tests. See `feature_security_authentication_migration_jwt_implementation.md` for the full phase-by-phase step list.  
+**Status:** Pre-JWT AJAX preparation complete — `refactored_security_authentication_shared_auth_function.md` Phase 1 done 2026-09-15 (T-151–T-168 all passing). `gh-auth.js` deployed; all 14 AJAX caller files migrated to `GHAuth.authedFetch()` (58 call sites); XSS sinks remediated in 4 high-risk files; CSP report-only header active. Ready to begin Phase 2: Bearer JWT for iOS/API, HttpOnly browser cookie, route guards, atomic Basic-to-JWT cutover.  
+**Effort:** Large but fully planned — multi-phase, server + iOS + Apache, detailed smoke tests. AJAX pre-work already done; remaining scope is the JWT core: issuer, validation, route classes, browser login/logout, cutover, sequential promotion. See `feature_security_authentication_migration_jwt_implementation.md` for the full phase-by-phase step list.  
 **Impact:** Implements the canonical credential and route-class policy (`policy_authentication_credential_route.md`): Secure HttpOnly JWT cookie for browser requests, `Authorization: Bearer` JWT for iOS/API, centralized route-class guards, atomic Basic-to-JWT cutover per environment, sequential promotion (dev → lab → staging → prod). Required before OIDC (item 3), required before RBAC enforcement (SaaS Step 8), and the point at which the `tenant_id DEFAULT 1` transitional default is dropped. The multi-tenant schema (`feature_completed_saas_model_changes.md`) is already in place — individual `users` rows and JWT sessions are the remaining identity plumbing everything else sits on.  
 **Score: 10/10**
 
@@ -291,6 +291,7 @@ Importance: 9/10. Readiness: 3/10. Revisit after item 3 is deployed.
 
 | File | Completed |
 |---|---|
+| `refactored_security_authentication_shared_auth_function.md` — Phase 1 (Steps 1–7) | 2026-09-15 — `gh-auth.js` deployed; 14 AJAX caller files migrated to `GHAuth.authedFetch()` (58 call sites); XSS sinks fixed with `escapeHtml()` in 4 files (`admin_system.php`, `ai_worker.php`, `admin_database_load_import_csv.php`, `db/media_tags.php`); CSP `Content-Security-Policy-Report-Only` active; T-151–T-168 all passing. Phase 2 (JWT cutover, T-169–T-184) is item 2 in this ranking. |
 | `feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md` | Complete — `AuthCredential` enum + both `apply(to:)` overloads in place; `AuthSession`, `DatabaseAPIClient`, `KeychainStore`, `LoginView`, `SplashView` all updated |
 | `feature_completed_saas_model_changes.md` — Phase 1 (Steps 1–4) + Phase 1a (Step 5) | Complete — schema in `create_media_db.sql`; QR/SAAS_MODE per `feature_completed_iphone_qr_code_support.md`; Phase 2 (Steps 6–21) tracked in items 2 and 3 |
 | `refactored_storage_media_rest_endpoint.md` (Tranche 1, Phases 1–5) | 2026-08-19 — all envs verified |

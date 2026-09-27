@@ -27,7 +27,7 @@ For every web-accessible or intentionally non-web PHP surface, record:
 4. Tenant/event scope.
 5. CSRF requirement.
 6. Failure response type.
-7. Local Admin versus Platform Admin disposition.
+7. Tenant Administrator versus Platform Admin disposition.
 8. Implementation status.
 
 The canonical route policy defines behavior. This checklist assigns that behavior to concrete files and paths.
@@ -140,7 +140,7 @@ Public responses do not broaden because an incidental cookie is present. Browser
 
 All rows use class `API`, credential order `B→C`, JSON failures, and CSRF for cookie-authenticated unsafe methods. Safe GET/status requests do not require CSRF.
 
-#### Tenant Local Admin — 28
+#### Tenant Administrator (owner) — 28
 
 | File | Minimum role | Scope | Status |
 |---|---|---|---|
@@ -282,11 +282,11 @@ The final Apache denial must be tested against representative and sensitive path
 
 ---
 
-## Local Admin and Platform Admin Decisions — 27 Shared Rows
+## Tenant Administrator and Platform Admin Decisions — 27 Shared Rows
 
-The matrix has 27 shared LA+TA rows: 11 local-admin-only, 7 platform-admin-only, and 9 requiring split. Two are planned rather than existing files.
+The matrix has 27 shared Tenant Admin + Platform Admin rows: 11 tenant-admin-only, 7 platform-admin-only, and 9 requiring split. Two are planned rather than existing files.
 
-### Local Admin only — 11
+### Tenant Administrator only — 11
 
 | Endpoint | Final role/scope |
 |---|---|
@@ -316,7 +316,7 @@ The matrix has 27 shared LA+TA rows: 11 local-admin-only, 7 platform-admin-only,
 
 ### Needs split — 9
 
-| Endpoint/surface | Local Admin | Platform Admin |
+| Endpoint/surface | Tenant Administrator | Platform Admin |
 |---|---|---|
 | `/admin/admin_system.php` | Tenant dashboard/content controls | Platform control plane/infrastructure |
 | `/admin/admin_system_stats.php` | Tenant-scoped stats | Platform aggregates |
@@ -334,7 +334,7 @@ Short-term branching still requires tenant scope. Long-term platform-only surfac
 
 ## Browser AJAX Caller Prerequisite
 
-The audit identified 14 caller files plus new `auth/gh-auth.js`. The exact Phase 0 implementation is owned by `docs/refactor_security_authentication_shared_auth_function.md`.
+The audit identified 14 caller files plus new `auth/gh-auth.js`. The exact Phase 0 implementation is owned by `docs/refactored_security_authentication_shared_auth_function.md`.
 
 - Phase 0 `GHAuth.authedFetch()` is a token-free native-fetch passthrough under Basic Auth.
 - JWT browser mode uses the HttpOnly cookie automatically; JavaScript never reads the JWT.
@@ -347,7 +347,7 @@ The audit identified 14 caller files plus new `auth/gh-auth.js`. The exact Phase
 
 - [ ] **`db/delete_media_files.php` role** — approve owner rather than contributor; guest delete routes to `/api/guest-delete.php`.
 - [ ] **`db/database_catalog.php` role** — approve owner rather than viewer.
-- [ ] **Platform role name** — reconcile DB `superadmin` with SaaS `platform_admin` before implementation.
+- [x] **Platform role name** — **Resolved.** `platform_admin` is canonical everywhere (DB enum renamed from `superadmin`, JWT payload, `requireRole()` calls, all docs).
 - [ ] **`/platform/` prefix timing** — interim role branch versus immediate route separation.
 - [ ] **Revocation mode** — request-time account/token-version check, denylist, or expiry-only.
 - [ ] **`singlesRandomPlayer.php`** — retain explicit `DUAL_RESPONSE` mode or split HTML/JSON routes.
@@ -381,7 +381,7 @@ New or modified protected `/admin/` and `/api/` endpoints require the permanent 
 
 - [x] Exact source counts established.
 - [x] Route classes and credential precedence assigned by current evidence.
-- [x] 27 shared Local Admin/Platform Admin decisions preserved.
+- [x] 27 shared Tenant Administrator/Platform Admin decisions preserved.
 - [x] Internal workers and libraries separated from HTTP guards.
 - [x] Browser localStorage/Bearer instructions removed.
 - [x] Atomic cutover and canonical policy linked.

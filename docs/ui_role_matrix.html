@@ -262,14 +262,14 @@
 <div class="page-header">
   <h1>&#x1F41D; GigHive &mdash; UI Role Matrix</h1>
   <p class="subtitle">
-    All pages and screens mapped across all four roles &mdash; 2026-09-07 &nbsp;|&nbsp;
+    All pages and screens mapped across all four roles &mdash; 2026-09-22 &nbsp;|&nbsp;
     Guard decisions: <a href="feature_security_authentication_migration_jwt_endpoint_guard_checklist.md">feature_security_authentication_migration_jwt_endpoint_guard_checklist.md</a>
   </p>
   <div class="role-legend">
     <span class="role-legend-item"><span class="dot" style="background:var(--v-color)"></span><strong style="color:var(--v-color)">V</strong>&nbsp;Viewer</span>
     <span class="role-legend-item"><span class="dot" style="background:var(--u-color)"></span><strong style="color:var(--u-color)">U</strong>&nbsp;Uploader</span>
-    <span class="role-legend-item"><span class="dot" style="background:var(--la-color)"></span><strong style="color:var(--la-color)">LA</strong>&nbsp;Local Admin &mdash; event organizer / tenant customer</span>
-    <span class="role-legend-item"><span class="dot" style="background:var(--ta-color)"></span><strong style="color:var(--ta-color)">TA</strong>&nbsp;Tenant Admin &mdash; platform owner</span>
+    <span class="role-legend-item"><span class="dot" style="background:var(--la-color)"></span><strong style="color:var(--la-color)">TA</strong>&nbsp;Tenant Admin (owner) &mdash; event organizer / tenant customer</span>
+    <span class="role-legend-item"><span class="dot" style="background:var(--ta-color)"></span><strong style="color:var(--ta-color)">PA</strong>&nbsp;Platform Admin &mdash; GigHive SaaS operator (god account)</span>
     <span class="role-legend-item" style="margin-left:.5rem; padding-left:.8rem; border-left:1px solid var(--border)">
       <span class="sbadge sbadge-current">current</span>&nbsp;
       <span class="sbadge sbadge-la-only">la-only</span>&nbsp;
@@ -286,8 +286,8 @@
   <span style="flex-shrink:0">&#x26A0;&#xFE0F;</span>
   <span>
     <strong>needs-split</strong> rows require separate routes or scoped responses per role &mdash;
-    <strong>la-only</strong> rows remove TA access at SaaS Step 8 &mdash;
-    <strong>ta-only</strong> rows graduate to <code>requireRole('platform_admin')</code>.
+    <strong>la-only</strong> rows remove Platform Admin access at SaaS Step 8 (Tenant Admin scope only) &mdash;
+    <strong>ta-only</strong> rows are Platform Admin exclusive and graduate to <code>requireRole('platform_admin')</code>.
     Full rationale in <a href="feature_security_authentication_migration_jwt_endpoint_guard_checklist.md">the guard checklist doc</a>.
   </span>
 </div>
@@ -298,8 +298,8 @@
     <div class="role-pills">
       <button class="role-pill v-pill"  data-role="V">Viewer</button>
       <button class="role-pill u-pill"  data-role="U">Uploader</button>
-      <button class="role-pill la-pill" data-role="LA">Local Admin</button>
-      <button class="role-pill ta-pill" data-role="TA">Tenant Admin</button>
+      <button class="role-pill la-pill" data-role="LA">Tenant Admin</button>
+      <button class="role-pill ta-pill" data-role="TA">Platform Admin</button>
     </div>
   </div>
 
@@ -352,8 +352,8 @@
         <th style="min-width:240px">Description</th>
         <th data-sort="V"  class="role-col v-col"  title="Viewer">V <span class="sort-arrow">&#x25B4;</span></th>
         <th data-sort="U"  class="role-col u-col"  title="Uploader">U <span class="sort-arrow">&#x25B4;</span></th>
-        <th data-sort="LA" class="role-col la-col" title="Local Admin">LA <span class="sort-arrow">&#x25B4;</span></th>
-        <th data-sort="TA" class="role-col ta-col" title="Tenant Admin">TA <span class="sort-arrow">&#x25B4;</span></th>
+        <th data-sort="LA" class="role-col la-col" title="Tenant Admin (owner)">TA <span class="sort-arrow">&#x25B4;</span></th>
+        <th data-sort="TA" class="role-col ta-col" title="Platform Admin">PA <span class="sort-arrow">&#x25B4;</span></th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -683,8 +683,8 @@
       '<span class="stat">Total: <strong>' + ROWS.length + '</strong></span>' +
       '<span class="stat"><span class="dot" style="background:var(--v-color)"></span>Viewer: <strong>' + nV + '</strong></span>' +
       '<span class="stat"><span class="dot" style="background:var(--u-color)"></span>Uploader: <strong>' + nU + '</strong></span>' +
-      '<span class="stat"><span class="dot" style="background:var(--la-color)"></span>Local Admin: <strong>' + nLA + '</strong></span>' +
-      '<span class="stat"><span class="dot" style="background:var(--ta-color)"></span>Tenant Admin: <strong>' + nTA + '</strong></span>' +
+      '<span class="stat"><span class="dot" style="background:var(--la-color)"></span>Tenant Admin: <strong>' + nLA + '</strong></span>' +
+      '<span class="stat"><span class="dot" style="background:var(--ta-color)"></span>Platform Admin: <strong>' + nTA + '</strong></span>' +
       '<span class="stat" style="border-left:1px solid var(--border);padding-left:.75rem">' +
         '<span class="sbadge sbadge-needs-split">needs-split</span>&nbsp;<strong style="color:#f87171">' + nSplit + '</strong>' +
       '</span>' +

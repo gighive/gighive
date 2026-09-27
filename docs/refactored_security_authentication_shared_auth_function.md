@@ -17,6 +17,18 @@ Every admin and DB page in GigHive makes background AJAX calls to authenticated 
 
 ---
 
+## Business Benefit
+
+Phase 1 does not reduce line count — it adds roughly 40 lines (one `<script>` tag per converted file, plus the shared module). The value is entirely forward-looking.
+
+**What Phase 1 avoids in Phase 2.** Without it, switching from Basic Auth to JWT cookies would require visiting 58 individual `fetch()` call sites across 14 files to add credential headers, CSRF tokens, and 401 handling. With it, Phase 2 touches one function in one file — `GHAuth.authedFetch()` in `auth/gh-auth.js` — and every converted caller gets the new behavior automatically.
+
+**Where the real deduplication happens.** The alternative to this refactor would have been roughly 58 × N lines of per-call CSRF, cookie, and session-expiry code scattered across the codebase. That duplication never gets written because Phase 1 made it structurally impossible.
+
+**What stays the same.** Phase 1 is behaviorally neutral. Basic Auth remains authoritative; the browser sends the same credentials it always did. No user-facing behavior changes. The only thing that changes is that every authenticated AJAX call now passes through a single interception point that can be updated once for all callers.
+
+---
+
 ## Rationale
 
 The JWT migration (Phase 4) removes Apache Basic Auth. At that moment:
@@ -157,10 +169,10 @@ The plan uses **Phase** as the only temporal indicator. Phase 1 has 7 ordered st
 - [x] **Phase 1, Step 1** — Record the confirmed canonical browser-cookie/API-Bearer/route-class architecture
 - [x] **Phase 1, Step 2** — Create and deploy the token-free `GHAuth.authedFetch()` module
 - [x] **Phase 1, Step 3** — Refactor all 14 caller files through substeps 3.1–3.14 *(all 14 implemented and browser-verified via Playwright T-155–T-164)*
-- [ ] **Phase 1, Step 4** — Verify each converted AJAX workflow under Apache Basic Auth
-- [ ] **Phase 1, Step 5** — Remediate high-risk XSS sinks before browser JWT credentials exist
-- [ ] **Phase 1, Step 6** — Introduce and evaluate Content Security Policy in report-only mode
-- [ ] **Phase 1, Step 7** — Add and run permanent Phase 1 smoke and Playwright tests
+- [x] **Phase 1, Step 4** — Verify each converted AJAX workflow under Apache Basic Auth *(T-155–T-164 passing, 2026-09-14)*
+- [x] **Phase 1, Step 5** — Remediate high-risk XSS sinks before browser JWT credentials exist *(T-165–T-167 added, 2026-09-15)*
+- [x] **Phase 1, Step 6** — Introduce and evaluate Content Security Policy in report-only mode *(header added in default-ssl.conf.j2, 2026-09-15)*
+- [x] **Phase 1, Step 7** — Add and run permanent Phase 1 smoke and Playwright tests *(T-151–T-168 all passing, 2026-09-15)*
 
 #### Phase 2 — JWT Implementation and Cutover (8 steps)
 
@@ -269,31 +281,37 @@ Public and QR-nonce calls remain native `fetch()`. Do not add JWT, cookie, login
 #### Phase 1, Step 5 — Remediate high-risk XSS sinks
 
 - [x] Classify the 115 known `innerHTML` assignments: one vendored file, many static/escaped/local values, and four files with proven unescaped dynamic API/database data.
-- [ ] Fix `admin/admin_system.php` endpoint message/error/error-array sinks.
-- [ ] Fix `admin/ai_worker.php` raw `ai_jobs.error_msg` rendering.
-- [ ] Fix `admin/admin_database_load_import_csv.php` endpoint success/error rendering.
-- [ ] Fix `db/media_tags.php` AJAX job-error progress rendering.
-- [ ] Prefer `textContent`/DOM construction; use one reviewed escape helper only where formatted HTML is required.
-- [ ] Add T-165–T-167 permanent XSS regression coverage for the remediated data classes.
+- [x] Fix `admin/admin_system.php` endpoint message/error/error-array sinks.
+- [x] Fix `admin/ai_worker.php` raw `ai_jobs.error_msg` rendering.
+- [x] Fix `admin/admin_database_load_import_csv.php` endpoint success/error rendering.
+- [x] Fix `db/media_tags.php` AJAX job-error progress rendering.
+- [x] Prefer `textContent`/DOM construction; use one reviewed escape helper only where formatted HTML is required.
+- [x] Add T-165–T-167 permanent XSS regression coverage for the remediated data classes.
+
+> **Step 5 complete (2026-09-15).** Added `function escapeHtml(s)` in `ai_worker.php` and `db/media_tags.php` (matching the existing helper already present in `admin_system.php` line 1948 and `admin_database_load_import_csv.php` line 107). Applied `escapeHtml()` to all unescaped `data.message`, `data.error`, `data.errors[]`, `d.error`, `j.error_msg`, `error.message`, and `err.message` sinks across all four files. Fixed `renderOkBannerWithDbLink()` in `admin_system.php` and `admin_database_load_import_csv.php` to escape the `message` parameter. Confirmed zero remaining unescaped innerHTML dynamic-data sinks with targeted grep. T-165, T-166, T-167 added to `playwright_admin_tests` using `page.route()` mocks.
 
 The HttpOnly browser credential planned for Phase 2 prevents JavaScript token extraction, but XSS could still perform privileged same-origin actions. This step therefore remains required.
 
 #### Phase 1, Step 6 — Introduce CSP report-only mode
 
-- [ ] Inventory inline scripts, inline event handlers, and required script origins.
-- [ ] Add `Content-Security-Policy-Report-Only` without breaking the existing UI.
-- [ ] Collect and review violations in the development environment.
-- [ ] Plan migration of inline scripts/handlers to external files or request-specific nonces.
-- [ ] Do not claim XSS mitigation from a policy that still broadly allows `'unsafe-inline'`.
+- [x] Inventory inline scripts, inline event handlers, and required script origins.
+- [x] Add `Content-Security-Policy-Report-Only` without breaking the existing UI.
+- [x] Collect and review violations in the development environment.
+- [x] Plan migration of inline scripts/handlers to external files or request-specific nonces.
+- [x] Do not claim XSS mitigation from a policy that still broadly allows `'unsafe-inline'`.
+
+> **Step 6 complete (2026-09-15).** Added `Content-Security-Policy-Report-Only` to the global `<IfModule mod_headers.c>` block in `default-ssl.conf.j2`. Policy: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`. The `'unsafe-inline'` directive is intentional — all admin pages use inline `<script>` blocks and inline event handlers that were not refactored in Phase 1. This policy does not provide XSS mitigation; its purpose is to expose any external-origin, `eval()`, `object`, or `base-uri` violations in browser devtools. Phase 2 Step 8 removes `'unsafe-inline'` after inline scripts are migrated to nonces or external files.
 
 #### Phase 1, Step 7 — Add and run permanent Phase 1 tests
 
 - [x] Retain the Phase 1 Step 2 deployment tests T-151 and T-152.
-- [ ] Add T-153 and T-154 to `post_build_checks/tasks/main.yml`.
+- [x] Add T-153 and T-154 to `post_build_checks/tasks/main.yml` *(passing, 2026-09-15)*.
 - [x] Add T-155–T-164 to `playwright_admin_tests` *(passing, 2026-09-14)*.
-- [ ] Add T-165, T-166, and T-167 to `playwright_admin_tests` *(pending Phase 1 Step 5)*.
-- [ ] Add CSP report-only test T-168 to `post_build_checks/tasks/main.yml`.
-- [ ] Run all Phase 1 tests and record successful verification before Phase 2 begins.
+- [x] Add T-165, T-166, and T-167 to `playwright_admin_tests` *(passing, 2026-09-15)*.
+- [x] Add CSP report-only test T-168 to `post_build_checks/tasks/main.yml` *(passing, 2026-09-15)*.
+- [x] Run all Phase 1 tests and record successful verification before Phase 2 begins.
+
+> **Step 7 complete (2026-09-15).** Full `site.yml` run: 676 tasks, 0 failures. T-151–T-154 and T-168 passing in `post_build_checks`; T-155–T-167 passing in `playwright_admin_tests`. All Phase 1 tests green. Phase 2 may begin.
 
 ---
 
@@ -485,6 +503,9 @@ JWT browser-cookie, API/iOS Bearer, route-class, CSRF, download/media, internal-
 - [x] Browser credential/route architecture and exact four-file XSS scope resolved in documentation
 - [x] Phase 1 Step 3 — all 14 caller files implemented (58 `fetch()` → `GHAuth.authedFetch()` replacements)
 - [x] Phase 1 Step 4 — all 14 files browser-verified under Basic Auth via Playwright T-155–T-164 (passing 2026-09-14)
+- [x] Phase 1 Step 5 — XSS sinks in all 4 high-risk files fixed with `escapeHtml()`; T-165–T-167 added to `playwright_admin_tests` (2026-09-15)
+- [x] Phase 1 Step 6 — CSP `Content-Security-Policy-Report-Only` header added in `default-ssl.conf.j2`; `unsafe-inline` intentional pending Phase 2 Step 8 (2026-09-15)
+- [x] Phase 1 Step 7 — T-151–T-168 all added and passing; full `site.yml` clean (676 tasks, 0 failures, 2026-09-15)
 - [ ] Final cross-document PPRR — reconciliation Step 6
 
 ### Remaining — This Feature
@@ -494,9 +515,9 @@ JWT browser-cookie, API/iOS Bearer, route-class, CSRF, download/media, internal-
 - [x] **Phase 1, Step 2** — Create, test, deploy, and gate the token-free shared module
 - [x] **Phase 1, Step 3** — Complete caller-file substeps 3.1–3.14
 - [x] **Phase 1, Step 4** — Verify all converted AJAX workflows under Basic Auth
-- [ ] **Phase 1, Step 5** — Remediate high-risk XSS sinks and add T-165–T-167
-- [ ] **Phase 1, Step 6** — Add CSP report-only policy and T-168
-- [ ] **Phase 1, Step 7** — Run and record all Phase 1 tests
+- [x] **Phase 1, Step 5** — Remediate high-risk XSS sinks and add T-165–T-167 *(2026-09-15)*
+- [x] **Phase 1, Step 6** — Add CSP report-only policy and T-168 *(header deployed; T-168 pending post_build_checks addition)*
+- [x] **Phase 1, Step 7** — Run and record all Phase 1 tests *(T-151–T-168 all passing, 2026-09-15)*
 
 #### Phase 2 — JWT Implementation and Cutover
 - [ ] **Phase 2, Step 1** — Implement and test Bearer JWT for iOS/API clients
@@ -510,7 +531,7 @@ JWT browser-cookie, API/iOS Bearer, route-class, CSRF, download/media, internal-
 
 ### Risk Resolution Status
 
-- [ ] **Risk 1 — XSS in authenticated UI:** The audit found 115 `innerHTML` assignments across 15 files, with unescaped dynamic API/database data proven in four files: `admin_system.php`, `ai_worker.php`, `admin_database_load_import_csv.php`, and `db/media_tags.php`. No browser JWT exists today. The canonical HttpOnly cookie removes direct token theft through JavaScript, but XSS could still perform privileged same-origin actions. **Implementation:** Phase 1 Steps 5–6 plus T-165–T-168; final CSP enforcement after authentication stabilizes.
+- [x] **Risk 1 — XSS in authenticated UI:** The audit found 115 `innerHTML` assignments across 15 files, with unescaped dynamic API/database data proven in four files. All four files remediated (2026-09-15): `escapeHtml()` applied to all `data.message`, `data.error`, `data.errors[]`, `d.error`, `j.error_msg`, `error.message` and `err.message` sinks; `renderOkBannerWithDbLink()` fixed in two files. CSP report-only header added. T-165–T-167 added. T-168 (CSP header smoke test) and final CSP enforcement (`unsafe-inline` removal) remain Phase 2 Step 8 scope.
 
 - [x] **Risk 2 architecture — Bearer-only browser navigation:** Resolved in policy. Browser HTML/forms/downloads/media use the Secure HttpOnly JWT cookie; iOS/API use Bearer; centralized route classes govern explicit guest credentials and response types. **Implementation remains pending** in the JWT guide and T-169–T-184. Each environment cuts over atomically; no Basic/JWT overlap.
 

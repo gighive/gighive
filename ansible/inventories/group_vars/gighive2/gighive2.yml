@@ -4,6 +4,8 @@ vm_name: "gighive2"
 
 enable_vbox_vm_autostart: false
 vbox_autostart_debug: false
+vm_memory_mb: 8192
+vm_cpus: 4
 
 gighive_timezone: "America/New_York"
 

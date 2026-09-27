@@ -1372,9 +1372,11 @@ Phase 5 cannot be approved until this resolver is specified and tested.
 
 ---
 
-## `superadmin` Role and OIDC
+## `platform_admin` Role and OIDC
 
-The current `users.role` enum includes `superadmin`, while SaaS policy documents use `platform_admin`. That naming conflict must be resolved before platform-role implementation. Regardless of the final canonical value, `OidcRoleMapper::mapGroups()` must never grant the platform role; its highest tenant role is `owner`. Platform authority is assigned through a separate operator-controlled process and tested against privilege escalation.
+**Resolved (2026-09-22):** The canonical role name is `platform_admin` everywhere — DB enum (renamed from the old `superadmin` value via BABRRR ALTER), JWT `role` claim, `requireRole()` calls, and all planning documents. See the strategic plan's Platform Account Tier Definitions section for full details.
+
+`OidcRoleMapper::mapGroups()` must never grant `platform_admin` via IdP group claims. Its highest grantable tenant role is `owner`. Platform authority is assigned exclusively through Ansible-controlled provisioning. No tenant can escalate to `platform_admin` by manipulating their IdP configuration. This invariant must be covered by a privilege-escalation test in `post_build_checks/tasks/main.yml`.
 
 ---
 

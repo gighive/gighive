@@ -4,6 +4,8 @@ vm_name: "prod"
 
 enable_vbox_vm_autostart: false
 vbox_autostart_debug: false
+vm_memory_mb: 4096
+vm_cpus: 2
 
 gighive_timezone: "America/New_York"
 

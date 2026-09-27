@@ -485,3 +485,132 @@ test('media view pages (list.php, random_player.php) — GHAuth.authedFetch fire
   expect(playerResp.status()).not.toBe(403);
   expect(playerResp.status()).toBeLessThan(500);
 });
+
+// ── T-165: ai_worker.php — ai_jobs.error_msg renders as escaped text ──────────
+// Mocks the cancel_jobs endpoint to return a malicious error payload and verifies
+// it is HTML-escaped before being written to the progress label via innerHTML.
+test('ai_worker.php — ai_jobs error_msg renders as escaped text (T-165)', async ({ page }) => {
+  const xssPayload = '<img src=x onerror="window.__xss165=true">';
+
+  // Intercept all ai_jobs.php requests
+  await page.route('**/api/ai_jobs.php**', async (route, req) => {
+    const url = req.url();
+    if (url.includes('action=enqueue_all_untagged')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ enqueued: 1, job_ids: [99999] }),
+      });
+    } else if (url.includes('action=cancel_jobs')) {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: xssPayload }),
+      });
+    } else {
+      // status_counts and everything else: keep one active job to prevent page reload
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ queued: 1, running: 0, done: 0, failed: 0, total: 1 }),
+      });
+    }
+  });
+
+  await page.goto('/admin/ai_worker.php');
+  await page.evaluate(() => { (window as any).__xss165 = undefined; });
+
+  // Click Enqueue — enqueue_all_untagged mock fires, bulkCtrl.start() shows stop button
+  await page.locator('#enqueueAllBtn').click();
+  await page.locator('#bulk-stop-wrap').waitFor({ state: 'visible', timeout: 10_000 });
+
+  // Click Stop — cancel_jobs mock fires with xssPayload in error field
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('#bulk-stop-btn').click();
+
+  // Wait for the label to be updated with the STOP FAILED message
+  await page.waitForFunction(
+    () => document.getElementById('bulk-progress-label')?.textContent?.includes('STOP FAILED'),
+    { timeout: 5_000 }
+  );
+
+  // XSS must NOT have executed
+  const executed = await page.evaluate(() => (window as any).__xss165);
+  expect(executed).toBeFalsy();
+
+  // The label must contain the literal HTML characters as text, not as elements
+  const labelText = await page.locator('#bulk-progress-label').textContent();
+  expect(labelText).toContain('<img');
+});
+
+// ── T-166: admin_database_load_import_csv.php — error message escaping ────────
+// Mocks the import endpoint to return a malicious error payload; verifies it is
+// HTML-escaped before being written into the status div via innerHTML.
+test('admin_database_load_import_csv.php — import error message renders as escaped text (T-166)', async ({ page }) => {
+  const xssPayload = '<img src=x onerror="window.__xss166=true">';
+
+  // Intercept the legacy CSV import endpoint
+  await page.route('**/admin/import_database.php**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false, message: xssPayload }),
+    });
+  });
+
+  await page.goto('/admin/admin_database_load_import_csv.php');
+  await page.evaluate(() => { (window as any).__xss166 = undefined; });
+
+  // Provide a minimal CSV with all required headers so client-side validation passes
+  const csvContent = 't_title,d_date,d_merged_song_lists,f_singles\ntest,2024-01-01,[],0';
+  await page.locator('#database_csv').setInputFiles({
+    name: 'test.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csvContent),
+  });
+
+  // Accept confirm dialog and click Import
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('#importDbBtn').click();
+
+  // Wait for the error element to appear
+  await page.locator('#importDbStatus .alert-err').waitFor({ timeout: 10_000 });
+
+  // XSS must NOT have executed
+  const executed = await page.evaluate(() => (window as any).__xss166);
+  expect(executed).toBeFalsy();
+
+  // The error div must contain the literal HTML characters as text
+  const errText = await page.locator('#importDbStatus').textContent();
+  expect(errText).toContain('<img');
+});
+
+// ── T-167: db/media_tags.php — job error_msg renders as escaped text ──────────
+// Mocks the ai_jobs polling endpoint to return a failed job with a malicious
+// error_msg; verifies escapeHtml is applied before innerHTML write in showProgress.
+test('db/media_tags.php — job error_msg renders as escaped text (T-167)', async ({ page }) => {
+  const xssPayload = '<img src=x onerror="window.__xss167=true">';
+
+  // Intercept the single-job polling endpoint
+  await page.route('/api/ai_jobs.php?id=**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ job: { status: 'failed', error_msg: xssPayload } }),
+    });
+  });
+
+  await page.goto('/db/media_tags.php?asset_id=1');
+  await page.evaluate(() => { (window as any).__xss167 = undefined; });
+
+  // Call pollJob directly — it is a global function rendered for authenticated users
+  await page.evaluate(async () => { await (window as any).pollJob(999); });
+
+  // XSS must NOT have executed
+  const executed = await page.evaluate(() => (window as any).__xss167);
+  expect(executed).toBeFalsy();
+
+  // The progress label must contain the literal HTML characters as text
+  const labelText = await page.locator('#progress-label').textContent();
+  expect(labelText).toContain('<img');
+});

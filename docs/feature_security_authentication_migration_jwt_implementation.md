@@ -6,7 +6,7 @@ Planning — rewritten to the canonical browser-cookie, API/iOS Bearer, centrali
 **Strategic plan:** `docs/feature_security_authentication_migration_jwt.md`  
 **Canonical policy:** `docs/policy_authentication_credential_route.md`  
 **Endpoint inventory:** `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md`  
-**Web prerequisite:** `docs/refactor_security_authentication_shared_auth_function.md`  
+**Web prerequisite:** `docs/refactored_security_authentication_shared_auth_function.md`  
 **Completed iOS prerequisite:** `docs/feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md`  
 **OIDC follow-on:** `docs/feature_security_authentication_migration_jwt_oidc_phase5.md`
 
@@ -48,7 +48,7 @@ JWT Migration Phase 5 OIDC and Phase 6 account management/audit remain separate 
 
 - OIDC provider implementation (JWT Migration Phase 5).
 - User-management UI, audit-log UI, and self-service deletion (Phase 6).
-- Final Local Admin versus Platform Admin surface split beyond the route/role assignments in the endpoint checklist.
+- Final Tenant Administrator versus Platform Admin surface split beyond the route/role assignments in the endpoint checklist.
 - A PHP-to-Java rewrite; the contract is designed to remain portable.
 
 ---
@@ -105,7 +105,7 @@ Implementation must not begin past the named gate until the user approves:
 6. **Stable error codes:** Final JSON/guest/media code vocabulary.
 7. **Key rotation:** Active/previous key validation window.
 8. **CSP:** Report collection and enforcement policy.
-9. **Role name:** Reconcile existing DB `superadmin` with SaaS `platform_admin` before platform-role implementation.
+9. **Role name:** **Resolved.** `platform_admin` is canonical (DB enum renamed from `superadmin`, JWT payload, `requireRole()` calls, all docs). See BABRRR ALTER in the strategic plan.
 
 ---
 
@@ -221,7 +221,7 @@ Verify `feature_completed_security_authentication_migration_jwt_ios_auth_cred_ty
 
 ### Phase 0, Step 2 — Web shared-auth/XSS/CSP preparation
 
-Complete `refactor_security_authentication_shared_auth_function.md` under Apache Basic Auth:
+Complete `refactored_security_authentication_shared_auth_function.md` under Apache Basic Auth:
 
 - Deploy token-free `GHAuth.authedFetch()` first.
 - Convert the 14 authenticated AJAX caller files.
@@ -637,4 +637,4 @@ Log route class, credential type, outcome, role result, tenant/event identifier,
 
 - [ ] JWT Migration Phase 5 OIDC implementation.
 - [ ] JWT Migration Phase 6 user management/audit/account lifecycle.
-- [ ] Local Admin/Platform Admin route separation and tenant-scoping implementation.
+- [ ] Tenant Administrator/Platform Admin route separation and tenant-scoping implementation.

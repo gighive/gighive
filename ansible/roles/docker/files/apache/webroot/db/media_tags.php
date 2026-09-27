@@ -241,6 +241,10 @@ $namespaceColors = [
 <script>
 const assetId = <?= $assetId ?>;
 
+function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function setMsg(text, ok) {
     const el = document.getElementById('msg');
     el.style.color = ok ? '#4ade80' : '#f87171';
@@ -264,7 +268,7 @@ function showProgress(status, extraLabel) {
     wrap.style.display = 'block';
     fill.className = 'pf-' + status;
     fill.style.width = meta.pct + '%';
-    label.innerHTML = '<strong>' + status.toUpperCase() + '</strong> — ' + (extraLabel || meta.label);
+    label.innerHTML = '<strong>' + escapeHtml(status.toUpperCase()) + '</strong> — ' + escapeHtml(extraLabel || meta.label);
 }
 
 async function pollJob(jobId) {

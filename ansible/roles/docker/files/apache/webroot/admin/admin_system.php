@@ -672,13 +672,13 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         btn.disabled = false;
       } else {
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
-        status.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>';
+        status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(msg) + '</div>';
         btn.textContent = 'Write Resize Request';
         btn.disabled = false;
       }
     })
     .catch(error => {
-      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(error.message) + '</div>';
       btn.textContent = 'Write Resize Request';
       btn.disabled = false;
     });
@@ -709,13 +709,13 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         btn.textContent = 'Cleared Successfully';
         btn.style.background = '#28a745';
       } else {
-        status.innerHTML = '<div class="alert-err">Error: ' + (data.message || 'Unknown error occurred') + '</div>';
+        status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(data.message || 'Unknown error occurred') + '</div>';
         btn.disabled = false;
         btn.textContent = 'Clear All Media Data';
       }
     })
     .catch(error => {
-      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(error.message) + '</div>';
       btn.disabled = false;
       btn.textContent = 'Clear All Media Data';
     });
@@ -752,14 +752,14 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         btn.textContent = 'Deleted Successfully';
         btn.style.background = '#28a745';
       } else {
-        const errs = Array.isArray(data.errors) && data.errors.length ? '<br>' + data.errors.join('<br>') : '';
-        status.innerHTML = '<div class="alert-err">Error: ' + (data.message || 'Unknown error occurred') + errs + '</div>';
+        const errs = Array.isArray(data.errors) && data.errors.length ? '<br>' + data.errors.map(s => escapeHtml(s)).join('<br>') : '';
+        status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(data.message || 'Unknown error occurred') + errs + '</div>';
         btn.disabled = false;
         btn.textContent = 'Delete All Media Files';
       }
     })
     .catch(error => {
-      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(error.message) + '</div>';
       btn.disabled = false;
       btn.textContent = 'Delete All Media Files';
     });
@@ -823,7 +823,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       pollBackupLog(jobId, saveLocal);
     })
     .catch(error => {
-      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(error.message) + '</div>';
       btn.disabled = false;
       btn.textContent = 'Create Database Backup Now';
     });
@@ -950,7 +950,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         }
       })
       .catch(err => {
-        status.innerHTML = '<div class="alert-err">Network error: ' + err.message + '</div>';
+        status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(err.message) + '</div>';
         if (__backupPollTimer) {
           clearInterval(__backupPollTimer);
           __backupPollTimer = null;
@@ -1118,7 +1118,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
       pollRestoreLog(jobId);
     })
     .catch(error => {
-      status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+      status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(error.message) + '</div>';
       btn.disabled = false;
       btn.style.background = '';
       btn.style.borderColor = '';
@@ -1193,7 +1193,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
         }
       })
       .catch(err => {
-        status.innerHTML = '<div class="alert-err">Network error: ' + err.message + '</div>';
+        status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(err.message) + '</div>';
         if (__restorePollTimer) {
           clearInterval(__restorePollTimer);
           __restorePollTimer = null;
@@ -1225,7 +1225,7 @@ $__azure_available = (string)getenv('AZURE_BLOB_ACCOUNT_NAME') !== ''
   }
 
   function renderOkBannerWithDbLink(message, linkLabel) {
-    return '<div class="alert-ok">' + String(message) + renderDbLinkButton(linkLabel) + '</div>';
+    return '<div class="alert-ok">' + escapeHtml(message) + renderDbLinkButton(linkLabel) + '</div>';
   }
 
   function onExportDestChange() {

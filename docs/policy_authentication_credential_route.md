@@ -11,7 +11,7 @@ Draft policy approved as the reconciliation source — focused policy PPRR compl
 - `docs/feature_security_authentication_migration_jwt_implementation.md`
 - `docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md`
 - `docs/feature_completed_security_authentication_migration_jwt_ios_auth_cred_type.md`
-- `docs/refactor_security_authentication_shared_auth_function.md`
+- `docs/refactored_security_authentication_shared_auth_function.md`
 - `docs/ui_role_matrix.html`
 
 ---
@@ -624,7 +624,7 @@ The user approved the reconciliation sequence but requires a pause and explicit 
 - [x] **Step 4.6** — Replace localStorage/overlap browser design and add route-policy implementation in `feature_security_authentication_migration_jwt_implementation.md`.
 - [x] **Step 4.7** — Rebuild `feature_security_authentication_migration_jwt_endpoint_guard_checklist.md` around exact route classes, credentials, roles, scopes, CSRF, and responses.
 - [x] **Step 4.8** — Reconcile browser-cookie and API/iOS Bearer behavior in `feature_security_authentication_migration_jwt_oidc_phase5.md`.
-- [x] **Step 4.9** — Align `refactor_security_authentication_shared_auth_function.md` with resolved policy decisions, exact counts, atomic cutover, and tests.
+- [x] **Step 4.9** — Align `refactored_security_authentication_shared_auth_function.md` with resolved policy decisions, exact counts, atomic cutover, and tests.
 - [x] **Step 5** — Search all documentation for stale or conflicting authentication guidance.
 - [x] **Step 6** — Run the full cross-document PPRR. Completed 2026-09-09. One finding: login endpoint rate limiting added as Open Implementation Decision #11. All other checks passed.
 

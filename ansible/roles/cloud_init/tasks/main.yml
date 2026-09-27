@@ -590,7 +590,7 @@
     --port 1 --device 0 --type dvddrive --medium "{{ nocloud_iso }}"
 
 - name: Set VM memory and CPUs
-  command: VBoxManage modifyvm "{{ vm_name }}" --memory 8192 --cpus 8
+  command: VBoxManage modifyvm "{{ vm_name }}" --memory {{ vm_memory_mb }} --cpus {{ vm_cpus }}
 
 - name: Disable legacy VGA controller (ARM64 — incompatible with Apple Silicon)
   when: cloud_arch == 'arm64'

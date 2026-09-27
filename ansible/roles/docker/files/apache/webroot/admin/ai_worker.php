@@ -245,6 +245,10 @@ $untaggedCount = $stats['video_assets'] - $stats['tagged_assets'];
 
 <script>
 // ── Shared helpers ────────────────────────────────────────────────────────────
+function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function setMsg(el, text, ok) {
     if (!el) return;
     el.style.color = ok === null ? '' : (ok ? '#4ade80' : '#f87171');
@@ -303,7 +307,7 @@ function makeProgressController(prefix) {
                 show(100, 'pf-failed', `<strong>STOPPED</strong> — ${n} queued job(s) removed. Reloading…`);
                 setTimeout(() => location.reload(), 2000);
             } else {
-                show(0, 'pf-failed', `<strong>STOP FAILED</strong> — ${d.error || 'unknown error'}`);
+                show(0, 'pf-failed', `<strong>STOP FAILED</strong> — ${escapeHtml(d.error || 'unknown error')}`);
                 showStopBtn(true);
             }
         } catch(e) {
@@ -318,7 +322,7 @@ function makeProgressController(prefix) {
         if (failedJobs.length === 0) { el.innerHTML = ''; return; }
         const items = failedJobs.map(j => {
             const err = (j.error_msg || 'no error recorded').substring(0, 160);
-            return `<li><a href="/db/media_tags.php?asset_id=${j.target_id}">Asset #${j.target_id}</a><span class="ferr">${err}</span></li>`;
+            return `<li><a href="/db/media_tags.php?asset_id=${j.target_id}">Asset #${j.target_id}</a><span class="ferr">${escapeHtml(err)}</span></li>`;
         }).join('');
         el.innerHTML = `<details open><summary>${failedJobs.length} failed job(s) — expand to see details</summary><ul class="failed-list-items">${items}</ul></details>`;
     }

@@ -115,7 +115,7 @@ if ($user !== 'admin') {
   }
 
   function renderOkBannerWithDbLink(message, linkLabel) {
-    return '<div class="alert-ok">' + String(message) + renderDbLinkButton(linkLabel) + '</div>';
+    return '<div class="alert-ok">' + escapeHtml(message) + renderDbLinkButton(linkLabel) + '</div>';
   }
 
 
@@ -286,14 +286,14 @@ if ($user !== 'admin') {
           btn.style.cursor = 'default';
         } else {
           const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
-          status.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+          status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(msg) + '</div>'
             + (data && data.steps ? renderImportStepsShared(data.steps, {tableCounts: data.table_counts, showProgressBar: true, label: 'Progress:', statusIndentPx: 72}) : '');
           btn.disabled = false;
           btn.textContent = 'Upload CSV and Reload DB';
         }
       })
       .catch(error => {
-        status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+        status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(error.message) + '</div>';
         btn.disabled = false;
         btn.textContent = 'Upload CSV and Reload DB';
       });
@@ -364,14 +364,14 @@ if ($user !== 'admin') {
           btn.style.cursor = 'default';
         } else {
           const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Unknown error occurred';
-          status.innerHTML = '<div class="alert-err">Error: ' + msg + '</div>'
+          status.innerHTML = '<div class="alert-err">Error: ' + escapeHtml(msg) + '</div>'
             + (data && data.steps ? renderImportStepsShared(data.steps, {tableCounts: data.table_counts, showProgressBar: true, label: 'Progress:', statusIndentPx: 72}) : '');
           btn.disabled = false;
           btn.textContent = 'Upload 2 CSVs and Reload DB';
         }
       })
       .catch(error => {
-        status.innerHTML = '<div class="alert-err">Network error: ' + error.message + '</div>';
+        status.innerHTML = '<div class="alert-err">Network error: ' + escapeHtml(error.message) + '</div>';
         btn.disabled = false;
         btn.textContent = 'Upload 2 CSVs and Reload DB';
       });

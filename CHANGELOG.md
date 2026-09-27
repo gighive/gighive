@@ -2,8 +2,8 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
-releaseNotes20260914.txt
-Changes: centralized browser hook for authentication: every AJAX call to an authenticated endpoint goes through one function
+releaseNotes20260927.txt
+Changes: XSS-escaped all admin page innerHTML error insertions, added CSP report-only header to Apache, fleshed out platform_admin as a distinct 5th user journey in the JWT migration docs, expanded the SaaS cost/pricing doc with Azure Blob tier modeling and a Gallery Free vs. Starter launch decision and vm cpu and mem variabilization.
 
 macbook2025:gighiveinfra sodo$ git status
 On branch master
@@ -12,28 +12,29 @@ Your branch is up to date with 'origin/master'.
 Changes to be committed:
   (use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_media_from_folder.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_promote.php
+	modified:   ansible/inventories/group_vars/gighive/gighive.yml
+	modified:   ansible/inventories/group_vars/gighive2/gighive2.yml
+	modified:   ansible/inventories/group_vars/prod/prod.yml
+	new file:   ansible/inventories/inventory_staging2.yml
+	modified:   ansible/roles/cloud_init/tasks/main.yml
 	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_csv.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
-	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_iphone.php
 	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
 	modified:   ansible/roles/docker/files/apache/webroot/admin/ai_worker.php
-	new file:   ansible/roles/docker/files/apache/webroot/auth/gh-auth.js
-	modified:   ansible/roles/docker/files/apache/webroot/db/database_catalog.php
 	modified:   ansible/roles/docker/files/apache/webroot/db/media_tags.php
-	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
-	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
-	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_single.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
-	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/random_player.php
-	deleted:    ansible/roles/playwright_admin_tests/files/package-lock.json
-	modified:   ansible/roles/playwright_admin_tests/files/package.json
+	modified:   ansible/roles/docker/templates/default-ssl.conf.j2
 	modified:   ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts
-	modified:   ansible/roles/playwright_admin_tests/tasks/main.yml
 	modified:   ansible/roles/post_build_checks/tasks/main.yml
-	modified:   ansible/roles/upload_tests/tasks/test_7.yml
-	modified:   docs/refactor_security_authentication_shared_auth_function.md
+	modified:   docs/architecture_options_202609.md
+	modified:   docs/feature_saas_pricing_model.md
+	modified:   docs/feature_security_authentication_migration_jwt.md
+	modified:   docs/feature_security_authentication_migration_jwt_endpoint_guard_checklist.md
+	modified:   docs/feature_security_authentication_migration_jwt_implementation.md
+	modified:   docs/feature_security_authentication_migration_jwt_oidc_phase5.md
+	modified:   docs/next_major_changes_20260906.md
+	modified:   docs/operating_model_costs_azure_vm_blob.md
+	modified:   docs/policy_authentication_credential_route.md
+	renamed:    docs/refactor_security_authentication_shared_auth_function.md -> docs/refactored_security_authentication_shared_auth_function.md
+	modified:   docs/ui_role_matrix.html
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH
@@ -54,6 +55,8 @@ Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventor
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20260819.log
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
 Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
+# GIG STAGING2, rebuild (upload_tests may break on step 7..if so, put it below 5)
+Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging2.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260927.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260820.log
 # PROD ROLLOUT
@@ -136,6 +139,41 @@ Issue: Why is cert creation taking longer now after adding ffmpeg to install?
 Issue: investigate vids that didn't produce thumbnails
 Infra: FFmpeg install taking too long at 12min on popos, can we confine ffmpeg install to vm only?
 Infra: rebuild prod baremetal with same ansible scripts as staging
+
+
+*** 
+releaseNotes20260914.txt
+Changes: centralized browser hook for authentication: every AJAX call to an authenticated endpoint goes through one function
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_catalog_promote.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_csv.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_folder.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_database_load_import_media_from_iphone.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/admin_system.php
+	modified:   ansible/roles/docker/files/apache/webroot/admin/ai_worker.php
+	new file:   ansible/roles/docker/files/apache/webroot/auth/gh-auth.js
+	modified:   ansible/roles/docker/files/apache/webroot/db/database_catalog.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/media_tags.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_admin.php
+	modified:   ansible/roles/docker/files/apache/webroot/db/upload_form_single.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/list.php
+	modified:   ansible/roles/docker/files/apache/webroot/src/Views/media/random_player.php
+	deleted:    ansible/roles/playwright_admin_tests/files/package-lock.json
+	modified:   ansible/roles/playwright_admin_tests/files/package.json
+	modified:   ansible/roles/playwright_admin_tests/files/tests/admin-pages.spec.ts
+	modified:   ansible/roles/playwright_admin_tests/tasks/main.yml
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+	modified:   ansible/roles/upload_tests/tasks/test_7.yml
+	modified:   docs/refactor_security_authentication_shared_auth_function.md
 
 *** 
 releaseNotes20260914.txt

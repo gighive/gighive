@@ -2160,3 +2160,49 @@
   failed_when: t152_resp.rc != 0
   changed_when: false
   tags: [smoke]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-153 through T-154: Authenticated page reachability (Phase 1 Step 7)
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: "[T-153] GET /admin/admin_system.php with Basic Auth returns 200"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/admin/admin_system.php"
+    method: GET
+    url_username: "admin"
+    url_password: "{{ gighive_admin_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ gighive_validate_certs }}"
+    return_content: false
+    status_code: 200
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke]
+
+- name: "[T-154] GET /db/media_tags.php with Basic Auth is reachable (200 or 400; not 401/403)"
+  ansible.builtin.uri:
+    url: "{{ gighive_base_url }}/db/media_tags.php"
+    method: GET
+    url_username: "admin"
+    url_password: "{{ gighive_admin_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ gighive_validate_certs }}"
+    return_content: false
+    status_code: [200, 400]
+    headers: "{{ {'Host': gighive_hostname_for_host_header} if (gighive_hostname_for_host_header | length) > 0 else omit }}"
+  changed_when: false
+  tags: [smoke]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-168: CSP report-only header presence (Phase 1 Step 6)
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: "[T-168] Content-Security-Policy-Report-Only header is present on HTTP response"
+  community.docker.docker_container_exec:
+    container: "{{ apache_container_name }}"
+    command: >-
+      sh -lc 'curl -sk -I https://127.0.0.1/ | grep -i "Content-Security-Policy-Report-Only"'
+  register: t168_resp
+  failed_when: t168_resp.rc != 0
+  changed_when: false
+  tags: [smoke]

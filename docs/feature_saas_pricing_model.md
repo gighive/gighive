@@ -21,6 +21,87 @@ Pricing is **per gallery** for casual users (weddings, graduations, one-off even
 
 ---
 
+## Platform Assumptions
+
+The following six assumptions govern the GigHive SaaS design, pricing model, and
+infrastructure architecture. Any change to an assumption requires corresponding updates
+to the pricing tiers, margin analysis, or infrastructure design.
+
+### Assumption 1 — Always operate at a profit
+
+GigHive SaaS must be profitable at every plan tier at expected utilization levels. Margins
+do not need to be generous, but the platform must cover all operating costs — blob storage,
+compute, CDN, Stripe fees, and any pass-through API costs — and return a positive margin.
+A plan tier that is margin-negative at expected utilization is a pricing defect, not an
+infrastructure optimization opportunity. The margin figures in the Infrastructure Cost Notes
+section must be kept current; any new cost driver added to the platform must be reflected
+there before launch.
+
+### Assumption 2 — Fully automated deployment
+
+The platform must be deployable end-to-end from a single Ansible `site.yml` run with no
+manual post-deploy steps. The current Ansible-based stack already satisfies this. Step 14
+(billing worker, Stripe webhooks, lifecycle cron) and all subsequent SaaS steps must
+continue this pattern — no step may require operator console clicks, manual SQL, or
+out-of-band configuration to activate.
+
+### Assumption 3 — No sysadmin intervention at runtime; infrastructure autoscales
+
+Once deployed, the platform must handle normal load variations without operator action.
+Alerts and monitoring may notify operators, but no manual scaling, restart, or capacity
+adjustment should be required under normal operating conditions. Storage (Azure Blob) and
+CDN (Cloudflare) autoscale by design. CPU and worker capacity require the autoscaling
+architecture described in Assumption 5.
+
+### Assumption 4 — Automated service healing *(stretch goal)*
+
+Failed or unhealthy service instances must restart automatically without operator
+intervention. This goal is addressed after Assumptions 1–3 are satisfied. The autoscaling
+platform chosen for Assumption 5 (Azure Container Apps, AKS, or equivalent) provides
+liveness probes and automatic container restart natively; this assumption is satisfied as a
+side-effect of the Assumption 5 infrastructure decision rather than a separate architectural
+effort.
+
+### Assumption 5 — Azure deployment; horizontal scalability design required
+
+GigHive SaaS will be deployed on Microsoft Azure. The current VirtualBox/Docker-on-fixed-VM
+stack is not horizontally scalable and does not satisfy Assumption 3 at SaaS load. A proper
+autoscaling architecture must be designed before production launch covering:
+
+- **Web tier** — multiple instances behind a load balancer; candidates: Azure Container
+  Apps, Azure App Service, or AKS
+- **Background workers** (probe job, AI worker, billing worker) — queue-triggered horizontal
+  scaling; each worker type runs as an independently scalable unit decoupled from the web
+  tier; candidates: Azure Container Apps jobs, Azure Functions (consumption plan), or AKS
+  worker node pools
+- **Storage** — Azure Blob Storage (Step 19 of `feature_saas_model_changes.md`) is the
+  target; autoscales natively
+
+**Cost model impact:** The fixed Standard_B2ms VM estimate in
+`operating_model_costs_azure_vm_blob.md` applies to a single-VM deployment and will not
+remain valid once autoscaling is adopted. The cost model must be updated to
+consumption-based estimates (Azure Container Apps: ~$0.000024/vCPU-second,
+~$0.000003/GB-second) once the autoscaling architecture is finalized. At low tenant counts,
+consumption-based compute is cheaper than a fixed VM; at high tenant counts it scales
+proportionally with revenue.
+
+### Assumption 6 — All customer-facing endpoints fronted by Cloudflare
+
+Every customer-facing surface — web tier, media streaming, upload API, guest gallery — is
+fronted by Cloudflare. This is already planned in Step 6 of `feature_saas_model_changes.md`
+for wildcard subdomain routing and wildcard TLS; this assumption elevates it from a Step 6
+implementation detail to a foundational platform requirement:
+
+- Cloudflare absorbs the majority of Azure outbound streaming egress cost; the margin
+  figures in the Infrastructure Cost Notes are only valid if Cloudflare is in place
+- Cloudflare provides DDoS protection and Bot Fight Mode at all plan tiers at no additional
+  cost above the plan fee
+- Recommended tier: Free at launch; upgrade to Pro (~$25/month) when paying customers are
+  active; see Infrastructure Cost Notes § "Cloudflare Plan and Cost" for full tier analysis
+  and when Business tier becomes warranted
+
+---
+
 ## Beta Release Strategy
 
 The pricing tiers are defined and the lifecycle (14-day trial, soft-delete, hard-delete)
@@ -133,7 +214,7 @@ Storage cap applies per gallery.
 
 | Plan | Price/month | Storage cap | Constraints | Best for |
 |---|---|---|---|---|
-| Gallery Free | Free | None enforced (beta) | Max 2 concurrent active galleries per account; 14-day active window per gallery | Trying GigHive; events where content is only needed short-term |
+| Gallery Free | Free | 100 GB per gallery | Max 2 concurrent active galleries per account; 14-day active window per gallery | Trying GigHive; events where content is only needed short-term |
 | Gallery Starter | $20.00 | < 500 GB | — | Small events, personal use |
 | Gallery Pro | $40.00 | < 1 TB | — | Large single events |
 | Gallery Max | $99.95 | < 5 TB | — | High-volume events |
@@ -174,7 +255,8 @@ with the account subscription.
 | | Gallery Free | Gallery Starter | Gallery Pro | Gallery Max | Account Pro | Account Studio |
 |---|---|---|---|---|---|---|
 | **Price/month** | Free | $20 | $40 | $99.95 | $40 | $99.95 |
-| **Storage cap** | None enforced (beta) | 500 GB per gallery | 1 TB per gallery | 5 TB per gallery | 1 TB total | 5 TB total |
+| **Storage cap** | 100 GB per gallery | 500 GB per gallery | 1 TB per gallery | 5 TB per gallery | 1 TB total | 5 TB total |
+| **Max file size** | 6 GB | 6 GB | 6 GB | 6 GB | 6 GB | 6 GB |
 | **Concurrent gallery limit** | 2 active at any time | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited |
 | **Active window** | 14 days per gallery | Unlimited (paid) | Unlimited (paid) | Unlimited (paid) | Unlimited (paid) | Unlimited (paid) |
 | **Free trial per gallery** | This IS the plan | Yes — 14 days | Yes — 14 days | Yes — 14 days | Yes — 14 days† | Yes — 14 days† |
@@ -862,3 +944,126 @@ Preliminary list. Final scope confirmed when Step 14 implementation begins.
   for this since `tenants`, `gallery_subscriptions`, and `billing_events` already carry the
   required status fields — the work is admin page query scoping; full design note is in the
   Two-Tier Admin Structure note under step 16 of `feature_saas_model_changes.md`
+
+---
+
+## Cost Model Gaps — To Address Before Launch
+
+Cross-referenced against `docs/ui_role_matrix.html`. Four functional areas present in the
+codebase generate real costs or create billing blind spots that are not addressed in this
+document.
+
+### Summary
+
+| Gap | Severity | Action needed |
+|---|---|---|
+| AI tagging — customer API key model | Feature enhancement + for cost — customer supplies own LLM API key; GigHive bears no LLM cost | Design per-tenant key storage (Azure SAS pattern); gate AI tagging on key presence; track as feature enhancement in `next_major_changes_20260906.md` |
+| Non-event library storage | Medium — depends on whether import flows are available to SaaS tenants | Define scope policy; if LA has import access in SaaS, extend storage accounting to cover non-event assets |
+| Streaming egress modeling | Medium — margin analysis is optimistic at high viewership | Add streaming egress estimate to infrastructure cost notes; consider per-gallery streaming cap |
+| Compute (probe/transcode) | Low — real but small at current scale | Add to infrastructure cost notes for completeness |
+
+---
+
+### 1. AI Tagging — Customer-Supplied API Key Model (Feature Enhancement / For Cost)
+
+`ai_worker.php` and `/api/ai_jobs.php` are accessible to Local Admin (event organizer) and
+are marked `needs-split` in `ui_role_matrix.html`. The AI tagger sends video frames to an
+external LLM API. Without a cost treatment, this is an unbounded per-call cost to GigHive
+that scales directly with upload volume and can exceed plan revenue at Gallery Starter
+utilization levels (a typical 60 GB gallery with ~75 videos at $0.20–$0.40 per video in
+LLM API calls alone exceeds the $20/month plan price).
+
+**Decision (2026-09-16): customer-supplied API key model.** AI tagging is available as a
+tenant-enabled feature. Each tenant provides their own LLM API key; the AI worker calls the
+LLM provider's API using the tenant's key on their behalf. GigHive incurs no LLM API cost.
+The tenant pays their LLM provider directly based on their own usage.
+
+**Feature enhancement required** — per-tenant key storage and worker update:
+
+- Per-tenant LLM API key stored encrypted in DB, following the same pattern as the Azure
+  SAS token for Blob export: tenant provides the key via the settings page (SaaS Step 12);
+  GigHive never displays it back in plaintext after save
+- AI worker reads `tenant_api_key` from the tenant record rather than a platform-level key
+  from `.env`
+- AI tagging gated by a per-tenant flag: enabled only when a valid key is stored; the
+  `ai_worker.php` LA view shows a prompt to enter an API key when none is configured
+- Key invalidation: if the AI worker receives an authentication error from the LLM provider,
+  it marks the key invalid and disables tagging for that tenant with a visible error in the
+  admin UI; the tenant must re-enter a working key to re-enable
+
+**Why this is a "for cost" item:** This treatment was chosen specifically to prevent LLM API
+costs from eroding plan margins. With customer-supplied keys, the margin figures in
+Infrastructure Cost Notes are accurate as stated — LLM costs are borne by the tenant, not
+GigHive. Track the feature enhancement work (key storage, worker update, settings UI) in
+`next_major_changes_20260906.md`.
+
+`refactor_ai_video_tagger_scan_methodology_improvements.md` (item 9 in
+`next_major_changes_20260906.md`) optimizes LLM API call count by switching to I-frame
+sampling. That optimization now benefits the tenant's API spend, not GigHive's — it is
+still worth doing to make the feature economical for tenants to use.
+
+---
+
+### 2. Non-Event Library Storage (Medium)
+
+The pricing model's storage accounting sums `assets.file_size_bytes GROUP BY event_id`.
+This covers only assets attached to a QR-code event (gallery). The role matrix shows Local
+Admin has access to five additional content ingestion paths that can add large volumes of
+storage with no `event_id` anchor:
+
+- Cat 5: folder import, catalog promote, CSV import
+- Cat 6: iPhone import
+- Cat 7: ZIP import, Azure blob import
+- Cat 8: import manifest flows
+
+Content ingested via these paths has no billing unit in the current model. If SaaS tenants
+can use these import flows, that storage is ungated and unmetered.
+
+**Policy decision required:** Are the import flows (non-QR paths) available to SaaS Local
+Admin tenants, or are they restricted to the Tenant Admin (self-hosted/operator only)?
+
+- If **TA-only in SaaS**: mark them explicitly as out of scope in this document. The
+  billing model is complete for the QR-gallery surface.
+- If **LA-accessible in SaaS**: storage from import flows must count toward the tenant's
+  storage cap. The `assets.file_size_bytes` sum must include all assets for the tenant
+  regardless of `event_id`, and the `billing_status` / quota enforcement logic must
+  account for non-event asset storage.
+
+---
+
+### 3. Streaming Egress Modeling (Medium)
+
+The Infrastructure Cost Notes model **storage cost at max utilization** but not
+**streaming egress at peak viewership**. The Cloudflare section correctly identifies that
+Cloudflare CDN absorbs most egress for streamed video, but does not quantify "most" or
+identify the scenarios where it does not apply:
+
+- Range requests on first play (cache miss) — full video egress at Azure rates
+- HLS segment requests that bypass cache due to query-string uniqueness
+- Concurrent high-view events during the free trial window (abuse vector §6)
+
+The Gallery Starter margin analysis ($17 net on a 60 GB gallery) assumes $1.08/month blob
+cost and $0 streaming egress. That assumption holds at typical viewership (event organizer
++ a handful of attendees reviewing their uploads). It does not hold if an event goes
+viral or an organizer embeds the gallery publicly during the free 14-day window.
+
+**Before launch:** add a streaming egress estimate row to the Infrastructure Cost Notes
+table, using a realistic peak-viewership scenario (e.g., 200 attendees each streaming
+3 videos of 3 minutes at 4K). Confirm whether the Cloudflare Free or Pro plan sufficiently
+covers that scenario, or whether a per-gallery streaming cap is needed as an additional
+abuse control alongside the existing rate-limit mitigations in §6.
+
+---
+
+### 4. Video Transcoding Compute Cost (Low)
+
+`src/Jobs/run_probe_job.php` executes on every upload: ffprobe metadata extraction and
+thumbnail generation. At SaaS scale with many concurrent events and high upload volume,
+this is a continuous CPU cost on GigHive's infrastructure. The Infrastructure Cost Notes
+section currently covers only Azure Blob Storage and Cloudflare.
+
+This is most likely a "platform absorbs it" item. However, it should appear in the
+Infrastructure Cost Notes alongside blob storage and Cloudflare so the complete operator
+cost picture is documented and the per-gallery margin estimates remain accurate. A rough
+estimate (CPU-seconds per video × server cost per CPU-second) is sufficient; precision is
+not required at this stage.
