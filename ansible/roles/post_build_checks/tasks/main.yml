@@ -2080,7 +2080,7 @@
 
 - name: "[T-146] Unauthenticated GET /admin/import_media_zip_scan_status.php returns 401"
   ansible.builtin.uri:
-    url: "https://{{ gighive_fqdn }}/admin/import_media_zip_scan_status.php"
+    url: "{{ gighive_base_url }}/admin/import_media_zip_scan_status.php"
     method: GET
     validate_certs: false
     status_code: 401
@@ -2089,7 +2089,7 @@
 
 - name: "[T-147] GET /admin/import_media_zip_scan_worker.php returns 401 or 403 (CLI-only guard)"
   ansible.builtin.uri:
-    url: "https://{{ gighive_fqdn }}/admin/import_media_zip_scan_worker.php"
+    url: "{{ gighive_base_url }}/admin/import_media_zip_scan_worker.php"
     method: GET
     validate_certs: false
     status_code:
@@ -2144,7 +2144,7 @@
 
 - name: "[T-151] GET /auth/gh-auth.js returns HTTP 200 (shared module deployed)"
   ansible.builtin.uri:
-    url: "https://{{ gighive_fqdn }}/auth/gh-auth.js"
+    url: "{{ gighive_base_url }}/auth/gh-auth.js"
     method: GET
     validate_certs: false
     status_code: 200

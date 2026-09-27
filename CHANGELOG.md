@@ -3,6 +3,20 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260927.txt
+Changes: move gighive_fqdn references in post_build_checks T-146, T-147, and T-151 to all now use gighive_base_url
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/post_build_checks/tasks/main.yml
+
+*** 
+releaseNotes20260927.txt
 Changes: Populate seed mp3 file using docker/tasks/main.yml for playwright_admin_tests
 
 macbook2025:gighiveinfra sodo$ git status
