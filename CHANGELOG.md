@@ -3,6 +3,19 @@ Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
 releaseNotes20260927.txt
+Changes: Populate seed mp3 file using docker/tasks/main.yml for playwright_admin_tests
+
+macbook2025:gighiveinfra sodo$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   CHANGELOG.md
+	modified:   ansible/roles/docker/tasks/main.yml
+
+*** 
+releaseNotes20260927.txt
 Changes: XSS-escaped all admin page innerHTML error insertions, added CSP report-only header to Apache, fleshed out platform_admin as a distinct 5th user journey in the JWT migration docs, expanded the SaaS cost/pricing doc with Azure Blob tier modeling and a Gallery Free vs. Starter launch decision and vm cpu and mem variabilization.
 
 macbook2025:gighiveinfra sodo$ git status

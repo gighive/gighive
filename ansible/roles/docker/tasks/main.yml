@@ -286,6 +286,24 @@
   ignore_errors: true
   tags: docker, compose
 
+- name: Ensure audio host directory exists (bind-mount source for MEDIA_LOCAL_AUDIO_DIR)
+  ansible.builtin.file:
+    path: "{{ audio_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  tags: docker, compose
+
+- name: Seed smoke test audio file to audio host directory
+  ansible.builtin.copy:
+    src: "{{ audio_reduced }}/{{ smoke_test_audio_sha256 }}.mp3"
+    dest: "{{ audio_dir }}/{{ smoke_test_audio_sha256 }}.mp3"
+    mode: "0644"
+    force: false
+  when: smoke_test_audio_sha256 is defined
+  tags: docker, compose
+
 - name: Flush handlers before Docker Compose starts (ensures udev rule is loaded before veth creation)
   meta: flush_handlers
 
