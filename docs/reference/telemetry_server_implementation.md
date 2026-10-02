@@ -589,6 +589,24 @@ The `telemetry_receiver.yml` playbook uses `community.docker.docker_compose_v2` 
 | Deploy GigHive Apache proxy changes + verify end-to-end | `ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/site.yml --tags docker,post_build_checks` |
 | Run post-deploy checks only (no deploy) | `ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/site.yml --tags post_build_checks` |
 
+## Inspecting the Telemetry Database
+
+To query captured telemetry events directly, SSH into the VM and run MySQL inside the telemetry database container.
+
+From the Ansible controller or any host on the LAN (e.g. staging2 at `192.168.1.244`):
+
+```bash
+ssh ubuntu@192.168.1.130
+docker exec telemetry_db mysql -u telemetry_app -pmusiclibrary installation_telemetry \
+  -e "SELECT id, event_name, app_version, install_channel, install_method, app_flavor, install_id, event_timestamp, country_code, created_at FROM installation_events ORDER BY id DESC LIMIT 20;"
+```
+
+The VM IP is the staging2 VM (`staging2vm.gighive.internal`, `192.168.1.130`). If the receiver has been moved to a different host, substitute that host's IP.
+
+The password (`musiclibrary`) is the default from `telemetry_receiver/defaults/main.yml`. If it was overridden in group_vars, substitute that value.
+
+Ansible's own post-deploy check runs the same query using `docker exec telemetry_db mysql ...` directly from the target VM (no SSH) — see `roles/telemetry_receiver/tasks/post_deploy_checks.yml`.
+
 ## Status
 
 - confirmed as the preferred initial deployment model
