@@ -53,6 +53,9 @@ volumes/
 # tests dir
 /tests
 
+# temp dir 
+/ansible/roles/docker/files/apache/webroot/docs/analysis/
+
 # Node / Playwright / iphone code
 node_modules/
 playwright-report/
