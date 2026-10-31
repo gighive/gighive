@@ -12,7 +12,8 @@ try {
     // Create PDO from environment variables (DB_HOST, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD, DB_CHARSET)
     $pdo = Database::createFromEnv();
     
-    // Query to get ALL events, even those without items or participants
+    // Events with neither items nor participants are empty shells (e.g. left behind by
+    // post_build_checks TUS smoke-test uploads after their asset is deleted) — skip them.
     $sql = <<<SQL
 SELECT
     e.event_id,
@@ -58,6 +59,8 @@ LEFT JOIN (
     WHERE a.checksum_sha256 IS NOT NULL
       AND a.file_ext IS NOT NULL AND a.file_ext != ''
 ) media_data ON e.event_id = media_data.event_id
+WHERE EXISTS (SELECT 1 FROM event_items ei3 WHERE ei3.event_id = e.event_id)
+   OR EXISTS (SELECT 1 FROM event_participants ep3 WHERE ep3.event_id = e.event_id)
 ORDER BY e.event_date ASC
 SQL;
 
