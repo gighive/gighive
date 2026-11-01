@@ -433,7 +433,7 @@ Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260927.log
 # PROD ROLLOUT
-Last run (prod: run from dev): script -q ansible-playbook-prod-20261101.log ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
+Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20261101.log
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT PUSH (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260830.log 
