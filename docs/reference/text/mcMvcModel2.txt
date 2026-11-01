@@ -1,0 +1,28 @@
+flowchart LR
+  subgraph Client
+    B[Browser]
+  end
+
+  %% Endpoint A HTML Sessions table (A1..A10)
+  B -- (A1) GET db database php --> DBPHP[php html db database php]
+  DBPHP -- (A2) Composer autoload --> MC[MediaController list]
+  MC -- (A3) Fetch data --> REPO[SessionRepository]
+  REPO -- (A4) Get PDO via --> INFRA[Database createFromEnv]
+  INFRA -- (A5) Connect --> MYSQL[MySQL]
+  REPO -- (A6) Return rows --> MC
+
+  MC -- (A7) Render via --> RDR[ViewRenderer]
+  RDR -- (A8) Load template --> V[src Views media list php]
+  V -- (A9) HTML --> DBPHP
+  DBPHP -- (A10) HTML Response --> B
+
+  %% Endpoint B JSON Timeline API (B1..B5)
+  B -- (B1) GET timeline timeline api php --> TAPHP[php timeline timeline api php]
+  TAPHP -- (B2) Composer autoload --> INFRA2[Database createFromEnv]
+  INFRA2 -- (B3) Connect --> MYSQL
+  TAPHP -- (B4) Run SQL and transform --> JSONAPI[JSON response events array]
+  JSONAPI -- (B5) JSON Response --> B
+
+  %% Frontend Consumer (C1..C2)
+  B -- (C1) fetch timeline endpoint --> JS[timeline modern timeline enhanced js]
+  JS -- (C2) Render --> UI[Interactive Timeline HTML CSS]

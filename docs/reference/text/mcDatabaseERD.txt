@@ -1,0 +1,112 @@
+erDiagram
+  GENRES {
+    int genre_id PK
+    varchar(255) name
+    datetime created_at
+    datetime updated_at
+  }
+
+  STYLES {
+    int style_id PK
+    varchar(255) name
+    datetime created_at
+    datetime updated_at
+  }
+
+  SESSIONS {
+    int session_id PK
+    varchar(255) title
+    date date
+    datetime published_at
+    int duration_seconds
+    varchar(1024) cover_image_url
+    varchar(255) location
+    text description
+    text summary
+    text keywords
+    decimal_2_1 rating
+    tinyint(1) explicit
+    enum_band_wedding event_type
+    varchar(128) org_name
+    datetime created_at
+    datetime updated_at
+  }
+
+  SONGS {
+    int song_id PK
+    varchar(255) title
+    int duration_seconds
+    int genre_id FK
+    int style_id FK
+    enum_loop_song_event_label type
+    datetime created_at
+    datetime updated_at
+  }
+
+  FILES {
+    int file_id PK
+    varchar(4096) file_name
+    enum_audio_video file_type
+    int session_id FK
+    int seq
+    int duration_seconds
+    json media_info
+    varchar(255) media_info_tool
+    varchar(255) mime_type
+    bigint size_bytes
+    char(64) checksum_sha256
+    datetime created_at
+    datetime updated_at
+  }
+
+  SESSION_SONGS {
+    int session_id FK
+    int song_id FK
+    int position
+    int duration_seconds
+  }
+
+  SONG_FILES {
+    int song_id FK
+    int file_id FK
+  }
+
+  MUSICIANS {
+    int musician_id PK
+    varchar(255) name
+    datetime created_at
+    datetime updated_at
+  }
+
+  SESSION_MUSICIANS {
+    int session_id FK
+    int musician_id FK
+    varchar(255) role
+  }
+
+  USERS {
+    int id PK
+    varchar(255) email
+    char(60) password_hash
+    tinyint(1) is_active
+    char(32) activation_token
+    char(32) reset_token
+    datetime reset_expires
+    int failed_logins
+    datetime locked_until
+    datetime created_at
+  }
+
+  GENRES ||--o{ SONGS : has
+  STYLES ||--o{ SONGS : has
+
+  SESSIONS ||--o{ SESSION_SONGS : has
+  SONGS ||--o{ SESSION_SONGS : has
+
+  SONGS ||--o{ SONG_FILES : has
+  FILES ||--o{ SONG_FILES : has
+
+  SESSIONS ||--o{ FILES : has
+
+  SESSIONS ||--o{ SESSION_MUSICIANS : has
+  MUSICIANS ||--o{ SESSION_MUSICIANS : has

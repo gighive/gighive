@@ -1,0 +1,32 @@
+By itself, docker-compose.yml.j2 does not force a rebuild. It only defines how to build if a build is requested.
+
+What matters in your setup
+
+ansible/roles/docker/templates/docker-compose.yml.j2
+Contains a build section for service apacheWebServer, so compose knows how to build the image.
+But “knowing how” ≠ “will rebuild every time” unless you ask it to.
+ansible/roles/docker/tasks/main.yml
+You already have a dedicated build step:
+community.docker.docker_image with build.args (now using APP_FLAVOR).
+Then you bring up the stack with:
+community.docker.docker_compose_v2
+build: always and recreate: always are set here, which tells Ansible to run compose with build semantics every time.
+Practical implications
+
+If you run your Ansible playbook with the existing tasks, it will rebuild the image (docker_image step) and then run compose with build: always.
+If you run docker compose up manually:
+It won’t rebuild by default just because the compose file has a build section.
+You must pass --build (or run docker compose build), or remove the image to force a rebuild.
+Ways to guarantee a rebuild
+
+Use your Ansible playbook as-is. It already performs a rebuild.
+Or manually:
+docker compose build --no-cache
+or bump the image tag in:
+ansible/roles/docker/tasks/main.yml (tag: "1.00")
+ansible/roles/docker/templates/docker-compose.yml.j2 (image: ubuntu22.04apache-img:1.00)
+or docker rmi ubuntu22.04apache-img:1.00 before up.
+Summary
+
+The compose template enables building but doesn’t auto-build by itself.
+Your Ansible flow does request a rebuild (docker_image + compose_v2 build: always), so just running the playbook will rebuild with the current APP_FLAVOR.

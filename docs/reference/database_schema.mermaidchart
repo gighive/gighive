@@ -1,0 +1,79 @@
+erDiagram
+
+    assets {
+        int          asset_id          PK
+        char(64)     checksum_sha256
+        enum         file_type
+        varchar(16)  file_ext
+        varchar(4096) source_relpath
+        bigint       size_bytes
+        varchar(255) mime_type
+        int          duration_seconds
+        json         media_info
+        varchar(255) media_info_tool
+        char(64)     delete_token_hash
+        datetime     media_created_at
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    events {
+        int          event_id         PK
+        date         event_date
+        varchar(128) org_name
+        enum         event_type
+        varchar(255) title
+        datetime     published_at
+        int          duration_seconds
+        varchar(1024) cover_image_url
+        varchar(255) location
+        text         description
+        text         summary
+        text         keywords
+        decimal(2_1) rating
+        tinyint(1)   explicit
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    event_items {
+        int          event_item_id    PK
+        int          event_id         FK
+        int          asset_id         FK
+        enum         item_type
+        varchar(255) label
+        int          position
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    participants {
+        int          participant_id   PK
+        varchar(255) name
+        timestamp    created_at
+        timestamp    updated_at
+    }
+
+    event_participants {
+        int          event_id         FK
+        int          participant_id   FK
+        varchar(255) role
+    }
+
+    users {
+        int          id               PK
+        varchar(255) email
+        char(60)     password_hash
+        tinyint(1)   is_active
+        char(32)     activation_token
+        char(32)     reset_token
+        datetime     reset_expires
+        int          failed_logins
+        datetime     locked_until
+        datetime     created_at
+    }
+
+    events       ||--o{ event_items        : "has"
+    assets       ||--o{ event_items        : "has"
+    events       ||--o{ event_participants : "has"
+    participants ||--o{ event_participants : "has"

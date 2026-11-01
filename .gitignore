@@ -77,9 +77,6 @@ load_tests/load_test_runs/*
 # Log files
 *.log
 
-# Reference Docs
-**/docs/reference
-
 # OS/system junk
 .DS_Store
 Thumbs.db

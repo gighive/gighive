@@ -1,0 +1,19 @@
+flowchart LR
+  subgraph Client
+    B[Browser]
+  end
+
+  B -- (1) HTTP Request --> F[Front Controller / Router]
+
+  F -- (2) Route to --> C[Controller]
+  C -- (3) Invoke --> S[(Service / Use Case)]
+  S -- (4) Query --> REPO[Repository]
+  REPO -- (5) Uses --> INFRA[(Infrastructure: DB, Env, PDO)]
+  INFRA -- (6) Connects to --> DB[(Database)]
+
+  S -- (7) Return Models/DTOs --> C
+  C -- (8) Render via --> RDR[Presenter / ViewRenderer]
+  RDR -- (9) Load --> V[View Template]
+  V -- (10) Produce HTML --> C
+
+  C -- (11) HTTP Response --> B

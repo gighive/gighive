@@ -1,0 +1,43 @@
+An old virtual disk key is being referenced..remove the reference.
+
+
+TASK [cloud_init : Convert VMDK to VDI creates={{ cloud_image_vdi }}, _raw_params=VBoxManage clonemedium disk "{{ cloud_image_vmdk }}" "{{ cloud_image_vdi }}" --format VDI
+] ***
+Monday 01 September 2025  13:11:01 -0400 (0:00:17.893)       0:00:21.950 ****** 
+fatal: [gighive_vm]: FAILED! => changed=true 
+  cmd:
+  - VBoxManage
+  - clonemedium
+  - disk
+  - /home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vmdk
+  - /home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vdi
+  - --format
+  - VDI
+  delta: '0:00:00.214424'
+  end: '2025-09-01 13:11:01.662574'
+  msg: non-zero return code
+  rc: 1
+  start: '2025-09-01 13:11:01.448150'
+  stderr: |-
+    VBoxManage: error: UUID {00000000-0000-0000-0000-000000000000} of the medium '/home/sodo/gighive/ansible/roles/cloud_init/files/jammy-server-cloudimg-amd64-gighive.vmdk' does not match the value {56e432ab-21da-4cf4-b372-eb31e95175a0} stored in the media registry ('/home/sodo/.config/VirtualBox/VirtualBox.xml')
+    VBoxManage: error: Details: code NS_ERROR_FAILURE (0x80004005), component MediumWrap, interface IMedium, callee nsISupports
+    VBoxManage: error: Context: "CloneTo(pDstMedium, ComSafeArrayAsInParam(l_variants), NULL, pProgress.asOutParam())" at line 1203 of file VBoxManageDisk.cpp
+  stderr_lines: <omitted>
+  stdout: ''
+  stdout_lines: <omitted>
+
+PLAY RECAP **********************************************************************************************
+gighive_vm                 : ok=6    changed=1    unreachable=0    failed=1    skipped=1    rescued=0    ignored=0   
+
+Playbook run took 0 days, 0 hours, 0 minutes, 22 seconds
+Monday 01 September 2025  13:11:01 -0400 (0:00:00.519)       0:00:22.470 ****** 
+=============================================================================== 
+cloud_init : Download Ubuntu cloud image if missing --------------------------------------------- 17.89s
+cloud_init : Ensure ISO tools present on control ------------------------------------------------- 2.27s
+Gathering Facts ---------------------------------------------------------------------------------- 1.31s
+cloud_init : Convert VMDK to VDI ----------------------------------------------------------------- 0.52s
+cloud_init : Ensure cloud image VMDK is present -------------------------------------------------- 0.35s
+Show GIGHIVE_HOME (for sanity) ------------------------------------------------------------------- 0.06s
+cloud_init : Init primary_mac fact --------------------------------------------------------------- 0.04s
+Fail fast if GIGHIVE_HOME is not set ------------------------------------------------------------- 0.03s
+sodo@monstrous:~/gighive$ VBoxManage closemedium disk 56e432ab-21da-4cf4-b372-eb31e95175a0
