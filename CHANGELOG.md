@@ -2,6 +2,38 @@ Note that small db alter tables were applied to all envs, but rebuilds have not 
 Next Scope: egrep -A1 'GIG2|LAB|STAGING|TELEMETRY' CHANGELOG.md | head -20
 
 *** 
+releaseNotes20261101.txt
+Changes: run from pop-os 
+
+sodo@pop-os:~/gighive$ git log -5
+commit 9bf84098872fa988df0956f6bb8e05084ea05fb9 (HEAD -> master, origin/master)
+Merge: 796c586 397b3d6
+Date:   Sun Nov 1 16:57:26 2026 -0500
+
+    Merge remote-tracking branch 'origin/devin/1793466874-dependabot-security-bumps'
+
+commit 796c586b48e9b0a2ae951bdc9541b0bbf5607044
+Merge: f7d4f91 4591f2b
+Author: devin-ai-integration[bot] <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+Date:   Sun Nov 1 17:02:47 2026 +0000
+
+    Merge pull request #27 from gighive/devin/1793551445-add-jam-session-hardening
+    
+    Harden add_jam_session.py so new jams go to prod + CSVs in one command
+
+commit 4591f2b3a025c6f813de77c7eebb3be006f0ec74 (origin/devin/1793551445-add-jam-session-hardening)
+Author: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+Date:   Sun Nov 1 16:54:40 2026 +0000
+
+    Changes: harden add_jam_session.py (live-DB ID/drift checks, sha256 storage, new songlist format, interactive metadata, half-star ratings, new musicians, jam image)
+    
+commit 397b3d6edcdd35dd244b1326318cac1bdcbf1001 (origin/devin/1793466874-dependabot-security-bumps)
+Author: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+Date:   Sat Oct 31 17:15:05 2026 +0000
+
+    Changes: security bumps for Dependabot alerts (guzzle 7.16.1, psr7 2.13.2, symfony/yaml 7.4.22 in lock + committed vendor; mcp 1.30.0)
+    
+*** 
 releaseNotes20261002.txt
 Changes: move docs to docs/reference, preserve index file references by leaving in /docs
 
@@ -401,7 +433,7 @@ Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
 Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20260927.log
 # PROD ROLLOUT
-Last run (lab: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20260830.log
+Last run (prod: run from dev): script -q ansible-playbook-prod-20261101.log ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT PUSH (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260830.log 
