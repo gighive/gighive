@@ -40,6 +40,28 @@ The dry run hashes and probes every file (cached in `~/.cache/add_jam_session/`,
 runs are fast), reads prod, and prints the new IDs, musicians, song list and SQL. It uploads,
 inserts, writes and commits nothing (it only creates the metadata file if you answered the questions).
 
+## Song metadata inside the files
+
+Before hashing and upload, a real run writes each song's tags into its MP4, losslessly
+(`ffmpeg -c copy -map_metadata 0 -movflags +faststart`, written to a temp file then swapped in).
+The tags follow `~/scripts/reviewCut/extractClip.sh` (the ones the MP4 muxer keeps), plus album/date/track:
+
+| Tag | Value (20261019 example) |
+|---|---|
+| `title` | `millionth cry` (the `*` highlight is left out; it stays in the DB/CSVs) |
+| `show` | `StormPigs20261019` |
+| `artist`, `album_artist`, `composer` | `StormPigs` |
+| `copyright` | `StormPig Productions, Inc.` (`--copyright`) |
+| `comment` | the jam summary |
+| `album` | `StormPigs Oct 19, 2026` |
+| `date` | `2026-10-19` |
+| `track` | `6/33` |
+
+Files that already carry these tags are skipped, so re-runs are safe; `--dry-run` shows what
+would be written without touching the files; `--no-tag` skips the step. Tagging changes each
+file's sha256, so the script hashes after tagging and uploads the tagged files. Only
+MP4-family files (`mp4`, `mov`, `m4v`, `m4a`) are tagged.
+
 ## What a real run does
 
 1. Checks the songlist against the files: same positions, titles match the file-name slugs,
@@ -66,7 +88,7 @@ If a run fails before step 7, re-running is safe (uploads resume). Step 7 is all
 
 ## Options
 
-`--org` (default `StormPigs`), `--whole-jam FILE` (adds an unpositioned "Entire Jam" clip),
+`--org` (default `StormPigs`), `--copyright`, `--no-tag`, `--whole-jam FILE` (adds an unpositioned "Entire Jam" clip),
 `--csv-dir`, `--remote-video-dir` (default `/home/ubuntu/video`), `--mysql-container`
 (default `mysqlServer`), `--apache-container` (default `apacheWebServer`),
 `--allow-title-mismatch`, `--allow-drift`, `--yes`, `--no-push`, `--no-commit`.

@@ -43,6 +43,7 @@ CACHE_DIR = Path(os.environ.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) 
 VIDEO_EXTS = {'mp4', 'mov', 'mkv', 'avi', 'webm', 'm4v'}
 AUDIO_EXTS = {'mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'}
 MEDIA_EXTS = VIDEO_EXTS | AUDIO_EXTS
+TAGGABLE_EXTS = {'mp4', 'mov', 'm4v', 'm4a'}
 SONG_FILE_RE = re.compile(
     r'^[A-Za-z]*(?P<date>\d{8})_0*(?P<seq>\d+)(?:_(?P<slug>[^.]+))?\.(?P<ext>[A-Za-z0-9]+)$')
 TS = r'(\d{1,2}:\d{2}(?::\d{2})?)'
@@ -354,6 +355,55 @@ def thumbnail_timestamp(dur: Optional[int], sha: str) -> float:
     return float(min(max(t, 0.0), dur))
 
 
+# ── Embedded song metadata ────────────────────────────────────────────────────
+
+def song_tags(org: str, copyright_: str, d: date, summary: str, title: str,
+              pos: Optional[int], total: int) -> Dict[str, str]:
+    """The tags extractClip.sh wrote (those the MP4 muxer keeps), plus album/date/track."""
+    tags = {
+        'title': title, 'show': f"{org}{d.strftime('%Y%m%d')}",
+        'artist': org, 'album_artist': org, 'composer': org,
+        'copyright': copyright_, 'comment': summary,
+        'album': f"{org} {d.strftime('%b')} {d.day}, {d.year}", 'date': d.isoformat(),
+    }
+    if pos is not None:
+        tags['track'] = f"{pos}/{total}"
+    return tags
+
+
+def current_tags(path: Path) -> Dict[str, str]:
+    r = subprocess.run(['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_entries',
+                        'format_tags', str(path)], capture_output=True, text=True)
+    try:
+        return {k.lower(): v for k, v in json.loads(r.stdout).get('format', {}).get('tags', {}).items()}
+    except json.JSONDecodeError:
+        return {}
+
+
+def needs_tags(path: Path, tags: Dict[str, str]) -> bool:
+    have = current_tags(path)
+    return any(have.get(k) != v for k, v in tags.items())
+
+
+def write_tags(path: Path, tags: Dict[str, str]) -> None:
+    """Losslessly rewrite the container with new tags (stream copy), then swap it in."""
+    tmp = path.with_name(f".{path.stem}.tagging{path.suffix}")
+    cmd = ['ffmpeg', '-nostdin', '-hide_banner', '-loglevel', 'error', '-y', '-i', str(path),
+           '-map', '0', '-c', 'copy', '-map_metadata', '0', '-movflags', '+faststart']
+    for k, v in tags.items():
+        cmd += ['-metadata', f"{k}={v}"]
+    r = subprocess.run(cmd + [str(tmp)], capture_output=True, text=True)
+    if r.returncode != 0 or not tmp.exists():
+        tmp.unlink(missing_ok=True)
+        die(f"ffmpeg couldn't tag {path.name}: {r.stderr.strip()[:300]}")
+    old_dur = probe(path).get('format', {}).get('duration')
+    new_dur = probe(tmp).get('format', {}).get('duration')
+    if not old_dur or not new_dur or abs(float(old_dur) - float(new_dur)) > 0.5:
+        tmp.unlink(missing_ok=True)
+        die(f"Tagged copy of {path.name} has a different duration ({old_dur} vs {new_dur}); left the original alone")
+    os.replace(tmp, path)
+
+
 # ── CSV helpers ────────────────────────────────────────────────────────────────
 
 def load_csv(path: Path) -> List[Dict]:
@@ -485,6 +535,8 @@ def main() -> None:
     ap.add_argument('--image', help='Jam image (default: webroot/images/jam/YYYYMMDD.jpg, then <dir>/YYYYMMDD.jpg)')
     ap.add_argument('--whole-jam', help='Optional whole-jam file, added as an unpositioned clip')
     ap.add_argument('--org', default='StormPigs', help='events.org_name (default: StormPigs)')
+    ap.add_argument('--copyright', default='StormPig Productions, Inc.', help='copyright tag written into each file')
+    ap.add_argument('--no-tag', action='store_true', help="Don't write song metadata into the files")
     ap.add_argument('--csv-dir', default=str(DEFAULT_CSV_DIR), help='prepped_csvs/full directory')
     ap.add_argument('--remote-video-dir', default='/home/ubuntu/video', help='Prod host video dir (default: /home/ubuntu/video)')
     ap.add_argument('--mysql-container', default='mysqlServer')
@@ -548,6 +600,33 @@ def main() -> None:
     for k in ('location', 'summary', 'keywords', 'crew'):
         if '\\' in meta[k]:
             die(f"Backslashes aren't allowed in {k}")
+
+    # 2b. Embedded song metadata ----------------------------------------------
+    if not args.no_tag:
+        section("2b. Song metadata inside the files")
+        plan_tags = [(files[s['pos']], song_tags(args.org, args.copyright, d, meta['summary'],
+                                                 s['base'], s['pos'], len(songs))) for s in songs]
+        if whole_jam:
+            plan_tags.append((whole_jam, song_tags(args.org, args.copyright, d, meta['summary'],
+                                                   f"{date_str} Entire Jam", None, len(songs))))
+        skipped = [p.name for p, _ in plan_tags if p.suffix.lower().lstrip('.') not in TAGGABLE_EXTS]
+        if skipped:
+            warn(f"Not tagging {len(skipped)} non-MP4 files (e.g. {skipped[0]})")
+        todo = [(p, t) for p, t in plan_tags
+                if p.suffix.lower().lstrip('.') in TAGGABLE_EXTS and needs_tags(p, t)]
+        info(f"{len(todo)} of {len(plan_tags)} files need tags "
+             f"(lossless stream copy; already-tagged files are skipped)")
+        if todo:
+            info("e.g. " + todo[0][0].name + ": " +
+                 ', '.join(f"{k}={v[:40]!r}" for k, v in todo[0][1].items()))
+        if dry:
+            info("[dry-run] files not modified")
+        else:
+            for p, t in todo:
+                print(f"     tagging {p.name} ...", flush=True)
+                write_tags(p, t)
+            if todo:
+                info(f"Tagged {len(todo)} files")
 
     # 3. Hash + probe ----------------------------------------------------------
     section("3. Hashing and probing files (cached after the first run)")
