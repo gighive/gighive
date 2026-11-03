@@ -467,7 +467,7 @@ class Remote:
 
     def rsync(self, src_dir: Path, dest_subdir: str = '') -> None:
         dest = f"{self.target}:{self.video_dir}/{dest_subdir}"
-        cmd = ['rsync', '-rtL', '--ignore-existing', '--partial-dir=.rsync-partial',
+        cmd = ['rsync', '-rtL', '--omit-dir-times', '--ignore-existing', '--partial-dir=.rsync-partial',
                '--chmod=F644', '--info=progress2', str(src_dir) + '/', dest]
         if subprocess.run(cmd).returncode != 0:
             die("rsync failed; re-running the script resumes the upload")
