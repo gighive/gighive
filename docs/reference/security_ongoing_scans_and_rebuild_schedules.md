@@ -1,6 +1,6 @@
 # PR / Design Doc: Ongoing CVE Scans and Image Rebuild Schedules
 
-**Status:** Implemented in PR #33 (pending merge)
+**Status:** Implemented in PR #33 (merged; deployed to gighive2 and prod on 2026-11-06, MySQL 8.4.11/8.4.7 -> 8.4.13)
 **Date:** 2026-11-06
 **Related:** PR #32 (first report-only Trivy scan in `post_build_checks`), `docs/reference/refactor_security_docker_hardened_images.md`
 
@@ -90,6 +90,52 @@ telemetry_receiver_mysql_image: "mysql:8.4.13@sha256:a81d043930e51745522bd5c4309
 - Both pins are updated in one grouped PR ("mysql image"), at most weekly, with `automerge: false`.
 - Renovate also updates the digest when Oracle rebuilds the same 8.4.x tag (the Nov 3 rebuild was this case).
 - A "Dependency Dashboard" issue lists pending and rate-limited updates.
+
+#### How a MySQL update flows through Renovate
+
+1. Oracle publishes a new 8.4.x tag, or rebuilds `8.4.13` with fixed packages, which gives it a new digest.
+2. On its Monday run, Renovate sees that the pin in both defaults files is out of date. It opens one PR ("Update mysql image") that changes the tag and the `@sha256:` digest in `ansible/roles/docker/defaults/main.yml` and `ansible/roles/telemetry_receiver/defaults/main.yml`.
+3. Review the PR. Optionally scan the new image first:
+   `docker run --rm aquasec/trivy:0.76.1 image --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL <new image ref>`
+4. Merge the PR. Back up the database (admin page → "Create Database Backup Now"). Deploy gighive2 first, then prod.
+5. Confirm the new version with `docker exec mysqlServer mysql --version`, and check the deploy-time Trivy report.
+
+Nothing changes on a server until you merge and deploy. If Renovate opens no PR, the pinned image is still the newest 8.4.x.
+
+#### Example: prod deploy-time scan of `mysql:8.4.13` (2026-11-06)
+
+Command used to pull the non-zero rows from the playbook log:
+
+```bash
+grep -A200 "Scan compose images for fixable" ansible-playbook-prod-20261106.log | grep -E "Total:|│ .*│ .*[1-9]|CVE-" | head -60
+```
+
+Abridged output (the Apache image, Composer packages and MySQL OS packages (`oracle 9.8`) all reported 0):
+
+```text
+│ usr/lib/mysqlsh/lib/python3.13/site-packages/certifi-2026.2.25.dist-info/METADA- │ python-pkg │        1        │
+│ usr/lib/mysqlsh/lib/python3.13/site-packages/cryptography-46.0.5.dist-info/META- │ python-pkg │        3        │
+│ usr/lib/mysqlsh/lib/python3.13/site-packages/pyopenssl-25.3.0.dist-info/METADATA │ python-pkg │        1        │
+│ usr/lib/mysqlsh/lib/python3.13/site-packages/urllib3-2.6.3.dist-info/METADATA    │ python-pkg │        4        │
+│ usr/local/bin/gosu                                                               │  gobinary  │       26        │
+Total: 9 (HIGH: 8, CRITICAL: 1)
+│ certifi (METADATA)      │ GHSA-6q48-6c7w-9gw2 │ CRITICAL │ fixed  │ 2026.2.25         │ 2026.10.18    │ ...
+│ cryptography (METADATA) │ CVE-2026-69247      │ HIGH     │        │ 46.0.5            │ 50.0.0        │ ...
+│ urllib3 (METADATA)      │ CVE-2026-44431      │          │        │ 2.6.3             │ 2.7.0         │ ...
+Total: 26 (HIGH: 25, CRITICAL: 1)
+│ stdlib  │ CVE-2025-68121  │ CRITICAL │ fixed  │ v1.24.6           │ 1.24.13, 1.25.7, 1.26.0-rc.3 │ crypto/tls: ...
+│         │ CVE-2025-61726  │ HIGH     │        │                   │ 1.24.12, 1.25.6              │ golang: net/url: ...
+```
+
+How to read it:
+
+| Rows | Who can fix | Action |
+|---|---|---|
+| `oracle 9.8` OS packages | Oracle's image rebuild, then a Renovate PR | Merge the PR, back up, deploy. The weekly `mysql` job fails on these. |
+| `mysqlsh` Python libraries (9) | Oracle only | None. GigHive does not run MySQL Shell. These are visible in SARIF but do not fail the job. |
+| `gosu` Go stdlib (26) | Oracle only | None. `gosu` only drops privileges at container start. Visible in SARIF, does not fail the job. |
+
+These 35 clear when Oracle ships an image with updated `mysqlsh` and `gosu`. Renovate then opens the PR for that image.
 
 ### 4. Scheduled scans
 
