@@ -9,7 +9,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies
 # Download and install Composer globally
-RUN apt-get update && \
+# The refresh date changes this layer daily so Docker's build cache can't keep
+# serving stale packages; upgrade pulls Ubuntu security fixes (php8.3, openssl, ...).
+RUN echo "package refresh: {{ now(utc=true, fmt='%Y-%m-%d') }}" && \
+    apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y \
     apache2 apache2-bin apache2-dev \
     autoconf automake \

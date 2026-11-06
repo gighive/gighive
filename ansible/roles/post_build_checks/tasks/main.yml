@@ -41,6 +41,17 @@
   loop_control:
     label: "{{ item.item }}"
 
+- name: Get PHP version in Apache container
+  ansible.builtin.command: >
+    docker exec -i "{{ apache_container_name }}" sh -c
+    'php -r "echo PHP_VERSION;"; echo; dpkg-query -W -f="\${Package} \${Version}\n" "php{{ gighive_php_version }}-fpm"'
+  register: php_version_check
+  changed_when: false
+
+- name: Display PHP version in Apache container
+  ansible.builtin.debug:
+    var: php_version_check.stdout_lines
+
 - name: Check free memory
   shell: free -m | grep Mem | awk '{print $4}'
   register: mem_free
