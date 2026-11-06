@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Only tracks the pinned MySQL image (tag + digest). App images rebuild from fresh bases on every deploy, so they are not managed here.",
+  "enabledManagers": ["custom.regex"],
+  "dependencyDashboard": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Pinned mysql image in Ansible role defaults",
+      "managerFilePatterns": [
+        "/^ansible/roles/docker/defaults/main\\.yml$/",
+        "/^ansible/roles/telemetry_receiver/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "(?:mysql_docker_image|telemetry_receiver_mysql_image): \"(?<depName>mysql):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["mysql"],
+      "allowedVersions": "/^8\\.4\\.\\d+$/",
+      "groupName": "mysql image",
+      "schedule": ["before 6am on monday"],
+      "automerge": false
+    }
+  ]
+}

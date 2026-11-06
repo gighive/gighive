@@ -1,0 +1,81 @@
+name: Weekly Trivy CVE scan
+
+# Rebuilds GigHive's images from fresh bases and scans them, plus the pinned
+# MySQL image and the repo's dependency lockfiles, so CVEs published between
+# deploys are caught. See docs/reference/security_ongoing_scans_and_rebuild_schedules.md.
+
+on:
+  schedule:
+    - cron: "0 11 * * 1" # Mondays 11:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TRIVY_IMAGE: aquasec/trivy:0.76.1
+  TRIVY_ARGS: --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --timeout 15m
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [apache, telemetry-php, ai-worker, mysql, repo-deps]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Render Apache Dockerfile.j2 with prod group_vars
+        if: matrix.target == 'apache'
+        run: |
+          pip install --quiet ansible-core
+          ansible localhost -c local -i localhost, -m ansible.builtin.template \
+            -a "src=ansible/roles/docker/templates/Dockerfile.j2 dest=${RUNNER_TEMP}/Dockerfile.apache" \
+            -e @ansible/inventories/group_vars/prod/prod.yml
+
+      - name: Build or pull the image to scan
+        id: target
+        run: |
+          case "${{ matrix.target }}" in
+            apache)
+              docker build --pull --no-cache --build-arg APP_FLAVOR=gighive \
+                -f "${RUNNER_TEMP}/Dockerfile.apache" -t gighive-scan/apache ansible/roles/docker/files/apache
+              echo "args=image gighive-scan/apache" >> "$GITHUB_OUTPUT" ;;
+            telemetry-php)
+              docker build --pull --no-cache -t gighive-scan/telemetry-php ansible/roles/telemetry_receiver/files/php
+              echo "args=image gighive-scan/telemetry-php" >> "$GITHUB_OUTPUT" ;;
+            ai-worker)
+              docker build --pull --no-cache -t gighive-scan/ai-worker ansible/roles/ai_worker/files/ai-worker
+              echo "args=image gighive-scan/ai-worker" >> "$GITHUB_OUTPUT" ;;
+            mysql)
+              ref=$(sed -n 's/^mysql_docker_image: "\(.*\)"$/\1/p' ansible/roles/docker/defaults/main.yml)
+              test -n "$ref"
+              docker pull "$ref"
+              echo "args=image $ref" >> "$GITHUB_OUTPUT" ;;
+            repo-deps)
+              echo "args=fs /src" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Trivy scan (SARIF for the Security tab)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v trivy-cache:/root/.cache/trivy -v "$PWD:/src" "$TRIVY_IMAGE" \
+            ${{ steps.target.outputs.args }} $TRIVY_ARGS \
+            --format sarif --output /src/trivy-${{ matrix.target }}.sarif
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-${{ matrix.target }}.sarif
+          category: trivy-${{ matrix.target }}
+
+      - name: Trivy scan (table; fails the job on findings)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v trivy-cache:/root/.cache/trivy -v "$PWD:/src" "$TRIVY_IMAGE" \
+            ${{ steps.target.outputs.args }} $TRIVY_ARGS --exit-code 1
