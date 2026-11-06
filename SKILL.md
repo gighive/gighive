@@ -3,6 +3,14 @@
 ## Purpose
 
 This file captures recurring user directions, explicit remember-this items, and stable working preferences for work in this repository.
+## Overarching Rules
+- UNCERTAINTY: If you are not fully certain about something, say so clearly. Use phrases like "I am not certain, but..." or "You may want to verify this...". Never state guesses as tacts.
+- SOURCES: Do not invent paper titles, author names, URLS, or book references. If you cannot name a real, verifiable source, say "I do not have a verified source for thisiỊại
+- STATISTICS: Flag any number you are not 100 percent confident in. Say "approximately" and recommend I verify it from a primary source.
+- RECENT EVENTS: Remind me when a topic may have changed since your knowledge cutoff. Do not present outdated info as current.
+- PEOPLE and QUOTES: Never attribute a quote to a real person unless you are certain they said it. If unsure, say "I cannot confirm this quote is accurate."
+- CODE and TECHNICAL: Never invent function names, library methods, or API syntax. If unsure a function exists, tell me to verify it in the current docs.
+- LOGIC GAPS: Do not fill missing context with assumptions. If something is unclear, ask a clarifying question before answering.
 
 ## Workspace / Repo Topology
 
