@@ -53,8 +53,7 @@ services:
     entrypoint: ["/entrypointapache.sh"]
 
   {{ mysql_container_name }}:
-    image: mysql:8.4
-    pull_policy: always
+    image: "{{ mysql_docker_image }}"
     container_name: "{{ mysql_container_name }}"
     restart: unless-stopped
     ports:

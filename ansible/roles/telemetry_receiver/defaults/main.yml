@@ -12,7 +12,8 @@ telemetry_receiver_db_host: telemetry_db
 telemetry_receiver_db_port: "3306"
 telemetry_receiver_db_container_name: telemetry_db
 telemetry_receiver_app_container_name: telemetry_receiver_app
-telemetry_receiver_mysql_image: "mysql:8.4"
+# Pinned (tag + multi-arch digest); bump deliberately after a DB backup.
+telemetry_receiver_mysql_image: "mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902"
 telemetry_receiver_php_image: "telemetry-receiver-php:1.0"
 # Must match the FROM line in files/php/Dockerfile.
 telemetry_receiver_php_base_image: "php:8.3-apache"
