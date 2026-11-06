@@ -5,6 +5,8 @@ services:
     build:
       context: "./apache"
       dockerfile: Dockerfile
+      no_cache: true
+      pull: true
       args:
         APP_FLAVOR: "{{ app_flavor | default('defaultcodebase') }}"
     image: "{{ apache_docker_image }}"
@@ -52,6 +54,7 @@ services:
 
   {{ mysql_container_name }}:
     image: mysql:8.4
+    pull_policy: always
     container_name: "{{ mysql_container_name }}"
     restart: unless-stopped
     ports:

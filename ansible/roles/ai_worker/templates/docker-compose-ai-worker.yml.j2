@@ -1,6 +1,9 @@
 services:
   ai-worker:
-    build: {{ gighive_home }}/ai-worker
+    build:
+      context: {{ gighive_home }}/ai-worker
+      no_cache: true
+      pull: true
     container_name: ai-worker
     restart: unless-stopped
     stop_grace_period: 120s

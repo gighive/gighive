@@ -4,6 +4,8 @@ services:
     build:
       context: ./php
       dockerfile: Dockerfile
+      no_cache: true
+      pull: true
     image: "{{ telemetry_receiver_php_image }}"
     restart: unless-stopped
     env_file:
@@ -20,6 +22,7 @@ services:
   telemetry_db:
     container_name: "{{ telemetry_receiver_db_container_name }}"
     image: "{{ telemetry_receiver_mysql_image }}"
+    pull_policy: always
     restart: unless-stopped
     env_file:
       - ./.env

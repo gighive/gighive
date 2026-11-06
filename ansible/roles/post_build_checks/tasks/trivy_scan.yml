@@ -1,0 +1,41 @@
+---
+# Report-only Trivy scan of every image defined by a compose project.
+# Inputs: trivy_compose_dir (required), trivy_compose_files (default ['docker-compose.yml']).
+
+- name: List images defined by the compose project in {{ trivy_compose_dir }}
+  ansible.builtin.command:
+    cmd: >-
+      docker compose
+      {% for f in trivy_compose_files | default(['docker-compose.yml']) %}-f {{ f }} {% endfor %}
+      config --images
+    chdir: "{{ trivy_compose_dir }}"
+  register: trivy_compose_images
+  changed_when: false
+  failed_when: false
+
+- name: Display compose image listing error
+  ansible.builtin.debug:
+    msg: "{{ trivy_compose_images.stderr_lines }}"
+  when: trivy_compose_images.rc != 0
+
+- name: Scan compose images for fixable HIGH/CRITICAL CVEs with Trivy (report only)
+  ansible.builtin.command:
+    cmd: >-
+      docker run --rm
+      -v /var/run/docker.sock:/var/run/docker.sock
+      -v trivy-cache:/root/.cache/trivy
+      {{ trivy_docker_image | default('aquasec/trivy:0.76.1') }}
+      image --quiet --scanners vuln --ignore-unfixed --timeout 15m
+      --severity {{ trivy_severity | default('HIGH,CRITICAL') }}
+      {{ item }}
+  loop: "{{ trivy_compose_images.stdout_lines | default([]) | unique }}"
+  register: trivy_scan
+  changed_when: false
+  failed_when: false
+
+- name: Display Trivy scan results
+  ansible.builtin.debug:
+    msg: "{{ (item.stdout_lines + (item.stderr_lines if item.rc != 0 else [])) or ['no output'] }}"
+  loop: "{{ trivy_scan.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
