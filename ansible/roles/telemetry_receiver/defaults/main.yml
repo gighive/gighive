@@ -14,6 +14,8 @@ telemetry_receiver_db_container_name: telemetry_db
 telemetry_receiver_app_container_name: telemetry_receiver_app
 telemetry_receiver_mysql_image: "mysql:8.4"
 telemetry_receiver_php_image: "telemetry-receiver-php:1.0"
+# Must match the FROM line in files/php/Dockerfile.
+telemetry_receiver_php_base_image: "php:8.3-apache"
 telemetry_receiver_timezone: "{{ gighive_timezone | default('America/New_York') }}"
 telemetry_receiver_site_name: "GigHive Telemetry"
 telemetry_receiver_log_table: installation_events

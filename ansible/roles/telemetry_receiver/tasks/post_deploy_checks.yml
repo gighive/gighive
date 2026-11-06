@@ -25,6 +25,17 @@
   changed_when: false
   failed_when: telemetry_mount_check.rc != 0
 
+- name: Get PHP version in telemetry receiver container (report only)
+  ansible.builtin.command:
+    cmd: docker exec {{ telemetry_receiver_app_container_name }} php -r "echo PHP_VERSION;"
+  register: telemetry_php_version
+  changed_when: false
+  failed_when: false
+
+- name: Display PHP version in telemetry receiver container
+  ansible.builtin.debug:
+    msg: "telemetry receiver PHP {{ telemetry_php_version.stdout | default('unknown') }}"
+
 - name: Verify telemetry receiver rejects GET with 405 (method guard)
   ansible.builtin.uri:
     url: "http://{{ telemetry_receiver_probe_host }}:{{ telemetry_receiver_bind_port }}/"

@@ -46,11 +46,18 @@
     dest: "{{ telemetry_receiver_home }}/mysql/init/01-schema.sql"
     mode: "0644"
 
+- name: Pull latest telemetry receiver PHP base image (picks up PHP security releases)
+  community.docker.docker_image:
+    name: "{{ telemetry_receiver_php_base_image }}"
+    source: pull
+    force_source: true
+
 - name: Start telemetry receiver stack
   community.docker.docker_compose_v2:
     project_src: "{{ telemetry_receiver_home }}"
     project_name: "{{ telemetry_receiver_project_name }}"
     state: present
+    build: always
     recreate: always
 
 - name: Wait for telemetry database container to accept connections
