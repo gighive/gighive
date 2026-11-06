@@ -118,7 +118,7 @@ Toggles / overrides: `trivy_scan_enabled` (default `true`), `trivy_docker_image`
 
 - Results are uploaded as SARIF to the repo's **Security → Code scanning** tab, one category per target.
 - A table scan with `--exit-code 1` then fails that matrix job when fixable HIGH/CRITICAL findings exist, so GitHub's failed-workflow notification acts as the alert.
-- `ai-worker` Dockerfile runs `pip install --no-cache-dir --upgrade setuptools wheel` before installing requirements. Without it, `python:3.11-slim` shipped `jaraco.context` 5.3.0 (CVE-2026-23949) and `wheel` 0.45.1 (CVE-2026-24049); a fresh build now has 0 findings (setuptools 84.2.1, wheel 0.48.0 as of 2026-11-06).
+- `ai-worker` Dockerfile runs `pip install --no-cache-dir --only-binary :all: setuptools==84.2.1 wheel==0.48.0` before installing requirements. The versions are pinned with wheels-only installs to satisfy SonarCloud's dependency-locking and setup-script rules; bump them if the weekly scan flags them. Without it, `python:3.11-slim` shipped `jaraco.context` 5.3.0 (CVE-2026-23949) and `wheel` 0.45.1 (CVE-2026-24049); a fresh build now has 0 findings (as of 2026-11-06).
 - The `mysql` job fails only on OS-package findings (`--pkg-types os`), because those are what a Renovate pin bump fixes. Oracle's bundled MySQL Shell Python libraries and the `gosu` Go binary (35 findings as of 2026-11-06) can't be fixed from GigHive. They are still uploaded in the SARIF and visible in the Security tab, but they don't fail the job.
 
 ## Operating procedure
