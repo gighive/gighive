@@ -167,6 +167,36 @@ Toggles / overrides: `trivy_scan_enabled` (default `true`), `trivy_docker_image`
 - `ai-worker` Dockerfile runs `pip install --no-cache-dir --only-binary :all: setuptools==84.2.1 wheel==0.48.0` before installing requirements. The versions are pinned with wheels-only installs to satisfy SonarCloud's dependency-locking and setup-script rules; bump them if the weekly scan flags them. Without it, `python:3.11-slim` shipped `jaraco.context` 5.3.0 (CVE-2026-23949) and `wheel` 0.45.1 (CVE-2026-24049); a fresh build now has 0 findings (as of 2026-11-06).
 - The `mysql` job fails only on OS-package findings (`--pkg-types os`), because those are what a Renovate pin bump fixes. Oracle's bundled MySQL Shell Python libraries and the `gosu` Go binary (35 findings as of 2026-11-06) can't be fixed from GigHive. They are still uploaded in the SARIF and visible in the Security tab, but they don't fail the job.
 
+#### How the weekly Trivy scan flows
+
+1. Every Monday at 11:00 UTC, or when you click **Actions → Weekly Trivy CVE scan → Run workflow**, GitHub starts 5 matrix jobs on `master`.
+2. Each job builds or pulls its target fresh, then runs Trivy twice: once to produce SARIF, and once as a table with `--exit-code 1`.
+3. SARIF results go to **Security and quality → Code scanning**, one category per target (`trivy-apache`, `trivy-mysql`, ...). Alerts stay open until a later run no longer reports them, and then they close automatically.
+4. A job turns red only for findings GigHive can fix (see the Operating procedure table). GitHub emails the repo owner when a scheduled run fails.
+5. Green run: nothing to do. Red run: open the failed job's "Trivy scan (table; fails the job on findings)" step, read the CVE rows, and act per the Operating procedure table.
+
+#### Example: first run (2026-11-06, manual)
+
+- Run: [Weekly Trivy CVE scan #1](https://github.com/gighive/gighive/actions/runs/42300625126), triggered by `workflow_dispatch` on `master` @ `08cf92d`.
+- Result: **Success** in 4m 19s. All 5 jobs green: `scan (apache)`, `scan (telemetry-php)`, `scan (ai-worker)`, `scan (mysql)`, `scan (repo-deps)`.
+- Annotations: 5 notices, all GitHub's `"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026"`. These are informational and need no action.
+- Security tab: 35 open Trivy alerts, all in category `trivy-mysql`:
+
+| Location in `mysql:8.4.13` | Alerts | Fails the job? |
+|---|---|---|
+| `usr/lib/mysqlsh/lib/python3.13/site-packages/` (`certifi`, `cryptography`, `pyopenssl`, `urllib3`) | 9 | No (not an OS package) |
+| `usr/local/bin/gosu` (Go stdlib) | 26 | No (not an OS package) |
+| MySQL OS packages (`oracle 9.8`), Apache, telemetry PHP, ai-worker, repo lockfiles | 0 | Would fail if non-zero |
+
+These are the same 35 findings as the prod deploy-time scan above. GitHub's severity column (2 critical, 32 high, 1 medium) comes from CVSS scores, so it can differ slightly from Trivy's own HIGH/CRITICAL labels.
+
+To list open alerts from a terminal:
+
+```bash
+gh api "repos/gighive/gighive/code-scanning/alerts?state=open&per_page=100" \
+  --jq 'group_by(.most_recent_instance.category)[] | "\(.[0].most_recent_instance.category): \(length)"'
+```
+
 ## Operating procedure
 
 | Event | Action |
