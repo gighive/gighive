@@ -74,8 +74,11 @@ jobs:
           sarif_file: trivy-${{ matrix.target }}.sarif
           category: trivy-${{ matrix.target }}
 
+      # mysql gates on OS packages only: those are fixed by a Renovate pin bump.
+      # Oracle's bundled MySQL Shell Python libs and gosu stay visible via SARIF.
       - name: Trivy scan (table; fails the job on findings)
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             -v trivy-cache:/root/.cache/trivy -v "$PWD:/src" "$TRIVY_IMAGE" \
-            ${{ steps.target.outputs.args }} $TRIVY_ARGS --exit-code 1
+            ${{ steps.target.outputs.args }} $TRIVY_ARGS --exit-code 1 \
+            ${{ matrix.target == 'mysql' && '--pkg-types os' || '' }}

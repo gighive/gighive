@@ -118,8 +118,8 @@ Toggles / overrides: `trivy_scan_enabled` (default `true`), `trivy_docker_image`
 
 - Results are uploaded as SARIF to the repo's **Security → Code scanning** tab, one category per target.
 - A table scan with `--exit-code 1` then fails that matrix job when fixable HIGH/CRITICAL findings exist, so GitHub's failed-workflow notification acts as the alert.
-- As of 2026-11-06, a fresh `ai-worker` build has 2 fixable HIGH findings (`jaraco.context` CVE-2026-23949, `wheel` CVE-2026-24049). These are Python packaging tools that come with the `python:3.11-slim` base image, so that job will be red until the base image is updated or the Dockerfile upgrades them.
-- Expect the `mysql` job to stay red while Oracle's image ships the bundled MySQL Shell Python libraries and the `gosu` Go binary with known findings (35 as of 2026-11-06). These are resolved by a newer image arriving through Renovate.
+- `ai-worker` Dockerfile runs `pip install --no-cache-dir --upgrade setuptools wheel` before installing requirements. Without it, `python:3.11-slim` shipped `jaraco.context` 5.3.0 (CVE-2026-23949) and `wheel` 0.45.1 (CVE-2026-24049); a fresh build now has 0 findings (setuptools 84.2.1, wheel 0.48.0 as of 2026-11-06).
+- The `mysql` job fails only on OS-package findings (`--pkg-types os`), because those are what a Renovate pin bump fixes. Oracle's bundled MySQL Shell Python libraries and the `gosu` Go binary (35 findings as of 2026-11-06) can't be fixed from GigHive. They are still uploaded in the SARIF and visible in the Security tab, but they don't fail the job.
 
 ## Operating procedure
 
@@ -127,7 +127,8 @@ Toggles / overrides: `trivy_scan_enabled` (default `true`), `trivy_docker_image`
 |---|---|
 | Weekly job fails on `apache` / `telemetry-php` / `ai-worker` | A fresh rebuild still has a fixable CVE. Check whether the fix has reached the base image or apt; once it has, redeploy (the rebuild picks it up). |
 | Weekly job passes for app images but prod hasn't been deployed recently | Prod may still run older images. Redeploy to pick up fixes. |
-| Weekly job fails on `mysql` | Check for a Renovate PR. If one exists: merge, back up, deploy. |
+| Weekly job fails on `mysql` | An OS-package CVE is fixed in a newer image. Check for a Renovate PR: merge it, back up, deploy. |
+| New `mysql` alert in the Security tab, job green | A bundled-library finding (MySQL Shell Python / `gosu`). Review the risk; it clears when Oracle updates the image and Renovate bumps the pin. |
 | Weekly job fails on `repo-deps` | Update the affected Composer/pip dependency in a normal PR. |
 | Checking a specific CVE | Search the deploy-time scan output, or the Security tab, for the CVE ID. |
 
