@@ -76,6 +76,31 @@
       apt_upgradable: "{{ apt_outdated_check.stdout_lines or ['none'] }}"
       composer_audit: "{{ (composer_audit_check.stdout_lines + composer_audit_check.stderr_lines) or ['no output'] }}"
 
+- name: Scan container images for fixable HIGH/CRITICAL CVEs with Trivy (report only)
+  ansible.builtin.shell: >
+    docker run --rm
+    -v /var/run/docker.sock:/var/run/docker.sock
+    -v trivy-cache:/root/.cache/trivy
+    {{ trivy_docker_image | default('aquasec/trivy:0.76.1') }}
+    image --quiet --scanners vuln --ignore-unfixed --timeout 15m
+    --severity {{ trivy_severity | default('HIGH,CRITICAL') }}
+    "$(docker inspect -f '{% raw %}{{.Config.Image}}{% endraw %}' {{ item }})"
+  loop:
+    - "{{ apache_container_name }}"
+    - "{{ mysql_container_name }}"
+  register: trivy_scan
+  changed_when: false
+  failed_when: false
+  when: trivy_scan_enabled | default(true) | bool
+
+- name: Display Trivy scan results
+  ansible.builtin.debug:
+    msg: "{{ (item.stdout_lines + (item.stderr_lines if item.rc != 0 else [])) or ['no output'] }}"
+  loop: "{{ trivy_scan.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item is not skipped
+
 - name: Check free memory
   shell: free -m | grep Mem | awk '{print $4}'
   register: mem_free
