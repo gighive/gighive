@@ -40,8 +40,10 @@ jobs:
 
       - name: Build or pull the image to scan
         id: target
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
-          case "${{ matrix.target }}" in
+          case "$TARGET" in
             apache)
               docker build --pull --no-cache --build-arg APP_FLAVOR=gighive \
                 -f "${RUNNER_TEMP}/Dockerfile.apache" -t gighive-scan/apache ansible/roles/docker/files/apache
@@ -62,11 +64,15 @@ jobs:
           esac
 
       - name: Trivy scan (SARIF for the Security tab)
+        env:
+          TARGET: ${{ matrix.target }}
+          SCAN_ARGS: ${{ steps.target.outputs.args }}
         run: |
+          # shellcheck disable=SC2086
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             -v trivy-cache:/root/.cache/trivy -v "$PWD:/src" "$TRIVY_IMAGE" \
-            ${{ steps.target.outputs.args }} $TRIVY_ARGS \
-            --format sarif --output /src/trivy-${{ matrix.target }}.sarif
+            $SCAN_ARGS $TRIVY_ARGS \
+            --format sarif --output "/src/trivy-$TARGET.sarif"
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
@@ -77,8 +83,13 @@ jobs:
       # mysql gates on OS packages only: those are fixed by a Renovate pin bump.
       # Oracle's bundled MySQL Shell Python libs and gosu stay visible via SARIF.
       - name: Trivy scan (table; fails the job on findings)
+        env:
+          TARGET: ${{ matrix.target }}
+          SCAN_ARGS: ${{ steps.target.outputs.args }}
         run: |
+          gate_args=""
+          if [ "$TARGET" = mysql ]; then gate_args="--pkg-types os"; fi
+          # shellcheck disable=SC2086
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             -v trivy-cache:/root/.cache/trivy -v "$PWD:/src" "$TRIVY_IMAGE" \
-            ${{ steps.target.outputs.args }} $TRIVY_ARGS --exit-code 1 \
-            ${{ matrix.target == 'mysql' && '--pkg-types os' || '' }}
+            $SCAN_ARGS $TRIVY_ARGS --exit-code 1 $gate_args
