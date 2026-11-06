@@ -52,6 +52,30 @@
   ansible.builtin.debug:
     var: php_version_check.stdout_lines
 
+- name: Check for outdated apt packages in Apache container (report only)
+  ansible.builtin.command: >
+    docker exec -i "{{ apache_container_name }}" sh -c
+    'apt-get update -qq >/dev/null 2>&1 || echo "apt-get update failed";
+    apt list --upgradable 2>/dev/null | grep -v "^Listing";
+    rm -rf /var/lib/apt/lists/*'
+  register: apt_outdated_check
+  changed_when: false
+  failed_when: false
+
+- name: Check PHP dependencies for security advisories (report only)
+  ansible.builtin.command: >
+    docker exec -i -e COMPOSER_ALLOW_SUPERUSER=1 -w /var/www/html "{{ apache_container_name }}"
+    composer audit --locked --no-interaction --format=plain
+  register: composer_audit_check
+  changed_when: false
+  failed_when: false
+
+- name: Display software we are behind on in Apache container
+  ansible.builtin.debug:
+    msg:
+      apt_upgradable: "{{ apt_outdated_check.stdout_lines or ['none'] }}"
+      composer_audit: "{{ (composer_audit_check.stdout_lines + composer_audit_check.stderr_lines) or ['no output'] }}"
+
 - name: Check free memory
   shell: free -m | grep Mem | awk '{print $4}'
   register: mem_free
