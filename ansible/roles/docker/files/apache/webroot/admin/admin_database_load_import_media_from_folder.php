@@ -65,7 +65,7 @@ $__upload_trace_max_client = max(50, (int)(getenv('UPLOAD_TRACE_MAX_CLIENT') ?: 
     select.dark { width:100%; padding:.6rem; border-radius:8px; border:1px solid #33427a; background:#0e1530; color:#e9eef7; margin-top:.35rem; }
     details summary { cursor:pointer; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js" integrity="sha384-e14cNjQjd5R4CjmEtpwqhtz1Yr92mbPYc08UpfD17q3OEaOPNnZM0sxye7khgesI" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="/admin/assets/import_progress.css" />
   <script src="/admin/assets/import_progress.js"></script>
   <script src="/auth/gh-auth.js"></script>
