@@ -1,7 +1,7 @@
 # azure-prereqs.txt
-ansible[azure]
-azure-cli
-msgraph-core
-packaging
-jinja2-cli
-
+ansible==11.9.0
+ansible-core==2.18.8
+azure-cli==2.92.0
+msgraph-core==1.5.2
+packaging==25.0
+jinja2-cli==1.0.1
