@@ -4,6 +4,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
 WORKDIR /app
 RUN pip install --no-cache-dir --only-binary :all: setuptools==84.2.1 wheel==0.48.0
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt
 COPY . .
 CMD ["python", "worker.py"]
