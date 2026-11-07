@@ -182,7 +182,11 @@ test('Admin pages full regression — all 13 steps', async ({ page }) => {
   const newB64 = Buffer.from(
     `${process.env.ADMIN_USER ?? 'admin'}:${process.env.TEST_ADMIN_PW!}`
   ).toString('base64');
-  await page.setExtraHTTPHeaders({ 'Authorization': `Basic ${newB64}` });
+  // Scoped to GigHive's origin: a page-wide extra header also goes to the CDNs, and
+  // on the SRI (crossorigin) script loads it forces a CORS preflight they reject.
+  const adminOrigin = new URL(page.url()).origin;
+  await page.route(url => url.origin === adminOrigin, (route, request) =>
+    route.continue({ headers: { ...request.headers(), authorization: `Basic ${newB64}` } }));
 
   // ── Step 2: admin_system.php — Section E: Export Media Archive ──────────────
   await page.goto('/admin/admin_system.php');
