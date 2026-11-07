@@ -498,9 +498,15 @@
   register: apache_info
   tags: docker, compose
 
-- name: Dump full apache_info
+- name: Show apache container summary (no env/secrets)
   ansible.builtin.debug:
-    var: apache_info
+    msg:
+      name: "{{ apache_info.container.Name | default('missing') }}"
+      image: "{{ apache_info.container.Config.Image | default('unknown') }}"
+      status: "{{ apache_info.container.State.Status | default('missing') }}"
+      health: "{{ apache_info.container.State.Health.Status | default('n/a') }}"
+      started_at: "{{ apache_info.container.State.StartedAt | default('n/a') }}"
+      ports: "{{ apache_info.container.HostConfig.PortBindings | default({}) }}"
   tags: docker
 
 - name: Assert Apache container exists and is running
@@ -519,9 +525,15 @@
   register: mysql_info
   tags: docker, compose
 
-- name: Dump full mysql_info
+- name: Show mysql container summary (no env/secrets)
   ansible.builtin.debug:
-    var: mysql_info
+    msg:
+      name: "{{ mysql_info.container.Name | default('missing') }}"
+      image: "{{ mysql_info.container.Config.Image | default('unknown') }}"
+      status: "{{ mysql_info.container.State.Status | default('missing') }}"
+      health: "{{ mysql_info.container.State.Health.Status | default('n/a') }}"
+      started_at: "{{ mysql_info.container.State.StartedAt | default('n/a') }}"
+      ports: "{{ mysql_info.container.HostConfig.PortBindings | default({}) }}"
   tags: docker
 
 - name: Assert MySQL container exists and is running
