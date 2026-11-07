@@ -76,6 +76,33 @@
       apt_upgradable: "{{ apt_outdated_check.stdout_lines or ['none'] }}"
       composer_audit: "{{ (composer_audit_check.stdout_lines + composer_audit_check.stderr_lines) or ['no output'] }}"
 
+- name: Check CDN assets still match their SRI integrity hashes (report only)
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -rhoE '(src|href)="https://[^"]+" integrity="sha384-[^"]+"' \
+      --include='*.php' --include='*.html' --exclude-dir=vendor \
+      "{{ docker_dir }}/apache/webroot" | sort -u |
+    while read -r tag; do
+      url=$(printf '%s' "$tag" | sed -E 's/^(src|href)="([^"]+)".*/\2/')
+      want=$(printf '%s' "$tag" | sed -E 's/.*integrity="([^"]+)"/\1/')
+      if ! body=$(curl -fsSL --max-time 30 "$url" | openssl dgst -sha384 -binary | openssl base64 -A) || [ -z "$body" ]; then
+        echo "DOWNLOAD FAILED $url"
+      elif [ "sha384-$body" = "$want" ]; then
+        echo "OK $url"
+      else
+        echo "MISMATCH $url (CDN now serves sha384-$body)"
+      fi
+    done
+  args:
+    executable: /bin/bash
+  register: sri_check
+  changed_when: false
+  failed_when: false
+
+- name: Display CDN SRI hash check
+  ansible.builtin.debug:
+    var: sri_check.stdout_lines
+
 - name: Scan GigHive compose images with Trivy (report only)
   ansible.builtin.include_tasks: trivy_scan.yml
   vars:

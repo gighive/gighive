@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# GigHive Prerequisites Installer (Ubuntu 22.04)
+# GigHive Prerequisites Installer (Ubuntu 24.04)
 #  - Prompted sections: Azure, Ansible, Terraform, VirtualBox
 #  - Azure + Ansible live in the same Python venv: ~/.ansible-azure
 #  - Python SDK sanity checks: WARN ONLY
@@ -24,7 +24,7 @@ prompt_yes_no() {
 }
 
 ensure_base_packages() {
-  log "🔧 Ensuring base packages are present (Ubuntu 22.04)..."
+  log "🔧 Ensuring base packages are present (Ubuntu 24.04)..."
   sudo apt-get update -y
   sudo apt-get install -y \
     python3 python3-pip python3-venv \
@@ -75,12 +75,12 @@ check_cli_or_die() {
 
 install_azure() {
   log "☁️  (Azure) Upgrading pip toolchain..."
-  python -m pip install --upgrade pip packaging wheel setuptools
+  python -m pip install --only-binary :all: pip==25.2 packaging==25.0 wheel==0.47.0 setuptools==84.2.1
 
   local req_file="azure-prereqs.txt"
   if [[ -f "${req_file}" ]]; then
     log "📥 (Azure) Installing Python prerequisites from ${req_file}..."
-    pip install -r "${req_file}"
+    pip install --only-binary :all: -r "${req_file}"
   else
     warn "(Azure) ${req_file} not found — skipping file-based installs."
   fi
@@ -91,8 +91,8 @@ install_azure() {
 
 install_ansible() {
   log "🐜 (Ansible) Installing via pip (in venv)..."
-  python -m pip install --upgrade pip
-  pip install ansible
+  python -m pip install --only-binary :all: pip==25.2
+  pip install --only-binary :all: ansible==11.9.0 ansible-core==2.18.8
 
   log "📦 (Ansible) Installing collections: community.general, community.docker..."
   ansible-galaxy collection install community.general

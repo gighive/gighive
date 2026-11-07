@@ -34,7 +34,7 @@ For Azure setup, the Azure, Ansible, and Terraform parts are the important ones.
 
 What the script does:
 
-- Installs base packages on Ubuntu 22.04
+- Installs base packages on Ubuntu 24.04
 - Creates a Python virtual environment at `~/.ansible-azure` when needed
 - Installs Azure-related Python packages from `azure-prereqs.txt`
 - Installs Ansible and the requested collections

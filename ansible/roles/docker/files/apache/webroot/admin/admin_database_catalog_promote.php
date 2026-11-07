@@ -59,7 +59,7 @@ $__upload_trace_max       = max(50, (int)(getenv('UPLOAD_TRACE_MAX_CLIENT') ?: '
     .upload-rows-wrap { max-height:340px; overflow-y:auto; margin-top:.5rem; }
     .group-header { font-size:.82rem; font-weight:700; color:#a8b3cf; margin:.75rem 0 .25rem; border-bottom:1px solid #1d2a55; padding-bottom:.2rem; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js" integrity="sha384-e14cNjQjd5R4CjmEtpwqhtz1Yr92mbPYc08UpfD17q3OEaOPNnZM0sxye7khgesI" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="/admin/assets/import_progress.css"/>
   <script src="/admin/assets/import_progress.js"></script>
   <script src="/auth/gh-auth.js"></script>

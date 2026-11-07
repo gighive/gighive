@@ -63,7 +63,7 @@ class GuestCredentialResolver
             return ['event_id' => (int)$tokenRow['event_id'], 'expires_at' => (string)$tokenRow['expires_at']];
         }
 
-        error_log('[GUEST_AUTH] resolveNonceOrToken: no credential found for nonce_prefix=' . substr($nonce, 0, 8));
+        error_log('[GUEST_AUTH] resolveNonceOrToken: no credential found for nonce_hash_prefix=' . substr(hash('sha256', $nonce), 0, 16));
         return false;
     }
 
@@ -95,7 +95,7 @@ class GuestCredentialResolver
             return (int)$row['event_id'];
         }
 
-        error_log('[GUEST_AUTH] resolveNonceOnly: no approved upload found for nonce_prefix=' . substr($nonce, 0, 8));
+        error_log('[GUEST_AUTH] resolveNonceOnly: no approved upload found for nonce_hash_prefix=' . substr(hash('sha256', $nonce), 0, 16));
         return false;
     }
 }
