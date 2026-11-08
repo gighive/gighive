@@ -472,9 +472,19 @@ class Remote:
         return r.stdout
 
     def put_file_in_container(self, src: Path, container_path: str) -> bool:
-        cmd = f"docker exec -i {self.apache_container} sh -c 'cat > {container_path}'"
-        with open(src, 'rb') as f:
-            return subprocess.run(['ssh', self.target, cmd], stdin=f).returncode == 0
+        # Stream to a temp file beside the target; rename only once every byte arrived,
+        # so a dropped connection leaves the existing file intact
+        dest_dir = container_path.rsplit('/', 1)[0]
+        try:
+            size = src.stat().st_size
+            script = (f't=$(mktemp {dest_dir}/.upload.XXXXXX) && cat > "$t"'
+                      f' && [ "$(wc -c < "$t")" -eq {size} ] && chmod 644 "$t"'
+                      f' && mv -f "$t" {container_path} || {{ rm -f "$t"; exit 1; }}')
+            cmd = f"docker exec -i {self.apache_container} sh -c '{script}'"
+            with open(src, 'rb') as f:
+                return subprocess.run(['ssh', self.target, cmd], stdin=f).returncode == 0
+        except OSError:
+            return False
 
     def rsync(self, src_dir: Path, dest_subdir: str = '') -> None:
         dest = f"{self.target}:{self.video_dir}/{dest_subdir}"
