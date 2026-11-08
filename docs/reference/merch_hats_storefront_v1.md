@@ -44,13 +44,13 @@ the page at `/hats/`. The URL `/hats_checkout.html` does not exist.
 
 # Products
 
-Three hat SKUs. Two are available now; one is coming soon.
+Three hat SKUs, all available.
 
 | SKU | Name | Status |
 |-----|------|--------|
 | 1 | Modern Bee Hat | **Available** |
 | 2 | Futuristic Hat | **Available** |
-| 3 | Retro Bee Hat | **Coming Soon** |
+| 3 | Retro Bee Hat | **Available** |
 
 ------------------------------------------------------------------------
 
@@ -75,11 +75,13 @@ Each **Buy Now →** button links directly to its Stripe Payment Link (no cart, 
 
 ## Retro Bee Hat
 
-No Stripe link yet. Button is disabled ("Coming Soon") until inventory is ready.
+| Environment | URL |
+|-------------|-----|
+| **Production** | `https://buy.stripe.com/28EeV79Kn8zd7Jy0MP1wY02` |
 
 ## Current link state in hats_checkout.md
 
-Both hats point to **production links**. End-to-end purchase flow verified via test links.
+All three hats point to **production links**. End-to-end purchase flow verified via test links.
 
 ------------------------------------------------------------------------
 
@@ -103,13 +105,13 @@ Each available card contains:
 -   Hero photo (clickable thumbnails swap it — left side, right side, back)
 -   Product name
 -   Short description with bullet specs
--   Price: **$39.95**
+-   Price: **$39.95** (Modern, Futuristic) / **$49.95** (Retro)
 -   FREE U.S. SHIPPING badge (green)
 -   **Buy Now →** button (links directly to Stripe Payment Link)
 
-Coming-soon card:
+Coming-soon card (none currently; markup classes kept for future SKUs):
 
--   Design-sheet image (contained, not cropped)
+-   Design-sheet image (`hat-hero contain-fit`, contained, not cropped)
 -   Product name + "Coming Soon" label
 -   Muted price and shipping badge
 -   Disabled "Coming Soon" button (non-clickable, `<span>` not `<a>`)
@@ -138,14 +140,14 @@ on both the front crown and right side panel. *FOUNDED —2026—* on left panel
 -   Adjustable leather strap
 -   One size fits most
 
-## Retro Bee Hat *(Coming Soon)*
+## Retro Bee Hat
 
-Classic retro-style bee mascot. Design preview shown; production photos
-coming when inventory is ready.
+Classic retro bee face embroidered on the front crown. *GigHive* script on
+the right side panel, *FOUNDED —2026—* on the left, and *GIGHIVE* arched
+across the back.
 
--   Premium washed cotton dad cap
--   Khaki crown / navy bill
--   Adjustable leather strap
+-   Cream crown / black corduroy bill
+-   Adjustable strap with brass buckle
 -   One size fits most
 
 ------------------------------------------------------------------------
@@ -162,7 +164,10 @@ and referenced with the `/images/` relative path on the site.
 | `hat_both_back.jpeg` | Modern + Futuristic — back thumbnail |
 | `hat_futuristic_left_side.jpeg` | Futuristic — hero (default) + thumbnail |
 | `hat_futuristic_right_side.jpeg` | Futuristic — thumbnail |
-| `hat_retro_design_sheet.png` | Retro — design preview (contained fit) |
+| `hat_retro_left_side.jpeg` | Retro — hero (default) + thumbnail |
+| `hat_retro_right_side.jpeg` | Retro — thumbnail |
+| `hat_retro_back.jpeg` | Retro — back thumbnail |
+| `hat_retro_design_sheet.png` | No longer on the page (original design preview) |
 
 Thumbnails are interactive: clicking a thumbnail swaps the hero image
 (vanilla JS, no dependencies).
@@ -171,10 +176,11 @@ Thumbnails are interactive: clicking a thumbnail swaps the hero image
 
 # Pricing
 
--   Price: **$39.95**
+-   Price: **$39.95** (Modern, Futuristic); **$49.95** (Retro)
 -   Shipping: **FREE (Continental U.S.)**
 
-Shipping cost is included in the selling price.
+Shipping cost is included in the selling price. Stripe prices are tax-inclusive
+("Include tax in price: Yes"), product category Hats (`txcd_30060006`).
 
 ------------------------------------------------------------------------
 
@@ -236,7 +242,6 @@ mirrors the same structure with a matching Hats entry.
 
 # Future Enhancements
 
--   Retro Bee Hat (production run)
 -   Stickers
 -   T-shirts
 -   Hoodies
@@ -287,7 +292,7 @@ Target purchase time: **under two minutes**.
 -   Dark theme (`#121a33` background) matches the rest of `gighive.app`
 -   Hamburger navigation matches `index.md` (colors, fonts, z-index, behavior)
 -   Image paths use `/images/` (maps to `gighiveinfra/docs/images/` on the served site)
--   Retro hat image: `hat_retro_design_sheet.png` (no space in filename)
+-   Retro hat images: `hat_retro_{left_side,right_side,back}.jpeg` (640 px wide, metadata stripped)
 -   Contact email: `contact@gighive.app`
 -   External links use `rel="noopener noreferrer"` on `target="_blank"` anchors
 -   Coming-soon button uses `<span>` (not `<a>`) — non-focusable, non-clickable by default

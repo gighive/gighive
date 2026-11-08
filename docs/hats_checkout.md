@@ -457,32 +457,45 @@ img { background: transparent !important; }
     </div>
 
     <!-- ════════════════════════════════════════════════
-         CARD 3 — Retro Bee Hat (Coming Soon)
+         CARD 3 — Retro Bee Hat
     ═════════════════════════════════════════════════ -->
-    <div class="hat-card coming-soon-card">
-      <img id="hero-retro" class="hat-hero contain-fit"
-           src="/images/hat_retro_design_sheet.png"
-           alt="GigHive Retro Bee Hat — design preview"
+    <div class="hat-card">
+      <img id="hero-retro" class="hat-hero"
+           src="/images/hat_retro_left_side.jpeg"
+           alt="GigHive Retro Bee Hat"
            onclick="openLightbox(this)">
+      <div class="thumb-strip">
+        <img class="thumb thumb-active"
+             src="/images/hat_retro_left_side.jpeg"
+             onclick="setHero('retro', this)"
+             alt="Left side">
+        <img class="thumb"
+             src="/images/hat_retro_right_side.jpeg"
+             onclick="setHero('retro', this)"
+             alt="Right side">
+        <img class="thumb"
+             src="/images/hat_retro_back.jpeg"
+             onclick="setHero('retro', this)"
+             alt="Back">
+      </div>
       <div class="hat-card-body">
-        <h2>Retro Bee Hat
-          <span style="font-size:0.7em; color:#667; font-weight:normal; margin-left:4px;">Coming Soon</span>
-        </h2>
+        <h2>Retro Bee Hat</h2>
         <div class="hat-desc">
-          Classic retro-style bee mascot. Design preview shown above —
-          production photos coming when inventory is ready.
+          Classic retro bee face embroidered on the front crown.
+          <em>GigHive</em> script on the right side panel,
+          <em>FOUNDED —2026—</em> on the left, and <em>GIGHIVE</em> arched across the back.
           <ul>
-            <li>Premium washed cotton dad cap</li>
-            <li>Khaki crown / navy bill</li>
-            <li>Adjustable leather strap</li>
+            <li>Cream crown / black corduroy bill</li>
+            <li>Adjustable strap with brass buckle</li>
             <li>One size fits most</li>
           </ul>
         </div>
         <div class="price-row">
-          <span class="hat-price muted">$39.95</span>
-          <span class="shipping-badge muted">FREE U.S. SHIPPING</span>
+          <span class="hat-price">$49.95</span>
+          <span class="shipping-badge">FREE U.S. SHIPPING</span>
         </div>
-        <span class="buy-btn buy-btn-soon">Coming Soon</span>
+        <a href="https://buy.stripe.com/28EeV79Kn8zd7Jy0MP1wY02"
+           class="buy-btn buy-btn-active">Buy Now →</a>
       </div>
     </div>
 
