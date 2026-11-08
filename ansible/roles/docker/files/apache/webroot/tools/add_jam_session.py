@@ -172,7 +172,7 @@ def read_metadata_file(path: Path) -> Dict[str, str]:
     return raw
 
 
-def write_metadata_file(path: Path, date_compact: str, m: Dict[str, str]) -> None:
+def write_metadata_file(path: Path, base_dir: Path, date_compact: str, m: Dict[str, str]) -> None:
     text = (
         f"for {date_compact} jam:\n"
         f"crew: {m['crew']}.\n"
@@ -183,10 +183,16 @@ def write_metadata_file(path: Path, date_compact: str, m: Dict[str, str]) -> Non
         f"Explicit: {m['explicit']}.\n"
         f"Keywords: {m['keywords']}.\n"
     )
-    path.write_text(text)
+    base = os.path.realpath(base_dir)
+    target = os.path.normpath(os.path.realpath(path))
+    if not target.startswith(base + os.sep):
+        die(f"Not saving {path}: it is outside {base_dir}. Create it there, or pass --meta inside --dir")
+    with open(target, 'w') as f:
+        f.write(text)
 
 
-def load_or_prompt_metadata(path: Path, date_compact: str, known_names: List[str]) -> Dict[str, str]:
+def load_or_prompt_metadata(path: Path, base_dir: Path, date_compact: str,
+                            known_names: List[str]) -> Dict[str, str]:
     raw = read_metadata_file(path) if path.exists() else {}
     if raw.get('date') and raw['date'] != date_compact:
         die(f"{path.name} is for {raw['date']} but the files are for {date_compact}")
@@ -219,7 +225,7 @@ def load_or_prompt_metadata(path: Path, date_compact: str, known_names: List[str
         elif k == 'published at':
             val = parse_published(val)[:10]
         raw[k] = val.strip().rstrip('.') if k != 'summary' else val.strip()
-    write_metadata_file(path, date_compact, raw)
+    write_metadata_file(path, base_dir, date_compact, raw)
     info(f"Saved {path}")
     return raw
 
@@ -465,6 +471,11 @@ class Remote:
             die("MySQL on prod failed:\n" + '\n'.join(errors or [r.stderr.strip()]))
         return r.stdout
 
+    def put_file_in_container(self, src: Path, container_path: str) -> bool:
+        cmd = f"docker exec -i {self.apache_container} sh -c 'cat > {container_path}'"
+        with open(src, 'rb') as f:
+            return subprocess.run(['ssh', self.target, cmd], stdin=f).returncode == 0
+
     def rsync(self, src_dir: Path, dest_subdir: str = '') -> None:
         dest = f"{self.target}:{self.video_dir}/{dest_subdir}"
         cmd = ['rsync', '-rtL', '--omit-dir-times', '--ignore-existing', '--partial-dir=.rsync-partial',
@@ -554,6 +565,8 @@ def main() -> None:
     csv_dir = Path(args.csv_dir).expanduser().resolve()
     if not dir_path.is_dir():
         die(f"Not a folder: {dir_path}")
+    if not re.fullmatch(r'[A-Za-z0-9_.@-]+', args.ssh) or args.ssh.startswith('-'):
+        die(f"--ssh must be an ssh host or user@host, got {args.ssh!r}")
     repo = Path(git(csv_dir, 'rev-parse', '--show-toplevel'))
     remote = Remote(args.ssh, args.mysql_container, args.apache_container, args.remote_video_dir)
     if dry:
@@ -592,7 +605,7 @@ def main() -> None:
     names = ['sessions', 'songs', 'session_songs', 'song_files', 'files', 'participants', 'event_participants']
     csvs = {n: load_csv(csv_dir / f"{n}.csv") for n in names}
     meta_path = Path(args.meta).expanduser() if args.meta else dir_path / f"StormPigs{date_compact}_metadata.txt"
-    meta = load_or_prompt_metadata(meta_path, date_compact, [r['name'] for r in csvs['participants']])
+    meta = load_or_prompt_metadata(meta_path, dir_path, date_compact, [r['name'] for r in csvs['participants']])
     rating_stars, rating_val = parse_rating(meta['rating'])
     published = parse_published(meta['published at'])
     explicit = parse_explicit(meta['explicit'])
@@ -848,10 +861,7 @@ def main() -> None:
             repo_image.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(image, repo_image)
         commit_paths.append(str(repo_image))
-        remote_tmp = f"/tmp/{date_compact}.jpg"
-        if subprocess.run(['scp', '-q', str(repo_image), f"{args.ssh}:{remote_tmp}"]).returncode == 0:
-            remote.ssh(f"docker cp {remote_tmp} {remote.apache_container}:/var/www/html/images/jam/{date_compact}.jpg"
-                       f" && rm -f {remote_tmp}")
+        if remote.put_file_in_container(repo_image, f"/var/www/html/images/jam/{date_compact}.jpg"):
             info("Jam image copied into the running site (it's baked in on the next deploy too)")
         else:
             warn("Couldn't copy the image to prod; it will appear after the next deploy")
