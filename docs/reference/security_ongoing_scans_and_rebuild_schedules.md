@@ -201,7 +201,7 @@ gh api "repos/gighive/gighive/code-scanning/alerts?state=open&per_page=100" \
 
 | Event | Action |
 |---|---|
-| Weekly job fails on `apache` / `telemetry-php` / `ai-worker` | A fresh rebuild still has a fixable CVE. Check whether the fix has reached the base image or apt; once it has, redeploy (the rebuild picks it up). |
+| Weekly job fails on `apache` / `telemetry-php` / `ai-worker` | A fresh rebuild still has a fixable CVE. All three Dockerfiles run `apt-get upgrade`, so Debian/Ubuntu package fixes are applied as soon as they reach apt, even before the base image is rebuilt. A failure therefore means the fix isn't in apt yet, or the CVE is in the language runtime (Python/PHP, fixed by a base-image refresh) or an app dependency (bump it). Once a fix is available, redeploy (the rebuild picks it up). |
 | Weekly job passes for app images but prod hasn't been deployed recently | Prod may still run older images. Redeploy to pick up fixes. |
 | Weekly job fails on `mysql` | An OS-package CVE is fixed in a newer image. Check for a Renovate PR: merge it, back up, deploy. |
 | New `mysql` alert in the Security tab, job green | A bundled-library finding (MySQL Shell Python / `gosu`). Review the risk; it clears when Oracle updates the image and Renovate bumps the pin. |
