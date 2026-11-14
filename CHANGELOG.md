@@ -10,59 +10,59 @@ On branch master
 Your branch is up to date with 'origin/master'.
 
 Changes not staged for commit:
-  (use "git add/rm <file>..." to update what will be committed)
-  (use "git restore <file>..." to discard changes in working directory)
-	modified:   CHANGELOG.md
-	deleted:    docs/reference/feature_completed_sonarcloud_security_remediation.md
+(use "git add/rm <file>..." to update what will be committed)
+(use "git restore <file>..." to discard changes in working directory)
+modified:   CHANGELOG.md
+deleted:    docs/reference/feature_completed_sonarcloud_security_remediation.md
 
 Untracked files:
-  (use "git add <file>..." to include in what will be committed)
-	docs/reference/feature_completed_security_sonarcloud_remediation.md
+(use "git add <file>..." to include in what will be committed)
+docs/reference/feature_completed_security_sonarcloud_remediation.md
 
 *** 
 releaseNotes20261101.txt
 Changes: run from pop-os 
 
-sodo@pop-os:~/gighive$ git log -5
+	sodo@pop-os:~/gighive$ git log -5
 commit 9bf84098872fa988df0956f6bb8e05084ea05fb9 (HEAD -> master, origin/master)
-Merge: 796c586 397b3d6
-Date:   Sun Nov 1 16:57:26 2026 -0500
+	Merge: 796c586 397b3d6
+	Date:   Sun Nov 1 16:57:26 2026 -0500
 
-    Merge remote-tracking branch 'origin/devin/1793466874-dependabot-security-bumps'
+	Merge remote-tracking branch 'origin/devin/1793466874-dependabot-security-bumps'
 
-commit 796c586b48e9b0a2ae951bdc9541b0bbf5607044
-Merge: f7d4f91 4591f2b
-Author: devin-ai-integration[bot] <158243242+devin-ai-integration[bot]@users.noreply.github.com>
-Date:   Sun Nov 1 17:02:47 2026 +0000
+	commit 796c586b48e9b0a2ae951bdc9541b0bbf5607044
+	Merge: f7d4f91 4591f2b
+	Author: devin-ai-integration[bot] <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+	Date:   Sun Nov 1 17:02:47 2026 +0000
 
-    Merge pull request #27 from gighive/devin/1793551445-add-jam-session-hardening
-    
-    Harden add_jam_session.py so new jams go to prod + CSVs in one command
+	Merge pull request #27 from gighive/devin/1793551445-add-jam-session-hardening
+
+	Harden add_jam_session.py so new jams go to prod + CSVs in one command
 
 commit 4591f2b3a025c6f813de77c7eebb3be006f0ec74 (origin/devin/1793551445-add-jam-session-hardening)
-Author: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
-Date:   Sun Nov 1 16:54:40 2026 +0000
+	Author: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+	Date:   Sun Nov 1 16:54:40 2026 +0000
 
-    Changes: harden add_jam_session.py (live-DB ID/drift checks, sha256 storage, new songlist format, interactive metadata, half-star ratings, new musicians, jam image)
-    
+	Changes: harden add_jam_session.py (live-DB ID/drift checks, sha256 storage, new songlist format, interactive metadata, half-star ratings, new musicians, jam image)
+
 commit 397b3d6edcdd35dd244b1326318cac1bdcbf1001 (origin/devin/1793466874-dependabot-security-bumps)
-Author: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
-Date:   Sat Oct 31 17:15:05 2026 +0000
+	Author: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+	Date:   Sat Oct 31 17:15:05 2026 +0000
 
-    Changes: security bumps for Dependabot alerts (guzzle 7.16.1, psr7 2.13.2, symfony/yaml 7.4.22 in lock + committed vendor; mcp 1.30.0)
-    
-*** 
-releaseNotes20261002.txt
-Changes: move docs to docs/reference, preserve index file references by leaving in /docs
+	Changes: security bumps for Dependabot alerts (guzzle 7.16.1, psr7 2.13.2, symfony/yaml 7.4.22 in lock + committed vendor; mcp 1.30.0)
+
+	*** 
+	releaseNotes20261002.txt
+	Changes: move docs to docs/reference, preserve index file references by leaving in /docs
 
 #BASE GIG2 PUSH FROM MAC
-script -q ansible-playbook-gighive2-20261002.log ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
+	script -q ansible-playbook-gighive2-20261002.log ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
 
-On branch master
-Your branch is up to date with 'origin/master'.
+	On branch master
+	Your branch is up to date with 'origin/master'.
 
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
+	Changes to be committed:
+	(use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
 	modified:   docs/_config.yml
 	renamed:    docs/ANSIBLE_FILE_INTERACTION.md -> docs/reference/ANSIBLE_FILE_INTERACTION.md
@@ -413,58 +413,62 @@ Changes to be committed:
 	renamed:    docs/vocabulary_classification.md -> docs/reference/vocabulary_classification.md
 	modified:   sonar-project.properties
 
-*** 
-releaseNotes20260927.txt
-Changes: changing inventories to match new staging server 
+	*** 
+	releaseNotes20260927.txt
+	Changes: changing inventories to match new staging server 
 
-macbook2025:gighiveinfra sodo$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
+	macbook2025:gighiveinfra sodo$ git status
+	On branch master
+	Your branch is up to date with 'origin/master'.
 
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
+	Changes to be committed:
+	(use "git restore --staged <file>..." to unstage)
 	modified:   CHANGELOG.md
 	modified:   ansible/inventories/inventory_gighive.yml
 	modified:   ansible/inventories/inventory_staging_telemetry.yml
 
 # To do: Based on files that were changed, decide which environments need updating.  For instance, doc changes don't need to go to prod, reinstall telemetry or one-shot-bundle update
 # BASE GIG2 PUSH FROM MAC
-Last run (dev: run from dev): script -q ansible-playbook-gighive2-20261107.log ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
+	Last run (dev: run from dev): script -q ansible-playbook-gighive2-20261107.log ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
 # BASE GIG2 PUSH
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20261002.log
+				      Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive2-20261002.log
 # BASE GIG2, rebuild 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260720.log
+								    Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive2-20260720.log
 # GIG2 ONLY TESTS make sure playwright_admin_tests = true in group_var
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-gighive2-20260726.log
+												  Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --tags set_targets,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-gighive2-20260726.log
 # GIG2 EVERYTHING make sure playwright_admin_tests = true in group_var
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive -e allow_destructive=true -K"
+																Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive -e allow_destructive=true -K"
 # LAB PUSH: 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20261108.log
+																			      Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20261108.log
 # LAB ALL TESTS: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
+																							    Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
 # LAB, rebuild 
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260905.log
+																											  Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260905.log
 # GIG STAGING PUSH: remember it has CUSTOM VIDEOS so don't sync audio or video
-Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20261107.log
+																															Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-gighive-20261107.log
 # GIG STAGING, rebuild (upload_tests may break on step 7..if so, put it below 5)
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
+																																		      Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260715.log
 # GIG STAGING2, rebuild (upload_tests may break on step 7..if so, put it below 5)
-Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging2.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260927.log
+																																							    Last run (staging: run from staging): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging2.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260927.log
 # STAGING TELEMETRY FIX, ***ALWAYS RUN AFTER A STAGING PUSH***
-Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20261107.log
+																																												  Last run (staging: run from staging to reinstall telemetry): script -q -c "ansible-playbook -i ansible/inventories/inventory_staging_telemetry.yml ansible/playbooks/telemetry_receiver.yml"  ansible-playbook-telemetry-20261107.log
 # PROD ROLLOUT
-Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20261101.log
+																																																			       Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20261101.log
 # PROD ROLLOUT FROM MAC
-Last run (dev: run from dev): script -q ansible-playbook-prod-20261107.log ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
+																																																							      Last run (dev: run from dev): script -q ansible-playbook-prod-20261107.log ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
 
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT PUSH (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20260830.log 
+																																																											    Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20261108.log 
 # OSB ONE-SHOT-BUNDLE CREATION FROM MAC, REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
-Last run (dev: run from dev): script -q ansible-playbook-gighive-bundle-20261108.log ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff
+																																																															  Last run (dev: run from dev): script -q ansible-playbook-gighive-bundle-20261113.log ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
-Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
+																																																																			Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20261111.log
+# OSB ONE-SHOT-BUNDLE UPLOAD TESTS from mac
+																																																																						      Last run (dev: run from dev): script -q ansible-playbook-gighive-bundle-tests-20261113.log ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e "mysql_appuser_password=" -e "gighive_admin_password="
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+																																																																										    Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20261111.log 
+# OSB ONE-SHOT-BUNDLE ADMIN TESTS from mac 
+Last run (dev: run from dev): script -q ansible-playbook-gighive-bundle-tests-20261113.log ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password=" 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -1487,7 +1491,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -1561,7 +1565,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -1645,7 +1649,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -1719,7 +1723,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -1795,7 +1799,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -1854,7 +1858,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -1928,7 +1932,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -1999,7 +2003,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2064,7 +2068,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2131,7 +2135,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2187,7 +2191,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2254,7 +2258,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2321,7 +2325,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2420,7 +2424,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2495,7 +2499,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2549,7 +2553,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2620,7 +2624,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2700,7 +2704,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2753,7 +2757,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2805,7 +2809,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2865,7 +2869,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2905,7 +2909,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -2980,7 +2984,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -3043,7 +3047,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -3096,7 +3100,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -3155,7 +3159,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB create install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
@@ -3215,7 +3219,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 # OSB ONE-SHOT-BUNDLE UPLOAD TESTS applied against .235, no mcp server
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/upload_tests_bundle.yml --tags upload_tests -e mysql_appuser_password=<bundle_appuser_pwd> -e gighive_admin_password=<bundle_admin_password>"  ansible-playbook-gighive-bundle-tests-20260607.log
 # OSB ONE-SHOT-BUNDLE ADMIN TESTS applied against .235
-Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=Sn" -e "gighive_viewer_password=Sn" -e "gighive_uploader_password=Sn"' ansible-playbook-gighive-bundle-tests-20260621.log 
+Last run (dev: run from dev): script -q -c 'ansible-playbook -i ansible/inventories/inventory_osb.yml ansible/playbooks/test_admin_pages.yml -e "allow_destructive=true" -e "playwright_work_dir=/tmp/gighive-playwright" -e "playwright_media_folder=/tmp/gighive-media" -e "gighive_admin_password=" -e "gighive_viewer_password=" -e "gighive_uploader_password="' ansible-playbook-gighive-bundle-tests-20260621.log 
 # OSB install.sh only
 ansible localhost -c local   -m ansible.builtin.template -i ansible/inventories/inventory_gighive.yml  -a "src=$(pwd)/ansible/roles/docker/templates/install.sh.j2 dest=/tmp/gighive-one-shot-bundle/install.sh"   -e ai_worker_osb_enabled=true   -e ansible_python_interpreter=/usr/bin/python
 
