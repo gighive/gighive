@@ -19,12 +19,14 @@
 5. `refactor_security_docker_hardened_images.md` — Swap to Docker Official Images for ~95% CVE reduction on mysql, alpine, httpd
 6. `refactor_video_player_page_delete_eligibility.md` — Deploy completed `can_delete` flag work to fix spurious 403s (code already done)
 7. `feature_add_backup_now.md` — Add "Create Backup Now" to admin; unblocks automated Playwright regression suite
+21. SonarCloud security + reliability pass — Clear HIGH security/reliability issues, triage MEDIUM security, review hotspots
 8. `refactor_security_upgrade_ssh_key.md` — Move hardcoded console password out of version-controlled template into ansible-vault
 
 **High-Value, Medium Effort**
 
 9. `refactor_ai_video_tagger_scan_methodology_improvements.md` — Switch frame extractor to I-frames for better scene-boundary sampling at zero extra LLM cost
 10. `refactor_acls_on_restore_logs.md` — Replace permissive directory mode on restore logs with proper POSIX ACL inheritance
+22. PHPUnit harness + error-path unit tests — Unit coverage for error branches; gates item 23's exception refactor
 11. `refactor_schema_upload_jobs_token_attribution.md` — Add `upload_jobs.token_id` FK for per-QR-token upload attribution and SaaS billing audit trail
 12. `refactor_db_database_admin_soft_deletes.md` — Soft-delete for media files to prevent irreversible loss on admin misclick
 13. `feature_iphone_qr_code_gallery_live_refresh.md` — iOS timer polling for real-time approval updates in QR gallery (Phase 1 only; no server changes)
@@ -37,6 +39,7 @@
 17. `refactor_storage_media_rest_endpoint_followons.md` — Maintenance role skeleton + guest hard-delete to clear files lingering on disk after soft-delete
 18. `refactor_quickstart_specific_template.md` — Quickstart-specific compose template to keep OSB distribution in sync with the app
 19. `refactor_mcp_server_telemetry_connection.md` — Expose telemetry DB via MCP without disturbing app DB tools
+23. SonarCloud maintainability + duplication cleanup — Batched by PHP directory; after item 22
 
 **Implementation-Blocked**
 
@@ -145,6 +148,23 @@ Changes:
 
 ---
 
+### 21. SonarCloud security + reliability pass
+
+**Status:** Not started. Counts are live from SonarCloud `gighive_gighive` master (2026-11-22); re-pull before starting.  
+**Effort:** Small — ~1 session.  
+**Impact:** Zero open security findings before external tenants arrive. Do before item 2.
+
+Scope:
+- Security HIGH (27): `pythonsecurity:S8707`/`S8705` (19) in `webroot/tools/` scripts — fix like `add_jam_session.py`; `ansible:S4830` (8) `validate_certs: false` — set prod `gighive_validate_certs: true`
+- Reliability HIGH (21): `shell:S7688` (20, mechanical) + `javascript:S7059` (1)
+- Security MEDIUM (33): fix or mark False positive
+- Hotspots (51 to review): mark reviewed `ansible:S2612` permission hotspots Safe; triage the rest
+
+Verify: `post_build_checks`, `validate_app`, `upload_tests`, `playwright_admin_tests` on gighive2.  
+**Score: 8/10**
+
+---
+
 ### 8. `refactor_security_upgrade_ssh_key.md`
 
 **Status:** Not started.  
@@ -182,6 +202,21 @@ Files to change:
 
 **Effort:** Two `setfacl` commands + two `--acls` flags on bundle `tar` invocations. Precondition: `acl` package on Ubuntu (standard).  
 **Impact:** Closes the explicitly-temporary permissive directory mode on restore logs. Applies proper POSIX ACL grants with default inheritance.  
+**Score: 7/10**
+
+---
+
+### 22. PHPUnit harness + error-path unit tests
+
+**Status:** Not started.  
+**Effort:** Medium — harness ~1 session, then tests grow per batch.  
+**Impact:** The four Ansible test roles cover happy paths end-to-end; this adds isolated, fast coverage of error branches. Runs in parallel with item 2 and gates item 23.
+
+Scope:
+- PHPUnit via Composer, run inside the Apache container; optional GitHub Actions job
+- Error-condition tests for code item 23 refactors first: upload finalize, media-files API, import/manifest, DB layer
+- JWT issuance/validation unit tests as item 2 lands
+
 **Score: 7/10**
 
 ---
@@ -234,6 +269,7 @@ Files to change:
 | `refactor_storage_media_rest_endpoint_followons.md` | Maintenance role skeleton + guest hard-delete (files linger on disk after soft-delete); hygiene before SaaS storage costs accumulate | 5 |
 | `refactor_quickstart_specific_template.md` | Quickstart-specific compose template; keeps OSB distribution in sync with evolving app | 5 |
 | `refactor_mcp_server_telemetry_connection.md` | Expose telemetry DB through MCP without disturbing app DB tools; developer productivity | 4.5 |
+| 23. SonarCloud maintainability + duplication cleanup | 903 maintainability issues, 10.7% duplication (2026-11-22). Batch by PHP directory; skip auth code until JWT/OIDC land; `php:S112` (243, generic exceptions) waits for item 22 coverage. Verify each batch with the four Ansible test roles on gighive2 | 4.5 |
 
 ---
 
@@ -333,6 +369,6 @@ Importance: 9/10. Readiness: 3/10. Revisit after item 3 is deployed.
 | SaaS critical path — IdP setup | 1 (Google + Microsoft app registrations) |
 | SaaS critical path — auth | 2 (JWT implementation), 3 (OIDC) |
 | Trivial code change (< 1 day) | 5, 8, 9, 10, 11 |
-| Small focused change (1–3 days) | 6 (deploy only), 7 |
-| Medium refactor (1–2 weeks) | 12, 14, 15 |
+| Small focused change (1–3 days) | 6 (deploy only), 7, 21 |
+| Medium refactor (1–2 weeks) | 12, 14, 15, 22, 23 |
 | Implementation-blocked | `feature_saas_pricing_model.md` (needs item 3 first) |
