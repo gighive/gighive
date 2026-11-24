@@ -54,17 +54,17 @@ $CMD_APACHECTL -S 2>/dev/null || true
 
 section "Global/VirtualHost Log Directives (grep)"
 LOG_DIRS=()
-if [ -d /etc/apache2 ]; then
+if [[ -d /etc/apache2 ]]; then
   LOG_DIRS+=("/etc/apache2")
 fi
-if [ -d /etc/httpd ]; then
+if [[ -d /etc/httpd ]]; then
   LOG_DIRS+=("/etc/httpd")
 fi
-if [ -d /usr/local/apache2/conf ]; then
+if [[ -d /usr/local/apache2/conf ]]; then
   LOG_DIRS+=("/usr/local/apache2/conf")
 fi
 
-if [ "${#LOG_DIRS[@]}" -eq 0 ]; then
+if [[ "${#LOG_DIRS[@]}" -eq 0 ]]; then
   echo "No standard Apache config directories found."
 else
   echo "Scanning config in: ${LOG_DIRS[*]}"
@@ -75,7 +75,7 @@ section "APACHE_LOG_DIR and Common Log Paths"
 echo "APACHE_LOG_DIR env: ${APACHE_LOG_DIR:-<unset>}"
 # Common Debian path: /var/log/apache2; RHEL/CentOS: /var/log/httpd
 for p in /var/log/apache2 /var/log/httpd /usr/local/apache2/logs; do
-  if [ -d "$p" ]; then
+  if [[ -d "$p" ]]; then
     echo "Listing: $p"
     ls -l "$p" || true
     echo
@@ -90,7 +90,7 @@ done
 
 section "Permissions on Log Directories/Files"
 for p in /var/log/apache2 /var/log/httpd /usr/local/apache2/logs; do
-  if [ -d "$p" ]; then
+  if [[ -d "$p" ]]; then
     echo "stat $p:"
     stat "$p" || true
     echo
@@ -104,7 +104,7 @@ done
 section "Container-style STDOUT/STDERR log targets"
 # In containerized Apache images, CustomLog/ErrorLog often point to /proc/self/fd/1 and /proc/self/fd/2
 echo "Grepping for /proc/self/fd in config:"
-if [ "${#LOG_DIRS[@]}" -gt 0 ]; then
+if [[ "${#LOG_DIRS[@]}" -gt 0 ]]; then
   grep -Rni --color=never '/proc/self/fd' "${LOG_DIRS[@]}" 2>/dev/null || echo "No direct fd targets found."
 else
   echo "No config dirs to search."
@@ -112,7 +112,7 @@ fi
 
 section "LogLevel"
 # If LogLevel is too low, you may miss events; Dump detected LogLevel entries
-if [ "${#LOG_DIRS[@]}" -gt 0 ]; then
+if [[ "${#LOG_DIRS[@]}" -gt 0 ]]; then
   echo "Configured LogLevel entries:"
   grep -RniE '^\s*LogLevel\b' "${LOG_DIRS[@]}" 2>/dev/null || echo "(No explicit LogLevel found; default should be warn)"
 fi
@@ -126,7 +126,7 @@ if grep -qi 'security2_module' /tmp/apache_modules.txt 2>/dev/null; then
   echo "Check audit log dir (if configured):"
   AUDIT_DIRS=$(grep -RniE 'SecAuditLog(StorageDir)?' "${LOG_DIRS[@]}" 2>/dev/null | awk -F':' '{print $3}' | awk '{print $2}' | tr -d '\"' || true)
   for d in $AUDIT_DIRS; do
-    if [ -n "$d" ] && [ -d "$d" ]; then
+    if [[ -n "$d" && -d "$d" ]]; then
       echo "Listing $d:"
       ls -l "$d" || true
     fi

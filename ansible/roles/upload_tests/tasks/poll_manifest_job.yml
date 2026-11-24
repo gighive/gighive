@@ -6,7 +6,7 @@
     url_username: "{{ admin_user }}"
     url_password: "{{ gighive_admin_password }}"
     force_basic_auth: true
-    validate_certs: false
+    validate_certs: "{{ gighive_validate_certs }}"
     return_content: true
   register: upload_tests_poll_http
   delegate_to: localhost

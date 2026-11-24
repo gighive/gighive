@@ -10,14 +10,14 @@ IFS=$'\n\t'
 ENVIRONMENT=azure.env
 
 # Load Azure environment variables, if present
-if [ -f "$ENVIRONMENT" ]; then
+if [[ -f "$ENVIRONMENT" ]]; then
   set -o allexport
   source "$ENVIRONMENT"
   set +o allexport
 fi
 
 # Ensure ARM_SUBSCRIPTION_ID is set
-if [ -z "${ARM_SUBSCRIPTION_ID-}" ]; then
+if [[ -z "${ARM_SUBSCRIPTION_ID-}" ]]; then
   echo "❌ ARM_SUBSCRIPTION_ID is not set. Please export it in $ENVIRONMENT."
   exit 1
 fi
@@ -35,7 +35,7 @@ RG_LIST=( $(az group list \
                --query "[].name" \
                -o tsv) )
 
-if [ "${#RG_LIST[@]}" -eq 0 ]; then
+if [[ "${#RG_LIST[@]}" -eq 0 ]]; then
   echo "⚠️  No resource groups found in subscription ID '$ARM_SUBSCRIPTION_ID'. Exiting."
   exit 0
 fi
@@ -75,7 +75,7 @@ while true; do
     -o table
 
   COUNT=$(az group list --subscription "$ARM_SUBSCRIPTION_ID" --query "length(@)" -o tsv)
-  if [ "$COUNT" -eq 0 ]; then
+  if [[ "$COUNT" -eq 0 ]]; then
     echo
     echo "🎉 All resource groups have been deleted."
     break

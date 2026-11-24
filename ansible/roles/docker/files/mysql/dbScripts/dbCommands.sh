@@ -8,7 +8,7 @@ set -euo pipefail
 # assume docker_dir is "$GIGHIVE_HOME/ansible/roles/docker/files".
 ENV_FILE="$GIGHIVE_HOME/ansible/roles/docker/files/apache/externalConfigs/.env"
 
-if [ -f "$ENV_FILE" ]; then
+if [[ -f "$ENV_FILE" ]]; then
   # shellcheck disable=SC1090
   . "$ENV_FILE"
 else

@@ -9,6 +9,7 @@ import sys
 import time
 import unicodedata
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 
@@ -26,7 +27,7 @@ def _norm(s: str) -> str:
 
 
 def _sha1_hex(s: str) -> str:
-    return hashlib.sha1(s.encode("utf-8")).hexdigest()
+    return hashlib.sha1(s.encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
 def session_key_for_legacy_row(*, legacy_csv_basename: str, legacy_row_index: int, d_date: str, t_title: str) -> str:
@@ -49,9 +50,12 @@ def file_ext_lower(path: str) -> str:
     return p[dot + 1 :].lower()
 
 
-def sha256_file(path: str) -> str:
+def sha256_file(path: str, allowed_roots: Sequence[str]) -> str:
+    target = os.path.realpath(path)
+    if not any(target.startswith(root + os.sep) for root in allowed_roots):
+        raise ValueError("file is outside --source-root(s) and --media-search-dirs")
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with open(target, "rb") as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
@@ -70,14 +74,26 @@ def _normalize_ext_set(items: object) -> Optional[set]:
     return out
 
 
+def inventories_dir() -> Optional[str]:
+    for parent in Path(__file__).resolve().parents:
+        cand = parent / "inventories"
+        if (cand / "group_vars").is_dir():
+            return os.path.realpath(cand)
+    return None
+
+
 def load_ext_sets_from_group_vars(group_vars_path: str) -> Tuple[Optional[set], Optional[set], str]:
     try:
         import yaml  # type: ignore
     except Exception:
         return None, None, "PyYAML not installed"
 
+    inv = inventories_dir()
+    real = os.path.realpath(group_vars_path)
+    if inv is None or not real.startswith(inv + os.sep):
+        return None, None, f"group_vars must be inside the repo's ansible/inventories folder: {group_vars_path}"
     try:
-        with open(group_vars_path, "r", encoding="utf-8") as f:
+        with open(real, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     except FileNotFoundError:
         return None, None, f"group_vars file not found: {group_vars_path}"
@@ -220,6 +236,7 @@ def convert_legacy_csv(
     session_files_rows: List[Dict[str, str]] = []
     manifest_items: List[Dict[str, object]] = []
     report = Report()
+    allowed_roots = [os.path.realpath(r) for r in [*source_roots, *media_search_dirs] if r]
 
     with open(input_csv, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -292,7 +309,7 @@ def convert_legacy_csv(
                     )
                     if resolved:
                         try:
-                            checksum_sha256 = sha256_file(resolved)
+                            checksum_sha256 = sha256_file(resolved, allowed_roots)
                             report.files_hashed += 1
                             try:
                                 size_bytes = int(os.path.getsize(resolved))
@@ -461,8 +478,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     args = ap.parse_args(argv)
 
-    input_csv = args.input_csv
-    output_dir = args.output_dir
+    cwd = os.path.realpath(os.getcwd())
+    input_csv = os.path.realpath(args.input_csv)
+    output_dir = os.path.realpath(args.output_dir)
+    if not input_csv.startswith(cwd + os.sep):
+        print(f"error: input_csv must be inside the current folder ({cwd}): {args.input_csv}", file=sys.stderr)
+        return 2
+    if output_dir != cwd and not output_dir.startswith(cwd + os.sep):
+        print(f"error: --output-dir must be inside the current folder ({cwd}): {args.output_dir}", file=sys.stderr)
+        return 2
 
     source_root_single = str(args.source_root or "").strip() or ""
     source_roots_multi = [p for p in str(args.source_roots or "").split(":") if p.strip()]

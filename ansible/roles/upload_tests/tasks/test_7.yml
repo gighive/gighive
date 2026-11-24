@@ -25,7 +25,7 @@
     url_username: "{{ admin_user }}"
     url_password: "{{ gighive_admin_password }}"
     force_basic_auth: true
-    validate_certs: false
+    validate_certs: "{{ gighive_validate_certs }}"
     headers:
       Tus-Resumable: "1.0.0"
       Upload-Length: "{{ upload_tests_7_stat.stat.size }}"
@@ -105,7 +105,7 @@
     url_username: "{{ admin_user }}"
     url_password: "{{ gighive_admin_password }}"
     force_basic_auth: true
-    validate_certs: false
+    validate_certs: "{{ gighive_validate_certs }}"
     body_format: json
     body:
       upload_id:  "{{ upload_tests_7_upload_id }}"

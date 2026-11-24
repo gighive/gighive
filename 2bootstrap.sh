@@ -94,7 +94,7 @@ BACKEND_VARS_FILE="terraform/backend.tfvars"
 #alias azure='ssh azureuser@52.224.160.15'
 
 # Load Azure environment variables
-if [ -f "$ENVIRONMENT" ]; then
+if [[ -f "$ENVIRONMENT" ]]; then
   set -o allexport
   source "$ENVIRONMENT"
   set +o allexport
@@ -149,7 +149,7 @@ CONTAINER_EXISTS=$(az storage container exists \
   --auth-mode login \
   --query "exists" -o tsv)
 
-if [ "$CONTAINER_EXISTS" != "true" ]; then
+if [[ "$CONTAINER_EXISTS" != "true" ]]; then
   echo "Creating storage container: $TF_CONTAINER"
   az storage container create \
     --name "$TF_CONTAINER" \

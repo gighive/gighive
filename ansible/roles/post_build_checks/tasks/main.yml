@@ -2151,7 +2151,7 @@
   ansible.builtin.uri:
     url: "{{ gighive_base_url }}/admin/import_media_zip_scan_status.php"
     method: GET
-    validate_certs: false
+    validate_certs: "{{ gighive_validate_certs }}"
     status_code: 401
   changed_when: false
   tags: [smoke]
@@ -2160,7 +2160,7 @@
   ansible.builtin.uri:
     url: "{{ gighive_base_url }}/admin/import_media_zip_scan_worker.php"
     method: GET
-    validate_certs: false
+    validate_certs: "{{ gighive_validate_certs }}"
     status_code:
       - 401
       - 403
@@ -2215,7 +2215,7 @@
   ansible.builtin.uri:
     url: "{{ gighive_base_url }}/auth/gh-auth.js"
     method: GET
-    validate_certs: false
+    validate_certs: "{{ gighive_validate_certs }}"
     status_code: 200
   changed_when: false
   tags: [smoke]

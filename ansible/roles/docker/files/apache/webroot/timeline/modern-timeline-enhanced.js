@@ -29,8 +29,6 @@ class StormPigsTimeline {
         this._wheelLock = false;
         // Suppress scroll handler while applying programmatic multi-frame corrections
         this._suppressScroll = false;
-        
-        this.loadTimelineData();
     }
 
     async loadTimelineData() {
@@ -1119,5 +1117,6 @@ class StormPigsTimeline {
 
 // Initialize timeline when DOM is loaded
 function initStormPigsTimeline() {
-    new StormPigsTimeline('my-timeline');
+    const timeline = new StormPigsTimeline('my-timeline');
+    timeline.loadTimelineData();
 }

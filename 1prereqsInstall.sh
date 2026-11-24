@@ -111,9 +111,9 @@ install_ansible() {
   # Offer to persist PATH update
   if prompt_yes_no "Add ~/.ansible-azure/bin to your shell PATH permanently?" "Y"; then
     SHELL_RC=""
-    if [ -n "${ZSH_VERSION:-}" ]; then
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
       SHELL_RC="$HOME/.zshrc"
-    elif [ -n "${BASH_VERSION:-}" ]; then
+    elif [[ -n "${BASH_VERSION:-}" ]]; then
       SHELL_RC="$HOME/.bashrc"
     else
       SHELL_RC="$HOME/.bashrc"
@@ -132,7 +132,7 @@ install_ansible() {
 install_terraform() {
   log "🧱 (Terraform) Installing from HashiCorp apt repo..."
   if [[ ! -f /usr/share/keyrings/hashicorp-archive-keyring.gpg ]]; then
-    curl -fsSL https://apt.releases.hashicorp.com/gpg \
+    curl --proto "=https" -fsSL https://apt.releases.hashicorp.com/gpg \
       | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
   fi
   UBU_CODENAME="$(lsb_release -cs)"
@@ -153,7 +153,7 @@ install_virtualbox() {
     warn "(VirtualBox) linux-headers for current kernel not found; continuing."
 
   if [[ ! -f /usr/share/keyrings/oracle-virtualbox-2016.gpg ]]; then
-    curl -fsSL https://www.virtualbox.org/download/oracle_vbox_2016.asc \
+    curl --proto "=https" -fsSL https://www.virtualbox.org/download/oracle_vbox_2016.asc \
       | sudo gpg --dearmor -o /usr/share/keyrings/oracle-virtualbox-2016.gpg
   fi
   UBU_CODENAME="$(lsb_release -cs)"
@@ -177,7 +177,7 @@ install_virtualbox() {
     VB_VER="$("$VBCTL" --version | cut -d'r' -f1 || true)"
     if [[ -n "${VB_VER}" ]]; then
       TMP="/tmp/Oracle_VM_VirtualBox_Extension_Pack.vbox-extpack"
-      curl -fL "https://download.virtualbox.org/virtualbox/${VB_VER}/Oracle_VM_VirtualBox_Extension_Pack-${VB_VER}.vbox-extpack" -o "${TMP}" || {
+      curl --proto "=https" -fL "https://download.virtualbox.org/virtualbox/${VB_VER}/Oracle_VM_VirtualBox_Extension_Pack-${VB_VER}.vbox-extpack" -o "${TMP}" || {
         warn "(VirtualBox) Could not fetch Extension Pack for ${VB_VER}."
       }
       if [[ -f "${TMP}" ]]; then

@@ -1,5 +1,5 @@
 # A) Headers (range support, content type, caching)
-curl -I -L "https://www.stormpigs.com/StormPigs20161207_1_whilemyguitargentlyweeps.mp4"
+curl --proto "=https" -I -L "https://www.stormpigs.com/StormPigs20161207_1_whilemyguitargentlyweeps.mp4"
 
 # B) Range request (should be 206 Partial Content)
 curl -s -D - -H "Range: bytes=0-102399" \

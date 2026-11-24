@@ -16,6 +16,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -167,14 +168,26 @@ def load_media_config_from_env() -> Tuple[Optional[MediaConfig], str]:
     return MediaConfig(allowed_mimes=allowed, audio_exts=audio, video_exts=video, source="env", message="ok"), "ok"
 
 
+def inventories_dir() -> Optional[str]:
+    for parent in Path(__file__).resolve().parents:
+        cand = parent / "inventories"
+        if (cand / "group_vars").is_dir():
+            return os.path.realpath(cand)
+    return None
+
+
 def load_media_config_from_group_vars(group_vars_path: str) -> Tuple[Optional[MediaConfig], str]:
     try:
         import yaml  # type: ignore
     except Exception:
         return None, "PyYAML not installed"
 
+    inv = inventories_dir()
+    real = os.path.realpath(group_vars_path)
+    if inv is None or not real.startswith(inv + os.sep):
+        return None, f"group_vars must be inside the repo's ansible/inventories folder: {group_vars_path}"
     try:
-        with open(group_vars_path, "r", encoding="utf-8") as f:
+        with open(real, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     except FileNotFoundError:
         return None, f"group_vars file not found: {group_vars_path}"
@@ -724,6 +737,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
 
     args = p.parse_args(argv)
+    if not re.fullmatch(r"[A-Za-z0-9_.@-]+", args.ssh_target) or args.ssh_target.startswith("-"):
+        raise SystemExit("--ssh-target must be an ssh host or user@host, got {!r}".format(args.ssh_target))
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", args.db_host) or args.db_host.startswith("-"):
+        raise SystemExit("--db-host must be a hostname or IP, got {!r}".format(args.db_host))
+    if not re.fullmatch(r"[A-Za-z0-9_.@-]+", args.db_user) or args.db_user.startswith("-"):
+        raise SystemExit("--db-user has unsupported characters: {!r}".format(args.db_user))
+    if not re.fullmatch(r"[A-Za-z0-9_$]+", args.db_name):
+        raise SystemExit("--db-name has unsupported characters: {!r}".format(args.db_name))
 
     global ALLOWED_MIMES, AUDIO_EXTS, VIDEO_EXTS
     media_cfg = resolve_media_config(args.group_vars, args.no_group_vars)

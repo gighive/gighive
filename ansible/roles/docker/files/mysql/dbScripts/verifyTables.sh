@@ -2,7 +2,7 @@
 
 ENV_FILE="$GIGHIVE_HOME/ansible/roles/docker/files/apache/externalConfigs/.env"
 
-if [ -f "$ENV_FILE" ]; then
+if [[ -f "$ENV_FILE" ]]; then
   . "$ENV_FILE"
 else
   echo "ERROR: Env file not found: $ENV_FILE" >&2

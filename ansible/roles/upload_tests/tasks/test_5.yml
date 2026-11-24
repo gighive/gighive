@@ -17,7 +17,7 @@
     url_username: "{{ admin_user }}"
     url_password: "{{ gighive_admin_password }}"
     force_basic_auth: true
-    validate_certs: false
+    validate_certs: "{{ gighive_validate_certs }}"
     body_format: json
     body: "{{ lookup('ansible.builtin.file', '/tmp/upload_test_manifest_add.json') | from_json }}"
     status_code: [200, 202]
