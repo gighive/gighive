@@ -65,6 +65,8 @@ For the one-shot bundle runtime, these had to be overridden to:
 
 The working command shape became:
 
+`upload_media_by_hash.py` imports `tool_guards.py` from its own folder, so copy both files when running it outside the repo (e.g. from `~/Downloads`).
+
 ```bash
 python3 ~/Downloads/upload_media_by_hash.py \
   --source-root "$HOME/Downloads/20050526/" \
