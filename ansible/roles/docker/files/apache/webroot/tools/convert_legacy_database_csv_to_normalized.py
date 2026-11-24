@@ -11,7 +11,7 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from tool_guards import inventories_dir
+from tool_guards import read_group_vars
 
 
 DEFAULT_AUDIO_EXTS = {
@@ -76,25 +76,9 @@ def _normalize_ext_set(items: object) -> Optional[set]:
 
 
 def load_ext_sets_from_group_vars(group_vars_path: str) -> Tuple[Optional[set], Optional[set], str]:
-    try:
-        import yaml  # type: ignore
-    except Exception:
-        return None, None, "PyYAML not installed"
-
-    inv = inventories_dir()
-    real = os.path.realpath(group_vars_path)
-    if inv is None or not real.startswith(inv + os.sep):
-        return None, None, f"group_vars must be inside the repo's ansible/inventories folder: {group_vars_path}"
-    try:
-        with open(real, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-    except FileNotFoundError:
-        return None, None, f"group_vars file not found: {group_vars_path}"
-    except Exception as e:
-        return None, None, f"failed to parse group_vars: {e}"
-
-    if not isinstance(data, dict):
-        return None, None, "group_vars did not parse to a mapping"
+    data, msg = read_group_vars(group_vars_path)
+    if data is None:
+        return None, None, msg
 
     audio = _normalize_ext_set(data.get("gighive_upload_audio_exts"))
     video = _normalize_ext_set(data.get("gighive_upload_video_exts"))

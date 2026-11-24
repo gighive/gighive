@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from tool_guards import check_remote_args, inventories_dir
+from tool_guards import check_remote_args, read_group_vars
 
 DEFAULT_ALLOWED_MIMES = {
     "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/aac", "audio/flac", "audio/mp4",
@@ -171,25 +171,9 @@ def load_media_config_from_env() -> Tuple[Optional[MediaConfig], str]:
 
 
 def load_media_config_from_group_vars(group_vars_path: str) -> Tuple[Optional[MediaConfig], str]:
-    try:
-        import yaml  # type: ignore
-    except Exception:
-        return None, "PyYAML not installed"
-
-    inv = inventories_dir()
-    real = os.path.realpath(group_vars_path)
-    if inv is None or not real.startswith(inv + os.sep):
-        return None, f"group_vars must be inside the repo's ansible/inventories folder: {group_vars_path}"
-    try:
-        with open(real, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-    except FileNotFoundError:
-        return None, f"group_vars file not found: {group_vars_path}"
-    except Exception as e:
-        return None, f"failed to parse group_vars: {e}"
-
-    if not isinstance(data, dict):
-        return None, "group_vars did not parse to a mapping"
+    data, msg = read_group_vars(group_vars_path)
+    if data is None:
+        return None, msg
 
     allowed = _normalize_string_set(data.get("gighive_upload_allowed_mimes"))
     audio = _normalize_ext_set(data.get("gighive_upload_audio_exts"))
