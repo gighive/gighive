@@ -9,8 +9,9 @@ import sys
 import time
 import unicodedata
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+from tool_guards import inventories_dir
 
 
 DEFAULT_AUDIO_EXTS = {
@@ -52,7 +53,7 @@ def file_ext_lower(path: str) -> str:
 
 def sha256_file(path: str, allowed_roots: Sequence[str]) -> str:
     target = os.path.realpath(path)
-    if not any(target.startswith(root + os.sep) for root in allowed_roots):
+    if not target.startswith(tuple(allowed_roots)):
         raise ValueError("file is outside --source-root(s) and --media-search-dirs")
     h = hashlib.sha256()
     with open(target, "rb") as f:
@@ -72,14 +73,6 @@ def _normalize_ext_set(items: object) -> Optional[set]:
         if v:
             out.add(v)
     return out
-
-
-def inventories_dir() -> Optional[str]:
-    for parent in Path(__file__).resolve().parents:
-        cand = parent / "inventories"
-        if (cand / "group_vars").is_dir():
-            return os.path.realpath(cand)
-    return None
 
 
 def load_ext_sets_from_group_vars(group_vars_path: str) -> Tuple[Optional[set], Optional[set], str]:
@@ -130,15 +123,19 @@ def resolve_media_path(
     tok = (token or "").strip()
     if tok == "":
         return None
+    allowed = [os.path.realpath(r).rstrip(os.sep) + os.sep for r in [*source_roots, *media_search_dirs] if r]
 
-    if os.path.isabs(tok) and os.path.isfile(tok):
+    def usable(candidate: str) -> bool:
+        return os.path.isfile(candidate) and os.path.realpath(candidate).startswith(tuple(allowed))
+
+    if os.path.isabs(tok) and usable(tok):
         return tok
 
     for root in source_roots:
         if not root:
             continue
         candidate = os.path.normpath(os.path.join(root, tok.lstrip("/\\")))
-        if os.path.isfile(candidate):
+        if usable(candidate):
             return candidate
 
     base = os.path.basename(tok)
@@ -146,7 +143,7 @@ def resolve_media_path(
         if not d:
             continue
         candidate = os.path.join(d, base)
-        if os.path.isfile(candidate):
+        if usable(candidate):
             return candidate
 
     return None
@@ -236,7 +233,7 @@ def convert_legacy_csv(
     session_files_rows: List[Dict[str, str]] = []
     manifest_items: List[Dict[str, object]] = []
     report = Report()
-    allowed_roots = [os.path.realpath(r) for r in [*source_roots, *media_search_dirs] if r]
+    allowed_roots = [os.path.realpath(r).rstrip(os.sep) + os.sep for r in [*source_roots, *media_search_dirs] if r]
 
     with open(input_csv, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
