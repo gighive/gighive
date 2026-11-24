@@ -172,7 +172,7 @@ def load_media_config_from_env() -> Tuple[Optional[MediaConfig], str]:
 
 def load_media_config_from_group_vars(group_vars_path: str) -> Tuple[Optional[MediaConfig], str]:
     data, msg = read_group_vars(group_vars_path)
-    if data is None:
+    if not isinstance(data, dict):
         return None, msg
 
     allowed = _normalize_string_set(data.get("gighive_upload_allowed_mimes"))
