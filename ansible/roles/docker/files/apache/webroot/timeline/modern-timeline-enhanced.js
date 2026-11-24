@@ -1118,5 +1118,5 @@ class StormPigsTimeline {
 // Initialize timeline when DOM is loaded
 function initStormPigsTimeline() {
     const timeline = new StormPigsTimeline('my-timeline');
-    timeline.loadTimelineData();
+    timeline.loadTimelineData().catch(err => console.error('Timeline load failed:', err));
 }

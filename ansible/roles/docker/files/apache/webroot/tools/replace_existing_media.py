@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from tool_guards import check_remote_args, inventories_dir
+
 
 DEFAULT_ALLOWED_MIMES = {
     "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/aac", "audio/flac", "audio/mp4",
@@ -189,14 +191,6 @@ def load_media_config_from_env() -> Tuple[Optional[MediaConfig], str]:
     return MediaConfig(allowed_mimes=allowed, audio_exts=audio, video_exts=video, source="env", message="ok"), "ok"
 
 
-def inventories_dir() -> Optional[str]:
-    for parent in Path(__file__).resolve().parents:
-        cand = parent / "inventories"
-        if (cand / "group_vars").is_dir():
-            return os.path.realpath(cand)
-    return None
-
-
 def load_media_config_from_group_vars(group_vars_path: str) -> Tuple[Optional[MediaConfig], str]:
     try:
         import yaml  # type: ignore
@@ -347,14 +341,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     args = p.parse_args(argv)
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", args.event_date):
         raise SystemExit("--event-date must be YYYY-MM-DD")
-    if not re.fullmatch(r"[A-Za-z0-9_.@-]+", args.ssh_target) or args.ssh_target.startswith("-"):
-        raise SystemExit("--ssh-target must be an ssh host or user@host, got {!r}".format(args.ssh_target))
-    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", args.db_host) or args.db_host.startswith("-"):
-        raise SystemExit("--db-host must be a hostname or IP, got {!r}".format(args.db_host))
-    if not re.fullmatch(r"[A-Za-z0-9_.@-]+", args.db_user) or args.db_user.startswith("-"):
-        raise SystemExit("--db-user has unsupported characters: {!r}".format(args.db_user))
-    if not re.fullmatch(r"[A-Za-z0-9_$]+", args.db_name):
-        raise SystemExit("--db-name has unsupported characters: {!r}".format(args.db_name))
+    check_remote_args(args)
     if not args.dry_run and not args.backup_csv:
         stamp = time.strftime("%Y%m%d-%H%M%S")
         args.backup_csv = os.path.join(
