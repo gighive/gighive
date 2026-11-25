@@ -112,8 +112,8 @@ def resolve_media_path(
     def usable(candidate: str) -> bool:
         return os.path.isfile(candidate) and os.path.realpath(candidate).startswith(tuple(allowed))
 
-    if os.path.isabs(tok) and usable(tok):
-        return tok
+    if os.path.isabs(tok) and os.path.isfile(tok):
+        return tok if usable(tok) else None
 
     for root in source_roots:
         if not root:
