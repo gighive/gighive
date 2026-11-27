@@ -440,7 +440,7 @@ Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventor
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive2.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive -e allow_destructive=true -K"
 # LAB PUSH: 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-lab-20261108.log
-# LAB ALL TESTS: remember it is FULL PROD now so don't sync audio or video and don't forget api key if needed
+# LAB ALL TESTS: remember it is FULL prod now so don't sync audio or video and don't forget api key if needed
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --tags set_targets,test_admin_pages.yml,upload_tests,playwright_admin_tests -e allow_destructive=true -e run_playwright_admin_tests=true -K" ansible-playbook-lab-20260704.log
 # LAB, rebuild 
 Last run (lab: run from lab): script -q -c "ansible-playbook -i ansible/inventories/inventory_lab.yml ansible/playbooks/site.yml --skip-tags upload_tests,installation_tracking,one_shot_bundle,one_shot_bundle_archive --ask-become-pass" ansible-playbook-gighive-20260905.log
@@ -453,7 +453,7 @@ Last run (staging: run from staging to reinstall telemetry): script -q -c "ansib
 # PROD ROLLOUT
 Last run (prod: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests" ansible-playbook-prod-20261101.log
 # PROD ROLLOUT FROM MAC
-Last run (dev: run from dev): script -q ansible-playbook-prod-20261107.log ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
+Last run (dev: run from dev): script -q ansible-playbook-prod-20261127.log ansible-playbook -i ansible/inventories/inventory_prod.yml ansible/playbooks/site.yml --skip-tags vbox_provision,db_migrations,installation_tracking,one_shot_bundle,one_shot_bundle_archive,upload_tests,playwright_admin_tests
 # OSB ONE-SHOT-BUNDLE CREATION AFTER GIT PUSH (that way, versions match), REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
 Last run (dev: run from dev): script -q -c "ansible-playbook -i ansible/inventories/inventory_gighive.yml ansible/playbooks/site.yml --tags set_targets,one_shot_bundle,one_shot_bundle_archive --diff" ansible-playbook-gighive-bundle-20261108.log 
 # OSB ONE-SHOT-BUNDLE CREATION FROM MAC, REMEMBER TO DELETE /tmp/OSB DIR, run AFTER staging push to test telemetry is working 
@@ -484,6 +484,7 @@ What's next: turn off the stagingvm/move stagingvm onto it's own box
 What's next: add "how to use Gighive" video to the home page of the iphone app
 
 TODO
+Feature: save telemetry database
 Feature: encode from browser window
 Feature: ability to use ANY LLM, not just open ai
 Feature: additional information provided by ffmpeg (lat/long?) into the media file info field
